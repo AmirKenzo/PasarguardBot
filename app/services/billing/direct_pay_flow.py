@@ -12,7 +12,7 @@ from app.db.crud.user import UserCRUD
 from app.services.billing import direct_pay_store
 from app.telegram.keyboards.balance import create_inline_cartbcard
 from app.telegram.state import clear_user, get_data, set_data, set_step
-from app.telegram.user.balance import states
+from app.telegram.user.balance.states import CALLBACK_BACK_TO_BALANCE, STEP_CART_B_CART
 from app.utils.text.bot_texts import get_bot_text
 
 CALLBACK_DIRECT_PAY_TOPUP = "direct_pay_topup"
@@ -127,7 +127,7 @@ async def create_balance_button(user_id: int):
     callback = (
         CALLBACK_DIRECT_PAY_TOPUP
         if settings and getattr(settings, "direct_pay_purchase_mode", False) and ready
-        else states.CALLBACK_BACK_TO_BALANCE
+        else CALLBACK_BACK_TO_BALANCE
     )
     return [[Button.inline(balance_button_text, data=callback)]]
 
@@ -220,7 +220,7 @@ async def start_direct_pay_topup(event) -> bool:
         await event.edit(intro, buttons=buttons)
     except Exception:
         await event.respond(intro, buttons=buttons)
-    await set_step(user_id=user_id, step=states.STEP_CART_B_CART)
+    await set_step(user_id=user_id, step=STEP_CART_B_CART)
     return True
 
 
