@@ -89,6 +89,18 @@ SETTINGS_MENU_SECTIONS = (
         columns=1,
     ),
     SettingsMenuSection(
+        "home_menu",
+        "🏠 دکمه‌های منوی اصلی",
+        "نمایش یا مخفی کردن دکمه‌های اصلی صفحه هوم. این بخش جدا از ابزارهای صفحه سرویس است و پیش‌فرض همه گزینه‌ها روشن است.",
+        (
+            SettingsMenuItem("پروفایل من", "profile_mode", default=True),
+            SettingsMenuItem("راهنما", "help_mode", default=True),
+            SettingsMenuItem("پشتیبانی", "support_mode", default=True),
+            SettingsMenuItem("تنظیمات پیشرفته", "advanced_settings_mode", default=True, wide=True),
+        ),
+        columns=2,
+    ),
+    SettingsMenuSection(
         "service_tools",
         "🔗 دکمه‌ها و ابزارهای صفحه سرویس",
         "این بخش تعیین می‌کند کاربر داخل صفحه سرویس چه ابزارهایی مثل QR، لینک‌ها، کلاینت‌ها و انتقال کانفیگ ببیند.",
