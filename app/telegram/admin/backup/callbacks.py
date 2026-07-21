@@ -66,6 +66,16 @@ async def callback_backup(event: events.CallbackQuery.Event):
         return
 
     if data == "backup_run_now":
+        if not await _channel_configured():
+            await event.answer(texts.CHANNEL_NOT_SET_ALERT, alert=True)
+            hours = await _current_interval()
+            await event.edit(
+                f"{texts.CHANNEL_NOT_SET}\n\n{texts.menu_text(hours, False)}",
+                buttons=keyboards.menu_buttons(hours),
+                parse_mode="md",
+            )
+            return
+
         await event.answer()
         await event.edit(texts.WORKING)
         result = await run_backup_and_send(trigger="manual")

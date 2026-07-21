@@ -28,12 +28,10 @@ from app.telegram.admin.info_bot.states import (
     TEHRAN_TZ,
     UTC_TZ,
 )
-from app.telegram.state.diagnostics import collect_redis_diagnostics
 from app.telegram.state.store import get_app_cache, set_app_cache
 from app.utils.formatting.dates import Time_Date
 from app.utils.text.markdown import bold, code, quote
 from app.version import VERSIONS
-from config import STATE_TTL_SECONDS
 
 logger = get_logger(__name__)
 
@@ -458,20 +456,11 @@ async def _system_payload(force: bool = False) -> dict:
             "sale_mode": bool(getattr(settings, "sale_mode", True)),
             "arz_usd": int(getattr(settings, "arz_usd", 0) or 0),
             "arz_trx": int(getattr(settings, "arz_trx", 0) or 0),
+            "arz_ton": int(getattr(settings, "arz_ton", 0) or 0),
             **metrics,
         }
 
-    payload = await _cached_json("stats:system", _produce, force=force)
-    payload["redis"] = await collect_redis_diagnostics(user_samples=5, cache_preview_len=48)
-    return payload
-
-
-async def redis_payload(force: bool = False) -> dict:
-    """Live Redis diagnostics (not cached)."""
-    if force:
-        logger.info("%s stats redis panel refresh", LogTag.REDIS)
-    redis = await collect_redis_diagnostics(user_samples=12, cache_preview_len=96)
-    return {"updated_at": _now_utc().isoformat(), "redis": redis}
+    return await _cached_json("stats:system", _produce, force=force)
 
 
 def _format_cache_meta(payload: dict) -> str:
@@ -487,65 +476,6 @@ def _format_cache_meta(payload: dict) -> str:
     return ""
 
 
-def _format_redis_block(redis: dict, *, detailed: bool = False) -> list[str]:
-    if not redis.get("available"):
-        return [
-            "",
-            f"🔴 {bold('Redis')}",
-            f"❌ {code(redis.get('error') or 'unavailable')}",
-            f"🌐 {bold('Host:')} {code(redis.get('host', '—'))}",
-            f"🏷 {bold('Namespace:')} {code(redis.get('namespace', '—'))}",
-        ]
-
-    counts = redis.get("counts") or {}
-    lines = [
-        "",
-        f"🔴 {bold('Redis')}",
-        f"✅ {bold('وضعیت:')} متصل · {code(redis.get('host', '—'))}",
-        f"🏷 {bold('Namespace:')} {code(redis.get('namespace', '—'))}",
-        f"🧠 {bold('RAM Redis:')} {code(str(redis.get('memory_human', '—')))}"
-        f" · 👥 clients {code(str(redis.get('connected_clients', 0)))}"
-        f" · 🔑 db {code(str(redis.get('db_keys', 0)))}",
-        f"📂 {bold('user state:')} {code(str(counts.get('user_state', 0)))}"
-        f" · {bold('cache:')} {code(str(counts.get('app_cache', 0)))}"
-        f" · {bold('callback:')} {code(str(counts.get('callbacks', 0)))}"
-        f" · {bold('lock:')} {code(str(counts.get('locks', 0)))}",
-        f"⏱ {bold('TTL state:')} {code(str(redis.get('state_ttl_seconds', STATE_TTL_SECONDS)))}s"
-        f" · {bold('TTL stats cache:')} {code(str(STATS_CACHE_TTL))}s",
-    ]
-
-    cache_rows = redis.get("stats_cache") or []
-    if cache_rows:
-        lines.append("")
-        lines.append(f"📦 {bold('کلیدهای cache (stats + …)')}")
-        show = cache_rows if detailed else cache_rows[:8]
-        for row in show:
-            ttl = row.get("ttl", -1)
-            ttl_text = "∞" if ttl == -1 else (f"{ttl}s" if ttl >= 0 else "—")
-            lines.append(f"• `{row.get('key', '—')}` · TTL {code(ttl_text)} · {code(str(row.get('bytes', 0)))} B")
-            if detailed and row.get("preview"):
-                lines.append(f"  ↳ {code(row['preview'])}")
-        if not detailed and len(cache_rows) > len(show):
-            lines.append(f"… +{len(cache_rows) - len(show)} کلید دیگر")
-
-    users = redis.get("user_samples") or []
-    if users:
-        lines.append("")
-        lines.append(f"👤 {bold('نمونه state کاربران')}")
-        for row in users:
-            extras = ""
-            if row.get("extra_keys"):
-                extras = f" · keys: {', '.join(row['extra_keys'])}"
-            ttl = row.get("ttl", -1)
-            ttl_text = "∞" if ttl == -1 else (f"{ttl}s" if ttl >= 0 else "—")
-            lines.append(
-                f"• `{row.get('user_id')}` · step {code(str(row.get('step', '—')))}"
-                f" · fields {code(str(row.get('fields', 0)))} · TTL {code(ttl_text)}{extras}"
-            )
-
-    return lines
-
-
 def _system_text(payload: dict, ping_sec: float) -> str:
     updated_at = _to_datetime(payload.get("updated_at"))
     cpu = payload["cpu_percent"]
@@ -554,7 +484,6 @@ def _system_text(payload: dict, ping_sec: float) -> str:
     lines = [
         f"🧪 {bold('وضعیت سیستم')}",
         f"🚀 {bold('پینگ ربات:')} {code(f'{ping_sec:.3f} ms')}",
-        f"🤖 {bold('ربات:')} {'🟢 روشن' if payload.get('bot_mode') else '🔴 خاموش'} · 🛒 {bold('فروش:')} {'🟢' if payload.get('sale_mode') else '🔴'}",
         "",
         f"🖥 {bold('CPU')} ({code(str(payload.get('cpu_cores', 0)))} هسته)",
         f"{_bar(cpu)} {code(f'{cpu}%')}",
@@ -568,22 +497,5 @@ def _system_text(payload: dict, ping_sec: float) -> str:
         f"📚 Telethon {code(VERSIONS.telethon)} · FastAPI {code(VERSIONS.fastapi)} · Bot {code(VERSIONS.app)}",
         f"🐍 Python {code(payload.get('python', '-'))}",
     ]
-    cache_line = _format_cache_meta(payload)
-    if cache_line:
-        lines.extend(["", cache_line])
-    lines.extend(_format_redis_block(payload.get("redis") or {}, detailed=False))
     lines.extend(["", f"🕒 {bold('آخرین بروزرسانی:')} {code(_fmt_updated(updated_at))}"])
-    return "\n".join(lines)
-
-
-def redis_text(payload: dict) -> str:
-    updated_at = _to_datetime(payload.get("updated_at"))
-    redis = payload.get("redis") or {}
-    lines = [
-        HIDDEN_LINK,
-        f"🔴 {bold('Redis — آمار و داده')}",
-        quote("داده زنده از Redis (کش آمار، state مکالمه، TTL). لاگ ترمینال: [REDIS]"),
-    ]
-    lines.extend(_format_redis_block(redis, detailed=True))
-    lines.extend(["", f"🕒 {bold('اسکن:')} {code(_fmt_updated(updated_at))}"])
     return "\n".join(lines)

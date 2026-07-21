@@ -64,12 +64,6 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
             await event.edit(msg, formatting_entities=entities, buttons=Kenzo.build_reply_markup(markup))
             return
 
-        if action in ("redis", "redis:refresh"):
-            payload = await service.redis_payload(force=action == "redis:refresh")
-            msg, entities = CustomMarkdown.parse(service.redis_text(payload))
-            await event.edit(msg, formatting_entities=entities, buttons=keyboards.redis_buttons())
-            return
-
     except MessageNotModifiedError:
         pass
     except Exception as exc:

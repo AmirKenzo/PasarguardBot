@@ -1,11 +1,24 @@
+from __future__ import annotations
+
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
 from app.db.base import AsyncSessionLocal as Session
-from app.db.models.settings import Settings
+from app.db.models.settings import (
+    SETTINGS_CONFIG_KEYS,
+    Settings,
+    default_settings_sections,
+    resolve_settings_update_kwargs,
+)
 from app.logger import get_logger
 
 log = get_logger(__name__)
+
+
+def _apply_settings_updates(setting: Settings, kwargs: dict) -> None:
+    updates = resolve_settings_update_kwargs(setting, **kwargs)
+    for column, value in updates.items():
+        setattr(setting, column, value)
 
 
 class SettingsManager:
@@ -23,46 +36,7 @@ class SettingsManager:
             async with Session() as session:
                 result = await session.execute(select(Settings))
                 if result.scalars().one_or_none() is None:
-                    default_settings = Settings(
-                        bot_mode=True,
-                        sale_mode=False,
-                        extension_mode=False,
-                        test_mode=False,
-                        test_panel_id=0,
-                        pay_mode=False,
-                        ip_mode=False,
-                        arz_mode=False,
-                        upg_mode=False,
-                        tamdid_mode=False,
-                        qr_mode=False,
-                        other_links_mode=False,
-                        sub_mode=False,
-                        change_link_mode=False,
-                        copy_link_mode=False,
-                        transfer_config_mode=False,
-                        info_mode=False,
-                        client_list_mode=False,
-                        usage_chart_mode=False,
-                        del_service_mode=False,
-                        channel_lock=False,
-                        arz_usd=0,
-                        arz_trx=0,
-                        arz_ton=0,
-                        manual_auto_confirm=False,
-                        manual_card_random_mode=False,
-                        manual_deposit_min=5000,
-                        manual_deposit_max=2000000,
-                        crypto_deposit_min=50000,
-                        crypto_deposit_max=10000000,
-                        manual_bonus_enabled=False,
-                        manual_bonus_percent=0,
-                        crypto_bonus_enabled=False,
-                        crypto_bonus_percent=0,
-                        reseller_sale_mode=False,
-                        reseller_min_wallet_balance=100000,
-                        backup_interval_hours=24,
-                    )
-                    session.add(default_settings)
+                    session.add(Settings(**default_settings_sections()))
                     await session.commit()
         except SQLAlchemyError as e:
             log.error("Error adding default settings", exc_info=e)
@@ -70,7 +44,10 @@ class SettingsManager:
     async def add_setting(self, **kwargs):
         try:
             async with Session() as session:
-                new_setting = Settings(**kwargs)
+                sections = default_settings_sections()
+                updates = resolve_settings_update_kwargs(None, **kwargs)
+                sections.update(updates)
+                new_setting = Settings(**sections)
                 session.add(new_setting)
                 await session.commit()
                 return new_setting
@@ -102,9 +79,7 @@ class SettingsManager:
                 result = await session.execute(select(Settings).filter_by(id=setting_id))
                 setting = result.scalars().first()
                 if setting:
-                    for key, value in kwargs.items():
-                        if hasattr(setting, key):
-                            setattr(setting, key, value)
+                    _apply_settings_updates(setting, kwargs)
                     await session.commit()
                     return setting
             return None
@@ -131,9 +106,9 @@ class SettingsManager:
             async with Session() as session:
                 result = await session.execute(select(Settings).filter_by(id=setting_id))
                 setting = result.scalars().first()
-                if setting and hasattr(setting, mode_name):
-                    current_value = getattr(setting, mode_name)
-                    setattr(setting, mode_name, not current_value)
+                if setting and mode_name in SETTINGS_CONFIG_KEYS:
+                    current_value = bool(getattr(setting, mode_name))
+                    _apply_settings_updates(setting, {mode_name: not current_value})
                     await session.commit()
                     return setting
             return None
@@ -146,8 +121,8 @@ class SettingsManager:
             async with Session() as session:
                 result = await session.execute(select(Settings))
                 setting = result.scalars().first()
-                if setting and hasattr(setting, setting_name):
-                    setattr(setting, setting_name, value)
+                if setting and setting_name in SETTINGS_CONFIG_KEYS:
+                    _apply_settings_updates(setting, {setting_name: value})
                     await session.commit()
                     return setting
             return None

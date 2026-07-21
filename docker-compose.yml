@@ -60,7 +60,7 @@ services:
       - pasarguardbot
 
   bot:
-    image: ghcr.io/amirkenzo/pasarguardbot:latest
+    image: ghcr.io/amirkenzo/pasarguardbot:${PASARGUARDBOT_IMAGE_TAG:-latest}
     pull_policy: always
     container_name: pasarguardbot
     restart: unless-stopped

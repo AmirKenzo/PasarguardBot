@@ -10,6 +10,10 @@ from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD, bui
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD, get_Money
+from app.services.billing.direct_pay_fulfillment import (
+    cancel_after_manual_reject,
+    try_fulfill_after_manual_credit,
+)
 from app.telegram.admin.settings_payment import keyboards, texts
 from app.telegram.state import set_data, set_step
 from config import ADMIN_ID
@@ -284,17 +288,19 @@ async def callback_transaction_review(event: events.CallbackQuery.Event):
             completed_at=result["completed_at"],
         )
         await event.edit(admin_message, buttons=keyboards.tx_review_result_button(approved=True))
-        await Kenzo.send_message(
-            entity=int(tx.user_id),
-            message=texts.tx_approved_user_message(
-                tx.user_id,
-                int(tx.amount),
-                result["bonus"],
-                settings.manual_bonus_percent,
-                result["total"],
-            ),
-            buttons=keyboards.no_action_balance_button(result["new_balance"]),
-        )
+        fulfilled = await try_fulfill_after_manual_credit(tx_id)
+        if not fulfilled:
+            await Kenzo.send_message(
+                entity=int(tx.user_id),
+                message=texts.tx_approved_user_message(
+                    tx.user_id,
+                    int(tx.amount),
+                    result["bonus"],
+                    settings.manual_bonus_percent,
+                    result["total"],
+                ),
+                buttons=keyboards.no_action_balance_button(result["new_balance"]),
+            )
 
     elif data.startswith("reject_transaction"):
         tx_id = int(data.split(":")[1])
@@ -306,6 +312,7 @@ async def callback_transaction_review(event: events.CallbackQuery.Event):
         await ManualAutoApproveRuleCRUD.cancel_schedule(tx_id)
         completed_at = int(time.time())
         await TransactionCRUD().update(tx_id, status="rejected", completed_at=completed_at)
+        await cancel_after_manual_reject(tx_id)
         admin_message = await build_manual_card_log_caption(
             user_id=tx.user_id,
             amount=int(tx.amount),

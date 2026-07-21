@@ -670,7 +670,7 @@ wheels = [
 
 [[package]]
 name = "pasarguardbot"
-version = "1.2.0"
+version = "1.2.6"
 source = { virtual = "." }
 dependencies = [
     { name = "aiofasttelethonhelper" },

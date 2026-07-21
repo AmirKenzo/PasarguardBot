@@ -1,7 +1,126 @@
-from sqlalchemy import BigInteger, Integer, String, text
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any
+
+from sqlalchemy import JSON, BigInteger, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+
+DEFAULT_CORE_SETTINGS: dict[str, Any] = {
+    "bot_mode": True,
+    "sale_mode": False,
+    "single_panel_buy_mode": False,
+    "channel_lock": False,
+    "ip_mode": False,
+    "backup_interval_hours": 24,
+}
+
+DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
+    "pay_mode": False,
+    "pay_phone_verify": True,
+    "arz_mode": False,
+    "manual_card_visibility": None,
+    "manual_auto_confirm": False,
+    "manual_card_random_mode": False,
+    "manual_deposit_min": 50000,
+    "manual_deposit_max": 2000000,
+    "crypto_deposit_min": 50000,
+    "crypto_deposit_max": 10000000,
+    "manual_bonus_enabled": False,
+    "manual_bonus_percent": 0,
+    "crypto_bonus_enabled": False,
+    "crypto_bonus_percent": 0,
+    "arz_usd": 0,
+    "arz_trx": 0,
+    "arz_ton": 0,
+}
+
+DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {
+    "extension_mode": False,
+    "upg_mode": False,
+    "tamdid_mode": False,
+    "test_mode": False,
+    "test_panel_id": 0,
+    "test_phone_verify": True,
+    "direct_pay_purchase_mode": False,
+}
+
+DEFAULT_SERVICE_TOOLS_SETTINGS: dict[str, Any] = {
+    "qr_mode": False,
+    "sub_mode": False,
+    "other_links_mode": False,
+    "client_list_mode": False,
+    "usage_chart_mode": False,
+    "change_link_mode": False,
+    "copy_link_mode": False,
+    "transfer_config_mode": False,
+    "info_mode": False,
+    "del_service_mode": False,
+}
+
+DEFAULT_RESELLER_SETTINGS: dict[str, Any] = {
+    "reseller_sale_mode": False,
+    "reseller_min_wallet_balance": 100000,
+}
+
+SETTINGS_SECTION_DEFAULTS: dict[str, dict[str, Any]] = {
+    "core_settings": DEFAULT_CORE_SETTINGS,
+    "payment_settings": DEFAULT_PAYMENT_SETTINGS,
+    "purchase_settings": DEFAULT_PURCHASE_SETTINGS,
+    "service_tools_settings": DEFAULT_SERVICE_TOOLS_SETTINGS,
+    "reseller_settings": DEFAULT_RESELLER_SETTINGS,
+}
+
+SETTINGS_SECTION_COLUMNS = tuple(SETTINGS_SECTION_DEFAULTS)
+
+SETTING_KEY_TO_SECTION: dict[str, tuple[str, str]] = {
+    key: (column, key) for column, defaults in SETTINGS_SECTION_DEFAULTS.items() for key in defaults
+}
+
+SETTINGS_CONFIG_KEYS = frozenset(SETTING_KEY_TO_SECTION)
+
+
+def merge_section(raw: Any, defaults: dict[str, Any]) -> dict[str, Any]:
+    merged = deepcopy(defaults)
+    if isinstance(raw, dict):
+        merged.update(raw)
+    return merged
+
+
+def default_settings_sections() -> dict[str, dict[str, Any]]:
+    return {column: deepcopy(defaults) for column, defaults in SETTINGS_SECTION_DEFAULTS.items()}
+
+
+def resolve_settings_update_kwargs(setting: Settings | None, **kwargs: Any) -> dict[str, Any]:
+    """Map flat setting keys into section JSON column updates."""
+    buffers = {
+        column: merge_section(getattr(setting, column, None) if setting else None, defaults)
+        for column, defaults in SETTINGS_SECTION_DEFAULTS.items()
+    }
+    touched: set[str] = set()
+    direct: dict[str, Any] = {}
+
+    for key, value in kwargs.items():
+        if key in SETTINGS_SECTION_COLUMNS:
+            touched.add(key)
+            if isinstance(value, dict):
+                buffers[key] = merge_section(value, SETTINGS_SECTION_DEFAULTS[key])
+            else:
+                direct[key] = value
+            continue
+        mapping = SETTING_KEY_TO_SECTION.get(key)
+        if not mapping:
+            continue
+        column, json_key = mapping
+        buffers[column][json_key] = value
+        touched.add(column)
+
+    for column in touched:
+        if column not in direct:
+            direct[column] = buffers[column]
+    return direct
 
 
 class Settings(Base):
@@ -12,45 +131,49 @@ class Settings(Base):
         primary_key=True,
         autoincrement=True,
     )
-    bot_mode: Mapped[bool] = mapped_column(default=True, server_default=text("1"))
-    sale_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    single_panel_buy_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    extension_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    test_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    test_panel_id: Mapped[int] = mapped_column(BigInteger, default=0, server_default=text("0"))
-    test_phone_verify: Mapped[bool] = mapped_column(default=True, server_default=text("1"))
-    pay_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    manual_card_visibility: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    ip_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    arz_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    upg_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    tamdid_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    qr_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    other_links_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    sub_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    change_link_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    copy_link_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    transfer_config_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    info_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    client_list_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    usage_chart_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    del_service_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    channel_lock: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    arz_usd: Mapped[int | None] = mapped_column(BigInteger, server_default=text("0"))
-    arz_trx: Mapped[int | None] = mapped_column(BigInteger, server_default=text("0"))
-    arz_ton: Mapped[int | None] = mapped_column(BigInteger, server_default=text("0"))
-    manual_auto_confirm: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    manual_card_random_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    manual_deposit_min: Mapped[int | None] = mapped_column(BigInteger, nullable=False, server_default=text("50000"))
-    manual_deposit_max: Mapped[int | None] = mapped_column(BigInteger, nullable=False, server_default=text("2000000"))
-    crypto_deposit_min: Mapped[int | None] = mapped_column(BigInteger, nullable=False, server_default=text("50000"))
-    crypto_deposit_max: Mapped[int | None] = mapped_column(BigInteger, nullable=False, server_default=text("10000000"))
-    manual_bonus_enabled: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    manual_bonus_percent: Mapped[int | None] = mapped_column(Integer, nullable=False, server_default=text("0"))
-    crypto_bonus_enabled: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    crypto_bonus_percent: Mapped[int | None] = mapped_column(Integer, nullable=False, server_default=text("0"))
-    reseller_sale_mode: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    reseller_min_wallet_balance: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=False, server_default=text("100000")
+    core_settings: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+        insert_default=dict,
+        server_default=text("'{}'"),
     )
-    backup_interval_hours: Mapped[int | None] = mapped_column(Integer, nullable=False, server_default=text("24"))
+    payment_settings: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+        insert_default=dict,
+        server_default=text("'{}'"),
+    )
+    purchase_settings: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+        insert_default=dict,
+        server_default=text("'{}'"),
+    )
+    service_tools_settings: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+        insert_default=dict,
+        server_default=text("'{}'"),
+    )
+    reseller_settings: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+        insert_default=dict,
+        server_default=text("'{}'"),
+    )
+
+    def __getattr__(self, name: str) -> Any:
+        mapping = SETTING_KEY_TO_SECTION.get(name)
+        if mapping is None:
+            raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
+        column, key = mapping
+        section = object.__getattribute__(self, column)
+        defaults = SETTINGS_SECTION_DEFAULTS[column]
+        if isinstance(section, dict) and key in section:
+            return section[key]
+        return defaults[key]

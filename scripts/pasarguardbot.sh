@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # ── Paths & constants ──────────────────────────────────────────────────────────
-readonly SCRIPT_VERSION="1.2.12"
+readonly SCRIPT_VERSION="1.2.15"
 readonly CONFIG_DIR="/opt/pasarguardbot"
 readonly COMPOSE_FILE="${CONFIG_DIR}/docker-compose.yml"
 readonly ENV_FILE="${CONFIG_DIR}/.env"
@@ -32,7 +32,6 @@ readonly ENV_EXAMPLE_RAW_URL="https://raw.githubusercontent.com/AmirKenzo/Pasarg
 readonly REPO_GIT_URL="https://github.com/AmirKenzo/PasarguardBot.git"
 readonly PHPMYADMIN_ARCHIVE_URL="https://files.phpmyadmin.net/phpMyAdmin/5.2.2/phpMyAdmin-5.2.2-all-languages.tar.gz"
 readonly BOT_IMAGE="ghcr.io/amirkenzo/pasarguardbot"
-readonly BOT_IMAGE_TAG="latest"
 readonly FASTAPI_PORT_DEFAULT=6160
 readonly REDIS_PORT=6161
 readonly MARIADB_PORT=6162
@@ -200,6 +199,35 @@ set_install_branch() {
     local branch="$1"
     mkdir -p "$CONFIG_DIR"
     printf '%s\n' "$branch" >"$INSTALL_BRANCH_FILE"
+}
+
+# GHCR tags: main → latest (release tags), other branches → branch name (e.g. dev).
+bot_image_tag_for_branch() {
+    local branch="${1:-main}"
+    case "$branch" in
+        main) printf '%s' 'latest' ;;
+        *) printf '%s' "$branch" ;;
+    esac
+}
+
+get_bot_image_tag() {
+    local tag=""
+    if [[ -f "$ENV_FILE" ]]; then
+        tag="$(get_env_value PASARGUARDBOT_IMAGE_TAG "$ENV_FILE")"
+    fi
+    if [[ -n "$tag" ]]; then
+        printf '%s' "$tag"
+        return 0
+    fi
+    bot_image_tag_for_branch "$(get_repo_branch)"
+}
+
+apply_bot_image_tag_for_branch() {
+    local branch="${1:-$(get_repo_branch)}"
+    local image_tag
+    image_tag="$(bot_image_tag_for_branch "$branch")"
+    [[ -f "$ENV_FILE" ]] || return 0
+    set_env_var "$ENV_FILE" "PASARGUARDBOT_IMAGE_TAG" "$image_tag"
 }
 
 # Resolve update/install branch: env > saved file > current git branch > default.
@@ -887,33 +915,33 @@ get_installed_bot_version() {
         return 0
     fi
 
-    if ! docker image inspect "${BOT_IMAGE}:${BOT_IMAGE_TAG}" &>/dev/null; then
+    if ! docker image inspect "${BOT_IMAGE}:$(get_bot_image_tag)" &>/dev/null; then
         printf '%s' '—'
         return 0
     fi
 
-    version="$(docker image inspect "${BOT_IMAGE}:${BOT_IMAGE_TAG}" \
+    version="$(docker image inspect "${BOT_IMAGE}:$(get_bot_image_tag)" \
         --format '{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || true)"
     if [[ -n "$version" && "$version" != "<no value>" && "$version" != "null" ]]; then
         format_version "$version"
         return 0
     fi
 
-    revision="$(docker image inspect "${BOT_IMAGE}:${BOT_IMAGE_TAG}" \
+    revision="$(docker image inspect "${BOT_IMAGE}:$(get_bot_image_tag)" \
         --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null || true)"
     if [[ -n "$revision" && "$revision" != "<no value>" && "$revision" != "null" ]]; then
         printf 'sha-%s' "${revision:0:7}"
         return 0
     fi
 
-    digest="$(docker image inspect "${BOT_IMAGE}:${BOT_IMAGE_TAG}" \
+    digest="$(docker image inspect "${BOT_IMAGE}:$(get_bot_image_tag)" \
         --format '{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' 2>/dev/null || true)"
     if [[ -n "$digest" && "$digest" == *"@"* ]]; then
         printf '%s' "${digest##*@}"
         return 0
     fi
 
-    short_id="$(docker image inspect "${BOT_IMAGE}:${BOT_IMAGE_TAG}" \
+    short_id="$(docker image inspect "${BOT_IMAGE}:$(get_bot_image_tag)" \
         --format '{{.Id}}' 2>/dev/null | sed 's/^sha256://' | cut -c1-12 || true)"
     if [[ -n "$short_id" ]]; then
         printf '%s' "$short_id"
@@ -1171,6 +1199,7 @@ generate_env_file() {
     set_env_var "$ENV_FILE" "LOG_DIR" "./logs"
     set_env_var "$ENV_FILE" "LOG_TO_FILE" "true"
     set_env_var "$ENV_FILE" "LOG_LEVEL" "INFO"
+    set_env_var "$ENV_FILE" "PASARGUARDBOT_IMAGE_TAG" "$(bot_image_tag_for_branch "$branch")"
     append_mariadb_vars "$db_pass" "$db_root_pass"
     append_deploy_paths
     set_install_mode "$install_mode"
@@ -1195,8 +1224,8 @@ validate_compose_file() {
         err "Compose file is empty."
         return 1
     }
-    grep -q 'ghcr.io/amirkenzo/pasarguardbot:latest' "$file" || {
-        err "Compose file missing required image ghcr.io/amirkenzo/pasarguardbot:latest"
+    grep -qE 'ghcr\.io/amirkenzo/pasarguardbot(:|\$\{)' "$file" || {
+        err "Compose file missing required image ghcr.io/amirkenzo/pasarguardbot"
         return 1
     }
     if grep -E '^\s+build:' "$file" >/dev/null 2>&1; then
@@ -1237,7 +1266,8 @@ setup_compose() {
 
     cp "$tmp" "$COMPOSE_FILE"
     rm -f "$tmp"
-    ok "docker-compose.yml updated at ${COMPOSE_FILE}"
+    apply_bot_image_tag_for_branch "$branch"
+    ok "docker-compose.yml updated at ${COMPOSE_FILE} (image tag: $(bot_image_tag_for_branch "$branch"))"
 }
 
 pull_images() {
@@ -1995,6 +2025,29 @@ install_uv_binary() {
     ok "uv installed."
 }
 
+# Force local APP_DIR git tree to match remote branch (drops dirty tracked files).
+# Needed because MariaDB/uv may leave local edits that block plain `git checkout`.
+git_sync_app_dir_to_branch() {
+    local branch="$1" target_ref=""
+    git -C "$APP_DIR" remote set-url origin "$REPO_GIT_URL" 2>/dev/null || true
+    git -C "$APP_DIR" fetch --depth 1 origin "$branch" \
+        || die "git fetch origin ${branch} failed."
+
+    # Shallow fetch may only update FETCH_HEAD (origin/<branch> can be missing).
+    if git -C "$APP_DIR" rev-parse --verify "origin/${branch}" >/dev/null 2>&1; then
+        target_ref="origin/${branch}"
+    else
+        target_ref="FETCH_HEAD"
+    fi
+
+    git -C "$APP_DIR" reset --hard HEAD >/dev/null 2>&1 || true
+    git -C "$APP_DIR" clean -fd >/dev/null 2>&1 || true
+    git -C "$APP_DIR" checkout -f -B "$branch" "$target_ref" \
+        || die "git checkout ${branch} failed."
+    git -C "$APP_DIR" reset --hard "$target_ref" \
+        || die "git reset --hard ${target_ref} failed."
+}
+
 fetch_bot_source() {
     local tmp tmpdir force_refresh="${1:-0}" branch="${2:-}" extracted="" archive_url
     if [[ -z "$branch" ]]; then
@@ -2005,15 +2058,7 @@ fetch_bot_source() {
 
     if [[ "$force_refresh" == "1" ]] && [[ -d "${APP_DIR}/.git" ]]; then
         info "Updating existing git checkout in ${APP_DIR} (branch ${branch})..."
-        git -C "$APP_DIR" remote set-url origin "$REPO_GIT_URL" 2>/dev/null || true
-        git -C "$APP_DIR" fetch --depth 1 origin "$branch" \
-            || die "git fetch origin ${branch} failed."
-        # Shallow fetch may only update FETCH_HEAD (origin/<branch> can be missing).
-        if git -C "$APP_DIR" rev-parse --verify "origin/${branch}" >/dev/null 2>&1; then
-            git -C "$APP_DIR" checkout -B "$branch" "origin/${branch}"
-        else
-            git -C "$APP_DIR" checkout -B "$branch" FETCH_HEAD
-        fi
+        git_sync_app_dir_to_branch "$branch"
         set_install_branch "$branch"
         ok "Source updated ($(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown))."
         return 0
@@ -2048,14 +2093,7 @@ fetch_bot_source() {
 
     if [[ -d "${APP_DIR}/.git" ]]; then
         info "Updating existing git checkout in ${APP_DIR} (branch ${branch})..."
-        git -C "$APP_DIR" remote set-url origin "$REPO_GIT_URL" 2>/dev/null || true
-        git -C "$APP_DIR" fetch --depth 1 origin "$branch" \
-            || die "git fetch origin ${branch} failed."
-        if git -C "$APP_DIR" rev-parse --verify "origin/${branch}" >/dev/null 2>&1; then
-            git -C "$APP_DIR" checkout -B "$branch" "origin/${branch}"
-        else
-            git -C "$APP_DIR" checkout -B "$branch" FETCH_HEAD
-        fi
+        git_sync_app_dir_to_branch "$branch"
         set_install_branch "$branch"
         ok "Source updated ($(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown))."
         return 0
@@ -2294,7 +2332,7 @@ action_install_docker() {
     echo -e "  ${C_DIM}Data:${C_RESET}    ${CONFIG_DIR}/data"
     echo
     info "Image:"
-    echo -e "  ${C_DIM}Bot:${C_RESET}  ${BOT_IMAGE}:${BOT_IMAGE_TAG} ($(get_installed_bot_version))"
+    echo -e "  ${C_DIM}Bot:${C_RESET}  ${BOT_IMAGE}:$(get_bot_image_tag) ($(get_installed_bot_version))"
     echo -e "  ${C_DIM}Branch:${C_RESET}  ${branch}"
     echo
     info "Ports:"
@@ -2504,14 +2542,14 @@ action_uninstall() {
 }
 
 action_update_docker() {
-    local old_ver new_ver branch="${1:-main}"
+    local old_ver new_ver branch="${1:-main}" script_url tmp_mgr
     command -v docker &>/dev/null || die "Docker is not installed."
     docker info &>/dev/null || die "Docker daemon is not running."
 
     old_ver="$(get_installed_bot_version)"
     set_install_branch "$branch"
 
-    info "Updating production Compose from branch '${branch}' and pulling latest images..."
+    info "Updating production Compose from branch '${branch}' (image ${BOT_IMAGE}:$(bot_image_tag_for_branch "$branch"))..."
     setup_compose "$branch"
     pull_images
 
@@ -2523,8 +2561,16 @@ action_update_docker() {
     wait_for_containers_healthy || true
     prune_dangling_images_safe
 
+    script_url="https://raw.githubusercontent.com/AmirKenzo/PasarguardBot/${branch}/scripts/pasarguardbot.sh"
+    tmp_mgr="$(mktemp)"
+    if curl_download "$script_url" "$tmp_mgr"; then
+        info "Refreshing manager script from branch '${branch}'..."
+        install_manager_from_file "$tmp_mgr"
+    fi
+    rm -f "$tmp_mgr"
+
     new_ver="$(get_installed_bot_version)"
-    ok "Update complete (${old_ver} → ${new_ver}) [branch=${branch}]."
+    ok "Update complete (${old_ver} → ${new_ver}) [branch=${branch}, image=$(get_bot_image_tag)]."
 }
 
 action_update_native() {
@@ -2538,6 +2584,10 @@ action_update_native() {
     fetch_bot_source 1 "$branch"
     link_native_app_paths
     sync_native_python_deps
+    if [[ -f "${APP_DIR}/scripts/pasarguardbot.sh" ]]; then
+        info "Refreshing manager script from updated source..."
+        install_manager_from_file "${APP_DIR}/scripts/pasarguardbot.sh"
+    fi
     write_native_systemd_units
 
     info "Restarting native services..."
@@ -2577,11 +2627,13 @@ action_update() {
 action_update_script() {
     draw_banner
 
-    local tmp new_ver old_ver
+    local tmp new_ver old_ver branch script_url
     tmp="$(mktemp)"
+    branch="$(get_repo_branch)"
+    script_url="https://raw.githubusercontent.com/AmirKenzo/PasarguardBot/${branch}/scripts/pasarguardbot.sh"
 
-    info "Downloading latest manager script from GitHub..."
-    if ! curl_download "$SCRIPT_RAW_URL" "$tmp"; then
+    info "Downloading latest manager script from GitHub (branch ${branch})..."
+    if ! curl_download "$script_url" "$tmp"; then
         rm -f "$tmp"
         explain_network_failure "download manager script"
         pause

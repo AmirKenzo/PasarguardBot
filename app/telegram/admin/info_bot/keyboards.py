@@ -53,7 +53,6 @@ def main_menu_buttons() -> list:
             inline_btn("📡 سرویس‌ها", f"{prefix}services:1d"),
         ],
         [inline_btn("🧪 سیستم", f"{prefix}system")],
-        [inline_btn("🔴 Redis", f"{prefix}redis")],
         [inline_btn("🔄 بروزرسانی", f"{prefix}refresh")],
     ]
 
@@ -74,31 +73,33 @@ def services_buttons(period: str) -> list:
     return rows
 
 
-def redis_buttons() -> list:
-    prefix = states.STATS_PREFIX
-    return [
-        [inline_btn("🔄 بروزرسانی", f"{prefix}redis:refresh")],
-        [inline_btn("🔙 بازگشت", f"{prefix}main")],
-    ]
-
-
 def system_buttons(settings_payload: dict) -> ReplyInlineMarkup:
     prefix = states.STATS_PREFIX
     arz_usd = settings_payload.get("arz_usd", 0)
     arz_trx = settings_payload.get("arz_trx", 0)
+    arz_ton = settings_payload.get("arz_ton", 0)
     return ReplyInlineMarkup(
         rows=[
             KeyboardButtonRow(
                 [
                     KeyboardButtonCopy(
-                        text=f"USDT {arz_usd:,} Toman",
+                        text=f"USDT {arz_usd:,} IRT",
                         copy_text=f"USDT {arz_usd:,}",
                         style=KeyboardButtonStyle(icon=5280963835790894176),
                     ),
                     KeyboardButtonCopy(
-                        text=f"TRX {arz_trx:,} Toman",
+                        text=f"TRX {arz_trx:,} IRT",
                         copy_text=f"TRX {arz_trx:,}",
                         style=KeyboardButtonStyle(icon=5292038911474804405),
+                    ),
+                ]
+            ),
+            KeyboardButtonRow(
+                [
+                    KeyboardButtonCopy(
+                        text=f"GRAM {arz_ton:,} IRT",
+                        copy_text=f"GRAM {arz_ton:,}",
+                        style=KeyboardButtonStyle(icon=5305626186544599263),
                     ),
                 ]
             ),

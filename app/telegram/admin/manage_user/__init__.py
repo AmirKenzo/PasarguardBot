@@ -1,3 +1,1 @@
-"""Compatibility exports for the admin manage_user module."""
-
-from .messages import *  # noqa: F403
+"""Admin manage_user package."""
