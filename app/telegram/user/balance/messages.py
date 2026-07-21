@@ -172,7 +172,9 @@ async def manual_card_prompt_amount(event) -> None:
 async def return_to_balance_menu(event) -> None:
     user_id = event.sender_id
     pending = await get_pending_for_user(user_id)
-    was_direct = await is_direct_pay_active(user_id) or (pending and pending.get("status") in ACTIVE_STATUSES)
+    # Resume direct-pay only when the user is already inside that payment flow.
+    # Do not treat a leftover pending buy as direct-pay when opening balance from renew/upgrade.
+    was_direct = await is_direct_pay_active(user_id)
     await clear_user(user_id)
     settings = await SettingsManager().get_settings()
     info = await UserCRUD().read_user(user_id)

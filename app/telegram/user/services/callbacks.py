@@ -22,6 +22,7 @@ from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, update_Money
 from app.logger import LogType, get_logger
+from app.services.billing.direct_pay_store import cancel_pending_for_user
 from app.services.billing.renewal import (
     apply_panel_user_renewal,
     preview_remaining_after_renewal,
@@ -119,6 +120,8 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
             if getattr(result, "is_test", False) is True:
                 await event.answer("سرویس‌های تست قابل تمدید یا ارتقا نیستند.", alert=True)
                 return
+            # Direct-pay is buy-only; abandon any leftover purchase pending.
+            await cancel_pending_for_user(event.sender_id)
             panel_manager = PanelsManager()
             panel = await panel_manager.get_panel_by_code(result.in_panel)
             display_mode = panel_display_mode(panel) if panel else "classic"
@@ -421,6 +424,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
             return
         is_sufficient, message = await check_user_balance(event.sender_id, plan.price)
         if not is_sufficient:
+            await cancel_pending_for_user(event.sender_id)
             await event.edit(message, buttons=await create_balance_button(event.sender_id))
         else:
             try:
@@ -555,6 +559,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
 
         is_sufficient, message = await check_user_balance(event.sender_id, new_price)
         if not is_sufficient:
+            await cancel_pending_for_user(event.sender_id)
             await event.edit(message, buttons=await create_balance_button(event.sender_id))
 
         else:
@@ -1045,6 +1050,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         if service and getattr(serv_msg, "is_test", False) is True:
             await event.answer("سرویس‌های تست قابل تمدید یا ارتقا نیستند.", alert=True)
             return
+        await cancel_pending_for_user(event.sender_id)
         if service and serv_msg.package_size:
             panel = await PanelsManager().get_panel_by_code(code=serv_msg.in_panel)
             if panel:
@@ -1096,6 +1102,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         is_sufficient, message = await check_user_balance(event.sender_id, price)
         back_data = await _back_to_service(event.sender_id, service_code)
         if not is_sufficient:
+            await cancel_pending_for_user(event.sender_id)
             balance_btn_text = await get_button_text("bt.menu_add_balance", "💰 افزایش موجودی")
             await event.edit(
                 message,
@@ -1162,6 +1169,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         if service and getattr(serv_msg, "is_test", False) is True:
             await event.answer("سرویس‌های تست قابل تمدید یا ارتقا نیستند.", alert=True)
             return
+        await cancel_pending_for_user(event.sender_id)
         back_data = await _back_to_service(event.sender_id, service_code)
         panel = await PanelsManager().get_panel_by_code(code=serv_msg.in_panel) if serv_msg else None
         if not panel or not panel_has_time_plans(panel):
@@ -1197,6 +1205,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         is_sufficient, message = await check_user_balance(event.sender_id, price)
         back_data = await _back_to_service(event.sender_id, service_code)
         if not is_sufficient:
+            await cancel_pending_for_user(event.sender_id)
             balance_btn_text = await get_button_text("bt.menu_add_balance", "💰 افزایش موجودی")
             await event.edit(
                 message,
