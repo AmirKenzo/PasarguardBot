@@ -26,6 +26,7 @@ from app.services.billing.direct_pay_flow import (
     DIRECT_PAY_TOPUP_INTRO_DEFAULT,
     REDIS_DIRECT_PAY_ACTIVE,
     REDIS_MABLAGH,
+    fill_placeholders,
     is_direct_pay_active,
 )
 from app.services.billing.direct_pay_store import (
@@ -190,12 +191,13 @@ async def return_to_balance_menu(event) -> None:
             default=DIRECT_PAY_TOPUP_INTRO_DEFAULT,
             lang=lang,
         )
-        intro_text = (
-            intro_template.replace("{product_label}", product_label)
-            .replace("{volume}", volume)
-            .replace("{topup_amount}", f"{topup:,}")
-            .replace("{required}", f"{required:,}")
-            .replace("{shortfall}", f"{topup:,}")
+        intro_text = fill_placeholders(
+            intro_template,
+            product_label=product_label,
+            volume=volume,
+            topup_amount=topup,
+            required=required,
+            shortfall=topup,
         )
     else:
         if pending and pending.get("status") in ACTIVE_STATUSES:

@@ -24,15 +24,15 @@ REDIS_MABLAGH = "mablagh"
 
 INSUFFICIENT_BALANCE_DEFAULT = (
     "‼️ موجودی کیف پول شما کافی نیست\n\n"
-    "💰 برای خرید این پلان شما باید ({required:,} تومان) موجودی داشته باشید.\n\n"
+    "💰 برای خرید این پلان شما باید ({required} تومان) موجودی داشته باشید.\n\n"
     "📌 برای افزایش موجودی، روی دکمه 'افزایش موجودی' کلیک کنید و پس از افزایش "
     "با یکی از روش‌های پرداخت، مجدد مراحل خرید را طی کنید."
 )
 
 INSUFFICIENT_BALANCE_DIRECT_PAY_DEFAULT = (
     "‼️ موجودی کیف پول شما کافی نیست\n\n"
-    "💰 مبلغ لازم برای خرید: ({required:,} تومان)\n"
-    "📉 کمبود موجودی شما: ({shortfall:,} تومان)\n"
+    "💰 مبلغ لازم برای خرید: ({required} تومان)\n"
+    "📉 کمبود موجودی شما: ({shortfall} تومان)\n"
     "📦 محصول: {product_label}\n"
     "📥 حجم: {volume}\n\n"
     "📌 روی دکمه «افزایش موجودی» بزنید؛ مبلغ به‌صورت خودکار تنظیم می‌شود و "
@@ -43,11 +43,20 @@ DIRECT_PAY_TOPUP_INTRO_DEFAULT = (
     "💳 پرداخت مستقیم خرید\n\n"
     "📦 محصول: {product_label}\n"
     "📥 حجم: {volume}\n"
-    "💰 مبلغ شارژ: ({topup_amount:,} تومان)\n"
-    "🛒 مبلغ کل خرید: ({required:,} تومان)\n\n"
+    "💰 مبلغ شارژ: ({topup_amount} تومان)\n"
+    "🛒 مبلغ کل خرید: ({required} تومان)\n\n"
     "یک روش پرداخت را انتخاب کنید. نیازی به وارد کردن مبلغ نیست؛ "
     "پس از تایید تراکنش، کانفیگ/پنل برای شما ساخته می‌شود."
 )
+
+
+def fill_placeholders(template: str, **parts: object) -> str:
+    """Replace {key} (and legacy {key:,}) with formatted values."""
+    out = template
+    for key, raw in parts.items():
+        value = f"{raw:,}" if isinstance(raw, int) else str(raw)
+        out = out.replace(f"{{{key}:,}}", value).replace(f"{{{key}}}", value)
+    return out
 
 
 def clamp_deposit_amount(amount: int, min_amount: int, max_amount: int) -> int:
@@ -98,12 +107,13 @@ async def build_insufficient_balance_message(
             default=INSUFFICIENT_BALANCE_DIRECT_PAY_DEFAULT,
             lang=lang,
         )
-        return (
-            template.replace("{required}", f"{required:,}")
-            .replace("{shortfall}", f"{shortfall:,}")
-            .replace("{product_label}", product_label or "-")
-            .replace("{volume}", volume or "-")
-            .replace("{balance}", f"{balance:,}")
+        return fill_placeholders(
+            template,
+            required=required,
+            shortfall=shortfall,
+            product_label=product_label or "-",
+            volume=volume or "-",
+            balance=balance,
         )
 
     template = await get_bot_text(
@@ -111,12 +121,13 @@ async def build_insufficient_balance_message(
         default=INSUFFICIENT_BALANCE_DEFAULT,
         lang=lang,
     )
-    return (
-        template.replace("{required}", f"{required:,}")
-        .replace("{shortfall}", f"{shortfall:,}")
-        .replace("{product_label}", product_label or "-")
-        .replace("{volume}", volume or "-")
-        .replace("{balance}", f"{balance:,}")
+    return fill_placeholders(
+        template,
+        required=required,
+        shortfall=shortfall,
+        product_label=product_label or "-",
+        volume=volume or "-",
+        balance=balance,
     )
 
 
@@ -208,12 +219,13 @@ async def start_direct_pay_topup(event) -> bool:
         default=DIRECT_PAY_TOPUP_INTRO_DEFAULT,
         lang=lang,
     )
-    intro = (
-        intro_template.replace("{product_label}", product_label or "-")
-        .replace("{volume}", volume or "-")
-        .replace("{topup_amount}", f"{shortfall:,}")
-        .replace("{required}", f"{required:,}")
-        .replace("{shortfall}", f"{shortfall:,}")
+    intro = fill_placeholders(
+        intro_template,
+        product_label=product_label or "-",
+        volume=volume or "-",
+        topup_amount=shortfall,
+        required=required,
+        shortfall=shortfall,
     )
     buttons = await create_inline_cartbcard(settings=settings, user=user)
     try:
