@@ -136,6 +136,49 @@ TEXT_KEYS_CONFIG = {
     ],
     "balance": [
         {"key": "add_balance_intro", "title": "متن معرفی افزایش موجودی", "placeholders": {}},
+        {
+            "key": "insufficient_balance_message",
+            "title": "پیام کمبود موجودی (حالت عادی)",
+            "placeholders": {
+                "required": "مبلغ لازم",
+                "shortfall": "کمبود موجودی",
+                "product_label": "نام محصول",
+                "volume": "حجم",
+                "balance": "موجودی فعلی",
+            },
+        },
+        {
+            "key": "insufficient_balance_direct_pay",
+            "title": "پیام کمبود موجودی (پرداخت مستقیم)",
+            "placeholders": {
+                "required": "مبلغ لازم",
+                "shortfall": "کمبود موجودی",
+                "product_label": "نام محصول",
+                "volume": "حجم",
+                "balance": "موجودی فعلی",
+            },
+        },
+        {
+            "key": "direct_pay_topup_intro",
+            "title": "معرفی پرداخت مستقیم پس از کلیک افزایش موجودی",
+            "placeholders": {
+                "product_label": "نام محصول",
+                "volume": "حجم",
+                "topup_amount": "مبلغ شارژ",
+                "required": "مبلغ کل خرید",
+                "shortfall": "کمبود موجودی",
+            },
+        },
+        {
+            "key": "direct_pay_fulfill_failed",
+            "title": "خطای ساخت خودکار پس از شارژ",
+            "placeholders": {"balance": "موجودی فعلی"},
+        },
+        {
+            "key": "direct_pay_cancelled",
+            "title": "لغو سفارش پرداخت مستقیم",
+            "placeholders": {},
+        },
     ],
     "manual_card": [
         {

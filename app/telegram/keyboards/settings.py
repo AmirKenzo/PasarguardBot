@@ -77,6 +77,7 @@ SETTINGS_MENU_SECTIONS = (
             SettingsMenuItem("تمدید سرویس", "tamdid_mode"),
             SettingsMenuItem("دکمه دریافت تست", "test_mode"),
             SettingsMenuItem("تایید شماره تست", "test_phone_verify", default=True, wide=True),
+            SettingsMenuItem("پرداخت مستقیم خرید", "direct_pay_purchase_mode", wide=True),
         ),
     ),
     SettingsMenuSection(

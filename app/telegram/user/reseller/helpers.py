@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 import pytz
 from httpx import HTTPStatusError
 from pasarguard import AdminCreate
-from telethon import Button
 from telethon.tl import functions, types
 
 from app import Kenzo
@@ -22,6 +21,11 @@ from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, update_Money
 from app.logger import get_logger
+from app.services.billing.direct_pay_flow import (
+    build_insufficient_balance_message,
+    create_balance_button,
+)
+from app.services.billing.direct_pay_store import KIND_RESELLER
 from app.services.billing.reseller_pricing import (
     calculate_purchase_price,
     format_reseller_plan_button_short,
@@ -95,18 +99,8 @@ async def check_user_balance(user_id: int, required_amount: int):
     balance = user.amount
     required = int(required_amount)
     if balance < required:
-        message = (
-            f"‼️ موجودی کیف پول شما کافی نیست\n\n💰 برای خرید این پلان باید ({required:,} تومان) موجودی داشته باشید."
-        )
-        return False, message
+        return False, ""
     return True, "موجودی کافی است."
-
-
-async def create_balance_button(user_id: int):
-    from app.db.crud.keyboards import get_button_text
-
-    balance_button_text = await get_button_text("bt.menu_add_balance", "💰 افزایش موجودی")
-    return [[Button.inline(balance_button_text, data="back_to_balance")]]
 
 
 async def show_reseller_panel_picker(event) -> None:
@@ -233,53 +227,63 @@ async def build_initial_billing_state(plan, amount: int) -> dict:
     return {"started_at": now, "last_billed_at": now, "setup_fee": amount, "total_billed": 0}
 
 
-async def _complete_reseller_purchase(event, *, amount: int, discount_code: str | None = None) -> None:
-    user_id = event.sender_id
+async def create_reseller_purchase_for_user(
+    user_id: int,
+    *,
+    amount: int,
+    payload: dict | None = None,
+    discount_code: str | None = None,
+    event=None,
+) -> tuple[bool, str]:
     lang = await _user_lang(user_id)
 
-    plan_id = await get_data(user_id, "reseller_plan_id")
-    panel_code = await get_data(user_id, "reseller_panel_code")
-    username = await get_data(user_id, "reseller_username")
-    volume_raw = await get_data(user_id, "reseller_volume")
+    if payload:
+        plan_id = payload.get("reseller_plan_id")
+        panel_code = payload.get("reseller_panel_code")
+        username = payload.get("reseller_username")
+        volume_raw = payload.get("reseller_volume")
+        discount_code = discount_code or payload.get("discount_code")
+    else:
+        plan_id = await get_data(user_id, "reseller_plan_id")
+        panel_code = await get_data(user_id, "reseller_panel_code")
+        username = await get_data(user_id, "reseller_username")
+        volume_raw = await get_data(user_id, "reseller_volume")
 
     plan = await ResellerPlanManager().get_plan(plan_id)
     if not plan or not panel_code or not username:
-        await event.edit("خطا: اطلاعات خرید ناقص است.", buttons=await bhome_buttons(user_id, lang))
-        return
+        msg = "خطا: اطلاعات خرید ناقص است."
+        if event is not None:
+            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "missing_context"
 
     volume = float(volume_raw) if volume_raw else None
     if volume is not None:
         ok, err = validate_volume(plan, volume)
         if not ok:
-            await event.answer(err, alert=True)
-            return
-
-    settings = await SettingsManager().get_settings()
-    if requires_wallet_for_purchase(plan) and settings:
-        user = await UserCRUD().read_user(user_id)
-        min_balance = int(settings.reseller_min_wallet_balance or 0)
-        if user and user.amount < min_balance:
-            await event.delete()
-            await event.respond(
-                f"برای نمایندگی {pricing_mode_label(plan.pricing_mode)} حداقل موجودی {min_balance:,} تومان لازم است.",
-                buttons=await create_balance_button(user_id),
-            )
-            return
-
-    is_sufficient, message = await check_user_balance(user_id, amount)
-    if not is_sufficient:
-        await event.delete()
-        await event.respond(message, buttons=await create_balance_button(user_id))
-        return
+            if event is not None:
+                await event.answer(err, alert=True)
+            else:
+                await Kenzo.send_message(user_id, err)
+            return False, "invalid_volume"
 
     panel = await PanelsManager().get_panel_by_code(code=int(panel_code))
     if not panel:
-        await event.edit("پنل یافت نشد.", buttons=await bhome_buttons(user_id, lang))
-        return
+        msg = "پنل یافت نشد."
+        if event is not None:
+            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "panel_not_found"
 
     if await admin_username_exists(panel, username):
-        await event.answer("این نام کاربری ادمین در پنل وجود دارد.", alert=True)
-        return
+        msg = "این نام کاربری ادمین در پنل وجود دارد."
+        if event is not None:
+            await event.answer(msg, alert=True)
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "username_exists"
 
     password = generate_admin_password(username=username)
     data_limit = compute_reseller_data_limit(plan, volume)
@@ -297,10 +301,12 @@ async def _complete_reseller_purchase(event, *, amount: int, discount_code: str 
         created = await create_reseller_admin(panel, admin_payload)
     except HTTPStatusError as e:
         logger.error("create_reseller_admin failed: %s", e.response.text)
-        await event.edit(
-            "خطا در ساخت ادمین پنل. لطفاً با پشتیبانی تماس بگیرید.", buttons=await bhome_buttons(user_id, lang)
-        )
-        return
+        msg = "خطا در ساخت ادمین پنل. لطفاً با پشتیبانی تماس بگیرید."
+        if event is not None:
+            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "panel_create_failed"
 
     account_code = await ResellerAccountCRUD().generate_unique_code()
     expiration = compute_reseller_expiration(plan)
@@ -348,7 +354,8 @@ async def _complete_reseller_purchase(event, *, amount: int, discount_code: str 
         f"⚠️ رمز را در جای امن ذخیره کنید."
     )
 
-    await event.delete()
+    if event is not None:
+        await event.delete()
     await clear_user(user_id)
     await set_step(user_id, "home")
 
@@ -373,8 +380,71 @@ async def _complete_reseller_purchase(event, *, amount: int, discount_code: str 
             *extra,
         ],
     )
-    await event.respond("✅", buttons=await bhome_buttons(user_id, lang))
-    await event.respond(success_text)
+    if event is not None:
+        await event.respond("✅", buttons=await bhome_buttons(user_id, lang))
+        await event.respond(success_text)
+    else:
+        await Kenzo.send_message(user_id, "✅", buttons=await bhome_buttons(user_id, lang))
+        await Kenzo.send_message(user_id, success_text)
+    return True, ""
+
+
+async def _complete_reseller_purchase(event, *, amount: int, discount_code: str | None = None) -> None:
+    user_id = event.sender_id
+    lang = await _user_lang(user_id)
+
+    plan_id = await get_data(user_id, "reseller_plan_id")
+    panel_code = await get_data(user_id, "reseller_panel_code")
+    username = await get_data(user_id, "reseller_username")
+    volume_raw = await get_data(user_id, "reseller_volume")
+
+    plan = await ResellerPlanManager().get_plan(plan_id)
+    if not plan or not panel_code or not username:
+        await event.edit("خطا: اطلاعات خرید ناقص است.", buttons=await bhome_buttons(user_id, lang))
+        return
+
+    volume = float(volume_raw) if volume_raw else None
+    if volume is not None:
+        ok, err = validate_volume(plan, volume)
+        if not ok:
+            await event.answer(err, alert=True)
+            return
+
+    settings = await SettingsManager().get_settings()
+    if requires_wallet_for_purchase(plan) and settings:
+        user = await UserCRUD().read_user(user_id)
+        min_balance = int(settings.reseller_min_wallet_balance or 0)
+        if user and user.amount < min_balance:
+            await event.delete()
+            await event.respond(
+                f"برای نمایندگی {pricing_mode_label(plan.pricing_mode)} حداقل موجودی {min_balance:,} تومان لازم است.",
+                buttons=await create_balance_button(user_id),
+            )
+            return
+
+    is_sufficient, message = await check_user_balance(user_id, amount)
+    if not is_sufficient:
+        volume_label = ""
+        if volume:
+            volume_label = f"{volume:g} {volume_unit_label(plan.pricing_mode)}"
+        if not message:
+            message = await build_insufficient_balance_message(
+                user_id,
+                amount,
+                kind=KIND_RESELLER,
+                product_label=getattr(plan, "name", None) or "پنل نمایندگی",
+                volume=volume_label,
+            )
+        await event.delete()
+        await event.respond(message, buttons=await create_balance_button(user_id))
+        return
+
+    await create_reseller_purchase_for_user(
+        user_id,
+        amount=amount,
+        discount_code=discount_code,
+        event=event,
+    )
 
 
 def generate_reseller_username(prefix: str = "res") -> str:

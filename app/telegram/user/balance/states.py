@@ -42,6 +42,7 @@ CALLBACK_CART_PAYMENT_SENDPHOTO = "cart_payment_sendphoto"
 CALLBACK_FLOW_CANCEL = "balance_flow_cancel"
 CALLBACK_RETURN_HOME = b"balance_return_home"
 CALLBACK_BACK_TO_BALANCE = "back_to_balance"
+CALLBACK_DIRECT_PAY_TOPUP = "direct_pay_topup"
 CALLBACK_CART_B_CART = "cart_b_cart"
 CALLBACK_REFERRAL_LINK = "refrallLink"
 

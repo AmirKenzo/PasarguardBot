@@ -16,6 +16,10 @@ from app.db.crud.cryptopayments import CryptoPaymentsCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.wallets import WalletCRUD
 from app.logger import LogType, get_logger
+from app.services.billing.direct_pay_fulfillment import (
+    cancel_after_crypto_expire,
+    try_fulfill_after_crypto_credit,
+)
 from app.services.billing.payment_bonus import calculate_payment_bonus
 from app.telegram.shared.utils.logging import send_log_message
 from config import TRX_TESTNET_MODE
@@ -206,20 +210,22 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
         logger.warning("TRX payment already processed or invalid: order_id=%s", payment.order_id)
         return
     payment, new_amount = approved
-    user_msg = _format_user_payment_message(payment, settings, bonus, total_amount, new_amount)
-    await Kenzo.send_message(
-        payment.user_id,
-        user_msg,
-        parse_mode="html",
-        buttons=[
-            [
-                Button.inline(
-                    text=f"💳 موجودی: {int(new_amount):,} تومان",
-                    data="no_action",
-                )
-            ]
-        ],
-    )
+    fulfilled = await try_fulfill_after_crypto_credit(int(payment.order_id))
+    if not fulfilled:
+        user_msg = _format_user_payment_message(payment, settings, bonus, total_amount, new_amount)
+        await Kenzo.send_message(
+            payment.user_id,
+            user_msg,
+            parse_mode="html",
+            buttons=[
+                [
+                    Button.inline(
+                        text=f"💳 موجودی: {int(new_amount):,} تومان",
+                        data="no_action",
+                    )
+                ]
+            ],
+        )
 
     admin_log = _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details)
     await send_log_message(
@@ -323,6 +329,7 @@ class TRXProcessor(BasePaymentProcessor):
     async def _expire_payment(self, payment, settings):
         crud = CryptoPaymentsCRUD()
         await crud.expire_payment(payment.order_id)
+        await cancel_after_crypto_expire(int(payment.order_id))
 
         try:
             if hasattr(payment, "msg_id") and payment.msg_id:

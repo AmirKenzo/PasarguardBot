@@ -36,3 +36,18 @@ def build_lock_key(user_id: int, lock_name: str) -> str:
 def build_cache_key(key: str) -> str:
     """String key for optional short-lived app cache (not source of truth)."""
     return f"{get_redis_namespace()}:cache:{key}"
+
+
+def build_direct_pay_user_key(user_id: int) -> str:
+    """Pending direct-pay purchase for a user (survives clear_user)."""
+    return f"{get_redis_namespace()}:direct_pay:user:{user_id}"
+
+
+def build_direct_pay_tx_key(transaction_id: int) -> str:
+    """Link manual transaction id to a direct-pay user."""
+    return f"{get_redis_namespace()}:direct_pay:tx:{transaction_id}"
+
+
+def build_direct_pay_crypto_key(order_id: int) -> str:
+    """Link crypto order id to a direct-pay user."""
+    return f"{get_redis_namespace()}:direct_pay:crypto:{order_id}"

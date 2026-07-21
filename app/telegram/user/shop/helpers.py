@@ -19,13 +19,17 @@ from telethon.tl.types import (
 
 from app import Kenzo
 from app.db.crud.discount_codes import DiscountCodeManager
-from app.db.crud.keyboards import get_button_text
 from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, update_Money
 from app.logger import LogType, get_logger
+from app.services.billing.direct_pay_flow import (
+    build_insufficient_balance_message,
+    create_balance_button,
+)
+from app.services.billing.direct_pay_store import KIND_VPN
 from app.services.billing.sticky_discount import discounted_price, get_sticky_discount
 from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
@@ -44,7 +48,7 @@ from app.telegram.shared.keyboards.duration_buttons import build_duration_select
 from app.telegram.shared.keyboards.panel_buttons import build_panel_display_button
 from app.telegram.shared.keyboards.plan_buttons import build_plan_inline_button
 from app.telegram.shared.utils.logging import send_log_message
-from app.telegram.shared.utils.media import respond_with_photo_and_text
+from app.telegram.shared.utils.media import respond_with_photo_and_text, send_photo_and_text_to_user
 from app.telegram.shared.utils.username import (
     handle_buy_username_conflict,
     is_panel_username_conflict,
@@ -75,18 +79,8 @@ async def check_user_balance(user_id: int, required_amount: int):
     if balance < 0:
         return False, "موجودی شما منفی است. لطفاً موجودی خود را بررسی کنید."
     if balance == 0 or balance < required:
-        message = (
-            f"‼️ موجودی کیف پول شما کافی نیست\n\n"
-            f"💰 برای خرید این پلان شما باید ({required:,} تومان) موجودی داشته باشید.\n\n"
-            "📌 برای افزایش موجودی، روی دکمه 'افزایش موجودی' کلیک کنید و پس از افزایش با یکی از روش‌های پرداخت، مجدد مراحل خرید را طی کنید."
-        )
-        return False, message
+        return False, ""
     return True, "موجودی کافی است."
-
-
-async def create_balance_button(user_id: int):
-    balance_button_text = await get_button_text("bt.menu_add_balance", "💰 افزایش موجودی")
-    return [[Button.inline(balance_button_text, data="back_to_balance")]]
 
 
 async def _buy_intro_text(lang: str) -> str:
@@ -354,23 +348,46 @@ async def _load_purchase_context(user_id: int):
     return gig, panel_code, plan
 
 
-async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | None = None) -> None:
-    lang = await _user_lang(event.sender_id)
-    gig, panel_code, plan = await _load_purchase_context(event.sender_id)
-    if gig is None or panel_code is None or plan is None:
-        await event.edit("خطا: اطلاعات مورد نیاز پیدا نشد.", buttons=await bhome_buttons(event.sender_id, lang))
-        return
+async def create_vpn_purchase_for_user(
+    user_id: int,
+    *,
+    amount: int,
+    payload: dict | None = None,
+    discount_code: str | None = None,
+    event=None,
+) -> tuple[bool, str]:
+    """Create VPN config, deduct wallet, notify user. Works with or without a Telethon event."""
+    lang = await _user_lang(user_id)
+    if payload:
+        gig = payload.get("gig")
+        panel_code = payload.get("panel")
+        plan_id = payload.get("selected_plan_id")
+        username = payload.get("username")
+        plan = await PlanManager().get_plan(plan_id)
+        discount_code = discount_code or payload.get("discount_code")
+    else:
+        gig, panel_code, plan = await _load_purchase_context(user_id)
+        username = await get_data(user_id, "username")
 
-    is_sufficient, message = await check_user_balance(event.sender_id, amount)
-    if not is_sufficient:
-        await event.delete()
-        await event.respond("💸", buttons=await bhome_buttons(event.sender_id, "fa"))
-        await event.respond(message, buttons=await create_balance_button(event.sender_id))
-        return
+    if gig is None or panel_code is None or plan is None or not username:
+        if event is not None:
+            await event.edit("خطا: اطلاعات مورد نیاز پیدا نشد.", buttons=await bhome_buttons(user_id, lang))
+        else:
+            await Kenzo.send_message(
+                user_id, "خطا: اطلاعات مورد نیاز پیدا نشد.", buttons=await bhome_buttons(user_id, lang)
+            )
+        return False, "missing_context"
 
     panel = await PanelsManager().get_panel_by_code(code=panel_code)
+    if not panel:
+        msg = "پنل یافت نشد."
+        if event is not None:
+            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "panel_not_found"
+
     code_service = random.randint(10000, 9999999)
-    username = await get_data(event.sender_id, "username")
     groups_resp = await fetch_panel_groups_with_auth(panel)
     group_ids = resolve_panel_group_ids(panel, groups_resp)
 
@@ -385,7 +402,7 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
         group_ids=group_ids,
         data_limit=gigabytes_to_bytes(float(gig)),
         expire=day_to_timestamp(int(plan.duration)),
-        note=f"{event.sender_id}",
+        note=f"{user_id}",
         data_limit_reset_strategy=reset_strategy,
         hwid_limit=ip_limit if ip_limit > 0 else None,
     )
@@ -393,8 +410,15 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
         added_user = await PasarguardAPI(panel.base_url).add_user(user=new_user, token=panel.cookie)
     except HTTPStatusError as e:
         if is_panel_username_conflict(e):
-            await handle_buy_username_conflict(event, username)
-            return
+            if event is not None:
+                await handle_buy_username_conflict(event, username)
+            else:
+                await Kenzo.send_message(
+                    user_id,
+                    f"نام کاربری `{username}` تکراری است. لطفاً دوباره خرید را انجام دهید.",
+                    buttons=await bhome_buttons(user_id, lang),
+                )
+            return False, "username_conflict"
         raise
 
     creation_time = time.time() - start_time
@@ -420,8 +444,9 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
         f"**🔗 لینک‌های تکی انتخاب‌شده:**\n{single_config_links_text}" if single_config_links_text else ""
     )
     qr_file = create_qr_code(text=f"{primary_subscription_url}", filename=f"{code_service}.png")
-    await event.delete()
-    new_amount = await update_Money(user_id=event.sender_id, Money=-int(amount))
+    if event is not None:
+        await event.delete()
+    new_amount = await update_Money(user_id=user_id, Money=-int(amount))
     ip_limit_text = format_ip_limit(getattr(plan, "ip_limit", 0))
     volume_text = convert_storage(
         float(gig), getattr(plan, "plan_type", None), getattr(plan, "data_limit_reset_strategy", None)
@@ -463,7 +488,7 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
     log_title = "خرید جدید باکدتخفیف" if discount_code else " خرید جدید بدون کدتخفیف"
     log_text = (
         f"📢 **{log_title}**\n\n"
-        f"👤 شناسه کاربر: `{event.sender_id}`\n"
+        f"👤 شناسه کاربر: `{user_id}`\n"
         f"📅 تاریخ خرید (میلادی): `{Time_Date()['mf']}`\n"
         f"📅 تاریخ خرید (شمسی): `{Time_Date()['jf']}`\n"
         f"🎫 کد سرویس: `{code_service}`\n"
@@ -485,7 +510,7 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
         enable=1,
         in_panel=panel.code,
         panel_userid=getattr(added_user, "id", None),
-        id=event.sender_id,
+        id=user_id,
         package_size=gigabytes_to_bytes(float(gig)),
         createtime=Time_Date()["stamp"],
         expiration_time=day_to_timestamp(int(plan.duration)),
@@ -495,10 +520,9 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
         ip_limit=plan.ip_limit if plan and hasattr(plan, "ip_limit") else 0,
         is_test=False,
     )
-    await clear_user(event.sender_id)
+    await clear_user(user_id)
     await send_log_message(LogType.OTHER, message=log_text)
-    await event.respond("✅", buttons=await bhome_buttons(event.sender_id, lang))
-    await set_step(event.sender_id, "home")
+    await set_step(user_id, "home")
     purchase_buttons = ReplyInlineMarkup(
         [
             KeyboardButtonRow(
@@ -512,14 +536,61 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
             KeyboardButtonRow([KeyboardButtonCopy("برای کپی لینک کلیک کنید", f"{primary_subscription_url}")]),
         ]
     )
-    await respond_with_photo_and_text(
-        event,
-        file=qr_file,
-        text=txt,
-        short_caption=(
-            f"**🎉 کانفیگ شما ساخته شد** (#{code_service})\n"
-            f"**🔷 اسم کانفیگ:** `{username}`\n"
-            f"🔗 `{primary_subscription_url}`"
-        ),
-        buttons=purchase_buttons,
+    short_caption = (
+        f"**🎉 کانفیگ شما ساخته شد** (#{code_service})\n"
+        f"**🔷 اسم کانفیگ:** `{username}`\n"
+        f"🔗 `{primary_subscription_url}`"
+    )
+    if event is not None:
+        await event.respond("✅", buttons=await bhome_buttons(user_id, lang))
+        await respond_with_photo_and_text(
+            event,
+            file=qr_file,
+            text=txt,
+            short_caption=short_caption,
+            buttons=purchase_buttons,
+        )
+    else:
+        await Kenzo.send_message(user_id, "✅", buttons=await bhome_buttons(user_id, lang))
+        await send_photo_and_text_to_user(
+            Kenzo,
+            user_id,
+            file=qr_file,
+            text=txt,
+            short_caption=short_caption,
+            buttons=purchase_buttons,
+        )
+    return True, ""
+
+
+async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | None = None) -> None:
+    lang = await _user_lang(event.sender_id)
+    gig, panel_code, plan = await _load_purchase_context(event.sender_id)
+    if gig is None or panel_code is None or plan is None:
+        await event.edit("خطا: اطلاعات مورد نیاز پیدا نشد.", buttons=await bhome_buttons(event.sender_id, lang))
+        return
+
+    is_sufficient, message = await check_user_balance(event.sender_id, amount)
+    if not is_sufficient:
+        volume_text = convert_storage(
+            float(gig), getattr(plan, "plan_type", None), getattr(plan, "data_limit_reset_strategy", None)
+        )
+        if not message:
+            message = await build_insufficient_balance_message(
+                event.sender_id,
+                amount,
+                kind=KIND_VPN,
+                product_label=getattr(plan, "name", None) or "کانفیگ VPN",
+                volume=volume_text,
+            )
+        await event.delete()
+        await event.respond("💸", buttons=await bhome_buttons(event.sender_id, "fa"))
+        await event.respond(message, buttons=await create_balance_button(event.sender_id))
+        return
+
+    await create_vpn_purchase_for_user(
+        event.sender_id,
+        amount=amount,
+        discount_code=discount_code,
+        event=event,
     )

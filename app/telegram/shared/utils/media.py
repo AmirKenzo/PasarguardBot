@@ -51,3 +51,26 @@ async def respond_with_photo_and_text(
     await event.respond(message=short_caption, file=file, **kwargs)
     for chunk in split_telegram_text(text):
         await event.respond(chunk)
+
+
+async def send_photo_and_text_to_user(
+    client,
+    user_id: int,
+    *,
+    file,
+    text: str,
+    short_caption: str,
+    buttons=None,
+) -> None:
+    """Same as respond_with_photo_and_text but via client.send_* to a user id."""
+    kwargs: dict = {}
+    if buttons is not None:
+        kwargs["buttons"] = buttons
+
+    if len(text) <= TELEGRAM_CAPTION_LIMIT:
+        await client.send_file(user_id, file, caption=text, **kwargs)
+        return
+
+    await client.send_file(user_id, file, caption=short_caption, **kwargs)
+    for chunk in split_telegram_text(text):
+        await client.send_message(user_id, chunk)
