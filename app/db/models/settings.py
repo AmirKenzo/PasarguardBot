@@ -8,6 +8,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
+DEFAULT_HOME_MENU_SETTINGS: dict[str, Any] = {
+    "profile_mode": True,
+    "help_mode": True,
+    "support_mode": True,
+    "advanced_settings_mode": True,
+}
+
 DEFAULT_CORE_SETTINGS: dict[str, Any] = {
     "bot_mode": True,
     "sale_mode": False,
@@ -15,6 +22,7 @@ DEFAULT_CORE_SETTINGS: dict[str, Any] = {
     "channel_lock": False,
     "ip_mode": False,
     "backup_interval_hours": 24,
+    **DEFAULT_HOME_MENU_SETTINGS,
 }
 
 DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
