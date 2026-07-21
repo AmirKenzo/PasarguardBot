@@ -22,7 +22,13 @@ from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, update_Money
 from app.logger import LogType, get_logger
-from app.services.billing.direct_pay_store import cancel_pending_for_user
+from app.services.billing.direct_pay_flow import (
+    build_insufficient_balance_message,
+    create_direct_pay_balance_button,
+    is_direct_pay_renew_enabled,
+    mark_direct_pay_ready,
+)
+from app.services.billing.direct_pay_store import KIND_RENEW, cancel_pending_for_user
 from app.services.billing.renewal import (
     apply_panel_user_renewal,
     preview_remaining_after_renewal,
@@ -120,7 +126,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
             if getattr(result, "is_test", False) is True:
                 await event.answer("سرویس‌های تست قابل تمدید یا ارتقا نیستند.", alert=True)
                 return
-            # Direct-pay is buy-only; abandon any leftover purchase pending.
+            # Cancel leftover buy pendings; renew pending is created only after insufficient + topup.
             await cancel_pending_for_user(event.sender_id)
             panel_manager = PanelsManager()
             panel = await panel_manager.get_panel_by_code(result.in_panel)
@@ -425,7 +431,32 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         is_sufficient, message = await check_user_balance(event.sender_id, plan.price)
         if not is_sufficient:
             await cancel_pending_for_user(event.sender_id)
-            await event.edit(message, buttons=await create_balance_button(event.sender_id))
+            if await is_direct_pay_renew_enabled():
+                volume_text = (
+                    f"{convert_storage(gig, getattr(plan, 'plan_type', None), getattr(plan, 'data_limit_reset_strategy', None))}"
+                    f" / {plan.duration} روز"
+                )
+                product_label = f"تمدید {serv_msg.username}"
+                await set_data(event.sender_id, "selected_plan_id", plan_id)
+                await set_data(event.sender_id, "direct_pay_config_name", serv_msg.username)
+                await mark_direct_pay_ready(
+                    event.sender_id,
+                    kind=KIND_RENEW,
+                    amount=int(plan.price),
+                    product_label=product_label,
+                    volume=volume_text,
+                )
+                message = await build_insufficient_balance_message(
+                    event.sender_id,
+                    int(plan.price),
+                    kind=KIND_RENEW,
+                    product_label=product_label,
+                    volume=volume_text,
+                    renew=True,
+                )
+                await event.edit(message, buttons=await create_direct_pay_balance_button(event.sender_id))
+            else:
+                await event.edit(message, buttons=await create_balance_button(event.sender_id))
         else:
             try:
                 panel = await PanelsManager().get_panel_by_code(code=panelcode)
@@ -560,7 +591,32 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         is_sufficient, message = await check_user_balance(event.sender_id, new_price)
         if not is_sufficient:
             await cancel_pending_for_user(event.sender_id)
-            await event.edit(message, buttons=await create_balance_button(event.sender_id))
+            if await is_direct_pay_renew_enabled():
+                volume_text = (
+                    f"{convert_storage(float(gig), getattr(plan, 'plan_type', None), getattr(plan, 'data_limit_reset_strategy', None))}"
+                    f" / {plan.duration} روز"
+                )
+                product_label = f"تمدید {serv_msg.username}"
+                await set_data(event.sender_id, "selected_plan_id", plan_id)
+                await set_data(event.sender_id, "direct_pay_config_name", serv_msg.username)
+                await mark_direct_pay_ready(
+                    event.sender_id,
+                    kind=KIND_RENEW,
+                    amount=int(new_price),
+                    product_label=product_label,
+                    volume=volume_text,
+                )
+                message = await build_insufficient_balance_message(
+                    event.sender_id,
+                    int(new_price),
+                    kind=KIND_RENEW,
+                    product_label=product_label,
+                    volume=volume_text,
+                    renew=True,
+                )
+                await event.edit(message, buttons=await create_direct_pay_balance_button(event.sender_id))
+            else:
+                await event.edit(message, buttons=await create_balance_button(event.sender_id))
 
         else:
             try:

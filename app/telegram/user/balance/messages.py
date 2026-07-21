@@ -23,6 +23,7 @@ from app.db.crud.user import UserCRUD
 from app.db.crud.wallets import WalletCRUD
 from app.logger import LogType, get_logger
 from app.services.billing.direct_pay_flow import (
+    DIRECT_PAY_RENEW_TOPUP_INTRO_DEFAULT,
     DIRECT_PAY_TOPUP_INTRO_DEFAULT,
     REDIS_DIRECT_PAY_ACTIVE,
     REDIS_MABLAGH,
@@ -31,6 +32,7 @@ from app.services.billing.direct_pay_flow import (
 )
 from app.services.billing.direct_pay_store import (
     ACTIVE_STATUSES,
+    KIND_RENEW,
     cancel_pending_for_user,
     get_pending_for_user,
     link_crypto_order,
@@ -188,11 +190,18 @@ async def return_to_balance_menu(event) -> None:
         volume = str(payload.get("volume") or "-")
         await set_data(user_id, REDIS_DIRECT_PAY_ACTIVE, "1")
         await set_data(user_id, REDIS_MABLAGH, topup)
-        intro_template = await get_bot_text(
-            key="direct_pay_topup_intro",
-            default=DIRECT_PAY_TOPUP_INTRO_DEFAULT,
-            lang=lang,
-        )
+        if pending.get("kind") == KIND_RENEW:
+            intro_template = await get_bot_text(
+                key="direct_pay_renew_topup_intro",
+                default=DIRECT_PAY_RENEW_TOPUP_INTRO_DEFAULT,
+                lang=lang,
+            )
+        else:
+            intro_template = await get_bot_text(
+                key="direct_pay_topup_intro",
+                default=DIRECT_PAY_TOPUP_INTRO_DEFAULT,
+                lang=lang,
+            )
         intro_text = fill_placeholders(
             intro_template,
             product_label=product_label,

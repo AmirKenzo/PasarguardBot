@@ -1,4 +1,4 @@
-"""Shared helpers for direct-pay top-up flow (VPN / reseller)."""
+"""Shared helpers for direct-pay top-up flow (VPN / reseller / renew)."""
 
 from __future__ import annotations
 
@@ -43,6 +43,16 @@ INSUFFICIENT_BALANCE_DIRECT_PAY_DEFAULT = (
     "پس از تایید پرداخت، محصول برای شما ساخته می‌شود."
 )
 
+INSUFFICIENT_BALANCE_DIRECT_PAY_RENEW_DEFAULT = (
+    "‼️ موجودی کیف پول شما کافی نیست\n\n"
+    "💰 مبلغ لازم برای تمدید: ({required} تومان)\n"
+    "📉 کمبود موجودی شما: ({shortfall} تومان)\n"
+    "📦 محصول: {product_label}\n"
+    "📥 حجم: {volume}\n\n"
+    "📌 روی دکمه «افزایش موجودی» بزنید؛ مبلغ به‌صورت خودکار تنظیم می‌شود و "
+    "پس از تایید پرداخت، سرویس شما تمدید می‌شود."
+)
+
 DIRECT_PAY_TOPUP_INTRO_DEFAULT = (
     "💳 پرداخت مستقیم خرید\n\n"
     "📦 محصول: {product_label}\n"
@@ -51,6 +61,16 @@ DIRECT_PAY_TOPUP_INTRO_DEFAULT = (
     "🛒 مبلغ کل خرید: ({required} تومان)\n\n"
     "یک روش پرداخت را انتخاب کنید. نیازی به وارد کردن مبلغ نیست؛ "
     "پس از تایید تراکنش، کانفیگ/پنل برای شما ساخته می‌شود."
+)
+
+DIRECT_PAY_RENEW_TOPUP_INTRO_DEFAULT = (
+    "💳 پرداخت مستقیم تمدید\n\n"
+    "📦 محصول: {product_label}\n"
+    "📥 حجم: {volume}\n"
+    "💰 مبلغ شارژ: ({topup_amount} تومان)\n"
+    "🛒 مبلغ کل تمدید: ({required} تومان)\n\n"
+    "یک روش پرداخت را انتخاب کنید. نیازی به وارد کردن مبلغ نیست؛ "
+    "پس از تایید تراکنش، سرویس شما تمدید می‌شود."
 )
 
 
@@ -68,19 +88,35 @@ def clamp_deposit_amount(amount: int, min_amount: int, max_amount: int) -> int:
     return min(value, int(max_amount))
 
 
-async def prepare_insufficient_direct_pay(
+async def is_direct_pay_enabled() -> bool:
+    """Purchase direct-pay toggle (VPN / reseller buy only)."""
+    settings = await SettingsManager().get_settings()
+    return bool(settings and getattr(settings, "direct_pay_purchase_mode", False))
+
+
+async def is_direct_pay_renew_enabled() -> bool:
+    """Renew direct-pay toggle (VPN config renew only)."""
+    settings = await SettingsManager().get_settings()
+    return bool(settings and getattr(settings, "direct_pay_renew_mode", False))
+
+
+async def mark_direct_pay_ready(
     user_id: int,
     *,
     kind: str,
-    required_amount: int,
+    amount: int,
     product_label: str = "",
     volume: str = "",
 ) -> None:
     await set_data(user_id, REDIS_DIRECT_PAY_READY, "1")
     await set_data(user_id, REDIS_DIRECT_PAY_KIND, kind)
-    await set_data(user_id, REDIS_DIRECT_PAY_AMOUNT, int(required_amount))
+    await set_data(user_id, REDIS_DIRECT_PAY_AMOUNT, int(amount))
     await set_data(user_id, "direct_pay_product_label", product_label or "")
     await set_data(user_id, "direct_pay_volume", volume or "")
+
+
+# Backward-compatible alias used by purchase helpers.
+prepare_insufficient_direct_pay = mark_direct_pay_ready
 
 
 async def build_insufficient_balance_message(
@@ -90,27 +126,35 @@ async def build_insufficient_balance_message(
     kind: str,
     product_label: str = "",
     volume: str = "",
+    renew: bool = False,
 ) -> str:
     user = await UserCRUD().read_user(user_id)
     balance = int(user.amount or 0) if user else 0
     required = int(required_amount)
     shortfall = max(required - balance, 0)
-    settings = await SettingsManager().get_settings()
     lang = user.language if user and user.language else "fa"
 
-    if settings and getattr(settings, "direct_pay_purchase_mode", False):
-        await prepare_insufficient_direct_pay(
+    use_direct = renew or await is_direct_pay_enabled()
+    if use_direct:
+        await mark_direct_pay_ready(
             user_id,
             kind=kind,
-            required_amount=required,
+            amount=required,
             product_label=product_label,
             volume=volume,
         )
-        template = await get_bot_text(
-            key="insufficient_balance_direct_pay",
-            default=INSUFFICIENT_BALANCE_DIRECT_PAY_DEFAULT,
-            lang=lang,
-        )
+        if renew:
+            template = await get_bot_text(
+                key="insufficient_balance_direct_pay_renew",
+                default=INSUFFICIENT_BALANCE_DIRECT_PAY_RENEW_DEFAULT,
+                lang=lang,
+            )
+        else:
+            template = await get_bot_text(
+                key="insufficient_balance_direct_pay",
+                default=INSUFFICIENT_BALANCE_DIRECT_PAY_DEFAULT,
+                lang=lang,
+            )
         return fill_placeholders(
             template,
             required=required,
@@ -137,14 +181,22 @@ async def build_insufficient_balance_message(
 
 async def create_balance_button(user_id: int):
     balance_button_text = await get_button_text("bt.menu_add_balance", "💰 افزایش موجودی")
-    settings = await SettingsManager().get_settings()
     ready = await get_data(user_id, REDIS_DIRECT_PAY_READY)
-    callback = (
-        CALLBACK_DIRECT_PAY_TOPUP
-        if settings and getattr(settings, "direct_pay_purchase_mode", False) and ready
-        else CALLBACK_BACK_TO_BALANCE
-    )
+    kind = await get_data(user_id, REDIS_DIRECT_PAY_KIND)
+    use_direct = False
+    if ready and kind:
+        if kind == direct_pay_store.KIND_RENEW:
+            use_direct = await is_direct_pay_renew_enabled()
+        elif kind in {direct_pay_store.KIND_VPN, direct_pay_store.KIND_RESELLER}:
+            use_direct = await is_direct_pay_enabled()
+    callback = CALLBACK_DIRECT_PAY_TOPUP if use_direct else CALLBACK_BACK_TO_BALANCE
     return [[Button.inline(balance_button_text, data=callback)]]
+
+
+async def create_direct_pay_balance_button(user_id: int):
+    """Always wire the add-balance button to direct-pay top-up callback."""
+    balance_button_text = await get_button_text("bt.menu_add_balance", "💰 افزایش موجودی")
+    return [[Button.inline(balance_button_text, data=CALLBACK_DIRECT_PAY_TOPUP)]]
 
 
 async def build_vpn_payload_from_session(user_id: int) -> dict[str, Any]:
@@ -171,17 +223,41 @@ async def build_reseller_payload_from_session(user_id: int) -> dict[str, Any]:
     }
 
 
-async def start_direct_pay_topup(event) -> bool:
-    """Persist pending purchase to Redis and open payment-method menu with prefilled amount."""
-    user_id = event.sender_id
-    settings = await SettingsManager().get_settings()
-    if not settings or not getattr(settings, "direct_pay_purchase_mode", False):
-        return False
+async def build_renew_payload_from_session(user_id: int) -> dict[str, Any]:
+    config_name = await get_data(user_id, "direct_pay_config_name") or ""
+    discount = await get_data(user_id, "codetakhfif")
+    if discount is None:
+        discount = await get_data(user_id, "discount_code")
+    product_label = await get_data(user_id, "direct_pay_product_label")
+    if not product_label:
+        product_label = f"تمدید {config_name}" if config_name else "تمدید"
+    return {
+        "service_code": await get_data(user_id, "ConfigID"),
+        "panel": await get_data(user_id, "panel"),
+        "selected_plan_id": await get_data(user_id, "selected_plan_id"),
+        "discount_code": discount,
+        "config_name": config_name,
+        "product_label": product_label,
+        "volume": await get_data(user_id, "direct_pay_volume") or "",
+    }
 
+
+async def start_direct_pay_topup(event) -> bool:
+    """Persist pending purchase/renew to Redis and open payment-method menu with prefilled amount."""
+    user_id = event.sender_id
     ready = await get_data(user_id, REDIS_DIRECT_PAY_READY)
     kind = await get_data(user_id, REDIS_DIRECT_PAY_KIND)
     required_raw = await get_data(user_id, REDIS_DIRECT_PAY_AMOUNT)
     if not ready or not kind or required_raw is None:
+        return False
+
+    if kind == direct_pay_store.KIND_RENEW:
+        if not await is_direct_pay_renew_enabled():
+            return False
+    elif kind in {direct_pay_store.KIND_VPN, direct_pay_store.KIND_RESELLER}:
+        if not await is_direct_pay_enabled():
+            return False
+    else:
         return False
 
     required = int(required_raw)
@@ -196,7 +272,7 @@ async def start_direct_pay_topup(event) -> bool:
     elif kind == direct_pay_store.KIND_RESELLER:
         payload = await build_reseller_payload_from_session(user_id)
     else:
-        return False
+        payload = await build_renew_payload_from_session(user_id)
 
     product_label = str(payload.get("product_label") or "")
     volume = str(payload.get("volume") or "")
@@ -218,11 +294,18 @@ async def start_direct_pay_topup(event) -> bool:
     await set_data(user_id, "direct_pay_volume", volume)
 
     lang = user.language if user and user.language else "fa"
-    intro_template = await get_bot_text(
-        key="direct_pay_topup_intro",
-        default=DIRECT_PAY_TOPUP_INTRO_DEFAULT,
-        lang=lang,
-    )
+    if kind == direct_pay_store.KIND_RENEW:
+        intro_template = await get_bot_text(
+            key="direct_pay_renew_topup_intro",
+            default=DIRECT_PAY_RENEW_TOPUP_INTRO_DEFAULT,
+            lang=lang,
+        )
+    else:
+        intro_template = await get_bot_text(
+            key="direct_pay_topup_intro",
+            default=DIRECT_PAY_TOPUP_INTRO_DEFAULT,
+            lang=lang,
+        )
     intro = fill_placeholders(
         intro_template,
         product_label=product_label or "-",
@@ -231,6 +314,7 @@ async def start_direct_pay_topup(event) -> bool:
         required=required,
         shortfall=shortfall,
     )
+    settings = await SettingsManager().get_settings()
     buttons = await create_inline_cartbcard(settings=settings, user=user)
     try:
         await event.edit(intro, buttons=buttons)
