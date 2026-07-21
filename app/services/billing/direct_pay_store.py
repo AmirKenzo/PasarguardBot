@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 ACTIVE_STATUSES = frozenset({"pending", "linked"})
 KIND_VPN = "vpn"
 KIND_RESELLER = "reseller"
+KIND_RENEW = "renew"
 
 DIRECT_PAY_TTL_SECONDS = max(int(STATE_TTL_SECONDS or 86400), 86400)
 
