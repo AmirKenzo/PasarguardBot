@@ -159,6 +159,17 @@ TEXT_KEYS_CONFIG = {
             },
         },
         {
+            "key": "insufficient_balance_direct_pay_renew",
+            "title": "پیام کمبود موجودی (پرداخت مستقیم تمدید)",
+            "placeholders": {
+                "required": "مبلغ لازم",
+                "shortfall": "کمبود موجودی",
+                "product_label": "نام محصول",
+                "volume": "حجم",
+                "balance": "موجودی فعلی",
+            },
+        },
+        {
             "key": "direct_pay_topup_intro",
             "title": "معرفی پرداخت مستقیم پس از کلیک افزایش موجودی",
             "placeholders": {
@@ -170,8 +181,24 @@ TEXT_KEYS_CONFIG = {
             },
         },
         {
+            "key": "direct_pay_renew_topup_intro",
+            "title": "معرفی پرداخت مستقیم تمدید پس از کلیک افزایش موجودی",
+            "placeholders": {
+                "product_label": "نام محصول",
+                "volume": "حجم",
+                "topup_amount": "مبلغ شارژ",
+                "required": "مبلغ کل تمدید",
+                "shortfall": "کمبود موجودی",
+            },
+        },
+        {
             "key": "direct_pay_fulfill_failed",
             "title": "خطای ساخت خودکار پس از شارژ",
+            "placeholders": {"balance": "موجودی فعلی"},
+        },
+        {
+            "key": "direct_pay_renew_fulfill_failed",
+            "title": "خطای تمدید خودکار پس از شارژ",
             "placeholders": {"balance": "موجودی فعلی"},
         },
         {

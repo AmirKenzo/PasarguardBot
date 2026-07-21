@@ -45,6 +45,7 @@ DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {
     "test_panel_id": 0,
     "test_phone_verify": True,
     "direct_pay_purchase_mode": False,
+    "direct_pay_renew_mode": False,
 }
 
 DEFAULT_SERVICE_TOOLS_SETTINGS: dict[str, Any] = {

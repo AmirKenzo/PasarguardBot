@@ -1,4 +1,4 @@
-"""Fulfill direct-pay purchases after wallet credit (Redis pending, no DB table)."""
+"""Fulfill direct-pay purchases/renewals after wallet credit (Redis pending, no DB table)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from app import Kenzo
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.services.billing import direct_pay_store
+from app.services.billing.direct_pay_renew import create_vpn_renew_for_user
 from app.telegram.user.reseller.helpers import create_reseller_purchase_for_user
 from app.telegram.user.shop.helpers import create_vpn_purchase_for_user
 from app.utils.text.bot_texts import get_bot_text
@@ -20,15 +21,28 @@ FULFILL_FAILED_DEFAULT = (
     "💰 موجودی فعلی: `{balance}` تومان"
 )
 
+RENEW_FULFILL_FAILED_DEFAULT = (
+    "موجودی شما شارژ شد، اما تمدید خودکار سرویس انجام نشد.\n"
+    "لطفاً دوباره از منوی سرویس‌ها تمدید را انجام دهید یا با پشتیبانی تماس بگیرید.\n"
+    "💰 موجودی فعلی: `{balance}` تومان"
+)
+
 DIRECT_PAY_CANCELLED_DEFAULT = "سفارش پرداخت مستقیم شما لغو شد.\nدر صورت نیاز دوباره مراحل خرید را طی کنید."
 
 
-async def _notify_fulfill_failed(user_id: int, balance: int) -> None:
-    text = await get_bot_text(
-        key="direct_pay_fulfill_failed",
-        default=FULFILL_FAILED_DEFAULT,
-        lang="fa",
-    )
+async def _notify_fulfill_failed(user_id: int, balance: int, *, renew: bool = False) -> None:
+    if renew:
+        text = await get_bot_text(
+            key="direct_pay_renew_fulfill_failed",
+            default=RENEW_FULFILL_FAILED_DEFAULT,
+            lang="fa",
+        )
+    else:
+        text = await get_bot_text(
+            key="direct_pay_fulfill_failed",
+            default=FULFILL_FAILED_DEFAULT,
+            lang="fa",
+        )
     message = text.replace("{balance}", f"{int(balance):,}")
     try:
         await Kenzo.send_message(int(user_id), message)
@@ -49,19 +63,20 @@ async def notify_direct_pay_cancelled(user_id: int) -> None:
 
 
 async def fulfill_pending_record(record: dict[str, Any]) -> bool:
-    """Create product for a claimed pending record. Returns True on success."""
+    """Create product or renew for a claimed pending record. Returns True on success."""
     user_id = int(record["user_id"])
     kind = record.get("kind")
     amount = int(record.get("amount") or 0)
     payload = record.get("payload") or {}
     if not isinstance(payload, dict):
         payload = {}
+    is_renew = kind == direct_pay_store.KIND_RENEW
 
     user = await UserCRUD().read_user(user_id)
     balance = int(user.amount or 0) if user else 0
     if balance < amount:
         await direct_pay_store.mark_status(user_id, "failed")
-        await _notify_fulfill_failed(user_id, balance)
+        await _notify_fulfill_failed(user_id, balance, renew=is_renew)
         return False
 
     try:
@@ -74,6 +89,13 @@ async def fulfill_pending_record(record: dict[str, Any]) -> bool:
             )
         elif kind == direct_pay_store.KIND_RESELLER:
             ok, err = await create_reseller_purchase_for_user(
+                user_id,
+                amount=amount,
+                payload=payload,
+                discount_code=payload.get("discount_code"),
+            )
+        elif is_renew:
+            ok, err = await create_vpn_renew_for_user(
                 user_id,
                 amount=amount,
                 payload=payload,
@@ -94,7 +116,7 @@ async def fulfill_pending_record(record: dict[str, Any]) -> bool:
     await direct_pay_store.mark_status(user_id, "failed")
     user = await UserCRUD().read_user(user_id)
     balance = int(user.amount or 0) if user else balance
-    await _notify_fulfill_failed(user_id, balance)
+    await _notify_fulfill_failed(user_id, balance, renew=is_renew)
     return False
 
 
