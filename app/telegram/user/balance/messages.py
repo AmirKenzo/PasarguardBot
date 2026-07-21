@@ -244,16 +244,26 @@ async def manual_card_send_channel_info(event, amount_toman: int, *, edit: bool 
     text = text_template.format(**placeholders)
     buttons = await keyboards.manual_card_channel_info_rows()
     flow_msg_id = await get_balance_flow_message_id(event.sender_id, event)
+    event_msg_id = getattr(event, "message_id", None)
+    same_message = bool(flow_msg_id and event_msg_id and int(flow_msg_id) == int(event_msg_id))
+
+    # Callback path: edit the payment menu in place. Never delete that same message
+    # (legacy flow deletes the user's amount NewMessage, which is a different id).
+    if edit and (not flow_msg_id or same_message):
+        await event.edit(text, buttons=buttons)
+        await remember_balance_flow_message(event.sender_id, event.message_id)
+        return
+
     if flow_msg_id:
         await event.client.edit_message(event.chat_id, flow_msg_id, text, buttons=buttons)
         await remember_balance_flow_message(event.sender_id, flow_msg_id)
-        with contextlib.suppress(Exception):
-            await event.delete()
-    elif edit:
-        await event.edit(text, buttons=buttons)
-    else:
-        sent = await event.respond(text, buttons=buttons)
-        await remember_balance_flow_message(event.sender_id, sent.id)
+        if event_msg_id and int(event_msg_id) != int(flow_msg_id):
+            with contextlib.suppress(Exception):
+                await event.delete()
+        return
+
+    sent = await event.respond(text, buttons=buttons)
+    await remember_balance_flow_message(event.sender_id, sent.id)
 
 
 def to_rial(amount: int) -> int:

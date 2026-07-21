@@ -12,7 +12,11 @@ from app.db.crud.user import UserCRUD
 from app.services.billing import direct_pay_store
 from app.telegram.keyboards.balance import create_inline_cartbcard
 from app.telegram.state import clear_user, get_data, set_data, set_step
-from app.telegram.user.balance.states import CALLBACK_BACK_TO_BALANCE, STEP_CART_B_CART
+from app.telegram.user.balance.states import (
+    BALANCE_FLOW_MSG_STEP,
+    CALLBACK_BACK_TO_BALANCE,
+    STEP_CART_B_CART,
+)
 from app.utils.text.bot_texts import get_bot_text
 
 CALLBACK_DIRECT_PAY_TOPUP = "direct_pay_topup"
@@ -230,8 +234,11 @@ async def start_direct_pay_topup(event) -> bool:
     buttons = await create_inline_cartbcard(settings=settings, user=user)
     try:
         await event.edit(intro, buttons=buttons)
+        flow_msg_id = event.message_id
     except Exception:
-        await event.respond(intro, buttons=buttons)
+        sent = await event.respond(intro, buttons=buttons)
+        flow_msg_id = sent.id
+    await set_data(user_id, BALANCE_FLOW_MSG_STEP, flow_msg_id)
     await set_step(user_id=user_id, step=STEP_CART_B_CART)
     return True
 
