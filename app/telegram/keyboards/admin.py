@@ -4,7 +4,9 @@ from telethon import Button
 
 from app.db.crud.user import UserCRUD
 
-from .common import create_button, glass_inline_button, glass_text_button
+from .common import create_button, glass_inline_button, glass_text_button, styled_simple_webview_button
+
+DOCS_URL = "https://amirkenzo.github.io/PasarguardBot/"
 
 Lock_Channels_Menu_Buttons = [
     [glass_text_button("افزودن کانال"), glass_text_button("حذف کانال")],
@@ -92,7 +94,8 @@ Panel_Admin_Buttons = [
     [create_button("📈 افزایش حجم و زمان همگانی"), create_button("🔐 قفل چنل ها")],
     [create_button("📝 مدیریت لاگ‌ها"), create_button("📦 بکاپ ربات")],
     [create_button("📝 متن‌های ربات"), create_button("⌨️ مدیریت دکمه‌های کیبورد")],
-    [create_button("🔗 لینک های آماده")],
+    [create_button("🔗 لینک های آماده"), styled_simple_webview_button("📚 مستندات ربات", DOCS_URL)],
+    
     [create_button("🈸 آپدیت برنامه ها")],
     [create_button("🏠")],
 ]
@@ -110,4 +113,4 @@ panel_xui_buttons = [
 
 panel_back = [[create_button("🔙 بازگشت به پنل")]]
 
-Home_Back = [[create_button("🏠")]]
+Home_Back = [[create_button('🏠')]]
