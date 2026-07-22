@@ -1,0 +1,5 @@
+{
+  "title": "شروع",
+  "icon": "Rocket",
+  "pages": ["install", "configuration", "ports", "cli-menu", "preview"]
+}

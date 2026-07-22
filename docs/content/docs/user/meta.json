@@ -1,0 +1,15 @@
+{
+  "title": "راهنمای کاربر",
+  "icon": "Users",
+  "pages": [
+    "index",
+    "buy",
+    "my-services",
+    "balance",
+    "trial",
+    "reseller",
+    "profile",
+    "help-support",
+    "advanced-settings"
+  ]
+}

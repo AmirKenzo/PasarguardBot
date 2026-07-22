@@ -1,0 +1,21 @@
+{
+  "title": "پنل ادمین",
+  "icon": "Shield",
+  "pages": [
+    "index",
+    "gateway",
+    "stats",
+    "panels",
+    "bot-settings",
+    "discounts",
+    "plans",
+    "reseller-plans",
+    "users",
+    "broadcast",
+    "bulk-ops",
+    "channels",
+    "texts-keyboards",
+    "backup-logs",
+    "links-apps"
+  ]
+}
