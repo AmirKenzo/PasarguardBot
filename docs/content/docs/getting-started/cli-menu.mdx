@@ -1,0 +1,202 @@
+---
+title: منوی مدیریت سرور
+description: راهنمای کامل گزینه‌های اسکریپت pasarguardbot
+icon: Terminal
+---
+
+با اجرای `pasarguardbot` (یا نصب اولیه اسکریپت) منوی مدیریت باز می‌شود.
+
+<CliPanel title="PasarguardBot — manager">
+{`PasarguardBot — manager v…
+
+● Status: Installed (docker)
+
+┌────────────────────────────────────────┐
+│  1) Install bot                        │
+│  2) Uninstall bot                      │
+│  3) Update bot                         │
+│  4) View logs                          │
+│  5) Edit .env file                     │
+│  6) Full restart                       │
+│  7) Service status                     │
+│  8) Show webhook & URLs                │
+│  9) Update manager script              │
+│ 10) Fix Docker network                 │
+│  0) Exit                               │
+└────────────────────────────────────────┘
+  Select an option: `}
+</CliPanel>
+
+در ادامه هر گزینه توضیح داده شده است.
+
+---
+
+## ۱) Install bot — نصب ربات
+
+نصب کامل Docker یا Native. جزئیات مرحله‌به‌مرحله در صفحهٔ [نصب](/docs/getting-started/install).
+
+اگر قبلاً نصب شده باشد می‌پرسد:
+
+```text
+Continue (will keep existing .env and data)? (y/N):
+```
+
+- **Enter** / `N` → لغو  
+- `y` → ادامه (`.env` و دیتا حفظ می‌شود)
+
+---
+
+## ۲) Uninstall bot — حذف
+
+### Docker
+
+<CliPanel title="Uninstall (Docker)">
+{`⚠  Uninstall PasarguardBot (Docker)
+
+  1) Remove containers only (keep .env and data)
+  2) Remove containers + data
+  3) Full remove (everything under /opt/pasarguardbot)
+  0) Cancel`}
+</CliPanel>
+
+| گزینه | کار |
+|--------|-----|
+| `1` | فقط کانتینرها؛ `.env` و دیتا می‌ماند |
+| `2` | کانتینر + دیتابیس/ردیس — باید دقیقاً `yes` تایپ کنید |
+| `3` | حذف کامل مسیر `/opt/pasarguardbot` — باید `yes` تایپ کنید |
+| `0` | بازگشت |
+
+### Native
+
+همان الگوی سه‌مرحله‌ای برای توقف سرویس‌ها / حذف دیتا / حذف کامل.
+
+---
+
+## ۳) Update bot — بروزرسانی ربات
+
+برنچ را مثل نصب می‌پرسد (`Choice [1]:` → Enter = `main`).
+
+- **Docker:** دریافت compose/ایمیج جدید و recreate کانتینرها  
+- **Native:** sync از گیت + نصب وابستگی‌ها + ری‌استارت systemd  
+
+---
+
+## ۴) View logs — لاگ‌ها
+
+### Docker
+
+```text
+  1) Bot
+  2) MariaDB
+  3) Redis
+  4) All services
+  5) Live bot logs (Ctrl+C to exit)
+  0) Back
+```
+
+### Native
+
+```text
+  1) Bot
+  2) MariaDB
+  3) Redis
+  4) phpMyAdmin logs
+  5) Live bot logs (Ctrl+C to exit)
+  0) Back
+```
+
+گزینهٔ `5` لاگ زنده است؛ با `Ctrl+C` خارج شوید.
+
+---
+
+## ۵) Edit .env file — ویرایش تنظیمات
+
+فایل `/opt/pasarguardbot/.env` با ادیتور (`nano` یا `$EDITOR`) باز می‌شود.
+
+بعد از ذخیره:
+
+```text
+Restart the bot? (Y/n):
+```
+
+- **Enter** یا `Y` → ری‌استارت ربات  
+- `n` → بدون ری‌استارت
+
+---
+
+## ۶) Full restart — ری‌استارت کامل
+
+همه سرویس‌های استک را از نو بالا می‌آورد.
+
+- Docker: `down` سپس `up -d` (در صورت امکان pull ایمیج بات)  
+- Native: ری‌استارت واحدهای systemd (redis / mariadb / phpmyadmin / bot)
+
+---
+
+## ۷) Service status — وضعیت سرویس‌ها
+
+وضعیت کانتینرها یا systemd، پورت‌ها و خلاصهٔ URLها را نشان می‌دهد.
+
+---
+
+## ۸) Show webhook & URLs — وب‌هوک و آدرس‌ها
+
+<CliPanel title="URLs">
+{`[*] Webhook (set in Pasarguard panel):
+  URL:     http://SERVER_IP:6160/api/webhook
+  Header:  x-webhook-secret: <from .env>
+
+[*] phpMyAdmin:
+  URL:  http://SERVER_IP:6163
+
+[!] Replace the IP with your domain if you use one.`}
+</CliPanel>
+
+همین مقادیر را در پنل پاسارگارد برای وب‌هوک ست کنید.
+
+---
+
+## ۹) Update manager script — آپدیت اسکریپت مدیریت
+
+خود فایل `pasarguardbot.sh` را از برنچ فعلی دوباره می‌گیرد. اگر نسخه عوض شده باشد، یک‌بار دیگر `pasarguardbot` را اجرا کنید.
+
+---
+
+## ۱۰) Fix Docker network — رفع شبکه Docker
+
+فقط برای نصب Docker معنی دارد. در حالت Native معمولاً غیرفعال/مسدود است.
+
+<CliPanel title="Docker network">
+{`Docker network
+
+  1) Check Docker Bridge
+  2) Repair Docker Bridge
+  3) Rollback Netplan Repair
+  0) Back`}
+</CliPanel>
+
+برای Repair/Rollback تأیید می‌خواهد: `Continue? [y/N]:` — **Enter = خیر**.
+
+---
+
+## ۰) Exit — خروج
+
+با `0` یا `q` از منو خارج می‌شوید.
+
+---
+
+## میانبرهای خط فرمان
+
+بدون منو هم می‌توانید مستقیم بزنید:
+
+```bash
+pasarguardbot install
+pasarguardbot uninstall
+pasarguardbot update
+pasarguardbot logs
+pasarguardbot restart
+pasarguardbot status
+pasarguardbot urls
+pasarguardbot update-script
+pasarguardbot menu
+```

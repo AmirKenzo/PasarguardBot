@@ -1,0 +1,206 @@
+---
+title: نصب
+description: نصب مرحله‌به‌مرحله PasarguardBot با اسکریپت مدیریت
+icon: Download
+---
+
+## اجرای اسکریپت
+
+روی سرور لینوکس (با دسترسی root):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/AmirKenzo/PasarguardBot/main/scripts/pasarguardbot.sh)
+```
+
+اگر اسکریپت از قبل نصب شده:
+
+```bash
+pasarguardbot
+```
+
+منوی مدیریت شبیه این باز می‌شود:
+
+<CliPanel title="PasarguardBot — manager">
+{`PasarguardBot — manager
+
+● Status: Not installed
+
+┌────────────────────────────────────────┐
+│  1) Install bot                        │
+│  2) Uninstall bot                      │
+│  3) Update bot                         │
+│  4) View logs                          │
+│  5) Edit .env file                     │
+│  6) Full restart                       │
+│  7) Service status                     │
+│  8) Show webhook & URLs                │
+│  9) Update manager script              │
+│ 10) Fix Docker network                 │
+│  0) Exit                               │
+└────────────────────────────────────────┘
+  Select an option: `}
+</CliPanel>
+
+برای نصب، گزینهٔ **`1`** را بزنید.
+
+---
+
+## مرحله ۱ — انتخاب حالت نصب
+
+<CliPanel title="Install mode">
+{`Install mode
+
+  1) Docker (full stack — Redis/MariaDB/phpMyAdmin/bot in containers)
+  2) Native (no Docker — services on host, isolated ports 6161/6162/6163)
+  0) Cancel
+Choice: `}
+</CliPanel>
+
+| انتخاب | معنی |
+|--------|------|
+| `1` | **Docker** — همه سرویس‌ها داخل کانتینر (پیشنهادی بیشتر سرورها) |
+| `2` | **Native** — نصب روی خود سیستم (فقط Debian/Ubuntu با apt) |
+| `0` | انصراف |
+
+---
+
+## مرحله ۲ — انتخاب برنچ
+
+<CliPanel title="Select install branch">
+{`Select install branch
+
+  1) main  (recommended — latest stable)
+  2) dev   (testing only — may be unstable)
+  0) Cancel
+Choice [1]: `}
+</CliPanel>
+
+| انتخاب | معنی |
+|--------|------|
+| **Enter** یا `1` | برنچ `main` (پایدار — پیشنهادی) |
+| `2` | برنچ `dev` (تست؛ ممکن است ناپایدار باشد) |
+| `0` | انصراف |
+
+---
+
+## مرحله ۳ — بررسی پورت و دیسک
+
+اسکریپت خودش فضای دیسک و آزاد بودن پورت‌ها را چک می‌کند.
+
+پورت‌های ثابت (از کاربر پرسیده نمی‌شود):
+
+| پورت | سرویس | دسترسی |
+|------|--------|--------|
+| `6160` | FastAPI / وب‌هوک | Public |
+| `6161` | Redis | localhost |
+| `6162` | MariaDB | localhost |
+| `6163` | phpMyAdmin | Public |
+
+اگر پورتی اشغال باشد:
+
+```text
+Continue anyway? (y/N):
+```
+
+- **Enter** یا `N` → نصب متوقف می‌شود  
+- `y` → با همان پورت ادامه می‌دهد (با احتیاط)
+
+---
+
+## مرحله ۴ — اطلاعات تلگرام
+
+وقتی نوبت ساخت `.env` برسد:
+
+<CliPanel title="Telegram credentials">
+{`[*] Enter your Telegram credentials:
+
+  API_ID (from my.telegram.org) [2040]:
+  API_HASH [b18441a1ff607e10a989891a5462e627]:
+  BOT_TOKEN (from @BotFather):
+  ADMIN_ID (numeric Telegram user ID):`}
+</CliPanel>
+
+### فیلدها یکی‌یکی
+
+<CliPrompt
+  label="API_ID (from my.telegram.org) [2040]:"
+  hint="اختیاری است. فقط Enter بزنید تا مقدار پیش‌فرض Telethon ست شود. اگر از my.telegram.org مقدار خودتان را دارید، همان را وارد کنید."
+/>
+
+<CliPrompt
+  label="API_HASH [...default...]:"
+  hint="اختیاری است. Enter = پیش‌فرض. معمولاً همراه API_ID از my.telegram.org گرفته می‌شود."
+/>
+
+<CliPrompt
+  label="BOT_TOKEN (from @BotFather):"
+  required
+  hint="اجباری. توکن ربات را از @BotFather بگیرید و وارد کنید. خالی بگذارید دوباره می‌پرسد."
+/>
+
+<CliPrompt
+  label="ADMIN_ID (numeric Telegram user ID):"
+  required
+  hint="اجباری. آیدی عددی تلگرام خودتان (ادمین). برای پیدا کردن آیدی می‌توانید از ربات‌های UserInfo استفاده کنید."
+/>
+
+### چه چیزهایی پرسیده نمی‌شود؟
+
+این‌ها خودکار ساخته/ست می‌شوند:
+
+| مورد | وضعیت |
+|------|--------|
+| `CRYPTO_KEY` | تصادفی |
+| `WEBHOOK_SECRET` | تصادفی |
+| دیتابیس MariaDB | ساخته می‌شود و پسورد چاپ می‌شود |
+| `REDIS_URL` | خودکار |
+| پورت‌ها | ثابت `6160–6163` |
+| دامنه | پرسیده نمی‌شود (بعداً IP یا دامنه خودتان را در پنل می‌گذارید) |
+
+اگر `.env` از قبل وجود داشته باشد، این مرحله رد می‌شود و فایل قبلی نگه داشته می‌شود.
+
+---
+
+## مرحله ۵ — پایان نصب
+
+بعد از بالا آمدن سرویس‌ها، خلاصهٔ مسیرها، پورت‌ها و آدرس وب‌هوک چاپ می‌شود. سپس:
+
+```text
+Press Enter to continue...
+```
+
+Enter بزنید تا به منوی اصلی برگردید.
+
+آدرس‌ها را هر وقت خواستید از منو گزینهٔ **`8) Show webhook & URLs`** ببینید.
+
+نمونهٔ خروجی:
+
+<CliPanel title="Webhook & URLs">
+{`[*] Webhook (set in Pasarguard panel):
+  URL:     http://YOUR_IP:6160/api/webhook
+  Header:  x-webhook-secret: ********
+
+[*] phpMyAdmin:
+  URL:  http://YOUR_IP:6163
+
+[!] Replace the IP with your domain if you use one.`}
+</CliPanel>
+
+---
+
+## Docker یا Native؟
+
+| | Docker | Native |
+|--|--------|--------|
+| سیستم | تقریباً همه لینوکس‌های رایج | فقط Debian/Ubuntu (apt) |
+| سرویس‌ها | کانتینر | systemd روی هاست |
+| سختی | ساده‌تر | برای کسانی که Docker نمی‌خواهند |
+| پیشنهادی | اکثر کاربران | محیط‌های خاص بدون Docker |
+
+---
+
+## مراحل بعدی
+
+1. در پنل پاسارگارد وب‌هوک را با URL و هدر `x-webhook-secret` ست کنید  
+2. جزئیات متغیرها: [پیکربندی](/docs/getting-started/configuration)  
+3. همه گزینه‌های منو: [منوی مدیریت سرور](/docs/getting-started/cli-menu)

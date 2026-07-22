@@ -1,0 +1,33 @@
+---
+title: پیکربندی
+description: متغیرهای محیطی — خودکار در نصب و قابل ویرایش بعداً
+icon: Settings2
+---
+
+در **نصب اولیه** فقط چند فیلد تلگرام پرسیده می‌شود. بقیه معمولاً خودکار ساخته می‌شوند. برای تغییر بعدی از منو گزینهٔ **`5) Edit .env file`** استفاده کنید.
+
+## در نصب از شما پرسیده می‌شود
+
+| متغیر | اجباری؟ | توضیح |
+|--------|---------|--------|
+| `API_ID` | خیر | Enter = پیش‌فرض Telethon (`2040`) |
+| `API_HASH` | خیر | Enter = پیش‌فرض Telethon |
+| `BOT_TOKEN` | بله | از [@BotFather](https://t.me/BotFather) |
+| `ADMIN_ID` | بله | آیدی عددی ادمین تلگرام |
+
+جزئیات مراحل: [نصب](/docs/getting-started/install)
+
+## خودکار ساخته می‌شود
+
+| متغیر | توضیح |
+|--------|--------|
+| `CRYPTO_KEY` | کلید رمزنگاری (تصادفی) |
+| `WEBHOOK_SECRET` | سکرت هدر وب‌هوک (تصادفی) |
+| `SQLALCHEMY_DATABASE_URL` | اتصال MariaDB |
+| `REDIS_URL` | اتصال Redis |
+| `FASTAPI_PORT` | پیش‌فرض `6160` |
+| رمز/یوزر دیتابیس | بعد از ساخت `.env` چاپ می‌شود |
+
+## مرجع کامل
+
+لیست همه متغیرها در ریپو: [`.env.example`](https://github.com/AmirKenzo/PasarguardBot/blob/main/.env.example)

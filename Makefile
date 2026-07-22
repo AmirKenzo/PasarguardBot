@@ -1,4 +1,4 @@
-.PHONY: help clean install-deps install-service patch-service-env start-service stop-service restart-service status-service run logs-service logs-follow logs-app logs-all remove-service setup-service enable-service disable-service
+.PHONY: help clean clean-docs clean-all install-deps install-service patch-service-env start-service stop-service restart-service status-service run logs-service logs-follow logs-app logs-all remove-service setup-service enable-service disable-service
 
 # Service configuration
 SERVICE_NAME = PasarguardBot
@@ -40,7 +40,9 @@ help:
 	@echo "  make patch-service-env - Apply COLUMNS to running systemd unit + restart"
 	@echo ""
 	@echo "🧹 Maintenance:"
-	@echo "  make clean             - Clean Python cache files"
+	@echo "  make clean             - Clean caches (Python, docs build, pytest/ruff)"
+	@echo "  make clean-docs        - Clean docs build artifacts only"
+	@echo "  make clean-all         - clean + remove .venv and docs/node_modules"
 	@echo "  make remove-service    - Remove service completely"
 	@echo ""
 	@echo "💡 Quick Start:"
@@ -55,20 +57,37 @@ help:
 # Default target
 .DEFAULT_GOAL := help
 
-# Cross-platform clean target (Linux / Windows)
-clean:
-	@echo "Cleaning Python cache files..."
+# Cross-platform clean (caches only — keeps .venv / node_modules)
+clean: clean-docs
+	@echo "Cleaning Python / tool caches..."
 ifeq ($(OS),Windows_NT)
-	@echo "Detected Windows OS"
-	@powershell -Command "Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue"
-	@powershell -Command "Get-ChildItem -Recurse -Include *.pyc,*.pyo | Remove-Item -Force -ErrorAction SilentlyContinue"
+	@powershell -NoProfile -Command "$$ErrorActionPreference='SilentlyContinue'; Get-ChildItem -Recurse -Directory -Filter '__pycache__' | Remove-Item -Force -Recurse; Get-ChildItem -Recurse -Include *.pyc,*.pyo | Remove-Item -Force; @('.pytest_cache','.ruff_cache','.mypy_cache','.hypothesis','site') | ForEach-Object { if (Test-Path $$_) { Remove-Item $$_ -Force -Recurse } }; Get-ChildItem -Recurse -Filter '*.tsbuildinfo' | Remove-Item -Force"
 else
-	@echo "Detected Unix-like OS"
-	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	@find . -name "*.pyc" -delete 2>/dev/null || true
-	@find . -name "*.pyo" -delete 2>/dev/null || true
+	@find . -type d \( -name '__pycache__' -o -name '.pytest_cache' -o -name '.ruff_cache' -o -name '.mypy_cache' -o -name '.hypothesis' \) -prune -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f \( -name '*.pyc' -o -name '*.pyo' -o -name '*.tsbuildinfo' \) -delete 2>/dev/null || true
+	@rm -rf site 2>/dev/null || true
 endif
-	@echo "Cleaning done!"
+	@echo "Clean done."
+
+# Docs (Fumadocs) build artifacts only
+clean-docs:
+	@echo "Cleaning docs build artifacts..."
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "$$ErrorActionPreference='SilentlyContinue'; @('docs\\.next','docs\\out','docs\\.source') | ForEach-Object { if (Test-Path $$_) { Remove-Item $$_ -Force -Recurse } }"
+else
+	@rm -rf docs/.next docs/out docs/.source 2>/dev/null || true
+endif
+	@echo "Docs clean done."
+
+# Full wipe of local envs + caches (re-run: uv sync / bun install)
+clean-all: clean
+	@echo "Removing local virtualenvs and docs dependencies..."
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "$$ErrorActionPreference='SilentlyContinue'; @('.venv','venv','docs\\node_modules') | ForEach-Object { if (Test-Path $$_) { Remove-Item $$_ -Force -Recurse } }"
+else
+	@rm -rf .venv venv docs/node_modules 2>/dev/null || true
+endif
+	@echo "Clean-all done."
 
 # Install uv if not installed
 install-uv:

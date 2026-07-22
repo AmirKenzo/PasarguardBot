@@ -2025,6 +2025,12 @@ install_uv_binary() {
     ok "uv installed."
 }
 
+# Docs site (Fumadocs) is not needed on production servers.
+strip_non_runtime_files() {
+    [[ -d "$APP_DIR" ]] || return 0
+    rm -rf "${APP_DIR}/docs"
+}
+
 # Force local APP_DIR git tree to match remote branch (drops dirty tracked files).
 # Needed because MariaDB/uv may leave local edits that block plain `git checkout`.
 git_sync_app_dir_to_branch() {
@@ -2059,6 +2065,7 @@ fetch_bot_source() {
     if [[ "$force_refresh" == "1" ]] && [[ -d "${APP_DIR}/.git" ]]; then
         info "Updating existing git checkout in ${APP_DIR} (branch ${branch})..."
         git_sync_app_dir_to_branch "$branch"
+        strip_non_runtime_files
         set_install_branch "$branch"
         ok "Source updated ($(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown))."
         return 0
@@ -2086,6 +2093,7 @@ fetch_bot_source() {
         fi
         rm -rf "${APP_DIR}.bak" "$tmpdir"
         rm -f "$tmp"
+        strip_non_runtime_files
         set_install_branch "$branch"
         ok "Source refreshed at ${APP_DIR}"
         return 0
@@ -2094,12 +2102,14 @@ fetch_bot_source() {
     if [[ -d "${APP_DIR}/.git" ]]; then
         info "Updating existing git checkout in ${APP_DIR} (branch ${branch})..."
         git_sync_app_dir_to_branch "$branch"
+        strip_non_runtime_files
         set_install_branch "$branch"
         ok "Source updated ($(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown))."
         return 0
     fi
 
     if [[ -f "${APP_DIR}/main.py" && -f "${APP_DIR}/pyproject.toml" ]]; then
+        strip_non_runtime_files
         ok "App source already present at ${APP_DIR}"
         set_install_branch "$branch"
         return 0
@@ -2110,6 +2120,7 @@ fetch_bot_source() {
     mkdir -p "$(dirname "$APP_DIR")"
 
     if command -v git &>/dev/null && git clone --depth 1 --branch "$branch" "$REPO_GIT_URL" "$APP_DIR"; then
+        strip_non_runtime_files
         set_install_branch "$branch"
         ok "Cloned repository to ${APP_DIR}"
         return 0
@@ -2130,6 +2141,7 @@ fetch_bot_source() {
     mv "$extracted" "$APP_DIR"
     rm -f "$tmp"
     rm -rf "$tmpdir"
+    strip_non_runtime_files
     set_install_branch "$branch"
     ok "Source extracted to ${APP_DIR}"
 }

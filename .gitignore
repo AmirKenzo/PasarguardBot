@@ -6,5 +6,10 @@ NOTE.txt
 logs/
 sessions/
 data/
+docs/node_modules/
+docs/.next/
+docs/out/
+docs/.source/
+docs/package-lock.json
 *.session
 *.session-journal
