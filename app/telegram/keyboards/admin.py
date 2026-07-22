@@ -95,7 +95,6 @@ Panel_Admin_Buttons = [
     [create_button("📝 مدیریت لاگ‌ها"), create_button("📦 بکاپ ربات")],
     [create_button("📝 متن‌های ربات"), create_button("⌨️ مدیریت دکمه‌های کیبورد")],
     [create_button("🔗 لینک های آماده"), styled_simple_webview_button("📚 مستندات ربات", DOCS_URL)],
-    
     [create_button("🈸 آپدیت برنامه ها")],
     [create_button("🏠")],
 ]
@@ -113,4 +112,4 @@ panel_xui_buttons = [
 
 panel_back = [[create_button("🔙 بازگشت به پنل")]]
 
-Home_Back = [[create_button('🏠')]]
+Home_Back = [[create_button("🏠")]]
