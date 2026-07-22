@@ -29,11 +29,11 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Ruff check
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4
         with:
           args: "check"
 
       - name: Ruff format
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4
         with:
           args: "format --check"
