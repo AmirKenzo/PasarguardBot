@@ -1,4 +1,4 @@
-name: Publish Container to GHCR
+name: CI
 
 on:
   push:
@@ -9,16 +9,37 @@ on:
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
       - "v[0-9]*.[0-9]*.[0-9]*"
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  container:
-    if: ${{ github.actor != 'renovate[bot]' && github.actor != 'dependabot[bot]' }}
+  ruff:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
+      - name: Ruff check
+        uses: astral-sh/ruff-action@v4
+        with:
+          args: "check"
+
+      - name: Ruff format
+        uses: astral-sh/ruff-action@v4
+        with:
+          args: "format --check"
+
+  container:
+    needs: ruff
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.actor != 'renovate[bot]' && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
