@@ -6,6 +6,7 @@ from pathlib import Path
 import uvicorn
 
 # FastAPI app is optional; Telethon bot always starts.
+# CI cache smoke: code-only change should not re-download deps.
 from app.routers import api_app as fastapi_app
 from app.telegram import run_telethon
 from config import ENABLE_FASTAPI, FAST_API_PORT
