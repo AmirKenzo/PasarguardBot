@@ -476,10 +476,13 @@ def _format_cache_meta(payload: dict) -> str:
     return ""
 
 
-# Premium emoji document IDs for crypto rate table (stats:system rich message).
-_CRYPTO_EMOJI_USDT = 5280963835790894176
-_CRYPTO_EMOJI_TRX = 5292038911474804405
-_CRYPTO_EMOJI_GRAM = 5305626186544599263
+# Extensible crypto rate rows for stats:system rich table.
+# Add new entries here when more rates are stored in settings/payload.
+_SYSTEM_RATE_ROWS: tuple[tuple[str, str, int], ...] = (
+    ("USDT", "arz_usd", 5280963835790894176),
+    ("TRX", "arz_trx", 5292038911474804405),
+    ("GRAM", "arz_ton", 5305626186544599263),
+)
 
 
 def _premium_emoji(document_id: int) -> str:
@@ -488,24 +491,17 @@ def _premium_emoji(document_id: int) -> str:
 
 
 def _system_rates_table(payload: dict) -> str:
-    """CoinPJ-style bordered rich table: premium emoji + rate rows."""
-    arz_usd = int(payload.get("arz_usd", 0) or 0)
-    arz_trx = int(payload.get("arz_trx", 0) or 0)
-    arz_ton = int(payload.get("arz_ton", 0) or 0)
-    return "\n".join(
-        [
-            "## 💱 نرخ ارز",
-            "",
-            "| | |",
-            "|:---:|:---|",
-            f"| {_premium_emoji(_CRYPTO_EMOJI_USDT)} | **1 USDT** |",
-            f"| 💵 | `{arz_usd:,}` تومان |",
-            f"| {_premium_emoji(_CRYPTO_EMOJI_TRX)} | **1 TRX** |",
-            f"| 💵 | `{arz_trx:,}` تومان |",
-            f"| {_premium_emoji(_CRYPTO_EMOJI_GRAM)} | **1 GRAM** |",
-            f"| 💵 | `{arz_ton:,}` تومان |",
-        ]
-    )
+    """Rich table: Currency | Price (English). Rows come from `_SYSTEM_RATE_ROWS`."""
+    lines = [
+        "## 💱 نرخ ارز",
+        "",
+        "| Currency | Price |",
+        "|:---|---:|",
+    ]
+    for symbol, payload_key, emoji_id in _SYSTEM_RATE_ROWS:
+        price = int(payload.get(payload_key, 0) or 0)
+        lines.append(f"| {_premium_emoji(emoji_id)} {symbol} | `{price:,}` IRT |")
+    return "\n".join(lines)
 
 
 def _system_text(payload: dict, ping_sec: float) -> str:
