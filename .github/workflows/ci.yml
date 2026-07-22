@@ -86,13 +86,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Registry cache survives better than GHA-only between runners.
-          cache-from: |
-            type=registry,ref=ghcr.io/amirkenzo/pasarguardbot:buildcache
-            type=gha,scope=pasarguardbot
-          cache-to: |
-            type=registry,ref=ghcr.io/amirkenzo/pasarguardbot:buildcache,mode=max
-            type=gha,mode=max,scope=pasarguardbot
+          cache-from: type=gha,scope=pasarguardbot
+          cache-to: type=gha,mode=max,scope=pasarguardbot
           build-args: |
             VERSION=${{ github.ref_name }}
             REVISION=${{ github.sha }}
