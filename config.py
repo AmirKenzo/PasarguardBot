@@ -2,7 +2,7 @@ from decouple import Config, RepositoryEnv
 
 config = Config(RepositoryEnv(".env"))
 
-# --- Logging (used by app.logger.setup.init_logging / get_logger) ---
+# --- Logging (app.logger.setup.init_logging / get_logger) ---
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
 LOG_DIR = config("LOG_DIR", default="./logs")
 LOG_TO_FILE = config("LOG_TO_FILE", cast=bool, default=True)

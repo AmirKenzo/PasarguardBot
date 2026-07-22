@@ -1,4 +1,4 @@
-"""Telegram media/caption size helpers."""
+"""Telegram media/caption size helpers for caption and message limits."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ TELEGRAM_MESSAGE_LIMIT = 4096
 
 
 def split_telegram_text(text: str, limit: int = TELEGRAM_MESSAGE_LIMIT) -> list[str]:
+    """Split long Telegram text into chunks that fit within ``limit``."""
     if len(text) <= limit:
         return [text]
 
