@@ -18,6 +18,7 @@ on:
 permissions:
   contents: read
   packages: write
+  actions: write
 
 jobs:
   python:
@@ -36,17 +37,18 @@ jobs:
         with:
           python-version-file: pyproject.toml
 
-      - name: Sync dependencies (frozen lock)
-        run: uv sync --frozen --all-groups
+      # Lint/format only need the locked ruff binary — not the full bot deps.
+      - name: Sync Ruff (dev group only)
+        run: uv sync --frozen --only-group dev --no-install-project
 
       - name: Ruff check
-        run: uv run ruff check
+        run: uv run --no-sync ruff check
 
       - name: Ruff format
-        run: uv run ruff format --check
+        run: uv run --no-sync ruff format --check
 
       - name: Compile Python sources
-        run: uv run python -m compileall -q app main.py config.py
+        run: python -m compileall -q app main.py config.py
 
   container:
     needs: python
@@ -84,6 +86,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=pasarguardbot
+          cache-to: type=gha,mode=max,scope=pasarguardbot
           build-args: |
             VERSION=${{ github.ref_name }}
             REVISION=${{ github.sha }}
