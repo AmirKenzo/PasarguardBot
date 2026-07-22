@@ -166,3 +166,30 @@ async def send_rich_message(
                 if not _is_rich_url_error(retry_exc):
                     raise
         raise RichMessageError(_rich_message_user_error()) from exc
+
+
+async def edit_rich_message(
+    event,
+    markdown: str,
+    *,
+    buttons=None,
+    rtl: bool = True,
+    noautolink: bool = True,
+) -> None:
+    """Edit an existing message into a text-only rich message."""
+    prepared = prepare_rich_markdown(markdown)
+    msg = await event.get_message()
+    reply_markup = Kenzo.build_reply_markup(buttons) if buttons else None
+    await Kenzo(
+        functions.messages.EditMessageRequest(
+            peer=msg.peer_id,
+            id=msg.id,
+            message="",
+            rich_message=types.InputRichMessageMarkdown(
+                prepared,
+                rtl=rtl,
+                noautolink=noautolink,
+            ),
+            reply_markup=reply_markup,
+        )
+    )

@@ -476,26 +476,64 @@ def _format_cache_meta(payload: dict) -> str:
     return ""
 
 
+# Premium emoji document IDs for crypto rate table (stats:system rich message).
+_CRYPTO_EMOJI_USDT = 5280963835790894176
+_CRYPTO_EMOJI_TRX = 5292038911474804405
+_CRYPTO_EMOJI_GRAM = 5305626186544599263
+
+
+def _premium_emoji(document_id: int) -> str:
+    """Rich Markdown custom emoji embed."""
+    return f"![](tg://emoji?id={document_id})"
+
+
+def _system_rates_table(payload: dict) -> str:
+    """CoinPJ-style bordered rich table: premium emoji + rate rows."""
+    arz_usd = int(payload.get("arz_usd", 0) or 0)
+    arz_trx = int(payload.get("arz_trx", 0) or 0)
+    arz_ton = int(payload.get("arz_ton", 0) or 0)
+    return "\n".join(
+        [
+            "## 💱 نرخ ارز",
+            "",
+            "| | |",
+            "|:---:|:---|",
+            f"| {_premium_emoji(_CRYPTO_EMOJI_USDT)} | **1 USDT** |",
+            f"| 💵 | `{arz_usd:,}` تومان |",
+            f"| {_premium_emoji(_CRYPTO_EMOJI_TRX)} | **1 TRX** |",
+            f"| 💵 | `{arz_trx:,}` تومان |",
+            f"| {_premium_emoji(_CRYPTO_EMOJI_GRAM)} | **1 GRAM** |",
+            f"| 💵 | `{arz_ton:,}` تومان |",
+        ]
+    )
+
+
 def _system_text(payload: dict, ping_sec: float) -> str:
+    """Rich Markdown body for stats:system (metrics + crypto rates table)."""
     updated_at = _to_datetime(payload.get("updated_at"))
     cpu = payload["cpu_percent"]
     ram = payload["ram_percent"]
     disk = payload["disk_percent"]
     lines = [
-        f"🧪 {bold('وضعیت سیستم')}",
-        f"🚀 {bold('پینگ ربات:')} {code(f'{ping_sec:.3f} ms')}",
+        "# 🧪 وضعیت سیستم",
+        f"🚀 **پینگ ربات:** `{ping_sec:.3f} ms`",
         "",
-        f"🖥 {bold('CPU')} ({code(str(payload.get('cpu_cores', 0)))} هسته)",
-        f"{_bar(cpu)} {code(f'{cpu}%')}",
+        f"🖥 **CPU** (`{payload.get('cpu_cores', 0)}` هسته)",
+        f"{_bar(cpu)} `{cpu}%`",
         "",
-        f"🧠 {bold('RAM')}",
-        f"{_bar(ram)} {code(f'{ram}%')} · {code(_fmt_bytes(payload['ram_used']))} / {code(_fmt_bytes(payload['ram_total']))}",
+        "🧠 **RAM**",
+        f"{_bar(ram)} `{ram}%` · `{_fmt_bytes(payload['ram_used'])}` / `{_fmt_bytes(payload['ram_total'])}`",
         "",
-        f"💽 {bold('Disk')}",
-        f"{_bar(disk)} {code(f'{disk}%')} · {code(_fmt_bytes(payload['disk_used']))} / {code(_fmt_bytes(payload['disk_total']))}",
+        "💽 **Disk**",
+        f"{_bar(disk)} `{disk}%` · `{_fmt_bytes(payload['disk_used'])}` / `{_fmt_bytes(payload['disk_total'])}`",
         "",
-        f"📚 Telethon {code(VERSIONS.telethon)} · FastAPI {code(VERSIONS.fastapi)} · Bot {code(VERSIONS.app)}",
-        f"🐍 Python {code(payload.get('python', '-'))}",
+        f"📚 Telethon `{VERSIONS.telethon}` · FastAPI `{VERSIONS.fastapi}` · Bot `{VERSIONS.app}`",
+        f"🐍 Python `{payload.get('python', '-')}`",
+        "",
+        "---",
+        "",
+        _system_rates_table(payload),
+        "",
+        f"🕒 **آخرین بروزرسانی:** `{_fmt_updated(updated_at)}`",
     ]
-    lines.extend(["", f"🕒 {bold('آخرین بروزرسانی:')} {code(_fmt_updated(updated_at))}"])
     return "\n".join(lines)

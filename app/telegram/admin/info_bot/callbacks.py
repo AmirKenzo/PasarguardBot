@@ -3,8 +3,9 @@
 from telethon import events
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
-from app import CustomMarkdown, Kenzo
+from app import CustomMarkdown
 from app.logger import get_logger
+from app.services.telegram.rich_message import edit_rich_message
 from app.telegram.admin.info_bot import keyboards, service, states
 from app.telegram.admin.top_customers import build_top_customers_message
 from config import ADMIN_ID
@@ -59,9 +60,14 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
         if action in ("system", "system:refresh"):
             ping_sec = await service._measure_ping()
             payload = await service._system_payload(force=action == "system:refresh")
-            msg, entities = CustomMarkdown.parse(service._system_text(payload, ping_sec))
-            markup = keyboards.system_buttons(payload)
-            await event.edit(msg, formatting_entities=entities, buttons=Kenzo.build_reply_markup(markup))
+            markdown = service._system_text(payload, ping_sec)
+            buttons = keyboards.system_buttons()
+            try:
+                await edit_rich_message(event, markdown, buttons=buttons, rtl=True)
+            except Exception as rich_exc:
+                logger.warning("stats:system rich edit failed, falling back: %s", rich_exc)
+                msg, entities = CustomMarkdown.parse(markdown)
+                await event.edit(msg, formatting_entities=entities, buttons=buttons)
             return
 
     except MessageNotModifiedError:
