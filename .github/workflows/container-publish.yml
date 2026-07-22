@@ -4,6 +4,8 @@ on:
   push:
     branches-ignore:
       - main
+      - renovate/**
+      - dependabot/**
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
       - "v[0-9]*.[0-9]*.[0-9]*"
@@ -14,6 +16,7 @@ permissions:
 
 jobs:
   container:
+    if: ${{ github.actor != 'renovate[bot]' && github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
 
     steps:
