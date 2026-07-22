@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import this_should_fail_ruff  # CI smoke test — delete after checking Actions
-
 TELEGRAM_CAPTION_LIMIT = 1024
 TELEGRAM_MESSAGE_LIMIT = 4096
 
