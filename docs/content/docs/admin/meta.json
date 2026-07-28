@@ -15,7 +15,8 @@
     "bulk-ops",
     "channels",
     "texts-keyboards",
-    "backup-logs",
+    "backup-restore",
+    "logs",
     "links-apps"
   ]
 }
