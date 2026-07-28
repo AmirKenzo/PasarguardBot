@@ -11,8 +11,8 @@ type DonateWalletProps = {
   address: string;
   note?: string;
   link?: string;
-  /** Known icons: trx | usdt | ton | btc | eth | bnb */
-  icon?: 'trx' | 'usdt' | 'ton' | 'btc' | 'eth' | 'bnb';
+  /** Known icons: trx | usdt | ton | btc | eth | bnb | xrp */
+  icon?: 'trx' | 'usdt' | 'ton' | 'btc' | 'eth' | 'bnb' | 'xrp';
 };
 
 function CryptoGlyph({ icon, symbol }: { icon?: DonateWalletProps['icon']; symbol: string }) {
@@ -96,6 +96,18 @@ function CryptoGlyph({ icon, symbol }: { icon?: DonateWalletProps['icon']; symbo
         <path
           fill="currentColor"
           d="M16 6.2 18.7 9l-5.4 5.4L16 17.1l2.7-2.7 2.7 2.7-5.4 5.4L16 25.8l-8.1-8.1L16 9.5V6.2zm0 0 8.1 8.1-2.7 2.7-5.4-5.4L16 9.5V6.2zM9.5 16.1l2.7-2.7 2.7 2.7-2.7 2.7-2.7-2.7zm9.1 0 2.7-2.7 2.7 2.7-2.7 2.7-2.7-2.7z"
+        />
+      </svg>,
+    );
+  }
+
+  if (key === 'xrp') {
+    return wrap(
+      '#23292F',
+      <svg viewBox="0 0 32 32" className="size-6 text-white" aria-hidden>
+        <path
+          fill="currentColor"
+          d="M24.8 7.2h-2.7l-4.6 5.3c-.8.9-2.2.9-3 0L9.9 7.2H7.2l6.3 7.2-6.5 7.4h2.7l4.8-5.5c.8-.9 2.2-.9 3 0l4.8 5.5h2.7l-6.5-7.4 6.3-7.2z"
         />
       </svg>,
     );
