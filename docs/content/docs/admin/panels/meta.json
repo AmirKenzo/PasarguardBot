@@ -1,0 +1,5 @@
+{
+  "title": "منوی پنل‌ها",
+  "icon": "Server",
+  "pages": ["index", "notifications"]
+}
