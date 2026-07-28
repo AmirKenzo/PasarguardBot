@@ -6,6 +6,7 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.services.billing.reseller_pricing import (
     format_reseller_plan_admin_list_label,
+    format_reseller_plan_price_short,
     pricing_mode_label,
     pricing_mode_short_label,
     volume_unit_label,
@@ -17,6 +18,15 @@ from app.telegram.user.reseller.helpers import format_plan_button_text
 from app.utils.formatting.traffic import format_size
 
 
+def reseller_plan_main_menu_buttons() -> list:
+    return [
+        [Button.inline("➕ ساخت پلن نمایندگی", data="ResellerPlanAddPanel")],
+        [Button.inline("📋 مدیریت پلن‌ها", data="ResellerPlanManagePanel")],
+        [Button.inline("➕ افزودن ادمین موجود", data="ResellerImportPanel")],
+        [Button.inline("❌ بستن", data="ResellerPlanCancel")],
+    ]
+
+
 def reseller_plan_title(plan) -> str:
     custom = (plan.display_button_text or "").strip()
     if custom:
@@ -26,6 +36,17 @@ def reseller_plan_title(plan) -> str:
 
 def format_reseller_plan_list_label(plan) -> str:
     return format_reseller_plan_admin_list_label(plan)
+
+
+def format_reseller_import_plan_button(plan) -> str:
+    mode = pricing_mode_short_label(plan.pricing_mode)
+    status = "✅" if plan.enable else "❌"
+    custom = (plan.display_button_text or "").strip()
+    name = custom.split("\n", 1)[0].strip()[:20] if custom else ""
+    price = format_reseller_plan_price_short(plan)
+    if name:
+        return f"#{plan.id} {name} · {mode} · {price} {status}"
+    return f"#{plan.id} · {mode} · {price} {status}"
 
 
 async def format_reseller_plan_detail(plan) -> str:

@@ -13,6 +13,8 @@ ADMIN_INPUT_STEPS = (
     "reseller_plan_edit_price",
     "reseller_plan_edit_btn_text",
     "reseller_plan_edit_btn_icon",
+    "reseller_import_username",
+    "reseller_import_telegram_id",
 )
 
 PRICING_MODE_LABELS = {

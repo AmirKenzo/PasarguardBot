@@ -2,21 +2,32 @@
 
 import contextlib
 
-from telethon import Button, events
+from telethon import events
 from telethon.tl.custom import Message
 
 from app import Kenzo
+from app.db.crud.panels import PanelsManager
+from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
+from app.db.crud.user import UserCRUD
+from app.services.panels.admins import get_reseller_admin
+from app.services.reseller.import_existing import format_panel_admin_preview
 from app.telegram.admin.reseller_plans import states
-from app.telegram.admin.reseller_plans.callbacks import _finalize_new_plan, is_number
+from app.telegram.admin.reseller_plans.callbacks import (
+    _finalize_new_plan,
+    _show_import_plan_picker,
+    is_number,
+)
 from app.telegram.admin.reseller_plans.service import (
     format_reseller_plan_detail,
     plan_manage_buttons,
     reseller_plan_display_buttons,
     reseller_plan_display_config_text,
+    reseller_plan_main_menu_buttons,
 )
 from app.telegram.keyboards.common import extract_custom_emoji_document_id
 from app.telegram.state import get_data, get_step, set_data, set_step
+from app.utils.formatting.conversions import as_int
 from config import ADMIN_ID
 
 
@@ -33,6 +44,69 @@ async def _show_plan_after_edit(event: Message, plan_id: int) -> None:
     )
 
 
+async def _process_reseller_import_username(event: Message, user_id: int, msg: str) -> None:
+    username = msg.strip()
+    if not username:
+        await event.respond("نام کاربری معتبر ارسال کنید.")
+        return
+
+    panel_code = as_int(await get_data(user_id, "reseller_import_panel_code"))
+    if panel_code is None:
+        await event.respond("پنل انتخاب نشده است. دوباره از منو شروع کنید.")
+        return
+
+    panel = await PanelsManager().get_panel_by_code(code=panel_code)
+    if not panel:
+        await event.respond("پنل یافت نشد.")
+        return
+
+    existing = await ResellerAccountCRUD().get_by_panel_username(panel_code, username)
+    if existing:
+        await event.respond("این ادمین از قبل در ربات ثبت شده است. نام کاربری دیگری ارسال کنید.")
+        return
+
+    try:
+        admin = await get_reseller_admin(panel, username)
+    except Exception:
+        await event.respond("خطا در دریافت ادمین از پنل. دوباره تلاش کنید.")
+        return
+    if not admin:
+        await event.respond("ادمینی با این نام کاربری در پنل یافت نشد.")
+        return
+
+    await set_data(user_id, "reseller_import_username", username)
+    await set_step(user_id, "reseller_import_telegram_id")
+    with contextlib.suppress(Exception):
+        await event.delete()
+    await Kenzo.send_message(
+        user_id,
+        format_panel_admin_preview(admin, panel_name=panel.name),
+        parse_mode="markdown",
+    )
+
+
+async def _process_reseller_import_telegram_id(event: Message, user_id: int, msg: str) -> None:
+    telegram_id = as_int(msg.replace(",", "").strip())
+    if telegram_id is None:
+        await event.respond("آیدی عددی معتبر ارسال کنید.")
+        return
+
+    user = await UserCRUD().read_user(telegram_id)
+    if not user:
+        await event.respond(f"کاربر {telegram_id} ربات را استارت نکرده است.")
+        return
+
+    panel_code = as_int(await get_data(user_id, "reseller_import_panel_code"))
+    if panel_code is None:
+        await event.respond("پنل انتخاب نشده است. دوباره از منو شروع کنید.")
+        return
+
+    await set_data(user_id, "reseller_import_telegram_id", str(telegram_id))
+    with contextlib.suppress(Exception):
+        await event.delete()
+    await _show_import_plan_picker(event, user_id, panel_code)
+
+
 async def message_handler_reseller_plans(event: Message):
     if not event.is_private or event.sender_id not in ADMIN_ID:
         return
@@ -40,15 +114,22 @@ async def message_handler_reseller_plans(event: Message):
     user_id = event.sender_id
 
     if msg == states.RESELLER_PLAN_MENU_MESSAGE:
-        buttons = [
-            [Button.inline("➕ ساخت پلن نمایندگی", data="ResellerPlanAddPanel")],
-            [Button.inline("📋 مدیریت پلن‌ها", data="ResellerPlanManagePanel")],
-            [Button.inline("❌ بستن", data="ResellerPlanCancel")],
-        ]
-        await Kenzo.send_message(user_id, "منوی پلن‌های نمایندگی:", buttons=buttons)
+        await Kenzo.send_message(
+            user_id,
+            "منوی پلن‌های نمایندگی:",
+            buttons=reseller_plan_main_menu_buttons(),
+        )
         return
 
     step = await get_step(user_id)
+
+    if step == "reseller_import_username" and msg:
+        await _process_reseller_import_username(event, user_id, msg)
+        return
+
+    if step == "reseller_import_telegram_id" and msg:
+        await _process_reseller_import_telegram_id(event, user_id, msg)
+        return
 
     if step == "reseller_plan_add_price" and is_number(msg):
         await set_data(user_id, "reseller_plan_price", msg.replace(",", ""))
