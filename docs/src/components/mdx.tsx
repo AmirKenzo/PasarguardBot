@@ -11,11 +11,11 @@ import {
   TgRow,
 } from '@/components/telegram-preview';
 import { ZoomImage } from '@/components/zoom-image';
+import { WebhookSettingsImage } from '@/components/webhook-settings-image';
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
-    img: ZoomImage,
     DonateGrid,
     DonateWallet,
     CliPanel,
@@ -27,10 +27,10 @@ export function getMDXComponents(components?: MDXComponents) {
     TgKeyboard,
     TgRow,
     ZoomImage,
+    WebhookSettingsImage,
     ...components,
   } satisfies MDXComponents;
 }
-
 
 export const useMDXComponents = getMDXComponents;
 

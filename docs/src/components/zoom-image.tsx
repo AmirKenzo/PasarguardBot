@@ -1,38 +1,36 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useState,
-  type ComponentProps,
-  type KeyboardEvent,
-} from 'react';
+import { useCallback, useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import defaultMdxComponents from 'fumadocs-ui/mdx';
 import { Expand, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
-type FumadocsImgProps = ComponentProps<NonNullable<(typeof defaultMdxComponents)['img']>>;
+type StaticImageLike = { src: string };
 
-type ImageSrc = string | { src: string; height?: number; width?: number };
+type ZoomImageProps = {
+  src: string | StaticImageLike;
+  alt?: string;
+  className?: string;
+};
 
-function resolveSrc(src: unknown): string | undefined {
-  if (!src) return undefined;
-  if (typeof src === 'string') return src;
-  if (typeof src === 'object' && src !== null && 'src' in src && typeof (src as ImageSrc).src === 'string') {
-    return (src as ImageSrc).src;
-  }
-  return undefined;
+function resolveSrc(src: string | StaticImageLike): string {
+  return typeof src === 'string' ? src : src.src;
 }
 
-const FumadocsImage = defaultMdxComponents.img!;
+function withBasePath(src: string): string {
+  if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
+    return src;
+  }
+  const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  if (!base) return src;
+  return src.startsWith('/') ? `${base}${src}` : `${base}/${src}`;
+}
 
-export function ZoomImage({ className, alt = '', src, ...props }: FumadocsImgProps) {
+export function ZoomImage({ src, alt = '', className }: ZoomImageProps) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const titleId = useId();
-  const srcUrl = resolveSrc(src);
+  const srcUrl = withBasePath(resolveSrc(src));
 
   useEffect(() => {
     setMounted(true);
@@ -42,7 +40,7 @@ export function ZoomImage({ className, alt = '', src, ...props }: FumadocsImgPro
   const openPreview = useCallback(() => setOpen(true), []);
 
   const onTriggerKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLSpanElement>) => {
+    (event: KeyboardEvent<HTMLButtonElement>) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         openPreview();
@@ -68,13 +66,13 @@ export function ZoomImage({ className, alt = '', src, ...props }: FumadocsImgPro
     };
   }, [open, close]);
 
-  // MDX wraps images in <p>; keep only phrasing elements so hydration stays valid.
+  if (!srcUrl) return null;
+
   return (
     <>
-      <span className="not-prose my-5 block w-full">
-        <span
-          role="button"
-          tabIndex={0}
+      <figure className="not-prose my-5">
+        <button
+          type="button"
           onClick={openPreview}
           onKeyDown={onTriggerKeyDown}
           className={cn(
@@ -83,21 +81,21 @@ export function ZoomImage({ className, alt = '', src, ...props }: FumadocsImgPro
           )}
           aria-label={alt ? `بزرگ‌نمایی: ${alt}` : 'بزرگ‌نمایی تصویر'}
         >
-          <FumadocsImage
-            {...props}
-            src={src}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={srcUrl}
             alt={alt}
-            className={cn('m-0 h-auto max-h-[28rem] w-full object-contain', className)}
+            className={cn('m-0 h-auto max-h-[28rem] w-full object-contain bg-black/5 dark:bg-white/5', className)}
           />
           <span className="pointer-events-none absolute end-3 top-3 inline-flex items-center gap-1.5 rounded-lg border bg-fd-background/90 px-2 py-1 text-xs text-fd-muted-foreground opacity-90 shadow-sm backdrop-blur-sm transition group-hover:opacity-100">
             <Expand className="size-3.5" aria-hidden />
             کلیک برای بزرگ‌نمایی
           </span>
-        </span>
-        {alt ? <span className="mt-2 block text-center text-sm text-fd-muted-foreground">{alt}</span> : null}
-      </span>
+        </button>
+        {alt ? <figcaption className="mt-2 text-center text-sm text-fd-muted-foreground">{alt}</figcaption> : null}
+      </figure>
 
-      {mounted && open && srcUrl
+      {mounted && open
         ? createPortal(
             <div
               role="dialog"
