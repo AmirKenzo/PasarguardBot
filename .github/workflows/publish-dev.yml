@@ -1,0 +1,60 @@
+name: Publish image (dev)
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: publish-dev
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+  actions: write
+
+jobs:
+  python:
+    uses: ./.github/workflows/python-quality.yml
+
+  container:
+    needs: python
+    if: ${{ github.actor != 'renovate[bot]' && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/amirkenzo/pasarguardbot
+          tags: |
+            type=raw,value=dev
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=pasarguardbot-dev
+          cache-to: type=gha,mode=max,scope=pasarguardbot-dev
+          build-args: |
+            VERSION=dev
+            REVISION=${{ github.sha }}

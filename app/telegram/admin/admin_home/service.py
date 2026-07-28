@@ -2,7 +2,7 @@
 
 from app import Kenzo
 from app.db.crud.log_channels import LogChannelManager
-from app.telegram.keyboards.admin import Panel_Admin_Buttons
+from app.telegram.keyboards.admin import DOCS_URL, Panel_Admin_Buttons
 from app.telegram.state import set_step
 from config import LOG_CHANNEL
 
@@ -32,7 +32,12 @@ _SETUP_WARNING = (
 
 def _admin_home_message(user_id: int, username: str | None, *, setup_warning: str | None = None) -> str:
     user_label = username or "—"
-    message = f"**🌺به پنل مدیریت خوش آمدید.**\nایدی عددی شما: `{user_id}`\nنام کاربری شما: @{user_label}\n"
+    message = (
+        f"**🌺به پنل مدیریت خوش آمدید.**\n"
+        f"ایدی عددی شما: `{user_id}`\n"
+        f"نام کاربری شما: @{user_label}\n"
+        f"\n📚 مستندات ربات: {DOCS_URL}\n"
+    )
     if setup_warning:
         message += f"\n{setup_warning}\n"
     return message

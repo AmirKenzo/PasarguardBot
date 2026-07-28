@@ -1,13 +1,6 @@
 """Inline keyboards for admin stats/info bot panel."""
 
 from telethon import Button
-from telethon.tl.types import (
-    KeyboardButtonCallback,
-    KeyboardButtonCopy,
-    KeyboardButtonRow,
-    KeyboardButtonStyle,
-    ReplyInlineMarkup,
-)
 
 from app.telegram.admin.info_bot import states
 
@@ -73,49 +66,11 @@ def services_buttons(period: str) -> list:
     return rows
 
 
-def system_buttons(settings_payload: dict) -> ReplyInlineMarkup:
+def system_buttons() -> list:
     prefix = states.STATS_PREFIX
-    arz_usd = settings_payload.get("arz_usd", 0)
-    arz_trx = settings_payload.get("arz_trx", 0)
-    arz_ton = settings_payload.get("arz_ton", 0)
-    return ReplyInlineMarkup(
-        rows=[
-            KeyboardButtonRow(
-                [
-                    KeyboardButtonCopy(
-                        text=f"USDT {arz_usd:,} IRT",
-                        copy_text=f"USDT {arz_usd:,}",
-                        style=KeyboardButtonStyle(icon=5280963835790894176),
-                    ),
-                    KeyboardButtonCopy(
-                        text=f"TRX {arz_trx:,} IRT",
-                        copy_text=f"TRX {arz_trx:,}",
-                        style=KeyboardButtonStyle(icon=5292038911474804405),
-                    ),
-                ]
-            ),
-            KeyboardButtonRow(
-                [
-                    KeyboardButtonCopy(
-                        text=f"GRAM {arz_ton:,} IRT",
-                        copy_text=f"GRAM {arz_ton:,}",
-                        style=KeyboardButtonStyle(icon=5305626186544599263),
-                    ),
-                ]
-            ),
-            KeyboardButtonRow(
-                [
-                    KeyboardButtonCallback(
-                        text="🔄 بروزرسانی",
-                        data=f"{prefix}system:refresh".encode(),
-                        requires_password=True,
-                    ),
-                    KeyboardButtonCallback(
-                        text="🔙 بازگشت",
-                        data=f"{prefix}main".encode(),
-                        requires_password=True,
-                    ),
-                ]
-            ),
-        ]
-    )
+    return [
+        [
+            inline_btn("🔄 بروزرسانی", f"{prefix}system:refresh"),
+            inline_btn("🔙 بازگشت", f"{prefix}main"),
+        ],
+    ]

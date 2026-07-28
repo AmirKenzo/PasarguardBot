@@ -476,26 +476,60 @@ def _format_cache_meta(payload: dict) -> str:
     return ""
 
 
+# Extensible crypto rate rows for stats:system rich table.
+# Add new entries here when more rates are stored in settings/payload.
+_SYSTEM_RATE_ROWS: tuple[tuple[str, str, int], ...] = (
+    ("USDT", "arz_usd", 5280963835790894176),
+    ("TRX", "arz_trx", 5292038911474804405),
+    ("GRAM", "arz_ton", 5305626186544599263),
+)
+
+
+def _premium_emoji(document_id: int) -> str:
+    """Rich Markdown custom emoji embed."""
+    return f"![](tg://emoji?id={document_id})"
+
+
+def _system_rates_table(payload: dict) -> str:
+    """Rich table: Currency | Price (English). Rows come from `_SYSTEM_RATE_ROWS`."""
+    lines = [
+        "## 💱 نرخ ارز",
+        "",
+        "| Currency | Price |",
+        "|:---|---:|",
+    ]
+    for symbol, payload_key, emoji_id in _SYSTEM_RATE_ROWS:
+        price = int(payload.get(payload_key, 0) or 0)
+        lines.append(f"| {_premium_emoji(emoji_id)} {symbol} | `{price:,}` IRT |")
+    return "\n".join(lines)
+
+
 def _system_text(payload: dict, ping_sec: float) -> str:
+    """Rich Markdown body for stats:system (metrics + crypto rates table)."""
     updated_at = _to_datetime(payload.get("updated_at"))
     cpu = payload["cpu_percent"]
     ram = payload["ram_percent"]
     disk = payload["disk_percent"]
     lines = [
-        f"🧪 {bold('وضعیت سیستم')}",
-        f"🚀 {bold('پینگ ربات:')} {code(f'{ping_sec:.3f} ms')}",
+        "# 🧪 وضعیت سیستم",
+        f"🚀 **پینگ ربات:** `{ping_sec:.3f} ms`",
         "",
-        f"🖥 {bold('CPU')} ({code(str(payload.get('cpu_cores', 0)))} هسته)",
-        f"{_bar(cpu)} {code(f'{cpu}%')}",
+        f"🖥 **CPU** (`{payload.get('cpu_cores', 0)}` هسته)",
+        f"{_bar(cpu)} `{cpu}%`",
         "",
-        f"🧠 {bold('RAM')}",
-        f"{_bar(ram)} {code(f'{ram}%')} · {code(_fmt_bytes(payload['ram_used']))} / {code(_fmt_bytes(payload['ram_total']))}",
+        "🧠 **RAM**",
+        f"{_bar(ram)} `{ram}%` · `{_fmt_bytes(payload['ram_used'])}` / `{_fmt_bytes(payload['ram_total'])}`",
         "",
-        f"💽 {bold('Disk')}",
-        f"{_bar(disk)} {code(f'{disk}%')} · {code(_fmt_bytes(payload['disk_used']))} / {code(_fmt_bytes(payload['disk_total']))}",
+        "💽 **Disk**",
+        f"{_bar(disk)} `{disk}%` · `{_fmt_bytes(payload['disk_used'])}` / `{_fmt_bytes(payload['disk_total'])}`",
         "",
-        f"📚 Telethon {code(VERSIONS.telethon)} · FastAPI {code(VERSIONS.fastapi)} · Bot {code(VERSIONS.app)}",
-        f"🐍 Python {code(payload.get('python', '-'))}",
+        f"📚 Telethon `{VERSIONS.telethon}` · FastAPI `{VERSIONS.fastapi}` · Bot `{VERSIONS.app}`",
+        f"🐍 Python `{payload.get('python', '-')}`",
+        "",
+        "---",
+        "",
+        _system_rates_table(payload),
+        "",
+        f"🕒 **آخرین بروزرسانی:** `{_fmt_updated(updated_at)}`",
     ]
-    lines.extend(["", f"🕒 {bold('آخرین بروزرسانی:')} {code(_fmt_updated(updated_at))}"])
     return "\n".join(lines)

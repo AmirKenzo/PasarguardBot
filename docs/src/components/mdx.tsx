@@ -10,10 +10,12 @@ import {
   TgKeyboard,
   TgRow,
 } from '@/components/telegram-preview';
+import { ZoomImage } from '@/components/zoom-image';
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
+    img: ZoomImage,
     DonateGrid,
     DonateWallet,
     CliPanel,
@@ -24,9 +26,11 @@ export function getMDXComponents(components?: MDXComponents) {
     TgBtn,
     TgKeyboard,
     TgRow,
+    ZoomImage,
     ...components,
   } satisfies MDXComponents;
 }
+
 
 export const useMDXComponents = getMDXComponents;
 

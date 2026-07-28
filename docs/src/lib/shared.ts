@@ -10,3 +10,6 @@ export const gitConfig = {
 
 /** Channel for project updates: https://t.me/CodeByAK */
 export const telegramChannelUrl = 'https://t.me/CodeByAK';
+
+/** Community group: https://t.me/CodeByAKGP */
+export const telegramGroupUrl = 'https://t.me/CodeByAKGP';

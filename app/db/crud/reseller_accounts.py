@@ -116,6 +116,24 @@ class ResellerAccountCRUD:
             log.error("Failed to list reseller accounts by plan: %s", e)
             return []
 
+    async def get_by_panel_username(self, panel_code: int, username: str) -> ResellerAccount | None:
+        panel_code = as_int(panel_code)
+        username = (username or "").strip()
+        if panel_code is None or not username:
+            return None
+        try:
+            async with Session() as session:
+                result = await session.execute(
+                    select(ResellerAccount).where(
+                        ResellerAccount.panel_code == panel_code,
+                        ResellerAccount.username == username,
+                    )
+                )
+                return result.scalars().first()
+        except SQLAlchemyError as e:
+            log.error("Failed to get reseller account by panel/username: %s", e)
+            return None
+
     async def count_accounts_by_plan(self, plan_id: int) -> int:
         return len(await self.get_accounts_by_plan(plan_id))
 

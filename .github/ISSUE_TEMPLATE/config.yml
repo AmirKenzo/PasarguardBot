@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://amirkenzo.github.io/PasarguardBot/
+    about: Persian docs for install, user, and admin guides.
+  - name: Telegram channel
+    url: https://t.me/CodeByAK
+    about: Project updates and announcements.

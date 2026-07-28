@@ -20,7 +20,6 @@ DEFAULT_CORE_SETTINGS: dict[str, Any] = {
     "sale_mode": False,
     "single_panel_buy_mode": False,
     "channel_lock": False,
-    "ip_mode": False,
     "backup_interval_hours": 24,
     **DEFAULT_HOME_MENU_SETTINGS,
 }

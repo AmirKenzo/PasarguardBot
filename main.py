@@ -5,7 +5,8 @@ from pathlib import Path
 
 import uvicorn
 
-from app.routers import api_app as fastapi_app  # Aggregate FastAPI app with routers
+# FastAPI app is optional; Telethon bot always starts.
+from app.routers import api_app as fastapi_app
 from app.telegram import run_telethon
 from config import ENABLE_FASTAPI, FAST_API_PORT
 

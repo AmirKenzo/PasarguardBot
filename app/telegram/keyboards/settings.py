@@ -45,14 +45,13 @@ SETTINGS_MENU_SECTIONS = (
     SettingsMenuSection(
         "core",
         "⚙️ کنترل‌های اصلی ربات و فروش",
-        "وضعیت کلی ربات، فروش، خرید تک‌پنل، قفل کانال و محدودیت IP درگاه از این بخش کنترل می‌شود.",
+        "وضعیت کلی ربات، فروش، خرید تک‌پنل و قفل کانال از این بخش کنترل می‌شود.",
         (
             SettingsMenuItem("وضعیت ربات", "bot_mode", default=True),
             SettingsMenuItem("وضعیت فروش", "sale_mode"),
             SettingsMenuItem("خرید تک‌پنل", "single_panel_buy_mode"),
             SettingsMenuItem("قفل کانال", "channel_lock"),
             SettingsMenuItem("ری‌اکشن استارت", "start_reaction", default=True, wide=True),
-            SettingsMenuItem("محدودیت IP درگاه", "ip_mode", wide=True),
         ),
         separate_page=False,
     ),
