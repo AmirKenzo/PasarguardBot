@@ -498,14 +498,14 @@ wheels = [
 
 [[package]]
 name = "jdatetime"
-version = "5.3.0"
+version = "6.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jalali-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7a/6e/b5896a5e627d30f43a95af14ab80f503410875bc2e178989ceaba576cdbb/jdatetime-5.3.0.tar.gz", hash = "sha256:d20eb9fc2a00e86493a6156b2a0e4e579f23379e8fea186a0e603fd36a130227", size = 22177, upload-time = "2026-05-19T07:20:34.48Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/1a/6f49f59d771db850c5c895e1fc8dd7fb495e146ba7b2b247df299442bb64/jdatetime-6.0.1.tar.gz", hash = "sha256:e349ec5fe4cd42b88e6f1a1d9d1de2391bfa7702a5d3d3ce870d593a475597b0", size = 22542, upload-time = "2026-07-15T07:45:56.197Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/e2/4c45bbf81e7f0f982cfd1f67f81f3c1e90bd3f04299564dea839bd3eef33/jdatetime-5.3.0-py3-none-any.whl", hash = "sha256:85cb960808dc2287c93d4c7431cddcd367ee6d81c321a4db1700ee3e1d8aafcc", size = 12540, upload-time = "2026-05-19T07:20:33.23Z" },
+    { url = "https://files.pythonhosted.org/packages/26/87/2a9beabec59032feb868c0d05c0db571e2dce87b854a722f46623766a9e2/jdatetime-6.0.1-py3-none-any.whl", hash = "sha256:57ab3cc70fee4b7fdd9451553fcf1aa8e63034a7c8b1b28750e02caf89183219", size = 12726, upload-time = "2026-07-15T07:45:55.199Z" },
 ]
 
 [[package]]
@@ -723,7 +723,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.140.13" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "imagehash", specifier = ">=4.3.2" },
-    { name = "jdatetime", specifier = ">=5.3.0" },
+    { name = "jdatetime", specifier = ">=6.0.1" },
     { name = "pasarguard", specifier = ">=2.3.1" },
     { name = "persiantools", specifier = ">=5.5.1" },
     { name = "pillow", specifier = ">=12.3.0" },
