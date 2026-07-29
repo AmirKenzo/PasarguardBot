@@ -9,7 +9,7 @@ dependencies = [
     "alembic>=1.18.4",
     "apscheduler>=3.11.2",
     "asyncmy>=0.2.11; sys_platform != 'win32'",
-    "fastapi>=0.136.3",
+    "fastapi>=0.140.13",
     "httpx>=0.28.1",
     "imagehash>=4.3.2",
     "jdatetime>=5.3.0",
