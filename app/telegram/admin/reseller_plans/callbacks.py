@@ -191,17 +191,68 @@ async def reseller_plan_callbacks(event: events.CallbackQuery.Event):
             await event.answer("نقشی از پنل دریافت نشد. دسترسی credential را بررسی کنید.", alert=True)
             return
         await set_data(user_id, "reseller_plan_panel", str(panel_code))
+        page_size = 15
+        page = 0
         filtered = [r for r in roles if not r.get("is_owner")] or list(roles)
-        buttons = [[Button.inline(f"{r['name']}", data=f"ResellerPlanRole_{r['id']}:{r['name']}")] for r in filtered]
+        start = page * page_size
+        end = start + page_size
+        page_roles = filtered[start:end]
+        buttons = [[Button.inline(f"{r['name']}", data=f"ResellerPlanRole_{r['id']}")] for r in page_roles]
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(Button.inline("◀️ قبلی", data=f"ResellerPlanRoles_{panel_code}:{page - 1}"))
+        if end < len(filtered):
+            nav_buttons.append(Button.inline("بعدی ▶️", data=f"ResellerPlanRoles_{panel_code}:{page + 1}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
+        buttons.append([Button.inline("🔙 بازگشت", data="ResellerPlanAddPanel")])
+        await event.edit("نقش (Role) نماینده را انتخاب کنید:", buttons=buttons)
+        return
+
+    if data.startswith("ResellerPlanRoles_"):
+        payload = data.replace("ResellerPlanRoles_", "", 1)
+        panel_code_raw, page_raw = payload.split(":", 1)
+        panel_code = as_int(panel_code_raw)
+        page = as_int(page_raw)
+        if panel_code is None or page is None:
+            await event.answer("صفحه نامعتبر است.", alert=True)
+            return
+        panel = await PanelsManager().get_panel_by_code(code=panel_code)
+        if not panel:
+            await event.answer("پنل یافت نشد.", alert=True)
+            return
+        roles = await fetch_panel_roles(panel)
+        if not roles:
+            await event.answer("نقشی از پنل دریافت نشد. دسترسی credential را بررسی کنید.", alert=True)
+            return
+        page_size = 15
+        filtered = [r for r in roles if not r.get("is_owner")] or list(roles)
+        if not filtered:
+            await event.answer("نقشی برای نمایش وجود ندارد.", alert=True)
+            return
+        total_pages = (len(filtered) - 1) // page_size + 1
+        page = max(0, min(page, total_pages - 1))
+        start = page * page_size
+        end = start + page_size
+        page_roles = filtered[start:end]
+        buttons = [[Button.inline(f"{r['name']}", data=f"ResellerPlanRole_{r['id']}")] for r in page_roles]
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(Button.inline("◀️ قبلی", data=f"ResellerPlanRoles_{panel_code}:{page - 1}"))
+        if page < total_pages - 1:
+            nav_buttons.append(Button.inline("بعدی ▶️", data=f"ResellerPlanRoles_{panel_code}:{page + 1}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
         buttons.append([Button.inline("🔙 بازگشت", data="ResellerPlanAddPanel")])
         await event.edit("نقش (Role) نماینده را انتخاب کنید:", buttons=buttons)
         return
 
     if data.startswith("ResellerPlanRole_"):
-        payload = data.replace("ResellerPlanRole_", "", 1)
-        parts = payload.split(":", 1)
-        role_id = int(parts[0])
-        role_name = parts[1] if len(parts) > 1 else str(role_id)
+        role_id = as_int(data.replace("ResellerPlanRole_", "", 1))
+        if role_id is None:
+            await event.answer("نقش نامعتبر است.", alert=True)
+            return
+        role_name = str(role_id)
         await set_data(user_id, "reseller_plan_role_id", str(role_id))
         await set_data(user_id, "reseller_plan_role_name", role_name)
         mode_buttons = [
