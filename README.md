@@ -5,7 +5,7 @@
 [![Telethon](https://img.shields.io/badge/Telethon-1.44+-0088cc?logo=telegram)](https://github.com/LonamiWebs/Telethon)
 [![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-blue?logo=github)](https://amirkenzo.github.io/PasarguardBot/)
 
-ربات فروش وی‌پی‌ان مبتنی بر پنل [پاسارگارد پنل](https://github.com/PasarGuard/pasarguard).
+ربات فروش وی‌پی‌ان مبتنی بر پنل [پاسارگارد پنل](https://github.com/PasarGuard/panel).
 
 **[مستندات کامل (فارسی)](https://amirkenzo.github.io/PasarguardBot/)**
 

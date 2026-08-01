@@ -67,9 +67,11 @@ from app.services.subscriptions.links import resolve_subscription_link_mode
 from app.telegram.admin.discounts import show_discount_codes
 from app.telegram.admin.panels import states
 from app.telegram.admin.panels.service import (
+    PANEL_ADMINS_DISPLAY_LIMIT,
     build_panel_summary_block,
     build_panel_test_settings_content,
     display_panels,
+    format_panel_admin_usernames,
     mutate_panel_feature_settings,
     show_panel_ms_buttons_menu,
     show_panel_time_plans_menu,
@@ -139,7 +141,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
                 api = create_panel_api(panel)
                 admins = None
                 try:
-                    admins = await api.get_admins_simple()
+                    admins = await api.get_admins_simple(limit=PANEL_ADMINS_DISPLAY_LIMIT)
                 except HTTPStatusError as e:
                     if e.response.status_code == 403:
                         pass
@@ -150,7 +152,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
 
                 server_status = "┄┄<b>وضعیت سرور</b>┄┄\n"
                 if admins:
-                    admin_usernames = ", ".join(admin.username for admin in admins.admins)
+                    admin_usernames = format_panel_admin_usernames(admins)
                     server_status += f"🛡️ <b>ادمین‌ها:</b> {admin_usernames}\n🔢 <b>تعداد ادمین‌ها:</b> {admins.total}\n"
                 server_status += (
                     f"🔖 <b>نسخه:</b> {system_stats.version}\n"
@@ -175,10 +177,10 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
                     try:
                         cookie = await refresh_panel_cookie(panel)
                         api = PasarguardAPI(base_url=panel.base_url, token=cookie)
-                        admins = await api.get_admins_simple()
+                        admins = await api.get_admins_simple(limit=PANEL_ADMINS_DISPLAY_LIMIT)
                         server_status = "┄┄<b>وضعیت سرور</b>┄┄\n"
                         if admins:
-                            admin_usernames = ", ".join(admin.username for admin in admins.admins)
+                            admin_usernames = format_panel_admin_usernames(admins)
                             server_status += (
                                 f"🛡️ <b>ادمین‌ها:</b> {admin_usernames}\n🔢 <b>تعداد ادمین‌ها:</b> {admins.total}"
                             )
@@ -1708,7 +1710,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             api = create_panel_api(panel)
             admins = None
             try:
-                admins = await api.get_admins_simple()
+                admins = await api.get_admins_simple(limit=PANEL_ADMINS_DISPLAY_LIMIT)
             except HTTPStatusError as e:
                 if e.response.status_code == 403:
                     pass
@@ -1719,7 +1721,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
 
             server_status = "┄┄<b>وضعیت سرور</b>┄┄\n"
             if admins:
-                admin_usernames = ", ".join(admin.username for admin in admins.admins)
+                admin_usernames = format_panel_admin_usernames(admins)
                 server_status += f"🛡️ <b>ادمین‌ها:</b> {admin_usernames}\n🔢 <b>تعداد ادمین‌ها:</b> {admins.total}\n"
             server_status += (
                 f"🔖 <b>نسخه:</b> {system_stats.version}\n"
@@ -1743,10 +1745,10 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
                 try:
                     cookie = await refresh_panel_cookie(panel)
                     api = PasarguardAPI(base_url=panel.base_url, token=cookie)
-                    admins = await api.get_admins_simple()
+                    admins = await api.get_admins_simple(limit=PANEL_ADMINS_DISPLAY_LIMIT)
                     server_status = "┄┄<b>وضعیت سرور</b>┄┄\n"
                     if admins:
-                        admin_usernames = ", ".join(admin.username for admin in admins.admins)
+                        admin_usernames = format_panel_admin_usernames(admins)
                         server_status += f"🛡️ <b>ادمین‌ها:</b> {admin_usernames}\n🔢 <b>تعداد ادمین‌ها:</b> {admins.total}"
                     else:
                         server_status += "✅ کوکی جدید دریافت شد."
