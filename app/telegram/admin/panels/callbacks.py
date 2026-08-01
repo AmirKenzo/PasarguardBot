@@ -33,7 +33,6 @@ from app.services.panels.groups import (
     fetch_panel_groups,
     get_add_panel_groups_from_redis,
     get_cached_panel_groups,
-    get_panel_default_group_name,
     group_ids_to_step_data,
     serialize_group_ids,
     step_data_to_group_ids,
@@ -133,8 +132,6 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
                 if not panel.cookie:
                     raise ValueError("کوکی نامعتبر است یا وجود ندارد.")
 
-                groups_resp = await fetch_panel_groups(panel)
-                get_panel_default_group_name(panel, groups_resp)
                 api = create_panel_api(panel)
                 system_stats = await api.get_system_stats(admin_username=panel.username)
 
@@ -1681,8 +1678,6 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             if not panel.cookie:
                 raise ValueError("کوکی نامعتبر است یا وجود ندارد.")
 
-            groups_resp = await fetch_panel_groups(panel)
-            get_panel_default_group_name(panel, groups_resp)
             api = create_panel_api(panel)
             system_stats = await api.get_system_stats(admin_username=panel.username)
 
