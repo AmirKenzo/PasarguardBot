@@ -28,18 +28,6 @@ from app.utils.formatting.conversions import convert_storage
 
 logger = get_logger(__name__)
 
-PANEL_ADMINS_DISPLAY_LIMIT = 5
-
-
-def format_panel_admin_usernames(admins) -> str:
-    """Return up to PANEL_ADMINS_DISPLAY_LIMIT admin usernames for panel_info."""
-    names = [admin.username for admin in (admins.admins or [])[:PANEL_ADMINS_DISPLAY_LIMIT]]
-    text = ", ".join(names)
-    total = getattr(admins, "total", None) or len(admins.admins or [])
-    if total > PANEL_ADMINS_DISPLAY_LIMIT:
-        text += "…"
-    return text
-
 
 def build_panel_summary_block(panel) -> str:
     return (
