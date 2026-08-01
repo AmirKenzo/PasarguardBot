@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI
 from telethon import Button, events
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
@@ -34,7 +33,6 @@ from app.services.panels.groups import (
     fetch_panel_groups,
     get_add_panel_groups_from_redis,
     get_cached_panel_groups,
-    get_panel_default_group_name,
     group_ids_to_step_data,
     serialize_group_ids,
     step_data_to_group_ids,
@@ -67,11 +65,9 @@ from app.services.subscriptions.links import resolve_subscription_link_mode
 from app.telegram.admin.discounts import show_discount_codes
 from app.telegram.admin.panels import states
 from app.telegram.admin.panels.service import (
-    PANEL_ADMINS_DISPLAY_LIMIT,
     build_panel_summary_block,
     build_panel_test_settings_content,
     display_panels,
-    format_panel_admin_usernames,
     mutate_panel_feature_settings,
     show_panel_ms_buttons_menu,
     show_panel_time_plans_menu,
@@ -136,25 +132,11 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
                 if not panel.cookie:
                     raise ValueError("کوکی نامعتبر است یا وجود ندارد.")
 
-                groups_resp = await fetch_panel_groups(panel)
-                get_panel_default_group_name(panel, groups_resp)
                 api = create_panel_api(panel)
-                admins = None
-                try:
-                    admins = await api.get_admins_simple(limit=PANEL_ADMINS_DISPLAY_LIMIT)
-                except HTTPStatusError as e:
-                    if e.response.status_code == 403:
-                        pass
-                    else:
-                        raise
-
                 system_stats = await api.get_system_stats(admin_username=panel.username)
 
-                server_status = "┄┄<b>وضعیت سرور</b>┄┄\n"
-                if admins:
-                    admin_usernames = format_panel_admin_usernames(admins)
-                    server_status += f"🛡️ <b>ادمین‌ها:</b> {admin_usernames}\n🔢 <b>تعداد ادمین‌ها:</b> {admins.total}\n"
-                server_status += (
+                server_status = (
+                    "┄┄<b>وضعیت سرور</b>┄┄\n"
                     f"🔖 <b>نسخه:</b> {system_stats.version}\n"
                     f"🧠 <b>مجموع رم:</b> {round(system_stats.mem_total / (1024**3), 2)} گیگ\n"
                     f"📊 <b>رم استفاده‌شده:</b> {round(system_stats.mem_used / (1024**3), 2)} گیگ\n"
@@ -175,17 +157,8 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
                 error_message = str(e)
                 if "401 Unauthorized" in error_message and not panel_uses_api_key(panel):
                     try:
-                        cookie = await refresh_panel_cookie(panel)
-                        api = PasarguardAPI(base_url=panel.base_url, token=cookie)
-                        admins = await api.get_admins_simple(limit=PANEL_ADMINS_DISPLAY_LIMIT)
-                        server_status = "┄┄<b>وضعیت سرور</b>┄┄\n"
-                        if admins:
-                            admin_usernames = format_panel_admin_usernames(admins)
-                            server_status += (
-                                f"🛡️ <b>ادمین‌ها:</b> {admin_usernames}\n🔢 <b>تعداد ادمین‌ها:</b> {admins.total}"
-                            )
-                        else:
-                            server_status += "✅ کوکی جدید دریافت شد."
+                        await refresh_panel_cookie(panel)
+                        server_status = "┄┄<b>وضعیت سرور</b>┄┄\n✅ کوکی جدید دریافت شد."
                     except Exception as e2:
                         server_status = f"خطا در بازیابی کوکی جدید: {e2!s}"
                 else:
@@ -323,13 +296,31 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             await event.answer("پنل پیدا نشد!", alert=True)
             return
         await event.edit(
-            f"🔐 نوع ورود پنل «{panel.name}» را انتخاب کنید:",
+            f"🔐 تنظیمات ورود پنل «{panel.name}»\n\n"
+            f"🌐 آدرس فعلی:\n`{panel.base_url}`\n\n"
+            "نوع ورود را انتخاب کنید یا آدرس پنل را تغییر دهید:",
             buttons=[
+                [Button.inline("🌐 تغییر آدرس پنل", data=f"change_panel_url:{panel_code}")],
                 [Button.inline("👤 نام کاربری و رمز", data=f"panel_auth_set:password:{panel_code}")],
                 [Button.inline("🔑 API Key", data=f"panel_auth_set:api_key:{panel_code}")],
                 [Button.inline("🔙 بازگشت", data=f"panel_info:{panel_code}")],
             ],
+            parse_mode="markdown",
         )
+
+    elif data.startswith("change_panel_url:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(code=panel_code)
+        if not panel:
+            await event.answer("پنل پیدا نشد!", alert=True)
+            return
+        await event.edit(
+            f"🌐 آدرس فعلی پنل:\n`{panel.base_url}`\n\nآدرس جدید را ارسال کنید.\n〰️ مثال: `https://panel.example.com`",
+            buttons=[[Button.inline("❌ انصراف", data=f"panel_auth_type:{panel_code}")]],
+            parse_mode="markdown",
+        )
+        await set_step(event.sender_id, "ChangePanelUrl")
+        await set_data(event.sender_id, "ChangePanelUrl", panel_code)
 
     elif data.startswith("panel_auth_set:"):
         parts = data.split(":")
@@ -1705,25 +1696,11 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             if not panel.cookie:
                 raise ValueError("کوکی نامعتبر است یا وجود ندارد.")
 
-            groups_resp = await fetch_panel_groups(panel)
-            get_panel_default_group_name(panel, groups_resp)
             api = create_panel_api(panel)
-            admins = None
-            try:
-                admins = await api.get_admins_simple(limit=PANEL_ADMINS_DISPLAY_LIMIT)
-            except HTTPStatusError as e:
-                if e.response.status_code == 403:
-                    pass
-                else:
-                    raise
-
             system_stats = await api.get_system_stats(admin_username=panel.username)
 
-            server_status = "┄┄<b>وضعیت سرور</b>┄┄\n"
-            if admins:
-                admin_usernames = format_panel_admin_usernames(admins)
-                server_status += f"🛡️ <b>ادمین‌ها:</b> {admin_usernames}\n🔢 <b>تعداد ادمین‌ها:</b> {admins.total}\n"
-            server_status += (
+            server_status = (
+                "┄┄<b>وضعیت سرور</b>┄┄\n"
                 f"🔖 <b>نسخه:</b> {system_stats.version}\n"
                 f"🧠 <b>مجموع رم:</b> {round(system_stats.mem_total / (1024**3), 2)} گیگ\n"
                 f"📊 <b>رم استفاده‌شده:</b> {round(system_stats.mem_used / (1024**3), 2)} گیگ\n"
@@ -1743,15 +1720,8 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             error_message = str(e)
             if "401 Unauthorized" in error_message and not panel_uses_api_key(panel):
                 try:
-                    cookie = await refresh_panel_cookie(panel)
-                    api = PasarguardAPI(base_url=panel.base_url, token=cookie)
-                    admins = await api.get_admins_simple(limit=PANEL_ADMINS_DISPLAY_LIMIT)
-                    server_status = "┄┄<b>وضعیت سرور</b>┄┄\n"
-                    if admins:
-                        admin_usernames = format_panel_admin_usernames(admins)
-                        server_status += f"🛡️ <b>ادمین‌ها:</b> {admin_usernames}\n🔢 <b>تعداد ادمین‌ها:</b> {admins.total}"
-                    else:
-                        server_status += "✅ کوکی جدید دریافت شد."
+                    await refresh_panel_cookie(panel)
+                    server_status = "┄┄<b>وضعیت سرور</b>┄┄\n✅ کوکی جدید دریافت شد."
                 except Exception as e2:
                     server_status = f"خطا در بازیابی کوکی جدید: {e2!s}"
             else:
