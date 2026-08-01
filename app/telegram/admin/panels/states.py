@@ -13,6 +13,7 @@ PANEL_ADMIN_PREFIXES = (
     "panel_add_auth:",
     "panel_auth_type:",
     "panel_auth_set:",
+    "change_panel_url:",
     "panel_info:",
     "edit_panel_display:",
     "panel_display_",

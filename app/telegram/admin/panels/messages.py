@@ -97,6 +97,29 @@ async def panel_admin_message_handler(event: Message):
     info = await UserCRUD().read_user(user_id)
     lang = info.language if info and info.language else "fa"
 
+    if step == "ChangePanelUrl" and msg:
+        await delete_message(event, offset=-1)
+        id_panel = await get_data(event.sender_id, "ChangePanelUrl")
+        new_url = msg.strip().rstrip("/")
+        if not new_url:
+            await event.respond(
+                "❌ آدرس معتبر نیست.",
+                buttons=[[Button.inline("🔙 بازگشت", data=f"panel_auth_type:{id_panel}")]],
+            )
+            return
+        await PanelsManager().update_panel(code=id_panel, base_url=new_url)
+        await event.respond(
+            f"✅ آدرس پنل به‌روزرسانی شد:\n`{new_url}`\n\nایدی پنل: {id_panel}",
+            buttons=[
+                [Button.inline("🔐 تنظیمات ورود", data=f"panel_auth_type:{id_panel}")],
+                [Button.inline("🔙 بازگشت به پنل", data=f"panel_info:{id_panel}")],
+            ],
+            parse_mode="markdown",
+        )
+        await clear_user(event.sender_id)
+        await set_step(event.sender_id, "panel")
+        return
+
     if step == "SetPanelLoginPath" and msg:
         await delete_message(event, offset=-1)
         id_panel = await get_data(event.sender_id, "SetPanelLoginPath")

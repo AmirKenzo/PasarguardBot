@@ -296,13 +296,33 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             await event.answer("پنل پیدا نشد!", alert=True)
             return
         await event.edit(
-            f"🔐 نوع ورود پنل «{panel.name}» را انتخاب کنید:",
+            f"🔐 تنظیمات ورود پنل «{panel.name}»\n\n"
+            f"🌐 آدرس فعلی:\n`{panel.base_url}`\n\n"
+            "نوع ورود را انتخاب کنید یا آدرس پنل را تغییر دهید:",
             buttons=[
+                [Button.inline("🌐 تغییر آدرس پنل", data=f"change_panel_url:{panel_code}")],
                 [Button.inline("👤 نام کاربری و رمز", data=f"panel_auth_set:password:{panel_code}")],
                 [Button.inline("🔑 API Key", data=f"panel_auth_set:api_key:{panel_code}")],
                 [Button.inline("🔙 بازگشت", data=f"panel_info:{panel_code}")],
             ],
+            parse_mode="markdown",
         )
+
+    elif data.startswith("change_panel_url:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(code=panel_code)
+        if not panel:
+            await event.answer("پنل پیدا نشد!", alert=True)
+            return
+        await event.edit(
+            f"🌐 آدرس فعلی پنل:\n`{panel.base_url}`\n\n"
+            "آدرس جدید را ارسال کنید.\n"
+            "〰️ مثال: `https://panel.example.com`\n"
+            buttons=[[Button.inline("❌ انصراف", data=f"panel_auth_type:{panel_code}")]],
+            parse_mode="markdown",
+        )
+        await set_step(event.sender_id, "ChangePanelUrl")
+        await set_data(event.sender_id, "ChangePanelUrl", panel_code)
 
     elif data.startswith("panel_auth_set:"):
         parts = data.split(":")
