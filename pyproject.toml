@@ -27,7 +27,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.51",
     "uvicorn>=0.52.0",
     "uvloop>=0.22.1; sys_platform != 'win32'",
-    "cryptography>=49.0.0",
+    "cryptography>=50.0.0",
     "cryptg>=0.6.0",
     "telethon>=1.44.0",
 ]
