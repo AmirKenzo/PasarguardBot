@@ -967,22 +967,18 @@ detect_server_ip() {
 show_service_urls() {
     [[ -f "$ENV_FILE" ]] || return 0
 
-    local ip fastapi_port webhook_secret webhook_url pma_url
+    local ip fastapi_port webhook_url pma_url
     ip="$(detect_server_ip)"
     fastapi_port="$(get_env_value "FASTAPI_PORT")"
     fastapi_port="${fastapi_port:-$FASTAPI_PORT_DEFAULT}"
-    webhook_secret="$(get_env_value "WEBHOOK_SECRET")"
     webhook_url="http://${ip}:${fastapi_port}/api/webhook"
     pma_url="http://${ip}:${PHPMYADMIN_PORT}"
 
     echo
     info "Webhook (set in Pasarguard panel):"
     echo -e "  ${C_DIM}URL:${C_RESET}     ${webhook_url}"
-    if [[ -n "$webhook_secret" ]]; then
-        echo -e "  ${C_DIM}Header:${C_RESET}  x-webhook-secret: ${webhook_secret}"
-    else
-        warn "WEBHOOK_SECRET not found in ${ENV_FILE}"
-    fi
+    echo -e "  ${C_DIM}Header:${C_RESET}  x-webhook-secret: <from DB table secrets, name=webhook_secret>"
+    echo -e "  ${C_DIM}Note:${C_RESET}   crypto_key / webhook_secret are stored in DB (not .env)"
     echo
     info "phpMyAdmin:"
     echo -e "  ${C_DIM}URL:${C_RESET}  ${pma_url}"
@@ -1135,7 +1131,7 @@ generate_env_file() {
     local install_mode="${1:-docker}"
     local branch="${2:-$(get_repo_branch)}"
     local api_id api_hash bot_token admin_id
-    local db_pass db_root_pass webhook_secret crypto_key
+    local db_pass db_root_pass
     local tmp db_host redis_url env_url
 
     if [[ -f "$ENV_FILE" ]]; then
@@ -1170,8 +1166,6 @@ generate_env_file() {
 
     db_pass="$(rand_b64 24)"
     db_root_pass="$(rand_b64 32)"
-    webhook_secret="$(rand_hex 16)"
-    crypto_key="$(rand_b64 32)"
 
     if [[ "$install_mode" == "native" ]]; then
         db_host="127.0.0.1:${MARIADB_PORT}"
@@ -1191,8 +1185,6 @@ generate_env_file() {
     set_env_var "$ENV_FILE" "ADMIN_ID" "$admin_id"
     set_env_var "$ENV_FILE" "SQLALCHEMY_DATABASE_URL" "mysql+asyncmy://pasarguardbot:${db_pass}@${db_host}/pasarguardbot"
     set_env_var "$ENV_FILE" "FASTAPI_PORT" "$FASTAPI_PORT_DEFAULT"
-    set_env_var "$ENV_FILE" "WEBHOOK_SECRET" "$webhook_secret"
-    set_env_var "$ENV_FILE" "CRYPTO_KEY" "$crypto_key"
     set_env_var "$ENV_FILE" "REDIS_URL" "$redis_url"
     set_env_var "$ENV_FILE" "REDIS_NAMESPACE_PREFIX" "pasarguardbot:mainbot"
     set_env_var "$ENV_FILE" "TELETHON_SESSION_PATH" "sessions/KenzoSession"
