@@ -20,7 +20,7 @@ dependencies = [
     "python-multipart>=0.0.32",
     "pytz>=2026.3.post1",
     "qrcode>=8.2",
-    "redis>=8.0.0",
+    "redis>=8.1.0",
     "psutil>=7.0.0",
     "rich>=14.0.0",
     "colorama>=0.4.6; sys_platform == 'win32'",
