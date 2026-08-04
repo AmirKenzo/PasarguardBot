@@ -26,8 +26,10 @@ from app.services.panels.admins import (
     suspend_reseller_admin,
 )
 from app.services.reseller.logging import send_reseller_log, send_reseller_usage_charge_table
+from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS, apply_usage_cap_suspend
 from app.utils.formatting.conversions import gigabytes_to_bytes
 from app.utils.formatting.dates import Time_Date
+from app.utils.formatting.traffic import format_size
 
 log = get_logger(__name__)
 
@@ -63,6 +65,36 @@ async def _notify_user(telegram_id: int, text: str) -> None:
         await Kenzo.send_message(telegram_id, text, parse_mode="markdown")
     except Exception as exc:
         log.warning("reseller billing notify failed user=%s: %s", telegram_id, exc)
+
+
+async def _notify_usage_cap(account, reason: str) -> None:
+    cap = account.usage_cap_bytes
+    cap_text = format_size(cap) if cap else "—"
+    await _notify_user(
+        account.telegram_id,
+        f"⛔️ **نمایندگی `{account.username}` به‌خاطر سقف مصرف غیرفعال شد**\n\n"
+        f"{reason}\n"
+        f"🚦 سقف: `{cap_text}`\n\n"
+        "برای فعال‌سازی مجدد، از دکمه محدودیت مصرف سقف را افزایش دهید یا حذف کنید.",
+    )
+
+
+async def _enforce_usage_cap(account, panel, used_traffic: int, *, stats: _BillingRunStats | None = None) -> bool:
+    """Suspend account when manual usage cap is reached. Returns True if capped."""
+    cap = account.usage_cap_bytes
+    if not cap or used_traffic < cap:
+        return False
+    if account.status == USAGE_CAPPED_STATUS:
+        return True
+    ok = await apply_usage_cap_suspend(
+        account,
+        panel,
+        reason=f"مصرف به سقف دستی ({format_size(cap)}) رسید.",
+        notify=_notify_usage_cap,
+    )
+    if ok and stats:
+        stats.suspended += 1
+    return ok
 
 
 async def _suspend_account(
@@ -209,12 +241,17 @@ async def _process_usage_account(
     if delta_bytes <= 0:
         if account.status == "suspended" and user and balance >= reactivate_needed:
             await _reactivate_account(account, panel, stats=stats)
+            ok, account = await ResellerAccountCRUD().get_account(account.code)
+            if not ok:
+                return
+        await _enforce_usage_cap(account, panel, used_traffic, stats=stats)
         return
 
     delta_gb = delta_bytes / gigabytes_to_bytes(1)
     charge = round(delta_gb * rate)
     if charge <= 0:
         await snapshot_crud.add_snapshot(account.code, used_traffic, 0, now)
+        await _enforce_usage_cap(account, panel, used_traffic, stats=stats)
         return
 
     if not user or balance < charge:
@@ -253,6 +290,8 @@ async def _process_usage_account(
         )
         if len(stats.usage_charge_rows) > 150:
             stats.usage_charge_rows = stats.usage_charge_rows[-150:]
+
+    await _enforce_usage_cap(account, panel, used_traffic, stats=stats)
 
 
 def _group_accounts_by_panel(accounts) -> dict[int, list]:

@@ -21,6 +21,10 @@ const config = {
   },
   // Avoid broken client/HMR when opening via 127.0.0.1 instead of localhost
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
+  // TypeScript 7 has no JS compiler API; use project-local `tsc` for typecheck.
+  experimental: {
+    useTypeScriptCli: true,
+  },
 };
 
 export default withMDX(config);

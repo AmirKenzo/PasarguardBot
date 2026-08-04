@@ -18,6 +18,7 @@ class ResellerAccount(Base):
     data_limit: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     max_users: Mapped[int | None] = mapped_column(Integer, nullable=True)
     purchased_volume: Mapped[float | None] = mapped_column(Float, nullable=True)
+    usage_cap_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     createtime: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     expiration_time: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")

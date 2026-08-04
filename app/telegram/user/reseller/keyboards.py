@@ -79,9 +79,20 @@ async def build_my_reseller_account_buttons(account) -> list:
         if account.pricing_mode == "usage" and enabled("usage_report"):
             rows.append([await rs_buttons.rs_usage_report_button(account.code)])
 
+        if account.pricing_mode == "usage" and enabled("usage_cap"):
+            rows.append([await rs_buttons.rs_usage_cap_button(account.code)])
+
     if enabled("delete"):
         rows.append([await rs_buttons.rs_delete_button(account.code)])
     rows.append([await rs_buttons.rs_back_list_button()])
+    return rows
+
+
+async def build_usage_cap_menu_buttons(account_code: int, *, has_cap: bool) -> list:
+    rows = [[await rs_buttons.rs_usage_cap_set_button(account_code)]]
+    if has_cap:
+        rows.append([await rs_buttons.rs_usage_cap_clear_button(account_code)])
+    rows.append([await rs_buttons.rs_usage_back_button(account_code)])
     return rows
 
 

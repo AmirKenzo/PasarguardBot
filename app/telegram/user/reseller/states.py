@@ -16,4 +16,5 @@ RESELLER_INPUT_STEPS = (
     "reseller_discount_code",
     "reseller_renew_confirm",
     "reseller_renew_discount_code",
+    "reseller_usage_cap_input",
 )

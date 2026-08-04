@@ -77,6 +77,7 @@ DEFAULT_RESELLER_BUTTON_SETTINGS: dict[str, bool] = {
     "change_password": True,
     "toggle_status": True,
     "usage_report": True,
+    "usage_cap": True,
     "delete": True,
 }
 

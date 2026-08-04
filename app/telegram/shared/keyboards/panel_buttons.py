@@ -55,6 +55,7 @@ PANEL_MS_RESELLER_BUTTON_TOGGLES: tuple[tuple[str, str], ...] = (
     ("change_password", "🔐 تغییر رمز عبور"),
     ("toggle_status", "🕹 فعال/غیرفعال سازی پنل"),
     ("usage_report", "📊 گزارش مصرف"),
+    ("usage_cap", "📦 محدودیت مصرف"),
     ("delete", "🗑 حذف نمایندگی"),
 )
 

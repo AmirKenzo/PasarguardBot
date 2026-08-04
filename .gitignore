@@ -13,4 +13,6 @@ docs/.source/
 docs/package-lock.json
 *.session
 *.session-journal
+business_connections.json
 /tests
+/todo
