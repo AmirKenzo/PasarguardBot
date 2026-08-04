@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 _TELEGRAM_ROOT = Path(__file__).resolve().parent
 _APP_ROOT = Path(__file__).resolve().parent.parent
-_SCANNED_DIRS = ("admin", "user")
+_SCANNED_DIRS = ("admin", "user", "business")
 # Only __init__.py is not a plugin entry point; all other *.py modules are loaded.
 _SKIPPED_FILES = frozenset({"__init__.py"})
 
