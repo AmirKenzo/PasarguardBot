@@ -146,32 +146,36 @@ async def check_low_volume():
                         continue
 
                     if remaining <= 0:
-                        message_template = await get_bot_text(
-                            key="webhook_notification_data_exhausted",
-                            default=(
-                                "<b>#اطلاع_رسانی</b>\n\n"
-                                "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
-                                "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
-                                "<b>📅 سرویس شما به دلیل اتمام حجم غیرفعال شده است.</b>\n"
-                                "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
-                                "<b>#notification_{service_code}</b>"
-                            ),
-                            lang="fa",
-                        )
-                        message = message_template.replace("{service_code}", str(service.code)).replace(
-                            "{config_name}", service.username
-                        )
-                        try:
-                            await Kenzo.send_message(service.id, message, parse_mode="html")
-                            notifications_sent += 1
-                        except errors.FloodWaitError as e:
-                            await asyncio.sleep(e.seconds)
-                        except errors.InputUserDeactivatedError:
-                            await set_user_status(service.id, "DeleteAccount")
-                        except errors.UserIsBlockedError:
-                            await set_user_status(service.id, "BlockedBot")
-                        except Exception as e:
-                            logger.error(f"data exhausted notify failed for {service.id}: {e}")
+                        if not service.low_volume_notified:
+                            message_template = await get_bot_text(
+                                key="webhook_notification_data_exhausted",
+                                default=(
+                                    "<b>#اطلاع_رسانی</b>\n\n"
+                                    "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
+                                    "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
+                                    "<b>📅 سرویس شما به دلیل اتمام حجم غیرفعال شده است.</b>\n"
+                                    "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
+                                    "<b>#notification_{service_code}</b>"
+                                ),
+                                lang="fa",
+                            )
+                            message = message_template.replace("{service_code}", str(service.code)).replace(
+                                "{config_name}", service.username
+                            )
+                            try:
+                                await Kenzo.send_message(service.id, message, parse_mode="html")
+                                notifications_sent += 1
+                            except errors.FloodWaitError as e:
+                                await asyncio.sleep(e.seconds)
+                            except errors.InputUserDeactivatedError:
+                                await set_user_status(service.id, "DeleteAccount")
+                            except errors.UserIsBlockedError:
+                                await set_user_status(service.id, "BlockedBot")
+                            except Exception as e:
+                                logger.error(f"data exhausted notify failed for {service.id}: {e}")
+                            finally:
+                                await service_crud.update_service(service.code, low_volume_notified=True)
+                                service.low_volume_notified = True
                         continue
 
                     if remaining <= 1 * 1024**3:

@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from app.logger import get_logger
 from app.models.router_models import WebhookResponse
 from app.routers.webhook.processor import process_webhook_events
-from config import WEBHOOK_SECRET
+from app.utils.security.secrets_cache import get_webhook_secret
 
 logger = get_logger(__name__)
 
@@ -33,10 +33,10 @@ async def handle_webhook(request: Request) -> WebhookResponse:
             logger.info("\n❌ ERROR: Signature header missing")
             raise HTTPException(status_code=403, detail="Signature header missing")
 
-        logger.debug(f"\n🔐 Received header secret: {signature}")
+        logger.debug("\n🔐 Received webhook secret header")
 
-        if signature != WEBHOOK_SECRET:
-            logger.info(f"❌ ERROR: Invalid shared secret (expected: {WEBHOOK_SECRET})")
+        if signature != get_webhook_secret():
+            logger.info("❌ ERROR: Invalid shared secret")
             raise HTTPException(status_code=403, detail="Invalid shared secret")
 
         logger.debug("✅ Webhook secret validated")

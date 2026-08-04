@@ -8,9 +8,8 @@ from cryptography.hazmat.decrepit.ciphers.modes import CFB
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from decouple import config
 
-CRYPTO_KEY = config("CRYPTO_KEY", default=None)
+from app.utils.security.secrets_cache import get_crypto_key
 
 
 def generate_key(password: str, salt: bytes) -> bytes:
@@ -20,7 +19,7 @@ def generate_key(password: str, salt: bytes) -> bytes:
 
 def encrypt_data(data: str) -> str:
     salt = os.urandom(16)
-    key = generate_key(CRYPTO_KEY, salt)
+    key = generate_key(get_crypto_key(), salt)
     iv = os.urandom(16)
     cipher = Cipher(algorithms.AES(key), CFB(iv), backend=default_backend())
     encryptor = cipher.encryptor()
@@ -33,7 +32,7 @@ def decrypt_data(encrypted_data: str) -> str:
     salt = encrypted_bytes[:16]
     iv = encrypted_bytes[16:32]
     ciphertext = encrypted_bytes[32:]
-    key = generate_key(CRYPTO_KEY, salt)
+    key = generate_key(get_crypto_key(), salt)
     cipher = Cipher(algorithms.AES(key), CFB(iv), backend=default_backend())
     decryptor = cipher.decryptor()
     plaintext = decryptor.update(ciphertext) + decryptor.finalize()

@@ -57,6 +57,11 @@ async def main():
         for sig in (signal.SIGINT, signal.SIGTERM):
             signal.signal(sig, _signal_handler)
 
+    from app.db.crud.secrets import ensure_secrets
+
+    await ensure_secrets()
+    logger.info("%s Secrets loaded from database", LogTag.BOOT)
+
     api_task = None
     server = None
 
