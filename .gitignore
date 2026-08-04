@@ -13,3 +13,4 @@ docs/.source/
 docs/package-lock.json
 *.session
 *.session-journal
+/tests
