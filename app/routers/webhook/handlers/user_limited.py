@@ -86,6 +86,7 @@ async def handle_user_limited(event: WebhookEvent) -> None:
         message = message_template.replace("{service_code}", str(service.code)).replace(
             "{config_name}", service.username
         )
+        service_crud = ServiceCRUD()
         try:
             await Kenzo.send_message(service.id, message, parse_mode="html")
             logger.info(f"✅ Data exhaustion notification sent to user {service.id} for service {service.code}")
@@ -103,3 +104,6 @@ async def handle_user_limited(event: WebhookEvent) -> None:
 
         except Exception as e:
             logger.error(f"Failed to send data exhaustion notification to user {service.id}: {e}")
+        finally:
+            # Prevent cron check_low_volume from re-sending every minute
+            await service_crud.update_service(service.code, low_volume_notified=True)
