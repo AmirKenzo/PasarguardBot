@@ -17,8 +17,9 @@ from app.db.crud.user import UserCRUD, safe_mode_admin_label, user_safe_mode_val
 from app.logger import LogType, get_logger
 from app.services.billing.renewal import require_panel_userid
 from app.services.billing.reseller_renewal import renew_reseller_account
-from app.services.panels.admins import get_reseller_admin_user_count, reset_reseller_admin_password
+from app.services.panels.admins import get_reseller_admin, get_reseller_admin_user_count, reset_reseller_admin_password
 from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.usage_cap import set_reseller_usage_cap, usage_cap_menu_text
 from app.services.users.admin_profile import display_user_info_admin
 from app.telegram.admin.manage_user import states
 from app.telegram.admin.manage_user.service import (
@@ -34,6 +35,7 @@ from app.telegram.keyboards.admin import (
     build_admin_reseller_chpwd_confirm_buttons,
     build_admin_reseller_delete_confirm_buttons,
     build_admin_reseller_list_buttons,
+    build_admin_reseller_usage_cap_buttons,
     create_inline_manageuser,
 )
 from app.telegram.keyboards.services import create_inline_service_buttons
@@ -270,6 +272,76 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
             buttons=rows,
             parse_mode="markdown",
         )
+        return True
+
+    if action == "usage_cap":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        if account.pricing_mode != "usage":
+            await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
+            return True
+        await delete_data(event.sender_id, "AdminResellerUsageCapUserId")
+        await delete_data(event.sender_id, "AdminResellerUsageCapCode")
+        await set_step(event.sender_id, "MToUserInfo")
+        panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
+        used = 0
+        if panel:
+            try:
+                admin = await get_reseller_admin(panel, account.username)
+                used = int(getattr(admin, "used_traffic", 0) or 0) if admin else 0
+            except Exception:
+                used = 0
+        await event.edit(
+            usage_cap_menu_text(account, used_bytes=used),
+            buttons=build_admin_reseller_usage_cap_buttons(
+                user_id, account_code, has_cap=bool(account.usage_cap_bytes)
+            ),
+            parse_mode="markdown",
+        )
+        return True
+
+    if action == "usage_cap_set":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        if account.pricing_mode != "usage":
+            await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
+            return True
+        await set_data(event.sender_id, "AdminResellerUsageCapUserId", str(user_id))
+        await set_data(event.sender_id, "AdminResellerUsageCapCode", str(account_code))
+        await set_step(event.sender_id, "AdminResellerUsageCapInput")
+        await event.edit(
+            f"**📦 تنظیم سقف مصرف — `{account.username}`**\n\n"
+            "مقدار سقف را به **گیگابایت** ارسال کنید.\n"
+            "مثال: `50`\n\n"
+            "برای حذف محدودیت عدد `0` بفرستید.",
+            buttons=[[Button.inline("🔙 بازگشت", data=f"AdminReseller_usage_cap:{user_id}:{account_code}")]],
+            parse_mode="markdown",
+        )
+        return True
+
+    if action == "usage_cap_clear":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        if account.pricing_mode != "usage":
+            await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
+            return True
+        ok, msg = await set_reseller_usage_cap(
+            account,
+            gigabytes=None,
+            actor_id=event.sender_id,
+            actor_role="ادمین",
+        )
+        await event.answer(msg, alert=True)
+        if ok:
+            ok, account = await ResellerAccountCRUD().get_account(account_code)
+            if ok:
+                await _admin_show_reseller_detail(event, user_id, account)
         return True
 
     return False

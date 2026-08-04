@@ -57,14 +57,27 @@ def build_admin_reseller_account_buttons(user_id: int, account) -> list:
         [Button.inline("🔑 نمایش رمز ورود", data=f"AdminReseller_creds:{user_id}:{code}")],
         [Button.inline("🔄 تغییر رمز عبور", data=f"AdminReseller_chpwd:{user_id}:{code}")],
     ]
-    if account.status in ("paused", "admin_paused"):
-        rows.append([Button.inline("▶️ فعال‌سازی پنل", data=f"AdminReseller_resume:{user_id}:{code}")])
+    if account.status in ("paused", "admin_paused", "usage_capped"):
+        if account.status != "usage_capped":
+            rows.append([Button.inline("▶️ فعال‌سازی پنل", data=f"AdminReseller_resume:{user_id}:{code}")])
     elif account.status in ("active", "suspended"):
         rows.append([Button.inline("⏸ غیرفعال‌سازی پنل", data=f"AdminReseller_pause:{user_id}:{code}")])
     if account.pricing_mode == "fixed":
         rows.append([Button.inline("💎 تمدید", data=f"AdminReseller_renew:{user_id}:{code}")])
+    if account.pricing_mode == "usage":
+        rows.append([Button.inline("📦 محدودیت مصرف", data=f"AdminReseller_usage_cap:{user_id}:{code}")])
     rows.append([Button.inline("🗑 حذف نمایندگی", data=f"AdminReseller_delete:{user_id}:{code}")])
     rows.append([Button.inline("🔙 بازگشت به لیست", data=f"MToUser_resellers:{user_id}")])
+    return rows
+
+
+def build_admin_reseller_usage_cap_buttons(user_id: int, account_code: int, *, has_cap: bool) -> list:
+    rows = [
+        [Button.inline("✏️ تنظیم سقف (گیگ)", data=f"AdminReseller_usage_cap_set:{user_id}:{account_code}")],
+    ]
+    if has_cap:
+        rows.append([Button.inline("🗑 حذف سقف مصرف", data=f"AdminReseller_usage_cap_clear:{user_id}:{account_code}")])
+    rows.append([Button.inline("🔙 بازگشت", data=f"AdminReseller_view:{user_id}:{account_code}")])
     return rows
 
 

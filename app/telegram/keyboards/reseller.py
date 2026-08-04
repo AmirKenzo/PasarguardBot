@@ -49,6 +49,18 @@ async def rs_usage_report_button(account_code: int):
     return await _rs_inline_button("in.rs.usage_report", f"ResellerAccount_usage:{account_code}:0")
 
 
+async def rs_usage_cap_button(account_code: int):
+    return await _rs_inline_button("in.rs.usage_cap", f"ResellerAccount_usage_cap:{account_code}")
+
+
+async def rs_usage_cap_set_button(account_code: int):
+    return await _rs_inline_button("in.rs.usage_cap_set", f"ResellerAccount_usage_cap_set:{account_code}")
+
+
+async def rs_usage_cap_clear_button(account_code: int):
+    return await _rs_inline_button("in.rs.usage_cap_clear", f"ResellerAccount_usage_cap_clear:{account_code}")
+
+
 async def rs_delete_button(account_code: int):
     return await _rs_inline_button("in.rs.delete", f"ResellerAccount_delete:{account_code}")
 

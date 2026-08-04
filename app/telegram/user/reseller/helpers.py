@@ -49,6 +49,7 @@ from app.services.panels.admins import (
 )
 from app.services.panels.settings import get_panel_login_url, panel_reseller_sale_enabled
 from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
 from app.services.telegram.rich_message import USAGE_HISTORY_PER_PAGE, prepare_rich_markdown
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.keyboards.panel_buttons import build_panel_display_button
@@ -82,6 +83,7 @@ async def reseller_status_label(account, user_id: int | None = None) -> str:
         "suspended": "⛔️ تعلیق (کمبود موجودی)",
         "paused": "⏸ غیرفعال (توسط شما)",
         ADMIN_LOCKED_STATUS: "⛔️ غیرفعال (توسط ادمین)",
+        USAGE_CAPPED_STATUS: "⛔️ غیرفعال (سقف مصرف)",
         "expired": "⌛ منقضی",
     }
     return labels.get(account.status, account.status)
@@ -508,6 +510,14 @@ async def build_reseller_account_detail_text(account, *, show_password: bool = F
     else:
         lines.append(f"**📥 مصرف:** {format_size(used)} (سقف نامحدود)")
 
+    if account.pricing_mode == "usage":
+        cap = account.usage_cap_bytes
+        if cap:
+            cap_pct = min(100, int(used * 100 / cap)) if cap else 0
+            lines.append(f"**🚦 سقف مصرف دستی:** {format_size(used)} / {format_size(cap)} ({cap_pct}%)")
+        else:
+            lines.append("**🚦 سقف مصرف دستی:** بدون محدودیت")
+
     if account.max_users:
         lines.append(f"**👥 سقف یوزر:** {total_users} / {account.max_users}")
     else:
@@ -535,6 +545,8 @@ async def build_reseller_account_detail_text(account, *, show_password: bool = F
             lines.append(f"**⚠️ حداقل برای ادامه:** ~{max(1, rate // 60):,} تومان/دقیقه")
         if account.status == "paused":
             lines.append("**ℹ️ پنل غیرفعال است — تا زمان فعال‌سازی، موجودی کسر نمی‌شود.**")
+        if account.status == USAGE_CAPPED_STATUS:
+            lines.append("**⛔️ مصرف به سقف دستی رسیده است. برای فعال‌سازی مجدد، سقف را افزایش دهید یا حذف کنید.**")
         if is_admin_locked(account):
             lines.append(
                 "**⛔️ این نمایندگی توسط ادمین غیرفعال شده است. تا زمان فعال‌سازی مجدد توسط پشتیبانی، امکان مدیریت آن وجود ندارد.**"
@@ -573,6 +585,8 @@ async def pause_reseller_account(account) -> tuple[bool, str]:
         return True, "پنل از قبل غیرفعال است."
     if account.status == "expired":
         return False, "نمایندگی منقضی شده است."
+    if account.status == USAGE_CAPPED_STATUS:
+        return False, "پنل به‌خاطر سقف مصرف غیرفعال است. ابتدا سقف را تغییر دهید."
 
     panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
     if not panel:

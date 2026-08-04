@@ -240,11 +240,18 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                     await _keyboard_admin_button(keyboard_crud, "in.rs.usage_report", 5),
                 ],
                 [
-                    await _keyboard_admin_button(keyboard_crud, "in.rs.delete", 5),
-                    await _keyboard_admin_button(keyboard_crud, "in.rs.buy_random_username", 5),
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.usage_cap", 5),
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.usage_cap_set", 5),
                 ],
                 [
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.usage_cap_clear", 5),
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.delete", 5),
+                ],
+                [
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.buy_random_username", 5),
                     await _keyboard_admin_button(keyboard_crud, "in.rs.delete_confirm", 5),
+                ],
+                [
                     await _keyboard_admin_button(keyboard_crud, "in.rs.chpwd_confirm", 5),
                 ],
             ]

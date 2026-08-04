@@ -23,11 +23,13 @@ from app.services.billing.reseller_pricing import (
 from app.services.billing.reseller_renewal import renew_reseller_account
 from app.services.panels.admins import (
     admin_username_exists,
+    get_reseller_admin,
     get_reseller_admin_user_count,
     reset_reseller_admin_password,
 )
 from app.services.panels.settings import panel_reseller_sale_enabled
 from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.usage_cap import parse_usage_cap_gb, set_reseller_usage_cap, usage_cap_menu_text
 from app.telegram.keyboards import reseller as rs_buttons
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.utils.maintenance import bot_is_offline
@@ -36,6 +38,7 @@ from app.telegram.user.reseller.helpers import (
     _complete_reseller_purchase,
     _user_lang,
     apply_discount_amount,
+    build_reseller_account_detail_text,
     build_reseller_confirm_text,
     build_reseller_renew_confirm_text,
     delete_reseller_account,
@@ -53,12 +56,14 @@ from app.telegram.user.reseller.helpers import (
 )
 from app.telegram.user.reseller.keyboards import (
     build_delete_confirm_buttons,
+    build_my_reseller_account_buttons,
     build_my_resellers_list_buttons,
     build_password_confirm_buttons,
     build_reseller_confirm_buttons,
     build_reseller_plan_buttons,
     build_reseller_renew_confirm_buttons,
     build_reseller_renew_plan_buttons,
+    build_usage_cap_menu_buttons,
 )
 from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
 from app.telegram.user.start.helpers import DEFAULT_START_MESSAGE
@@ -349,6 +354,73 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             await event.answer("این گزارش فقط برای پلن مصرفی است.", alert=True)
             return
         await show_usage_history(event, acc, page=page)
+        return
+
+    if data.startswith("ResellerAccount_usage_cap:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        if not acc:
+            return
+        if await _reject_if_admin_locked(event, acc):
+            return
+        if acc.pricing_mode != "usage":
+            await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
+            return
+        await delete_data(event.sender_id, "reseller_usage_cap_code")
+        await set_step(event.sender_id, "home")
+        panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
+        used = 0
+        if panel:
+            try:
+                admin = await get_reseller_admin(panel, acc.username)
+                used = int(getattr(admin, "used_traffic", 0) or 0) if admin else 0
+            except Exception:
+                used = 0
+        await event.edit(
+            usage_cap_menu_text(acc, used_bytes=used),
+            buttons=await build_usage_cap_menu_buttons(code, has_cap=bool(acc.usage_cap_bytes)),
+            parse_mode="markdown",
+        )
+        return
+
+    if data.startswith("ResellerAccount_usage_cap_set:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        if not acc:
+            return
+        if await _reject_if_admin_locked(event, acc):
+            return
+        if acc.pricing_mode != "usage":
+            await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
+            return
+        await set_data(event.sender_id, "reseller_usage_cap_code", str(code))
+        await set_step(event.sender_id, "reseller_usage_cap_input")
+        await event.edit(
+            f"**📦 تنظیم سقف مصرف — `{acc.username}`**\n\n"
+            "مقدار سقف را به **گیگابایت** ارسال کنید.\n"
+            "مثال: `50`\n\n"
+            "برای حذف محدودیت عدد `0` بفرستید.",
+            buttons=[[Button.inline("🔙 بازگشت", data=f"ResellerAccount_usage_cap:{code}")]],
+            parse_mode="markdown",
+        )
+        return
+
+    if data.startswith("ResellerAccount_usage_cap_clear:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        if not acc:
+            return
+        if await _reject_if_admin_locked(event, acc):
+            return
+        if acc.pricing_mode != "usage":
+            await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
+            return
+        ok, msg = await set_reseller_usage_cap(acc, gigabytes=None, actor_id=event.sender_id)
+        await event.answer(msg, alert=True)
+        if ok:
+            ok, acc = await ResellerAccountCRUD().get_account(code)
+            if ok:
+                await show_account_detail(event, acc)
         return
 
     if data.startswith("ResellerAccount_delete:") and not data.startswith("ResellerAccount_delete_confirm:"):
@@ -686,6 +758,58 @@ async def reseller_renew_discount_message(event: Message):
     await _show_reseller_renew_confirm(event, acc, plan)
 
 
+async def reseller_usage_cap_message_filter(event: Message) -> bool:
+    return (
+        event.is_private
+        and bool(event.message.message)
+        and await get_step(event.sender_id) == "reseller_usage_cap_input"
+    )
+
+
+@bot_is_offline
+async def reseller_usage_cap_message(event: Message):
+    user_id = event.sender_id
+    code_raw = await get_data(user_id, "reseller_usage_cap_code")
+    if not code_raw:
+        await set_step(user_id, "home")
+        return
+    ok, acc = await ResellerAccountCRUD().get_account(int(code_raw))
+    if not ok or acc.telegram_id != user_id:
+        await set_step(user_id, "home")
+        await delete_data(user_id, "reseller_usage_cap_code")
+        await event.respond("نمایندگی یافت نشد.")
+        return
+    if is_admin_locked(acc):
+        await set_step(user_id, "home")
+        await delete_data(user_id, "reseller_usage_cap_code")
+        await event.respond("این نمایندگی توسط ادمین غیرفعال شده است.")
+        return
+    if acc.pricing_mode != "usage":
+        await set_step(user_id, "home")
+        await delete_data(user_id, "reseller_usage_cap_code")
+        await event.respond("سقف مصرف فقط برای پلن مصرفی است.")
+        return
+
+    gb = parse_usage_cap_gb(event.message.message)
+    if gb is None:
+        await event.respond("فقط عدد معتبر (گیگابایت) وارد کنید. مثال: `50` یا `0` برای حذف.")
+        return
+
+    success, msg = await set_reseller_usage_cap(
+        acc,
+        gigabytes=None if gb <= 0 else gb,
+        actor_id=user_id,
+    )
+    await delete_data(user_id, "reseller_usage_cap_code")
+    await set_step(user_id, "home")
+    await event.respond(msg)
+    if success:
+        ok, acc = await ResellerAccountCRUD().get_account(int(code_raw))
+        if ok:
+            text = await build_reseller_account_detail_text(acc, show_password=False)
+            await event.respond(text, buttons=await build_my_reseller_account_buttons(acc))
+
+
 def register(client):
     client.add_event_handler(
         reseller_buy_callback,
@@ -706,4 +830,8 @@ def register(client):
     client.add_event_handler(
         reseller_renew_discount_message,
         events.NewMessage(incoming=True, func=reseller_renew_discount_message_filter),
+    )
+    client.add_event_handler(
+        reseller_usage_cap_message,
+        events.NewMessage(incoming=True, func=reseller_usage_cap_message_filter),
     )

@@ -10,14 +10,17 @@ from telethon import Button, events
 from telethon.tl.custom import Message
 
 from app.db.crud.panels import PanelsManager
+from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.services import ServiceCRUD, get_user_services_paginated
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.services.billing.renewal import require_panel_userid
+from app.services.reseller.usage_cap import parse_usage_cap_gb, set_reseller_usage_cap
 from app.telegram.admin.manage_user.service import build_service_text, finalize_admin_config
-from app.telegram.keyboards.admin import create_inline_manageuser
+from app.telegram.keyboards.admin import build_admin_reseller_account_buttons, create_inline_manageuser
 from app.telegram.shared.utils.username import is_valid_username
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
+from app.telegram.user.reseller.helpers import build_reseller_account_detail_text
 from app.utils.formatting.conversions import gigabytes_to_bytes
 from app.utils.formatting.dates import timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
@@ -34,6 +37,51 @@ async def msg_manage_user_admin(event: Message):
             "〰️ لطفا آیدی عددی کاربر را ارسال کنید:", buttons=[Button.text("🔙 بازگشت به پنل", resize=True)]
         )
         await set_step(event.sender_id, "MToUser")
+
+    elif await get_step(event.sender_id) == "AdminResellerUsageCapInput" and msg and msg.strip():
+        user_id_raw = await get_data(event.sender_id, "AdminResellerUsageCapUserId")
+        code_raw = await get_data(event.sender_id, "AdminResellerUsageCapCode")
+        if not user_id_raw or not code_raw:
+            await event.respond("نشست منقضی شد.")
+            await set_step(event.sender_id, "MToUserInfo")
+            return
+        gb = parse_usage_cap_gb(msg)
+        if gb is None:
+            await event.respond("فقط عدد معتبر (گیگابایت) وارد کنید. مثال: `50` یا `0` برای حذف.")
+            return
+        ok, account = await ResellerAccountCRUD().get_account(int(code_raw))
+        target_user_id = int(user_id_raw)
+        if not ok or account.telegram_id != target_user_id:
+            await event.respond("نمایندگی یافت نشد.")
+            await delete_data(event.sender_id, "AdminResellerUsageCapUserId")
+            await delete_data(event.sender_id, "AdminResellerUsageCapCode")
+            await set_step(event.sender_id, "MToUserInfo")
+            return
+        if account.pricing_mode != "usage":
+            await event.respond("سقف مصرف فقط برای پلن مصرفی است.")
+            await delete_data(event.sender_id, "AdminResellerUsageCapUserId")
+            await delete_data(event.sender_id, "AdminResellerUsageCapCode")
+            await set_step(event.sender_id, "MToUserInfo")
+            return
+        success, result_msg = await set_reseller_usage_cap(
+            account,
+            gigabytes=None if gb <= 0 else gb,
+            actor_id=event.sender_id,
+            actor_role="ادمین",
+        )
+        await delete_data(event.sender_id, "AdminResellerUsageCapUserId")
+        await delete_data(event.sender_id, "AdminResellerUsageCapCode")
+        await set_step(event.sender_id, "MToUserInfo")
+        await event.respond(result_msg)
+        if success:
+            ok, account = await ResellerAccountCRUD().get_account(int(code_raw))
+            if ok:
+                text = await build_reseller_account_detail_text(account, show_password=False)
+                await event.respond(
+                    text,
+                    buttons=build_admin_reseller_account_buttons(target_user_id, account),
+                    parse_mode="markdown",
+                )
 
     elif await get_step(event.sender_id) == "AdminConfigVolumeInput" and msg and msg.strip():
         code_str = await get_data(event.sender_id, "AdminConfigVolumeInputCode")
