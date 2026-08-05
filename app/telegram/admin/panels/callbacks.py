@@ -17,6 +17,8 @@ from app.logger import get_logger
 from app.services.panels.auth import (
     AUTH_API_KEY,
     create_panel_api,
+    format_exception_message,
+    panel_api_error_text,
     panel_uses_api_key,
     refresh_panel_cookie,
 )
@@ -416,18 +418,14 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
                 f"پنل {new_panel.name} با موفقیت ذخیره شد.\nگروه پیش‌فرض کاربران: {group_name}",
                 buttons=panel_xui_buttons,
             )
-        except HTTPStatusError as e:
-            await clear_user_conversation(event.sender_id)
-            await set_step(event.sender_id, "panel")
-            await event.edit(f"HTTP error occurred: {e}", buttons=panel_xui_buttons)
-            logger.info(f"HTTP error occurred: {e}")
         except ValueError as e:
             await event.answer(str(e), alert=True)
         except Exception as e:
+            detail = format_exception_message(e)
             await clear_user_conversation(event.sender_id)
             await set_step(event.sender_id, "panel")
-            await event.edit(f"An unexpected error occurred: {e}", buttons=panel_xui_buttons)
-            logger.info(f"An unexpected error occurred: {e}")
+            await event.edit(panel_api_error_text(e), buttons=panel_xui_buttons)
+            logger.exception("Add panel confirm error: %s", detail)
         finally:
             clear_cached_panel_groups("add", event.sender_id)
 

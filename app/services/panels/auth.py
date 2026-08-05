@@ -1,5 +1,8 @@
-from httpx import HTTPStatusError
+import contextlib
+
+from httpx import HTTPStatusError, RequestError, TimeoutException
 from pasarguard import GroupsResponse, GroupsSimpleResponse, PasarguardAPI
+from pydantic import ValidationError
 
 from app.db.crud.panels import PanelsManager
 from app.services.panels.cookies import format_panel_cookie_validity, panel_cookie_needs_refresh
@@ -33,26 +36,27 @@ def create_panel_api(panel) -> PasarguardAPI:
 
 
 async def fetch_panel_groups(api: PasarguardAPI) -> PanelGroupsResponse:
+    """Prefer lightweight /api/groups/simple; fall back to full list if needed."""
     try:
-        return await api.get_all_groups()
+        return await api.get_groups_simple(all=True)
     except HTTPStatusError as e:
         if e.response.status_code in _GROUPS_FALLBACK_STATUSES:
-            return await api.get_groups_simple(all=True)
+            return await api.get_all_groups()
         raise
 
 
-async def verify_panel_api_key(base_url, api_key) -> PasarguardAPI:
+async def verify_panel_api_key(base_url, api_key) -> tuple[PasarguardAPI, PanelGroupsResponse]:
     api = PasarguardAPI(base_url=base_url, api_key=api_key.strip())
-    await fetch_panel_groups(api)
-    return api
+    groups = await fetch_panel_groups(api)
+    return api, groups
 
 
 async def verify_panel_password(base_url, username, password):
     api = PasarguardAPI(base_url=base_url)
     token = await api.get_token(username=username.strip(), password=password.strip())
     authed = PasarguardAPI(base_url=base_url, token=token.access_token)
-    await fetch_panel_groups(authed)
-    return authed, token.access_token
+    groups = await fetch_panel_groups(authed)
+    return authed, token.access_token, groups
 
 
 async def refresh_panel_cookie(panel) -> str:
@@ -85,3 +89,53 @@ def panel_auth_type_label(panel, *, short=False) -> str:
     if panel_uses_api_key(panel):
         return "API Key" if short else "🔑 API Key"
     return "User/Pass" if short else "👤 Username & Password"
+
+
+def format_exception_message(exc: BaseException) -> str:
+    """Build a non-empty error string (type, message, and cause when needed)."""
+    parts: list[str] = []
+    message = str(exc).strip()
+    parts.append(message or type(exc).__name__)
+
+    cause = exc.__cause__ or exc.__context__
+    if isinstance(cause, BaseException) and cause is not exc:
+        cause_msg = str(cause).strip() or type(cause).__name__
+        if cause_msg and cause_msg not in message:
+            parts.append(f"caused by {type(cause).__name__}: {cause_msg}")
+
+    # httpx.RequestError.request raises RuntimeError when unset; use _request.
+    request = getattr(exc, "_request", None)
+    if request is not None:
+        with contextlib.suppress(Exception):
+            parts.append(f"{request.method} {request.url}")
+
+    return " | ".join(parts)
+
+
+def panel_api_error_text(exc: BaseException) -> str:
+    """English Telegram message for panel connect/auth/API failures."""
+    if isinstance(exc, HTTPStatusError):
+        status = exc.response.status_code
+        if status == 401:
+            return "Error: Unauthorized. Check username/password or API Key."
+        if status == 403:
+            return "Error: Forbidden (403). Check admin permissions."
+        if status == 404:
+            return "Error: Panel URL or API path not found (404)."
+        body = (exc.response.text or "").strip()
+        detail = body[:200] if body else format_exception_message(exc)
+        return f"HTTP error from panel ({status}): {detail}"
+
+    if isinstance(exc, TimeoutException):
+        return "Error: Panel connection timed out. Check panel URL and network access."
+
+    if isinstance(exc, RequestError):
+        return f"Error: Could not connect to panel. {format_exception_message(exc)}"
+
+    if isinstance(exc, ValidationError):
+        return f"Error: Unexpected panel response format. {format_exception_message(exc)}"
+
+    if isinstance(exc, ValueError):
+        return f"Error: {format_exception_message(exc)}"
+
+    return f"An unexpected error occurred: {format_exception_message(exc)}"
