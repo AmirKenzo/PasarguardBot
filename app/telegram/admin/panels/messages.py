@@ -227,9 +227,7 @@ async def panel_admin_message_handler(event: Message):
         panel_password = await get_user_state(user_id, "password")
 
         try:
-            _authed, _token, groups_resp = await verify_panel_password(
-                panel_url, panel_username, panel_password
-            )
+            _authed, _token, groups_resp = await verify_panel_password(panel_url, panel_username, panel_password)
             groups_data = [(group.id, group.name) for group in groups_resp.groups]
             cache_panel_groups("add", event.sender_id, groups_data)
             await set_user_state(event.sender_id, "panel_add_groups_list", groups_data)
@@ -307,9 +305,7 @@ async def panel_admin_message_handler(event: Message):
             await set_step(user_id, "panel")
             return
         try:
-            _authed, jwt_token, _groups = await verify_panel_password(
-                panel.base_url, panel_username, msg
-            )
+            _authed, jwt_token, _groups = await verify_panel_password(panel.base_url, panel_username, msg)
             await PanelsManager().update_panel(
                 panel_code,
                 auth_type="password",

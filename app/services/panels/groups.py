@@ -119,9 +119,7 @@ async def create_panel_with_group(user_id: int, default_group_ids: list[int] | N
         panel_url = panel_url.strip()
         panel_username = panel_username.strip()
         panel_password = panel_password.strip()
-        _authed, jwt_token, groups_resp = await verify_panel_password(
-            panel_url, panel_username, panel_password
-        )
+        _authed, jwt_token, groups_resp = await verify_panel_password(panel_url, panel_username, panel_password)
         stored_password = encrypt_data(panel_password)
         cookie = jwt_token
 
