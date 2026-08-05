@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import re
 
-from httpx import HTTPStatusError
 from telethon import Button, events
 from telethon.tl.custom import Message
 
@@ -18,6 +17,8 @@ from app.services.panels.auth import (
     AUTH_API_KEY,
     PANEL_AUTH_PLACEHOLDER_USERNAME,
     fetch_panel_groups as fetch_groups_from_api,
+    format_exception_message,
+    panel_api_error_text,
     verify_panel_api_key,
     verify_panel_password,
 )
@@ -245,19 +246,12 @@ async def panel_admin_message_handler(event: Message):
             )
             await Kenzo.send_message(entity=event.sender_id, message=message, buttons=buttons)
             await set_step(event.sender_id, "AddPanel_select_group")
-        except HTTPStatusError as e:
-            if e.response.status_code == 401:
-                await event.respond("Error: Unauthorized. Please check your username and password.")
-            else:
-                await event.respond(f"HTTP error occurred: {e}")
-            await clear_user_conversation(user_id)
-            await set_step(event.sender_id, "panel")
-            logger.info("Add panel HTTP error: %s", e)
         except Exception as e:
-            await event.respond(f"An unexpected error occurred: {e}")
+            detail = format_exception_message(e)
+            await event.respond(panel_api_error_text(e))
             await clear_user_conversation(user_id)
             await set_step(event.sender_id, "panel")
-            logger.info("Add panel error: %s", e)
+            logger.exception("Add panel error: %s", detail)
         return
 
     if step == "AddPanel_api_key" and msg != "🔙 بازگشت به پنل":
@@ -285,19 +279,12 @@ async def panel_admin_message_handler(event: Message):
             )
             await Kenzo.send_message(entity=event.sender_id, message=message, buttons=buttons)
             await set_step(event.sender_id, "AddPanel_select_group")
-        except HTTPStatusError as e:
-            if e.response.status_code == 401:
-                await event.respond("Error: Unauthorized. Please check your API Key.")
-            else:
-                await event.respond(f"HTTP error occurred: {e}")
-            await clear_user_conversation(user_id)
-            await set_step(event.sender_id, "panel")
-            logger.info("Add panel HTTP error: %s", e)
         except Exception as e:
-            await event.respond(f"An unexpected error occurred: {e}")
+            detail = format_exception_message(e)
+            await event.respond(panel_api_error_text(e))
             await clear_user_conversation(user_id)
             await set_step(event.sender_id, "panel")
-            logger.info("Add panel error: %s", e)
+            logger.exception("Add panel error: %s", detail)
         return
 
     if step == "ChangePanelAuth_username" and msg != "🔙 بازگشت به پنل":
@@ -335,10 +322,9 @@ async def panel_admin_message_handler(event: Message):
                 "✅ نوع ورود به نام کاربری/رمز تغییر کرد.",
                 buttons=[[Button.inline("بازگشت", data=f"panel_info:{panel_code}")]],
             )
-        except HTTPStatusError as e:
-            await event.respond(f"خطا در احراز هویت: {e}")
         except Exception as e:
-            await event.respond(f"خطا: {e}")
+            await event.respond(panel_api_error_text(e))
+            logger.exception("Change panel auth password error: %s", format_exception_message(e))
         return
 
     if step == "ChangePanelAuth_api_key" and msg != "🔙 بازگشت به پنل":
@@ -365,10 +351,9 @@ async def panel_admin_message_handler(event: Message):
                 "✅ نوع ورود به API Key تغییر کرد.",
                 buttons=[[Button.inline("بازگشت", data=f"panel_info:{panel_code}")]],
             )
-        except HTTPStatusError as e:
-            await event.respond(f"خطا در احراز هویت: {e}")
         except Exception as e:
-            await event.respond(f"خطا: {e}")
+            await event.respond(panel_api_error_text(e))
+            logger.exception("Change panel auth api_key error: %s", format_exception_message(e))
         return
 
     if (step or "").startswith("edit_panel_display:") and msg:
