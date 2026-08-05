@@ -13,7 +13,6 @@ from app.services.panels.auth import (
     AUTH_API_KEY,
     PANEL_AUTH_PLACEHOLDER_USERNAME,
     PanelGroupsResponse,
-    fetch_panel_groups as fetch_groups_from_api,
     fetch_panel_groups_with_auth,
     verify_panel_api_key,
     verify_panel_password,
@@ -108,8 +107,7 @@ async def create_panel_with_group(user_id: int, default_group_ids: list[int] | N
         if not all([panel_name, panel_url, api_key]):
             raise ValueError("اطلاعات پنل کامل نیست.")
         panel_url = panel_url.strip()
-        authed = await verify_panel_api_key(panel_url, api_key)
-        groups_resp = await fetch_groups_from_api(authed)
+        _authed, groups_resp = await verify_panel_api_key(panel_url, api_key)
         stored_password = ""
         cookie = api_key
         panel_username = PANEL_AUTH_PLACEHOLDER_USERNAME
@@ -121,8 +119,9 @@ async def create_panel_with_group(user_id: int, default_group_ids: list[int] | N
         panel_url = panel_url.strip()
         panel_username = panel_username.strip()
         panel_password = panel_password.strip()
-        authed, jwt_token = await verify_panel_password(panel_url, panel_username, panel_password)
-        groups_resp = await fetch_groups_from_api(authed)
+        _authed, jwt_token, groups_resp = await verify_panel_password(
+            panel_url, panel_username, panel_password
+        )
         stored_password = encrypt_data(panel_password)
         cookie = jwt_token
 

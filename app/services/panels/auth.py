@@ -36,26 +36,27 @@ def create_panel_api(panel) -> PasarguardAPI:
 
 
 async def fetch_panel_groups(api: PasarguardAPI) -> PanelGroupsResponse:
+    """Prefer lightweight /api/groups/simple; fall back to full list if needed."""
     try:
-        return await api.get_all_groups()
+        return await api.get_groups_simple(all=True)
     except HTTPStatusError as e:
         if e.response.status_code in _GROUPS_FALLBACK_STATUSES:
-            return await api.get_groups_simple(all=True)
+            return await api.get_all_groups()
         raise
 
 
-async def verify_panel_api_key(base_url, api_key) -> PasarguardAPI:
+async def verify_panel_api_key(base_url, api_key) -> tuple[PasarguardAPI, PanelGroupsResponse]:
     api = PasarguardAPI(base_url=base_url, api_key=api_key.strip())
-    await fetch_panel_groups(api)
-    return api
+    groups = await fetch_panel_groups(api)
+    return api, groups
 
 
 async def verify_panel_password(base_url, username, password):
     api = PasarguardAPI(base_url=base_url)
     token = await api.get_token(username=username.strip(), password=password.strip())
     authed = PasarguardAPI(base_url=base_url, token=token.access_token)
-    await fetch_panel_groups(authed)
-    return authed, token.access_token
+    groups = await fetch_panel_groups(authed)
+    return authed, token.access_token, groups
 
 
 async def refresh_panel_cookie(panel) -> str:
