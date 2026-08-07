@@ -299,10 +299,6 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         )
         return
 
-    if data == "ResellerMy_close":
-        await event.delete()
-        return
-
     if data.startswith("ResellerAccount_view:"):
         code = int(data.split(":")[1])
         acc = await _get_owned_account(event, code)

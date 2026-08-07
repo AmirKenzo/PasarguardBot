@@ -124,8 +124,6 @@ async def build_usage_history_buttons(account_code: int, page: int, has_prev: bo
 
 
 async def build_my_resellers_list_buttons(accounts) -> list:
-    rows = [
+    return [
         [Button.inline(f"🏢 {acc.username} · #{acc.code}", data=f"ResellerAccount_view:{acc.code}")] for acc in accounts
     ]
-    rows.append([await rs_buttons.rs_close_list_button()])
-    return rows
