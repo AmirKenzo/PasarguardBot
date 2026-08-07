@@ -1,10 +1,15 @@
-from sqlalchemy import BigInteger, Column, String
+from sqlalchemy import BigInteger, Column, Index, String
 
 from app.db.base import Base
 
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = (
+        Index("ix_tx_user_method_status", "user_id", "method", "status"),
+        Index("ix_tx_status_created", "status", "created_at"),
+        Index("ix_tx_auto_approve_at", "auto_approve_at"),
+    )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, nullable=False)

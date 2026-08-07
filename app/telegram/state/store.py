@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from app.db.redis import get_redis
@@ -14,6 +15,35 @@ from config import STATE_TTL_SECONDS
 logger = get_logger(__name__)
 
 _STEP_FIELD = "_current"
+
+# Short process-local cache so dozens of NewMessage filters in one update
+# share a single Redis round-trip (Telethon evaluates every handler filter).
+_STEP_LOCAL_TTL_SEC = 1.5
+_step_local: dict[int, tuple[float, str | None]] = {}
+
+
+def _invalidate_step_local(user_id: int) -> None:
+    _step_local.pop(user_id, None)
+
+
+def _get_step_local(user_id: int) -> tuple[bool, str | None]:
+    entry = _step_local.get(user_id)
+    if entry is None:
+        return False, None
+    ts, value = entry
+    if time.monotonic() - ts > _STEP_LOCAL_TTL_SEC:
+        _step_local.pop(user_id, None)
+        return False, None
+    return True, value
+
+
+def _set_step_local(user_id: int, value: str | None) -> None:
+    _step_local[user_id] = (time.monotonic(), value)
+    if len(_step_local) > 10_000:
+        now = time.monotonic()
+        stale = [uid for uid, (t, _) in _step_local.items() if now - t > _STEP_LOCAL_TTL_SEC]
+        for uid in stale:
+            _step_local.pop(uid, None)
 
 
 def _serialize(value: Any) -> str:
@@ -43,6 +73,7 @@ async def set_step(user_id: int, step: str, ttl: int | None = None) -> None:
     """Save current conversation step. Empty string clears it."""
     if step:
         await set_data(user_id, _STEP_FIELD, step, ttl=ttl)
+        _set_step_local(user_id, step)
         logger.info("%s step save user_id=%s step=%s", LogTag.REDIS, user_id, step)
     else:
         await clear_step(user_id)
@@ -50,16 +81,23 @@ async def set_step(user_id: int, step: str, ttl: int | None = None) -> None:
 
 async def get_step(user_id: int) -> str | None:
     """Read current conversation step from Redis."""
+    hit, cached = _get_step_local(user_id)
+    if hit:
+        return cached
     value = await get_data(user_id, _STEP_FIELD)
     if value is None or value == "":
+        _set_step_local(user_id, None)
         return None
-    return str(value)
+    step = str(value)
+    _set_step_local(user_id, step)
+    return step
 
 
 async def clear_step(user_id: int) -> None:
     """Remove only the step field."""
     previous = await get_step(user_id)
     await delete_data(user_id, _STEP_FIELD)
+    _invalidate_step_local(user_id)
     if previous:
         logger.info("%s step clear user_id=%s was=%s", LogTag.REDIS, user_id, previous)
 
@@ -108,9 +146,11 @@ async def clear_user(user_id: int) -> None:
     previous_step = await get_step(user_id)
     redis = await get_redis()
     if redis is None:
+        _invalidate_step_local(user_id)
         return
     try:
         await redis.delete(build_state_key(user_id))
+        _invalidate_step_local(user_id)
         if previous_step:
             logger.info("%s step clear (full) user_id=%s was=%s", LogTag.REDIS, user_id, previous_step)
     except Exception as exc:
@@ -143,6 +183,16 @@ async def set_app_cache(key: str, value: str, ttl_seconds: int = 0) -> None:
             await redis.set(cache_key, value)
     except Exception as exc:
         logger.warning("Redis set_app_cache(%s): %s", key, exc)
+
+
+async def delete_app_cache(key: str) -> None:
+    redis = await get_redis()
+    if redis is None:
+        return
+    try:
+        await redis.delete(build_cache_key(key))
+    except Exception as exc:
+        logger.warning("Redis delete_app_cache(%s): %s", key, exc)
 
 
 # --- old names (keep existing imports working) ---

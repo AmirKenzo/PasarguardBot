@@ -9,6 +9,7 @@ from app.db.crud.channels import ChannelManager
 from app.db.crud.user import UserCRUD, add_user
 from app.logger import get_logger
 from app.telegram.shared.utils.channels import check_user_channels
+from app.telegram.state.store import delete_app_cache, get_app_cache, set_app_cache
 from app.utils.formatting.dates import Time_Date
 
 logger = get_logger(__name__)
@@ -19,6 +20,12 @@ BOT_LANGUAGE = "fa"
 RESERVED_START_PARAMS = frozenset({"buy", "free", "charge"})
 
 CHANNEL_JOIN_MESSAGE = "برای استفاده از ربات باید در کانال‌های زیر عضو شوید:\n<blockquote expandable>{date}</blockquote>"
+
+# Positive membership cache TTL (seconds). After a successful join check,
+# Telegram GetParticipant is skipped for this window (Redis lookup only).
+CHANNEL_GATE_TTL_SECONDS = 600
+_CHANNEL_GATE_GEN_KEY = "chgate:gen"
+_CHANNEL_GATE_OK_PREFIX = "chgate:ok"
 
 try:
     from telethon.tl.types import MessageActionBotStart
@@ -75,11 +82,49 @@ def build_channel_join_buttons(not_joined_channels: list) -> list:
     return buttons
 
 
-async def get_not_joined_channels(user_id: int) -> list:
+async def _channel_gate_generation() -> str:
+    raw = await get_app_cache(_CHANNEL_GATE_GEN_KEY)
+    return raw or "0"
+
+
+async def bump_channel_gate_generation() -> None:
+    """Invalidate all positive membership caches (call when lock channels change)."""
+    redis_val = await get_app_cache(_CHANNEL_GATE_GEN_KEY)
+    try:
+        next_gen = str(int(redis_val or "0") + 1)
+    except ValueError, TypeError:
+        next_gen = "1"
+    await set_app_cache(_CHANNEL_GATE_GEN_KEY, next_gen)
+
+
+def _ok_cache_key(user_id: int, generation: str) -> str:
+    return f"{_CHANNEL_GATE_OK_PREFIX}:{generation}:{user_id}"
+
+
+async def invalidate_channel_membership_cache(user_id: int) -> None:
+    """Drop a single user's positive membership cache for the current generation."""
+    generation = await _channel_gate_generation()
+    await delete_app_cache(_ok_cache_key(user_id, generation))
+
+
+async def get_not_joined_channels(user_id: int, *, bypass_cache: bool = False) -> list:
+    generation = await _channel_gate_generation()
+    ok_key = _ok_cache_key(user_id, generation)
+    if not bypass_cache:
+        cached = await get_app_cache(ok_key)
+        if cached == "1":
+            return []
+
     channels = await ChannelManager().get_all_channels()
     if not channels:
         return []
-    return await check_user_channels(user_id, Kenzo, channels)
+
+    not_joined = await check_user_channels(user_id, Kenzo, channels)
+    if not not_joined:
+        await set_app_cache(ok_key, "1", ttl_seconds=CHANNEL_GATE_TTL_SECONDS)
+    else:
+        await delete_app_cache(ok_key)
+    return not_joined
 
 
 async def ensure_channel_membership(event, *, is_callback: bool = False) -> bool:

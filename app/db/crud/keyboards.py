@@ -1,31 +1,52 @@
+from __future__ import annotations
+
+import asyncio
+
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.keyboards import KeyboardButton
 
+# Rarely-changing config table — load once into process memory.
+_buttons_by_key: dict[str, KeyboardButton] | None = None
+_buttons_lock = asyncio.Lock()
+
+
+def invalidate_keyboard_button_cache() -> None:
+    global _buttons_by_key
+    _buttons_by_key = None
+
+
+async def _ensure_keyboard_button_cache() -> dict[str, KeyboardButton]:
+    global _buttons_by_key
+    if _buttons_by_key is not None:
+        return _buttons_by_key
+    async with _buttons_lock:
+        if _buttons_by_key is not None:
+            return _buttons_by_key
+        try:
+            async with Session() as session:
+                result = await session.execute(select(KeyboardButton))
+                rows = list(result.scalars().all())
+                _buttons_by_key = {row.button_key: row for row in rows}
+        except SQLAlchemyError:
+            _buttons_by_key = {}
+        return _buttons_by_key
+
 
 class KeyboardButtonCRUD:
     async def get_button_text(self, button_key: str) -> str | None:
-
-        try:
-            async with Session() as session:
-                stmt = select(KeyboardButton).where(KeyboardButton.button_key == button_key)
-                result = await session.execute(stmt)
-                row = result.scalars().first()
-                return row.button_text if row else None
-        except SQLAlchemyError:
-            return None
+        button = await self.get_button(button_key)
+        return button.button_text if button else None
 
     async def get_button(self, button_key: str) -> KeyboardButton | None:
+        cache = await _ensure_keyboard_button_cache()
+        return cache.get(button_key)
 
-        try:
-            async with Session() as session:
-                stmt = select(KeyboardButton).where(KeyboardButton.button_key == button_key)
-                result = await session.execute(stmt)
-                return result.scalars().first()
-        except SQLAlchemyError:
-            return None
+    async def get_buttons_by_keys(self, keys: list[str]) -> dict[str, KeyboardButton]:
+        cache = await _ensure_keyboard_button_cache()
+        return {key: cache[key] for key in keys if key in cache}
 
     async def set_button(
         self,
@@ -65,6 +86,7 @@ class KeyboardButtonCRUD:
                         )
                     )
                 await session.commit()
+                invalidate_keyboard_button_cache()
                 return True
         except SQLAlchemyError:
             return False
@@ -74,22 +96,12 @@ class KeyboardButtonCRUD:
         return await self.set_button(button_key, button_text=button_text, description=description)
 
     async def get_all(self) -> list[KeyboardButton]:
-
-        try:
-            async with Session() as session:
-                result = await session.execute(select(KeyboardButton))
-                return list(result.scalars().all())
-        except SQLAlchemyError:
-            return []
+        cache = await _ensure_keyboard_button_cache()
+        return list(cache.values())
 
     async def get_buttons_by_key_prefix(self, prefix: str) -> list[KeyboardButton]:
-        try:
-            async with Session() as session:
-                stmt = select(KeyboardButton).where(KeyboardButton.button_key.like(f"{prefix}%"))
-                result = await session.execute(stmt)
-                return list(result.scalars().all())
-        except SQLAlchemyError:
-            return []
+        cache = await _ensure_keyboard_button_cache()
+        return [button for key, button in cache.items() if key.startswith(prefix)]
 
     async def delete_button(self, button_key: str) -> bool:
 
@@ -101,6 +113,7 @@ class KeyboardButtonCRUD:
                 if button:
                     await session.delete(button)
                     await session.commit()
+                    invalidate_keyboard_button_cache()
                     return True
                 return False
         except SQLAlchemyError:
@@ -199,10 +212,21 @@ class KeyboardButtonCRUD:
             ("in.buy.empty_list", "🚀 خرید اکانت ویتوری", "دکمه خرید وقتی کاربر سرویسی ندارد"),
         ]
 
-        for button_key, button_text, description in default_buttons:
-            existing = await self.get_button(button_key)
-            if not existing:
-                await self.set_button_text(button_key, button_text, description)
+        try:
+            async with Session() as session:
+                result = await session.execute(select(KeyboardButton.button_key))
+                existing_keys = set(result.scalars().all())
+                missing = [
+                    KeyboardButton(button_key=key, button_text=text, description=desc)
+                    for key, text, desc in default_buttons
+                    if key not in existing_keys
+                ]
+                if missing:
+                    session.add_all(missing)
+                    await session.commit()
+        except SQLAlchemyError:
+            pass
+        invalidate_keyboard_button_cache()
 
 
 async def get_button_text(button_key: str, default: str | None = None) -> str:
