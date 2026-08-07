@@ -69,10 +69,6 @@ async def rs_back_list_button():
     return await _rs_inline_button(_KEY_BACK, "ResellerMy_list")
 
 
-async def rs_close_list_button():
-    return await _rs_inline_button(_KEY_BACK, "ResellerMy_close")
-
-
 async def rs_buy_cancel_button():
     return await _rs_inline_button(_KEY_CANCEL, "ResellerBuy_cancel")
 

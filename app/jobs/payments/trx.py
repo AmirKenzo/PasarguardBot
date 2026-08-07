@@ -274,41 +274,57 @@ class TRXProcessor(BasePaymentProcessor):
             crud = CryptoPaymentsCRUD()
             pending_payments = await crud.get_pending_by_arz("TRX")
 
+            valid_payments = []
             for payment in pending_payments:
                 created_time = datetime.fromtimestamp(payment.createtime, tz=UTC)
-                current_time = datetime.now(UTC)
-                time_diff = current_time - created_time
-
+                time_diff = datetime.now(UTC) - created_time
                 if time_diff > timedelta(minutes=30):
                     await self._expire_payment(payment, settings)
+                else:
+                    valid_payments.append(payment)
+
+            if not valid_payments:
+                return
+
+            earliest_ms = min(payment.createtime for payment in valid_payments) * 1000
+            logger.info(
+                "Fetching TRX txs for %s pending payments from start_ms=%s address=%s",
+                len(valid_payments),
+                earliest_ms,
+                address_wallet,
+            )
+            all_transactions = await _fetch_trx_transactions(
+                client, base_url, headers, address_wallet, earliest_ms, "batch"
+            )
+
+            for payment in valid_payments:
+                start_ms = payment.createtime * 1000
+                transactions_found = [
+                    tx
+                    for tx in all_transactions
+                    if int(tx.get("timestamp") or tx.get("block_timestamp") or 0) >= start_ms
+                ]
+                if not transactions_found:
                     continue
 
-                start_time = payment.createtime * 1000
-                logger.info(
-                    f"Checking TRX payment {payment.order_id}: start_time={start_time}, address: {address_wallet}"
+                logger.debug(
+                    "Processing %s TRX txs for payment %s",
+                    len(transactions_found),
+                    payment.order_id,
                 )
+                for transaction in transactions_found:
+                    tx_to = transaction.get("to") or transaction.get("toAddress") or transaction.get("ownerAddress")
+                    if tx_to and tx_to.lower() != address_wallet.lower():
+                        continue
+                    if not await self._validate_transaction(transaction, payment.amount, address_wallet):
+                        continue
 
-                transactions_found = await _fetch_trx_transactions(
-                    client, base_url, headers, address_wallet, start_time, payment.order_id
-                )
-
-                if transactions_found:
-                    logger.debug(
-                        f"Processing {len(transactions_found)} transactions for TRX payment {payment.order_id}"
-                    )
-                    for transaction in transactions_found:
-                        tx_to = transaction.get("to") or transaction.get("toAddress") or transaction.get("ownerAddress")
-                        if tx_to and tx_to.lower() != address_wallet.lower():
-                            continue
-                        if not await self._validate_transaction(transaction, payment.amount, address_wallet):
-                            continue
-
-                        paytime = int(datetime.now(UTC).timestamp())
-                        try:
-                            await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
-                            break
-                        except Exception as e:
-                            logger.error(f"Error processing TRX payment {payment.order_id}: {e}")
+                    paytime = int(datetime.now(UTC).timestamp())
+                    try:
+                        await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
+                        break
+                    except Exception as e:
+                        logger.error("Error processing TRX payment %s: %s", payment.order_id, e)
 
     async def _validate_transaction(self, transaction, payment_amount, address_wallet):
         token_info = transaction.get("tokenInfo")

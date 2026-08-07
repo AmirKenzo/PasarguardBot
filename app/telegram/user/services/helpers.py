@@ -95,11 +95,13 @@ async def display_user_services(user_id, current_page, edit_message=False, origi
     end_index = start_index + panel_limit
     current_services = services[start_index:end_index]
 
+    panels_by_code = {panel.code: panel for panel in await PanelsManager().get_all_panels()}
+
     service_buttons = []
     current_row = []
     for service in current_services:
-        panel_name = await PanelsManager().get_panel_by_code(code=service.in_panel)
-        panel_display_name = "پنل نامشخص" if panel_name is None else panel_name.name
+        panel = panels_by_code.get(service.in_panel)
+        panel_display_name = panel.name if panel is not None else "پنل نامشخص"
         text = await build_service_text(service, panel_display_name, user)
         current_row.append(Button.inline(text, data=f"service_info:{service.code}"))
 

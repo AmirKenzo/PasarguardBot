@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Float, Integer, String, Text
+from sqlalchemy import BigInteger, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -6,6 +6,11 @@ from app.db.base import Base
 
 class ResellerAccount(Base):
     __tablename__ = "reseller_accounts"
+    __table_args__ = (
+        Index("ix_reseller_tgid", "telegram_id"),
+        Index("ix_reseller_status_expiry", "status", "expiration_time"),
+        Index("ix_reseller_panel_username", "panel_code", "username"),
+    )
 
     code: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False)

@@ -17,9 +17,11 @@ from telethon import errors
 
 from app.db.base import DATABASE_DIALECT, AsyncSessionLocal as Session
 from app.db.crud.broadcast import BroadcastJobCRUD
+from app.db.redis import get_redis
 from app.logger import get_logger
 from app.services.broadcast.markup import sanitize_payload_json
 from app.services.broadcast.sender import BroadcastSender
+from app.telegram.state.keys import build_cache_key
 
 logger = get_logger(__name__)
 
@@ -27,6 +29,24 @@ logger = get_logger(__name__)
 _active_worker_task: asyncio.Task | None = None
 EMPTY_TARGET_RECHECK_SECONDS = 3
 EMPTY_TARGET_RECHECK_ATTEMPTS = 1
+COUNT_TARGETS_EVERY_N_BATCHES = 10
+_BROADCAST_LOCK_REDIS_KEY = build_cache_key("broadcast:manager:lock")
+_BROADCAST_LOCK_TTL_SECONDS = 7200
+
+# In-process pause/cancel signals so the worker avoids a DB round-trip per recipient.
+_job_runtime_status: dict[int, str] = {}
+
+
+def set_job_runtime_status(job_id: int, status: str) -> None:
+    _job_runtime_status[job_id] = status
+
+
+def get_job_runtime_status(job_id: int) -> str | None:
+    return _job_runtime_status.get(job_id)
+
+
+def clear_job_runtime_status(job_id: int) -> None:
+    _job_runtime_status.pop(job_id, None)
 
 
 class BroadcastManager:
@@ -37,11 +57,13 @@ class BroadcastManager:
         self.sender = BroadcastSender()
         self._worker_task: asyncio.Task | None = None
         self._mysql_lock_session = None
+        self._redis_lock_held = False
+        self._count_targets_batch_counter = 0
 
     async def acquire_lock(self, lock_wait_seconds: int = 0, *, job_id: int | None = None) -> bool:
         """
-        Acquire MySQL named lock for single active broadcast.
-        Returns True if lock acquired, False otherwise.
+        Acquire a single-active-broadcast lock.
+        Prefer Redis (does not pin a MySQL pool connection); fall back to GET_LOCK.
         """
         if DATABASE_DIALECT != "mysql":
             # For non-MySQL databases, use a simple check (not as safe across processes)
@@ -49,8 +71,25 @@ class BroadcastManager:
             logger.debug(f"Non-MySQL lock check: active_job={active_job.id if active_job else None}")
             return active_job is None or (job_id is not None and active_job.id == job_id)
 
-        if self._mysql_lock_session is not None:
+        if self._redis_lock_held or self._mysql_lock_session is not None:
             return True
+
+        redis = await get_redis()
+        if redis is not None:
+            try:
+                ok = await redis.set(
+                    _BROADCAST_LOCK_REDIS_KEY,
+                    str(job_id or 1),
+                    nx=True,
+                    ex=_BROADCAST_LOCK_TTL_SECONDS,
+                )
+                if ok:
+                    self._redis_lock_held = True
+                    return True
+                # Another process holds the lock.
+                return False
+            except Exception as e:
+                logger.warning("Redis broadcast lock failed, falling back to MySQL: %s", e)
 
         session = Session()
         try:
@@ -71,9 +110,19 @@ class BroadcastManager:
             return False
 
     async def release_lock(self) -> bool:
-        """Release MySQL named lock."""
+        """Release broadcast lock (Redis or MySQL)."""
         if DATABASE_DIALECT != "mysql":
             logger.debug("Non-MySQL database: no lock to release")
+            return True
+
+        if self._redis_lock_held:
+            self._redis_lock_held = False
+            redis = await get_redis()
+            if redis is not None:
+                try:
+                    await redis.delete(_BROADCAST_LOCK_REDIS_KEY)
+                except Exception as e:
+                    logger.warning("Redis broadcast lock release failed: %s", e)
             return True
 
         if self._mysql_lock_session is None:
@@ -179,7 +228,7 @@ class BroadcastManager:
                     logger.error(f"Error waiting for canceled worker task: {e}")
                 self._worker_task = None
 
-            if self._mysql_lock_session is not None:
+            if self._redis_lock_held or self._mysql_lock_session is not None:
                 cleaned = True
                 await self.release_lock()
 
@@ -201,8 +250,10 @@ class BroadcastManager:
 
         if not skip_cleanup:
             needs_cleanup = (
-                self._worker_task is not None and not self._worker_task.done()
-            ) or self._mysql_lock_session is not None
+                (self._worker_task is not None and not self._worker_task.done())
+                or self._redis_lock_held
+                or self._mysql_lock_session is not None
+            )
             if needs_cleanup:
                 await self._cleanup_previous_worker()
             else:
@@ -241,6 +292,7 @@ class BroadcastManager:
                 await self.release_lock()
                 return False, "Failed to update job status"
 
+            set_job_runtime_status(job_id, "running")
             self._worker_task = asyncio.create_task(self._worker_loop(job_id, lock_already_acquired=True))
 
             logger.info(f"Broadcast job {job_id} started (lock acquired)")
@@ -275,6 +327,7 @@ class BroadcastManager:
             # Update status - worker will check and pause
             job = await self.job_crud.update_job(job_id, status="paused")
             if job:
+                set_job_runtime_status(job_id, "paused")
                 logger.info(f"Broadcast job {job_id} paused")
                 return True, "Job paused successfully"
             return False, "Failed to pause job"
@@ -331,6 +384,7 @@ class BroadcastManager:
                     await self.release_lock()
                     return False, "Failed to update job status"
 
+                set_job_runtime_status(job_id, "running")
                 # Spawn worker task (lock is already acquired, worker will use it)
                 self._worker_task = asyncio.create_task(self._worker_loop(job_id, lock_already_acquired=True))
 
@@ -368,6 +422,7 @@ class BroadcastManager:
                     logger.error(f"Error waiting for canceled worker: {e}")
                 self._worker_task = None
 
+            set_job_runtime_status(job_id, "canceled")
             # Update status - worker will check and stop
             job = await self.job_crud.update_job(
                 job_id,
@@ -383,6 +438,8 @@ class BroadcastManager:
                 logger.info(f"Broadcast job {job_id} canceled")
                 # Delete canceled job from database
                 await self.job_crud.delete_job(job_id)
+                clear_job_runtime_status(job_id)
+                self.sender.clear_job_cache(job_id)
                 logger.info(f"Canceled job {job_id} deleted from database")
                 return True, "Job canceled successfully"
             return False, "Failed to cancel job"
@@ -499,20 +556,33 @@ class BroadcastManager:
             logger.info(
                 f"Job {job_id} initial state: status={job.status}, total_targets={job.total_targets}, cursor={job.cursor_user_id}"
             )
+            set_job_runtime_status(job_id, job.status)
             empty_target_attempts = 0
 
             while True:
-                # Check job status
+                runtime_status = get_job_runtime_status(job_id)
+                if runtime_status == "canceled":
+                    logger.info(f"Job {job_id} was canceled, stopping worker")
+                    break
+
+                if runtime_status == "paused":
+                    logger.info(f"Job {job_id} is paused, waiting...")
+                    await asyncio.sleep(2)
+                    continue
+
+                # Refresh job fields once per batch (not per recipient).
                 job = await self.job_crud.get_job(job_id)
                 if not job:
                     logger.error(f"Job {job_id} not found in worker")
                     break
 
                 if job.status == "canceled":
+                    set_job_runtime_status(job_id, "canceled")
                     logger.info(f"Job {job_id} was canceled, stopping worker")
                     break
 
                 if job.status == "paused":
+                    set_job_runtime_status(job_id, "paused")
                     logger.info(f"Job {job_id} is paused, waiting...")
                     await asyncio.sleep(2)
                     continue
@@ -521,9 +591,17 @@ class BroadcastManager:
                     logger.warning(f"Job {job_id} status is {job.status}, stopping worker")
                     break
 
-                # Refresh target count during the run so users added while this
-                # broadcast is active are included in progress and final drain.
-                if (job.cursor_user_id or 0) > 0 or not job.total_targets:
+                set_job_runtime_status(job_id, "running")
+
+                # Refresh target count on a cadence (not every batch) so users added
+                # mid-broadcast are still reflected without constant COUNT scans.
+                self._count_targets_batch_counter += 1
+                should_recount = (
+                    not job.total_targets
+                    or self._count_targets_batch_counter == 1
+                    or self._count_targets_batch_counter % COUNT_TARGETS_EVERY_N_BATCHES == 0
+                )
+                if should_recount and ((job.cursor_user_id or 0) > 0 or not job.total_targets):
                     await self.count_targets(job_id)
 
                 # Get batch of users
@@ -569,6 +647,8 @@ class BroadcastManager:
                         status="done",
                         finished_at=int(time.time()),
                     )
+                    clear_job_runtime_status(job_id)
+                    self.sender.clear_job_cache(job_id)
                     logger.info(
                         f"Job {job_id} completed successfully (status=done, monitor will show final message and delete)"
                     )
@@ -589,14 +669,14 @@ class BroadcastManager:
                 logger.info(f"Job {job_id}: Processing {len(users)} users in batch")
 
                 for idx, user in enumerate(users, 1):
-                    # Re-check status before each send
-                    job = await self.job_crud.get_job(job_id)
-                    if not job or job.status in ["canceled", "paused"]:
-                        logger.info(f"Job {job_id}: Status changed to {job.status if job else 'None'}, stopping batch")
+                    # Re-check pause/cancel without a DB round-trip per recipient.
+                    runtime_status = get_job_runtime_status(job_id)
+                    if runtime_status in ("canceled", "paused"):
+                        logger.info(f"Job {job_id}: Status changed to {runtime_status}, stopping batch")
                         break
 
                     last_user_id = user.id
-                    logger.info(f"📤 [Job {job_id}] Sending to user ID: {user.id} ({idx}/{len(users)})")
+                    logger.debug("Job %s: Sending to user ID: %s (%s/%s)", job_id, user.id, idx, len(users))
 
                     try:
                         # Send message
@@ -604,7 +684,7 @@ class BroadcastManager:
 
                         if success:
                             batch_sent_ok += 1
-                            logger.info(f"✅ [Job {job_id}] Successfully sent to user ID: {user.id}")
+                            logger.debug("Job %s: Successfully sent to user ID: %s", job_id, user.id)
                         elif status == "blocked":
                             batch_blocked += 1
                             logger.warning(f"🚫 [Job {job_id}] User ID {user.id} blocked the bot")
@@ -638,15 +718,22 @@ class BroadcastManager:
                         # Wait EXACTLY here - don't skip to next user
                         await asyncio.sleep(floodwait_seconds)
 
-                        logger.info(f"✅ [Job {job_id}] FloodWait finished for user ID {user.id}, retrying send...")
+                        logger.debug(
+                            "Job %s: FloodWait finished for user ID %s, retrying send...",
+                            job_id,
+                            user.id,
+                        )
 
                         # Retry to the SAME user after floodwait
                         try:
                             success, status = await self.sender.send_to_user(job, user.id)
                             if success:
                                 batch_sent_ok += 1
-                                logger.info(
-                                    f"✅ [Job {job_id}] Successfully sent to user ID: {user.id} (after {floodwait_seconds}s FloodWait)"
+                                logger.debug(
+                                    "Job %s: Successfully sent to user ID: %s (after %ss FloodWait)",
+                                    job_id,
+                                    user.id,
+                                    floodwait_seconds,
                                 )
                             elif status == "blocked":
                                 batch_blocked += 1
@@ -694,8 +781,10 @@ class BroadcastManager:
                                 success, status = await self.sender.send_to_user(job, user.id)
                                 if success:
                                     batch_sent_ok += 1
-                                    logger.info(
-                                        f"✅ [Job {job_id}] Successfully sent to user ID: {user.id} (after 2nd FloodWait)"
+                                    logger.debug(
+                                        "Job %s: Successfully sent to user ID: %s (after 2nd FloodWait)",
+                                        job_id,
+                                        user.id,
                                     )
                                 elif status == "blocked":
                                     batch_blocked += 1
@@ -762,6 +851,8 @@ class BroadcastManager:
                 error_message=str(e),
                 finished_at=int(time.time()),
             )
+            clear_job_runtime_status(job_id)
+            self.sender.clear_job_cache(job_id)
         finally:
             if lock_acquired:
                 logger.debug(f"Releasing lock for job {job_id}")

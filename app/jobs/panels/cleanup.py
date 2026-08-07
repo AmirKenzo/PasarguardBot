@@ -1,3 +1,4 @@
+import asyncio
 import html
 import time
 
@@ -12,6 +13,8 @@ from app.services.panels.cookies import format_panel_cookie_validity
 from app.telegram.shared.utils.logging import send_log_message
 
 logger = get_logger(__name__)
+
+_COOKIE_REFRESH_CONCURRENCY = 5
 
 
 def _build_cookie_update_log(
@@ -76,6 +79,7 @@ async def get_cookies():
     skipped_panels: list[tuple[str, str]] = []
     panels_log_summary: list[tuple[int, str]] = []
 
+    to_refresh = []
     for panel in panels:
         if not panel_needs_cookie_refresh(panel):
             status = format_panel_refresh_status(panel, locale="en")
@@ -83,19 +87,28 @@ async def get_cookies():
             panels_log_summary.append((panel.code, status))
             logger.debug("%s get_cookies: skipped %s — %s", LogTag.JOB, panel.code, status)
             continue
-        try:
-            token = await refresh_panel_cookie(panel)
-            successful_panels.append((panel.name, token))
-            panels_log_summary.append((panel.code, format_panel_cookie_validity(token, locale="en")))
-            logger.debug(
-                "%s get_cookies: refreshed %s — %s",
-                LogTag.JOB,
-                panel.code,
-                format_panel_cookie_validity(token, locale="en"),
-            )
-        except Exception as e:
-            failed_panels.append((panel.name, panel.base_url, str(e)))
-            logger.error(f"{LogTag.JOB} get_cookies failed for panel {panel.name}: {e}")
+        to_refresh.append(panel)
+
+    sem = asyncio.Semaphore(_COOKIE_REFRESH_CONCURRENCY)
+
+    async def _refresh_one(panel):
+        async with sem:
+            try:
+                token = await refresh_panel_cookie(panel)
+                status = format_panel_cookie_validity(token, locale="en")
+                return ("ok", panel, token, status)
+            except Exception as e:
+                return ("fail", panel, e, None)
+
+    results = await asyncio.gather(*[_refresh_one(p) for p in to_refresh]) if to_refresh else []
+    for kind, panel, payload, status in results:
+        if kind == "ok":
+            successful_panels.append((panel.name, payload))
+            panels_log_summary.append((panel.code, status))
+            logger.debug("%s get_cookies: refreshed %s — %s", LogTag.JOB, panel.code, status)
+        else:
+            failed_panels.append((panel.name, panel.base_url, str(payload)))
+            logger.error(f"{LogTag.JOB} get_cookies failed for panel {panel.name}: {payload}")
 
     elapsed = time.time() - start_time
     if successful_panels or failed_panels:

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.settings import (
     SETTINGS_CONFIG_KEYS,
+    SETTINGS_SECTION_COLUMNS,
     Settings,
     default_settings_sections,
     resolve_settings_update_kwargs,
@@ -14,19 +16,38 @@ from app.logger import get_logger
 
 log = get_logger(__name__)
 
+# Single-row settings table — cache until an explicit write invalidates it.
+_settings_cache: Settings | None = None
+_settings_cache_loaded: bool = False
+
+
+def invalidate_settings_cache() -> None:
+    global _settings_cache, _settings_cache_loaded
+    _settings_cache = None
+    _settings_cache_loaded = False
+
 
 def _apply_settings_updates(setting: Settings, kwargs: dict) -> None:
     updates = resolve_settings_update_kwargs(setting, **kwargs)
     for column, value in updates.items():
         setattr(setting, column, value)
+        if column in SETTINGS_SECTION_COLUMNS:
+            flag_modified(setting, column)
 
 
 class SettingsManager:
     async def get_settings(self):
+        """Return the settings row (process-local cache until invalidated on write)."""
+        global _settings_cache, _settings_cache_loaded
+        if _settings_cache_loaded:
+            return _settings_cache
         try:
             async with Session() as session:
                 result = await session.execute(select(Settings))
-                return result.scalars().one_or_none()
+                setting = result.scalars().one_or_none()
+                _settings_cache = setting
+                _settings_cache_loaded = True
+                return setting
         except SQLAlchemyError as e:
             log.error("Error retrieving settings", exc_info=e)
             return None
@@ -38,6 +59,7 @@ class SettingsManager:
                 if result.scalars().one_or_none() is None:
                     session.add(Settings(**default_settings_sections()))
                     await session.commit()
+                    invalidate_settings_cache()
         except SQLAlchemyError as e:
             log.error("Error adding default settings", exc_info=e)
 
@@ -50,6 +72,7 @@ class SettingsManager:
                 new_setting = Settings(**sections)
                 session.add(new_setting)
                 await session.commit()
+                invalidate_settings_cache()
                 return new_setting
         except SQLAlchemyError as e:
             log.error("Error adding setting", exc_info=e)
@@ -81,6 +104,7 @@ class SettingsManager:
                 if setting:
                     _apply_settings_updates(setting, kwargs)
                     await session.commit()
+                    invalidate_settings_cache()
                     return setting
             return None
         except SQLAlchemyError as e:
@@ -95,6 +119,7 @@ class SettingsManager:
                 if setting:
                     await session.delete(setting)
                     await session.commit()
+                    invalidate_settings_cache()
                     return True
             return False
         except SQLAlchemyError as e:
@@ -110,6 +135,7 @@ class SettingsManager:
                     current_value = bool(getattr(setting, mode_name))
                     _apply_settings_updates(setting, {mode_name: not current_value})
                     await session.commit()
+                    invalidate_settings_cache()
                     return setting
             return None
         except SQLAlchemyError as e:
@@ -124,6 +150,7 @@ class SettingsManager:
                 if setting and setting_name in SETTINGS_CONFIG_KEYS:
                     _apply_settings_updates(setting, {setting_name: value})
                     await session.commit()
+                    invalidate_settings_cache()
                     return setting
             return None
         except SQLAlchemyError as e:

@@ -5,8 +5,7 @@ from pathlib import Path
 
 import uvicorn
 
-# FastAPI app is optional; Telethon bot always starts.
-from app.routers import api_app as fastapi_app
+from app.jobs.scheduler import scheduler
 from app.telegram import run_telethon
 from config import ENABLE_FASTAPI, FAST_API_PORT
 
@@ -49,13 +48,14 @@ async def main():
         stop_event.set()
 
     loop = asyncio.get_running_loop()
+
+    def _signal_handler(signum, _frame):
+        loop.call_soon_threadsafe(_handle, signum)
+
+    # SIGINT works on Windows; SIGTERM is Unix-only.
+    signal.signal(signal.SIGINT, _signal_handler)
     if sys.platform != "win32":
-
-        def _signal_handler(signum, _frame):
-            loop.call_soon_threadsafe(_handle, signum)
-
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            signal.signal(sig, _signal_handler)
+        signal.signal(signal.SIGTERM, _signal_handler)
 
     from app.db.crud.secrets import ensure_secrets
 
@@ -66,6 +66,9 @@ async def main():
     server = None
 
     if ENABLE_FASTAPI:
+        # Import FastAPI app only when the API is enabled (avoids unused app/RAM).
+        from app.routers import api_app as fastapi_app
+
         config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=FAST_API_PORT, log_level="info")
         server = uvicorn.Server(config)
         api_task = asyncio.create_task(server.serve())
@@ -77,6 +80,10 @@ async def main():
     logger.info("%s Starting Telegram bot", LogTag.BOOT)
 
     await stop_event.wait()
+
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+        logger.info("%s Scheduler shut down", LogTag.BOOT)
 
     if server:
         server.should_exit = True
@@ -98,7 +105,8 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt, SystemExit, asyncio.CancelledError:
-        pass
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
     except RuntimeError as e:
         if "event loop stopped" not in str(e).lower():
             raise

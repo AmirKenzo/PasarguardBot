@@ -8,7 +8,7 @@ from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.panels import PanelsManager
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
-from app.db.crud.user import UserCRUD, update_Money
+from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import get_logger
 from app.services.billing.reseller_pricing import calculate_purchase_price
 from app.services.panels.admins import (
@@ -88,26 +88,41 @@ async def renew_reseller_account(
     else:
         account_expire = account.expiration_time
 
-    if modify_kwargs:
-        await modify_reseller_admin(panel, account.username, AdminModify(**modify_kwargs))
+    # Debit first (atomic), then mutate panel/DB; refund on failure.
+    new_balance = await debit_Money_if_sufficient(user_id=telegram_id, amount=charge)
+    if new_balance is None:
+        return False, f"موجودی کافی نیست. نیاز: {charge:,} تومان"
 
     try:
-        await activate_reseller_admin(panel, account.username)
+        if modify_kwargs:
+            await modify_reseller_admin(panel, account.username, AdminModify(**modify_kwargs))
+
+        try:
+            await activate_reseller_admin(panel, account.username)
+        except Exception as exc:
+            log.warning("renew activate admin failed code=%s: %s", account.code, exc)
+
+        new_account_limit = (account.data_limit or 0) + added_bytes if added_bytes > 0 else account.data_limit
+        await ResellerAccountCRUD().update_account(
+            account.code,
+            plan_id=plan.id,
+            expiration_time=account_expire,
+            data_limit=new_account_limit,
+            status="active",
+        )
+
+        if discount_code:
+            await DiscountCodeManager().update_discount_usage(code=discount_code)
     except Exception as exc:
-        log.warning("renew activate admin failed code=%s: %s", account.code, exc)
-
-    await update_Money(user_id=telegram_id, Money=-charge)
-    new_account_limit = (account.data_limit or 0) + added_bytes if added_bytes > 0 else account.data_limit
-    await ResellerAccountCRUD().update_account(
-        account.code,
-        plan_id=plan.id,
-        expiration_time=account_expire,
-        data_limit=new_account_limit,
-        status="active",
-    )
-
-    if discount_code:
-        await DiscountCodeManager().update_discount_usage(code=discount_code)
+        refund_balance = await update_Money(user_id=telegram_id, Money=charge)
+        log.warning(
+            "Reseller renewal rolled back balance account=%s user=%s refund_balance=%s error=%s",
+            account.code,
+            telegram_id,
+            refund_balance,
+            exc,
+        )
+        return False, "تمدید ناموفق بود و مبلغ به کیف پول برگشت."
 
     ok, refreshed = await ResellerAccountCRUD().get_account(account.code)
     renewed_account = refreshed if ok else account

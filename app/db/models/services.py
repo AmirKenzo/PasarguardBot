@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, String
+from sqlalchemy import BigInteger, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -6,6 +6,11 @@ from app.db.base import Base
 
 class Service(Base):
     __tablename__ = "services"
+    __table_args__ = (
+        Index("ix_services_id", "id"),
+        Index("ix_services_panel_expiry", "in_panel", "expiration_time"),
+        Index("ix_services_panel_username", "in_panel", "username"),
+    )
 
     code: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[str] = mapped_column(String(64))

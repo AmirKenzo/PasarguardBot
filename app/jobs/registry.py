@@ -1,6 +1,10 @@
-"""Central job registration — single source of truth for all scheduled jobs."""
+"""Central job registration — single source of truth for all scheduled jobs.
 
-from datetime import datetime
+Legacy reseller modules ``hourly_billing.py`` / ``usage_billing.py`` are unused
+and intentionally not registered here (avoids double-charge if re-enabled by mistake).
+"""
+
+from datetime import datetime, timedelta
 
 from app.jobs.scheduler import scheduler
 from app.logger import LogTag, get_logger
@@ -8,6 +12,9 @@ from app.logger import LogTag, get_logger
 logger = get_logger(__name__)
 
 _JOBS_REGISTERED = False
+_JOB_STAGGER_SECONDS = 5
+_JOB_JITTER_SECONDS = 10
+_JOB_MISFIRE_GRACE_SECONDS = 30
 
 
 def register_all_jobs() -> None:
@@ -41,13 +48,17 @@ def register_all_jobs() -> None:
         (run_reseller_billing, "interval", {"seconds": 60}, "reseller_billing"),
     ]
 
-    for func, trigger, trigger_args, job_id in job_defs:
+    for i, (func, trigger, trigger_args, job_id) in enumerate(job_defs):
         scheduler.add_job(
             func,
             trigger,
             id=job_id,
             replace_existing=True,
-            next_run_time=now,
+            next_run_time=now + timedelta(seconds=_JOB_STAGGER_SECONDS * i),
+            coalesce=True,
+            max_instances=1,
+            misfire_grace_time=_JOB_MISFIRE_GRACE_SECONDS,
+            jitter=_JOB_JITTER_SECONDS,
             **trigger_args,
         )
 
@@ -55,9 +66,12 @@ def register_all_jobs() -> None:
     scheduler.add_job(
         bootstrap_backup_job,
         "date",
-        run_date=now,
+        run_date=now + timedelta(seconds=_JOB_STAGGER_SECONDS * len(job_defs)),
         id="backup_bootstrap",
         replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=_JOB_MISFIRE_GRACE_SECONDS,
     )
 
     _JOBS_REGISTERED = True

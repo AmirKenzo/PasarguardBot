@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 
 from telethon import Button
@@ -14,15 +15,17 @@ from app.telegram.state.store import get_all_user_state
 
 async def build_user_step_admin_lines(user_id: int) -> str:
     """Format DB status, Redis flow step, and temp state keys for admin panels."""
-    db_status = await get_user_status(user_id)
-    flow_step = await get_step(user_id)
+    db_status, flow_step, state = await asyncio.gather(
+        get_user_status(user_id),
+        get_step(user_id),
+        get_all_user_state(user_id),
+    )
 
     lines = [
         f"📋 **مرحله جاری:** `{flow_step or '—'}`",
         f"🗄️ **وضعیت حساب:** `{db_status or '—'}`",
     ]
 
-    state = await get_all_user_state(user_id)
     temp_keys = [key for key in state if key != "_current"]
     if temp_keys:
         preview = ", ".join(f"`{key}`" for key in temp_keys[:10])
@@ -35,17 +38,27 @@ async def build_user_step_admin_lines(user_id: int) -> str:
 
 async def display_user_info_admin(event, user_id_to_check):
     """Render the admin user-info panel."""
-    reduser = await UserCRUD().read_user(user_id=user_id_to_check)
+    (
+        reduser,
+        manual_stats,
+        auto_stats,
+        crypto_stats,
+        user_services,
+        step_lines,
+    ) = await asyncio.gather(
+        UserCRUD().read_user(user_id=user_id_to_check),
+        TransactionCRUD().get_user_transaction_stats(user_id_to_check, "manual"),
+        TransactionCRUD().get_user_transaction_stats(user_id_to_check, "auto"),
+        get_user_crypto_stats(user_id_to_check),
+        ServiceCRUD().get_services_reverse(user_id_to_check),
+        build_user_step_admin_lines(user_id_to_check),
+    )
     if not reduser:
         await event.answer("کاربر یافت نشد.", alert=True)
         return
-    manual_stats = await TransactionCRUD().get_user_transaction_stats(user_id_to_check, "manual")
-    auto_stats = await TransactionCRUD().get_user_transaction_stats(user_id_to_check, "auto")
-    crypto_stats = await get_user_crypto_stats(user_id_to_check)
     total_purchases = manual_stats["count"] + auto_stats["count"] + crypto_stats["count"]
     total_amount_spent = manual_stats["total_amount"] + auto_stats["total_amount"] + crypto_stats["total_amount"]
 
-    user_services = await ServiceCRUD().get_services_reverse(user_id_to_check)
     active_services = [service for service in user_services if service.enable]
     total_volume = sum(service.package_size or 0 for service in user_services)
 
@@ -91,8 +104,6 @@ async def display_user_info_admin(event, user_id_to_check):
 
     if not transaction_details:
         transaction_details = "هیچ تراکنش موفقی ثبت نشده\n"
-
-    step_lines = await build_user_step_admin_lines(user_id_to_check)
 
     await event.edit(
         f"👤 **شناسه کاربر:** `{reduser.id}` | [پروفایل کاربر](tg://user?id={reduser.id})\n"

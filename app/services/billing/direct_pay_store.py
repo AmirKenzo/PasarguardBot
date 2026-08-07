@@ -7,16 +7,18 @@ from __future__ import annotations
 
 import json
 import time
+from contextlib import suppress
 from typing import Any
 
 from app.db.redis import get_redis
 from app.logger import get_logger
 from app.telegram.state.keys import (
+    build_direct_pay_claim_key,
     build_direct_pay_crypto_key,
     build_direct_pay_tx_key,
     build_direct_pay_user_key,
 )
-from config import STATE_TTL_SECONDS
+from config import LOCK_TTL_SECONDS, STATE_TTL_SECONDS
 
 logger = get_logger(__name__)
 
@@ -26,6 +28,10 @@ KIND_RESELLER = "reseller"
 KIND_RENEW = "renew"
 
 DIRECT_PAY_TTL_SECONDS = max(int(STATE_TTL_SECONDS or 86400), 86400)
+
+
+def _claim_ttl_seconds() -> int:
+    return max(int(LOCK_TTL_SECONDS or 300), 60)
 
 
 def _now() -> int:
@@ -65,6 +71,10 @@ async def _delete_key(key: str) -> None:
         await redis.delete(key)
     except Exception as exc:
         logger.warning("direct_pay delete(%s): %s", key, exc)
+
+
+async def _clear_claim(user_id: int) -> None:
+    await _delete_key(build_direct_pay_claim_key(user_id))
 
 
 async def save_pending(
@@ -161,24 +171,37 @@ async def get_pending_by_crypto_order_id(crypto_order_id: int) -> dict[str, Any]
 
 
 async def claim_for_fulfillment(user_id: int) -> dict[str, Any] | None:
-    """Mark pending as fulfilling. Returns None if already claimed/done."""
+    """Atomically claim pending/linked record for fulfillment (idempotency)."""
     redis = await get_redis()
     if redis is None:
         return None
-    key = build_direct_pay_user_key(user_id)
+    claim_key = build_direct_pay_claim_key(user_id)
+    claimed = False
     try:
-        raw = await redis.get(key)
+        claimed = bool(await redis.set(claim_key, "1", nx=True, ex=_claim_ttl_seconds()))
+        if not claimed:
+            return None
+        raw = await redis.get(build_direct_pay_user_key(user_id))
         if not raw:
+            await redis.delete(claim_key)
             return None
         record = json.loads(raw)
         if not isinstance(record, dict) or record.get("status") not in ACTIVE_STATUSES:
+            await redis.delete(claim_key)
             return None
         record["status"] = "fulfilling"
         record["updated_at"] = _now()
-        await redis.set(key, json.dumps(record, ensure_ascii=False), ex=DIRECT_PAY_TTL_SECONDS)
+        await redis.set(
+            build_direct_pay_user_key(user_id),
+            json.dumps(record, ensure_ascii=False),
+            ex=DIRECT_PAY_TTL_SECONDS,
+        )
         return record
     except Exception as exc:
-        logger.warning("direct_pay claim(%s): %s", user_id, exc)
+        logger.warning("direct_pay claim_for_fulfillment(%s): %s", user_id, exc)
+        if claimed:
+            with suppress(Exception):
+                await redis.delete(claim_key)
         return None
 
 
@@ -188,12 +211,15 @@ async def mark_status(user_id: int, status: str) -> dict[str, Any] | None:
         return None
     record["status"] = status
     await _write_user_record(record)
+    if status in {"fulfilled", "failed", "cancelled"}:
+        await _clear_claim(user_id)
     return record
 
 
 async def cancel_pending_for_user(user_id: int) -> dict[str, Any] | None:
     record = await get_pending_for_user(user_id)
     if not record:
+        await _clear_claim(user_id)
         return None
     tx_id = record.get("transaction_id")
     crypto_id = record.get("crypto_order_id")
@@ -204,6 +230,7 @@ async def cancel_pending_for_user(user_id: int) -> dict[str, Any] | None:
     if record.get("status") in (*ACTIVE_STATUSES, "fulfilling"):
         record["status"] = "cancelled"
         await _write_user_record(record)
+    await _clear_claim(user_id)
     return record
 
 
@@ -231,3 +258,4 @@ async def clear_pending(user_id: int) -> None:
         if crypto_id:
             await _delete_key(build_direct_pay_crypto_key(int(crypto_id)))
     await _delete_key(build_direct_pay_user_key(user_id))
+    await _clear_claim(user_id)

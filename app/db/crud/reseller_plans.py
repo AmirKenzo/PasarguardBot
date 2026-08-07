@@ -19,7 +19,6 @@ class ResellerPlanManager:
                 plan = ResellerPlan(**kwargs)
                 session.add(plan)
                 await session.commit()
-                await session.refresh(plan)
                 return plan
         except SQLAlchemyError as e:
             log.error("Failed to add reseller plan: %s", e)

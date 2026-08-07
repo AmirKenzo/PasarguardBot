@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.db.base import AsyncSessionLocal as Session
@@ -93,17 +93,21 @@ class DiscountCodeManager:
         """Increment the usage counter for a discount code."""
         try:
             async with Session() as session:
-                result = await session.execute(select(DiscountCode).filter_by(code=code))
-                discount_code = result.scalar()
-
-                if discount_code:
-                    discount_code.times_used += 1
-                    await session.commit()
-                    if discount_code.times_used >= discount_code.usage_limit:
-                        await clear_sticky_for_code(code)
-                    log.debug("Discount usage updated code=%s", code)
-                else:
+                result = await session.execute(
+                    update(DiscountCode)
+                    .where(DiscountCode.code == code)
+                    .values(times_used=func.coalesce(DiscountCode.times_used, 0) + 1)
+                    .returning(DiscountCode.times_used, DiscountCode.usage_limit)
+                )
+                row = result.first()
+                if row is None:
                     log.debug("Discount code not found code=%s", code)
+                    return
+                await session.commit()
+                times_used, usage_limit = row
+                if usage_limit is not None and times_used is not None and times_used >= usage_limit:
+                    await clear_sticky_for_code(code)
+                log.debug("Discount usage updated code=%s", code)
 
         except Exception as e:
             log.error("Discount usage update failed: %s", e)

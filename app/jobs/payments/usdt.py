@@ -327,47 +327,63 @@ class USDTProcessor(BasePaymentProcessor):
             crud = CryptoPaymentsCRUD()
             pending_payments = await crud.get_pending_by_arz("USDT")
 
+            valid_payments = []
             for payment in pending_payments:
                 created_time = datetime.fromtimestamp(payment.createtime, tz=UTC)
-                current_time = datetime.now(UTC)
-                time_diff = current_time - created_time
-
+                time_diff = datetime.now(UTC) - created_time
                 if time_diff > timedelta(minutes=30):
                     await self._expire_payment(payment, settings)
+                else:
+                    valid_payments.append(payment)
+
+            if not valid_payments:
+                return
+
+            # USDT contract address (mainnet)
+            USDT_CONTRACT_MAINNET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+            usdt_contract = USDT_CONTRACT_MAINNET if TRX_TESTNET_MODE is None else None
+
+            earliest_ms = min(payment.createtime for payment in valid_payments) * 1000
+            logger.info(
+                "Fetching USDT-TRC20 txs for %s pending payments from start_ms=%s",
+                len(valid_payments),
+                earliest_ms,
+            )
+            all_transactions = await _fetch_token_transfers(
+                client, base_url, headers, address_wallet, earliest_ms, "batch", usdt_contract
+            )
+
+            for payment in valid_payments:
+                start_ms = payment.createtime * 1000
+                transactions_found = [
+                    tx
+                    for tx in all_transactions
+                    if int(tx.get("timestamp") or tx.get("block_timestamp") or 0) >= start_ms
+                ]
+                logger.debug("Found %s token transfers for USDT payment %s", len(transactions_found), payment.order_id)
+
+                if not transactions_found:
                     continue
 
-                start_time = payment.createtime * 1000
-                logger.info(
-                    f"Checking USDT payment {payment.order_id}: start_time={start_time}, address: {address_wallet}"
+                logger.debug(
+                    "Processing %s transactions for USDT payment %s",
+                    len(transactions_found),
+                    payment.order_id,
                 )
+                for transaction in transactions_found:
+                    tx_to = transaction.get("to") or transaction.get("toAddress") or transaction.get("ownerAddress")
+                    if tx_to and tx_to.lower() != address_wallet.lower():
+                        continue
 
-                # USDT contract address (mainnet)
-                USDT_CONTRACT_MAINNET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-                usdt_contract = USDT_CONTRACT_MAINNET if TRX_TESTNET_MODE is None else None
+                    if not await self._validate_transaction(transaction, payment.amount, address_wallet):
+                        continue
 
-                transactions_found = await _fetch_token_transfers(
-                    client, base_url, headers, address_wallet, start_time, payment.order_id, usdt_contract
-                )
-                logger.debug(f"Found {len(transactions_found)} token transfers for USDT payment {payment.order_id}")
-
-                if transactions_found:
-                    logger.info(
-                        f"Processing {len(transactions_found)} transactions for USDT payment {payment.order_id}"
-                    )
-                    for transaction in transactions_found:
-                        tx_to = transaction.get("to") or transaction.get("toAddress") or transaction.get("ownerAddress")
-                        if tx_to and tx_to.lower() != address_wallet.lower():
-                            continue
-
-                        if not await self._validate_transaction(transaction, payment.amount, address_wallet):
-                            continue
-
-                        paytime = int(datetime.now(UTC).timestamp())
-                        try:
-                            await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
-                            break
-                        except Exception as e:
-                            logger.error(f"Error processing USDT payment {payment.order_id}: {e}")
+                    paytime = int(datetime.now(UTC).timestamp())
+                    try:
+                        await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
+                        break
+                    except Exception as e:
+                        logger.error("Error processing USDT payment %s: %s", payment.order_id, e)
 
     async def _validate_transaction(self, transaction, payment_amount, address_wallet):
         token_info = transaction.get("tokenInfo")
@@ -375,9 +391,10 @@ class USDTProcessor(BasePaymentProcessor):
             return False
 
         if TRX_TESTNET_MODE:
-            logger.info(
-                f"Testnet mode: Accepting token transfer. "
-                f"Token symbol: {token_info.get('symbol')}, Contract: {token_info.get('address')}"
+            logger.debug(
+                "Testnet mode: Accepting token transfer. Token symbol: %s, Contract: %s",
+                token_info.get("symbol"),
+                token_info.get("address"),
             )
         else:
             USDT_CONTRACT_MAINNET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
@@ -395,9 +412,11 @@ class USDTProcessor(BasePaymentProcessor):
         payment_amount_decimal = Decimal(str(payment_amount)).quantize(Decimal("0.000001"))
         usdt_amount_decimal = Decimal(str(amount_in_usdt)).quantize(Decimal("0.000001"))
 
-        logger.info(
-            f"USDT validation: payment_amount={payment_amount_decimal}, "
-            f"usdt_amount={usdt_amount_decimal}, diff={abs(payment_amount_decimal - usdt_amount_decimal)}"
+        logger.debug(
+            "USDT validation: payment_amount=%s, usdt_amount=%s, diff=%s",
+            payment_amount_decimal,
+            usdt_amount_decimal,
+            abs(payment_amount_decimal - usdt_amount_decimal),
         )
 
         return abs(payment_amount_decimal - usdt_amount_decimal) <= Decimal("0.000001")

@@ -19,6 +19,34 @@ LEGACY_STATUS_VALUES = frozenset({"home", "start", "none"})
 CLEAR_ACCOUNT_STATUS_VALUES = frozenset({"none", "", "home", "start"})
 AUTO_CLEAR_STATUSES = frozenset({"BlockedBot", "DeleteAccount"})
 
+# Ban/status changes rarely; cache to avoid a SELECT on every non-admin update.
+_STATUS_LOCAL_TTL_SEC = 30.0
+_status_local: dict[int, tuple[float, str | None]] = {}
+
+
+def _invalidate_status_local(user_id: int) -> None:
+    _status_local.pop(user_id, None)
+
+
+def _get_status_local(user_id: int) -> tuple[bool, str | None]:
+    entry = _status_local.get(user_id)
+    if entry is None:
+        return False, None
+    ts, value = entry
+    if time.monotonic() - ts > _STATUS_LOCAL_TTL_SEC:
+        _status_local.pop(user_id, None)
+        return False, None
+    return True, value
+
+
+def _set_status_local(user_id: int, value: str | None) -> None:
+    _status_local[user_id] = (time.monotonic(), value)
+    if len(_status_local) > 20_000:
+        now = time.monotonic()
+        stale = [uid for uid, (t, _) in _status_local.items() if now - t > _STATUS_LOCAL_TTL_SEC]
+        for uid in stale:
+            _status_local.pop(uid, None)
+
 
 def _user_has_active_status_expr():
     return or_(User.status.is_(None), User.status.notin_(INACTIVE_USER_STATUSES))
@@ -57,6 +85,7 @@ async def set_user_status(
                 )
             )
         await session.commit()
+    _invalidate_status_local(user_id)
 
 
 async def clear_user_status(
@@ -82,6 +111,7 @@ async def clear_user_status(
                 )
             )
         await session.commit()
+    _invalidate_status_local(user_id)
 
 
 async def set_user_language(user_id: int, language: str) -> None:
@@ -95,7 +125,12 @@ async def set_user_language(user_id: int, language: str) -> None:
 
 async def get_user_status(user_id: int) -> str | None:
     """Persistent account status in DB: `ban`, `BlockedBot`, `DeleteAccount`, or NULL."""
-    return await _read_db_status(user_id)
+    hit, cached = _get_status_local(user_id)
+    if hit:
+        return cached
+    status = await _read_db_status(user_id)
+    _set_status_local(user_id, status)
+    return status
 
 
 async def clear_reactivatable_status(user_id: int) -> str | None:
@@ -108,7 +143,8 @@ async def clear_reactivatable_status(user_id: int) -> str | None:
         previous = user.status
         user.status = None
         await session.commit()
-        return previous
+    _invalidate_status_local(user_id)
+    return previous
 
 
 class UserCRUD:
@@ -480,6 +516,8 @@ async def add_user(user_id, step, time_s=None, language=None):
                 )
             )
         await session.commit()
+    if db_status is not None:
+        _invalidate_status_local(user_id)
 
 
 async def update_Money(user_id, Money, *, allow_negative: bool = True):

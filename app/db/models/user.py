@@ -1,10 +1,16 @@
-from sqlalchemy import BigInteger, Boolean, Column, Integer, String
+from sqlalchemy import BigInteger, Boolean, Column, Index, Integer, String
 
 from app.db.base import Base
 
 
 class User(Base):
     __tablename__ = "user"
+    __table_args__ = (
+        Index("ix_user_number", "number"),
+        Index("ix_user_ref", "ref"),
+        Index("ix_user_time_s", "time_s"),
+        Index("ix_user_status", "status"),
+    )
 
     id = Column(BigInteger, primary_key=True)
     status = Column(String(50), nullable=True)

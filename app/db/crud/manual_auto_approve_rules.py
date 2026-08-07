@@ -77,7 +77,6 @@ class ManualAutoApproveRuleCRUD:
             )
             session.add(rule)
             await session.commit()
-            await session.refresh(rule)
             return rule
 
     async def update(self, rule_id: int, **kwargs) -> ManualAutoApproveRule | None:
@@ -90,7 +89,6 @@ class ManualAutoApproveRuleCRUD:
                 if hasattr(rule, key):
                     setattr(rule, key, value)
             await session.commit()
-            await session.refresh(rule)
             return rule
 
     async def delete(self, rule_id: int) -> bool:
@@ -185,10 +183,11 @@ async def build_manual_card_log_caption(
         reduser = await UserCRUD().read_user(user_id)
 
     crud = TransactionCRUD()
-    manual_approved = await crud.count_user_transactions(user_id, status="approved", method="manual")
-    manual_rejected = await crud.count_user_transactions(user_id, status="rejected", method="manual")
-    auto_approved = await crud.count_user_transactions(user_id, status="approved", method="auto")
-    auto_rejected = await crud.count_user_transactions(user_id, status="rejected", method="auto")
+    counts = await crud.count_user_transactions_by_method_status(user_id)
+    manual_approved = counts.get(("manual", "approved"), 0)
+    manual_rejected = counts.get(("manual", "rejected"), 0)
+    auto_approved = counts.get(("auto", "approved"), 0)
+    auto_rejected = counts.get(("auto", "rejected"), 0)
 
     try:
         telegram_user = await Kenzo.get_entity(user_id)
