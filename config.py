@@ -54,6 +54,16 @@ ENABLE_FASTAPI = FAST_API_PORT is not None
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6161")
 # Shared Redis across bots: set e.g. pasarguard:mainbot; empty = sha256(BOT_TOKEN) fallback
 REDIS_NAMESPACE_PREFIX = config("REDIS_NAMESPACE_PREFIX", default="pasarguardbot:mainbot").strip()
+REDIS_RETRY_INTERVAL_SECONDS = config("REDIS_RETRY_INTERVAL_SECONDS", cast=float, default=10.0)
+REDIS_SOCKET_CONNECT_TIMEOUT = config("REDIS_SOCKET_CONNECT_TIMEOUT", cast=float, default=2.0)
+# 0 disables read timeout (required for shared client + BRPOP). Connect timeout still applies.
+REDIS_SOCKET_TIMEOUT = config("REDIS_SOCKET_TIMEOUT", cast=float, default=0.0)
+REDIS_HEALTH_CHECK_INTERVAL = config("REDIS_HEALTH_CHECK_INTERVAL", cast=int, default=30)
 STATE_TTL_SECONDS = config("STATE_TTL_SECONDS", cast=int, default=86400)
 LOCK_TTL_SECONDS = config("LOCK_TTL_SECONDS", cast=int, default=300)
 CALLBACK_TTL_SECONDS = config("CALLBACK_TTL_SECONDS", cast=int, default=3600)
+
+# --- SQLAlchemy pool (non-SQLite) ---
+SQLALCHEMY_POOL_SIZE = config("SQLALCHEMY_POOL_SIZE", cast=int, default=20)
+SQLALCHEMY_MAX_OVERFLOW = config("SQLALCHEMY_MAX_OVERFLOW", cast=int, default=30)
+SQLALCHEMY_POOL_TIMEOUT = config("SQLALCHEMY_POOL_TIMEOUT", cast=int, default=30)

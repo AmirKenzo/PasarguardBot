@@ -43,6 +43,11 @@ def build_direct_pay_user_key(user_id: int) -> str:
     return f"{get_redis_namespace()}:direct_pay:user:{user_id}"
 
 
+def build_direct_pay_claim_key(user_id: int) -> str:
+    """NX lock key so only one worker may fulfill a user's direct-pay record."""
+    return f"{get_redis_namespace()}:direct_pay:user:{user_id}:claim"
+
+
 def build_direct_pay_tx_key(transaction_id: int) -> str:
     """Link manual transaction id to a direct-pay user."""
     return f"{get_redis_namespace()}:direct_pay:tx:{transaction_id}"

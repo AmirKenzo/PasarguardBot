@@ -2,7 +2,12 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
-from config import SQLALCHEMY_DATABASE_URL
+from config import (
+    SQLALCHEMY_DATABASE_URL,
+    SQLALCHEMY_MAX_OVERFLOW,
+    SQLALCHEMY_POOL_SIZE,
+    SQLALCHEMY_POOL_TIMEOUT,
+)
 
 Base = declarative_base()
 
@@ -14,10 +19,10 @@ if IS_SQLITE:
 else:
     engine = create_async_engine(
         SQLALCHEMY_DATABASE_URL,
-        # pool_size=SQLALCHEMY_POOL_SIZE,
-        # max_overflow=SQLALCHEMY_MAX_OVERFLOW,
+        pool_size=SQLALCHEMY_POOL_SIZE,
+        max_overflow=SQLALCHEMY_MAX_OVERFLOW,
         pool_recycle=300,
-        pool_timeout=5,
+        pool_timeout=SQLALCHEMY_POOL_TIMEOUT,
         pool_pre_ping=True,
         # echo=ECHO_SQL_QUERIES,
     )
