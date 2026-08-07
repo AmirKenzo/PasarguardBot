@@ -1,6 +1,6 @@
 import time
 
-from sqlalchemy import String, and_, case, cast, distinct, func, or_
+from sqlalchemy import String, and_, case, cast, delete, distinct, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
@@ -212,6 +212,27 @@ class ServiceCRUD:
                 return True, "Service deleted successfully."
         except SQLAlchemyError as e:
             return False, f"Error in deleting service: {e}"
+
+    async def bulk_delete_services(self, codes: list) -> int:
+        """Delete many services by code in one transaction. Returns deleted row count."""
+        service_codes = []
+        seen: set[int] = set()
+        for code in codes:
+            service_code = as_int(code)
+            if service_code is None or service_code in seen:
+                continue
+            seen.add(service_code)
+            service_codes.append(service_code)
+        if not service_codes:
+            return 0
+        try:
+            async with Session() as session:
+                result = await session.execute(delete(Service).where(Service.code.in_(service_codes)))
+                await session.commit()
+                return int(result.rowcount or 0)
+        except SQLAlchemyError as e:
+            logger.error(f"DB Error bulk deleting services: {e}")
+            return 0
 
     async def get_unique_user_ids(self):
         try:
@@ -495,21 +516,40 @@ class ServiceCRUD:
             return False, f"Error: {e}"
 
     async def get_services_for_expiration_check_batch(
-        self, panel_codes: list[int], current_time: int, expiring_time: int, limit: int = 500, offset: int = 0
+        self,
+        panel_codes: list[int],
+        current_time: int,
+        expiring_time: int,
+        limit: int = 500,
+        offset: int = 0,
+        *,
+        after_expiration_time: int | None = None,
+        after_code: int | None = None,
     ):
-        """Get services in batches for expiration checking - pagination support"""
+        """Get services in batches for expiration checking (keyset pagination)."""
+        del current_time, offset  # kept for call-site compatibility
         try:
             async with Session() as session:
+                filters = [
+                    Service.in_panel.in_(panel_codes),
+                    Service.expiration_time.isnot(None),
+                    Service.expiration_time <= expiring_time,
+                ]
+                if after_expiration_time is not None and after_code is not None:
+                    filters.append(
+                        or_(
+                            Service.expiration_time > after_expiration_time,
+                            and_(
+                                Service.expiration_time == after_expiration_time,
+                                Service.code > after_code,
+                            ),
+                        )
+                    )
                 result = await session.execute(
                     select(Service)
-                    .filter(
-                        Service.in_panel.in_(panel_codes),
-                        Service.expiration_time.isnot(None),
-                        Service.expiration_time <= expiring_time,
-                    )
-                    .order_by(Service.expiration_time.asc())
+                    .filter(*filters)
+                    .order_by(Service.expiration_time.asc(), Service.code.asc())
                     .limit(limit)
-                    .offset(offset)
                 )
                 return result.scalars().all()
         except SQLAlchemyError as e:
@@ -517,22 +557,40 @@ class ServiceCRUD:
             return []
 
     async def get_expired_test_services_batch(
-        self, panel_codes: list[int], current_time: int, limit: int = 500, offset: int = 0
+        self,
+        panel_codes: list[int],
+        current_time: int,
+        limit: int = 500,
+        offset: int = 0,
+        *,
+        after_expiration_time: int | None = None,
+        after_code: int | None = None,
     ):
         """Get expired test services for immediate cleanup (no 3-day grace)."""
+        del offset
         try:
             async with Session() as session:
+                filters = [
+                    Service.in_panel.in_(panel_codes),
+                    Service.is_test == True,  # noqa: E712
+                    Service.expiration_time.isnot(None),
+                    Service.expiration_time <= current_time,
+                ]
+                if after_expiration_time is not None and after_code is not None:
+                    filters.append(
+                        or_(
+                            Service.expiration_time > after_expiration_time,
+                            and_(
+                                Service.expiration_time == after_expiration_time,
+                                Service.code > after_code,
+                            ),
+                        )
+                    )
                 result = await session.execute(
                     select(Service)
-                    .filter(
-                        Service.in_panel.in_(panel_codes),
-                        Service.is_test == True,  # noqa: E712
-                        Service.expiration_time.isnot(None),
-                        Service.expiration_time <= current_time,
-                    )
-                    .order_by(Service.expiration_time.asc())
+                    .filter(*filters)
+                    .order_by(Service.expiration_time.asc(), Service.code.asc())
                     .limit(limit)
-                    .offset(offset)
                 )
                 return result.scalars().all()
         except SQLAlchemyError as e:
@@ -540,34 +598,63 @@ class ServiceCRUD:
             return []
 
     async def get_services_expired_grace_period_batch(
-        self, panel_codes: list[int], current_time: int, limit: int = 500, offset: int = 0
+        self,
+        panel_codes: list[int],
+        current_time: int,
+        limit: int = 500,
+        offset: int = 0,
+        *,
+        after_expiration_time: int | None = None,
+        after_code: int | None = None,
     ):
         """Get paid services expired 3+ days ago (grace period ended) for cleanup from DB and panel."""
+        del offset
         try:
             async with Session() as session:
+                filters = [
+                    Service.in_panel.in_(panel_codes),
+                    Service.expiration_time.isnot(None),
+                    (Service.expiration_time + 259200) <= current_time,
+                    or_(Service.is_test.is_(None), Service.is_test == False),  # noqa: E712
+                ]
+                if after_expiration_time is not None and after_code is not None:
+                    filters.append(
+                        or_(
+                            Service.expiration_time > after_expiration_time,
+                            and_(
+                                Service.expiration_time == after_expiration_time,
+                                Service.code > after_code,
+                            ),
+                        )
+                    )
                 result = await session.execute(
                     select(Service)
-                    .filter(
-                        Service.in_panel.in_(panel_codes),
-                        Service.expiration_time.isnot(None),
-                        (Service.expiration_time + 259200) <= current_time,
-                        or_(Service.is_test.is_(None), Service.is_test == False),  # noqa: E712
-                    )
-                    .order_by(Service.expiration_time.asc())
+                    .filter(*filters)
+                    .order_by(Service.expiration_time.asc(), Service.code.asc())
                     .limit(limit)
-                    .offset(offset)
                 )
                 return result.scalars().all()
         except SQLAlchemyError as e:
             logger.error(f"DB Error getting services expired grace period: {e}")
             return []
 
-    async def get_all_services_by_panels_batch(self, panel_codes: list[int], limit: int = 500, offset: int = 0):
-        """Get services in batches for low volume check - pagination support"""
+    async def get_all_services_by_panels_batch(
+        self,
+        panel_codes: list[int],
+        limit: int = 500,
+        offset: int = 0,
+        *,
+        after_code: int | None = None,
+    ):
+        """Get services in batches for low volume check (keyset by code)."""
+        del offset
         try:
             async with Session() as session:
+                filters = [Service.in_panel.in_(panel_codes)]
+                if after_code is not None:
+                    filters.append(Service.code > after_code)
                 result = await session.execute(
-                    select(Service).filter(Service.in_panel.in_(panel_codes)).limit(limit).offset(offset)
+                    select(Service).filter(*filters).order_by(Service.code.asc()).limit(limit)
                 )
                 return result.scalars().all()
         except SQLAlchemyError as e:
