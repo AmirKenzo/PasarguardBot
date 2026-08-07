@@ -1,4 +1,4 @@
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
@@ -70,11 +70,9 @@ class ResellerBillingSnapshotCRUD:
             return False
         try:
             async with Session() as session:
-                result = await session.execute(
-                    select(ResellerBillingSnapshot).where(ResellerBillingSnapshot.account_code == account_code)
+                await session.execute(
+                    delete(ResellerBillingSnapshot).where(ResellerBillingSnapshot.account_code == account_code)
                 )
-                for snapshot in result.scalars().all():
-                    await session.delete(snapshot)
                 await session.commit()
                 return True
         except SQLAlchemyError as e:
@@ -101,8 +99,6 @@ class ResellerBillingSnapshotCRUD:
     async def delete_snapshots_before(self, cutoff_ts: int) -> int:
         """Delete billing snapshots older than cutoff timestamp."""
         try:
-            from sqlalchemy import delete
-
             async with Session() as session:
                 stmt = delete(ResellerBillingSnapshot).where(ResellerBillingSnapshot.snapshot_at < cutoff_ts)
                 result = await session.execute(stmt)

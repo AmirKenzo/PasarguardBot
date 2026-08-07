@@ -126,6 +126,14 @@ class PanelsManager:
             result = await session.execute(select(func.count()).select_from(Service).filter(Service.in_panel == code))
             return result.scalar() or 0
 
+    async def get_panel_user_counts(self) -> dict[int, int]:
+        """One GROUP BY query: panel code -> service count."""
+        async with Session() as session:
+            result = await session.execute(
+                select(Service.in_panel, func.count()).select_from(Service).group_by(Service.in_panel)
+            )
+            return {int(panel_code): int(count or 0) for panel_code, count in result.all() if panel_code is not None}
+
     async def is_panel_at_capacity(self, panel_code):
         """English docstring for is_panel_at_capacity."""
         panel = await self.get_panel_by_code(panel_code)
@@ -133,12 +141,16 @@ class PanelsManager:
         if not panel or limit is None:
             return False
 
-        current_users = await self.count_panel_users(panel_code)
-        return current_users >= limit
+        code = as_int(panel_code)
+        if code is None:
+            return False
+        counts = await self.get_panel_user_counts()
+        return counts.get(code, 0) >= limit
 
     async def get_available_panels(self):
         """English docstring for get_available_panels."""
         all_panels = await self.get_all_panels()
+        counts = await self.get_panel_user_counts()
         available_panels = []
 
         for panel in all_panels:
@@ -150,8 +162,7 @@ class PanelsManager:
                 available_panels.append(panel)
                 continue
 
-            current_users = await self.count_panel_users(panel.code)
-            if current_users < limit:
+            if counts.get(panel.code, 0) < limit:
                 available_panels.append(panel)
 
         return available_panels
