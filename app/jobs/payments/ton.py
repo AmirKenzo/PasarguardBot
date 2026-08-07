@@ -302,87 +302,75 @@ class TONProcessor(BasePaymentProcessor):
             # Find the earliest payment time to fetch transactions from
             earliest_time = min(payment.createtime for payment in valid_payments)
             logger.info(
-                f"Fetching transactions for {len(valid_payments)} pending payments, earliest time: {earliest_time}"
+                "Fetching TON txs for %s pending payments, earliest=%s",
+                len(valid_payments),
+                earliest_time,
             )
 
             # Fetch all transactions once
             all_transactions = await _fetch_ton_transactions(client, base_url, address_wallet, earliest_time, None)
-
-            logger.debug(f"Fetched {len(all_transactions)} total transactions from TonCenter")
+            logger.debug("Fetched %s total transactions from TonCenter", len(all_transactions))
 
             # Process each payment with the fetched transactions
             for payment in valid_payments:
-                logger.info(
-                    f"Checking TON payment {payment.order_id}: amount={payment.amount} TON, createtime={payment.createtime}"
+                logger.debug(
+                    "Checking TON payment %s amount=%s createtime=%s",
+                    payment.order_id,
+                    payment.amount,
+                    payment.createtime,
                 )
 
                 # Filter transactions for this specific payment (after payment creation time)
                 payment_transactions = [tx for tx in all_transactions if tx.get("utime", 0) >= payment.createtime]
-
-                logger.info(
-                    f"Found {len(payment_transactions)} transactions after payment creation time for payment {payment.order_id}"
+                logger.debug(
+                    "Found %s TON txs after createtime for payment %s",
+                    len(payment_transactions),
+                    payment.order_id,
                 )
 
-                if payment_transactions:
-                    logger.info(
-                        f"Processing {len(payment_transactions)} transactions for TON payment {payment.order_id}"
+                for transaction in payment_transactions:
+                    in_msg = transaction.get("in_msg", {})
+                    tx_destination = in_msg.get("destination", "") if isinstance(in_msg, dict) else ""
+                    logger.debug(
+                        "TON tx destination=%s wallet=%s payment=%s",
+                        tx_destination,
+                        address_wallet,
+                        payment.order_id,
                     )
-                    for idx, transaction in enumerate(payment_transactions):
-                        logger.info(
-                            f"[{idx + 1}/{len(payment_transactions)}] Processing transaction: {transaction.get('transaction_id', {}).get('hash') if isinstance(transaction.get('transaction_id'), dict) else 'unknown'}"
-                        )
 
-                        # TonCenter API returns transactions for the address, so destination should match
-                        in_msg = transaction.get("in_msg", {})
-                        tx_destination = in_msg.get("destination", "") if isinstance(in_msg, dict) else ""
-                        logger.debug(f"Transaction destination: {tx_destination}")
-                        logger.info(f"Wallet address: {address_wallet}")
-                        logger.debug("✅ Address check passed (from TonCenter API)")
-                        logger.debug(f"💵 Payment amount from DB: {payment.amount} TON (type: {type(payment.amount)})")
+                    is_valid = await self._validate_transaction(transaction, payment.amount, address_wallet)
+                    if not is_valid:
+                        continue
 
-                        is_valid = await self._validate_transaction(transaction, payment.amount, address_wallet)
-                        if not is_valid:
-                            logger.debug(f"❌ TON transaction validation failed for payment {payment.order_id}")
-                            continue
-
-                        logger.debug("✅ Transaction validated! Processing payment confirmation...")
-
-                        paytime = int(datetime.now(UTC).timestamp())
-                        try:
-                            await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
-                            break
-                        except Exception as e:
-                            logger.error(f"Error processing TON payment {payment.order_id}: {e}")
+                    paytime = int(datetime.now(UTC).timestamp())
+                    try:
+                        await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
+                        break
+                    except Exception as e:
+                        logger.error("Error processing TON payment %s: %s", payment.order_id, e)
 
     async def _validate_transaction(self, transaction, payment_amount, address_wallet):
-        logger.debug(f"🔍 _validate_transaction called with payment_amount={payment_amount}")
-        logger.debug(f"Transaction structure: {transaction}")
+        logger.debug("TON validate payment_amount=%s", payment_amount)
 
         amount_in_ton = await _extract_transaction_amount(transaction)
-        logger.debug(f"Extracted amount_in_ton: {amount_in_ton}")
-
         if amount_in_ton is None:
-            logger.debug("❌ TON transaction amount extraction failed - amount_in_ton is None")
-            logger.debug(f"Transaction data: {transaction}")
+            logger.debug("TON amount extraction failed for tx=%s", transaction.get("transaction_id"))
             return False
 
         payment_amount_decimal = Decimal(str(payment_amount)).quantize(Decimal("0.000000000001"))
         ton_amount_decimal = Decimal(str(amount_in_ton)).quantize(Decimal("0.000000000001"))
-
-        logger.debug(f"Payment amount (decimal): {payment_amount_decimal}")
-        logger.info(f"TON amount (decimal): {ton_amount_decimal}")
+        logger.debug("TON compare payment=%s tx=%s", payment_amount_decimal, ton_amount_decimal)
 
         # Exact match required - no tolerance
         is_valid = payment_amount_decimal == ton_amount_decimal
-
         if not is_valid:
             difference = abs(payment_amount_decimal - ton_amount_decimal)
-            logger.info(
-                f"❌ TON amount mismatch: payment={payment_amount_decimal}, transaction={ton_amount_decimal}, diff={difference}"
+            logger.debug(
+                "TON amount mismatch payment=%s tx=%s diff=%s",
+                payment_amount_decimal,
+                ton_amount_decimal,
+                difference,
             )
-        else:
-            logger.debug("✅ Amount match! Payment will be processed.")
-
         return is_valid
 
     async def _expire_payment(self, payment, settings):

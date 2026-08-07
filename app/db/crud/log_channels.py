@@ -1,7 +1,19 @@
+import time
+
 from sqlalchemy import delete, select
 
 from app.db.base import get_db
 from app.db.models.log_channels import LogChannel
+
+_DEST_CACHE_TTL_SEC = 60.0
+_dest_cache: dict[str, tuple[float, dict | None]] = {}
+
+
+def invalidate_log_channel_dest_cache(log_type: str | None = None) -> None:
+    if log_type is None:
+        _dest_cache.clear()
+    else:
+        _dest_cache.pop(str(log_type), None)
 
 
 class LogChannelManager:
@@ -33,8 +45,8 @@ class LogChannelManager:
                 existing_channel.is_active = is_active
 
                 await db.commit()
-                await db.refresh(existing_channel)
                 db.expunge(existing_channel)
+                invalidate_log_channel_dest_cache(log_type)
                 return existing_channel
             # Create new channel
             log_channel = LogChannel(
@@ -48,8 +60,8 @@ class LogChannelManager:
 
             db.add(log_channel)
             await db.commit()
-            await db.refresh(log_channel)
             db.expunge(log_channel)
+            invalidate_log_channel_dest_cache(log_type)
             return log_channel
         return None
 
@@ -113,8 +125,8 @@ class LogChannelManager:
                 log_channel.is_active = is_active
 
             await db.commit()
-            await db.refresh(log_channel)
             db.expunge(log_channel)
+            invalidate_log_channel_dest_cache(log_channel.log_type)
             return log_channel
         return None
 
@@ -125,8 +137,10 @@ class LogChannelManager:
             if not log_channel:
                 return False
 
+            log_type = log_channel.log_type
             log_channel.is_active = False
             await db.commit()
+            invalidate_log_channel_dest_cache(log_type)
             return True
         return None
 
@@ -141,6 +155,7 @@ class LogChannelManager:
                 log_channel.is_active = False
 
             await db.commit()
+            invalidate_log_channel_dest_cache(log_type)
             return len(log_channels)
         return None
 
@@ -151,8 +166,10 @@ class LogChannelManager:
             if not log_channel:
                 return False
 
+            log_type = log_channel.log_type
             await db.delete(log_channel)
             await db.commit()
+            invalidate_log_channel_dest_cache(log_type)
             return True
         return None
 
@@ -162,18 +179,27 @@ class LogChannelManager:
             stmt = delete(LogChannel).where(LogChannel.log_type == log_type)
             result = await db.execute(stmt)
             await db.commit()
+            invalidate_log_channel_dest_cache(log_type)
             return result.rowcount
         return None
 
     async def get_log_channel_destination(self, log_type: str) -> dict | None:
         """Get the destination information for a log type (for sending messages)"""
+        key = str(log_type)
+        now = time.monotonic()
+        cached = _dest_cache.get(key)
+        if cached is not None:
+            ts, dest = cached
+            if now - ts <= _DEST_CACHE_TTL_SEC:
+                return dest
+
         async for db in get_db():
             stmt = select(LogChannel.chat_id, LogChannel.topic_id).where(
                 LogChannel.log_type == log_type, LogChannel.is_active
             )
             result = await db.execute(stmt)
             row = result.first()
-            if not row:
-                return None
-            return {"chat_id": row.chat_id, "topic_id": row.topic_id}
+            dest = None if not row else {"chat_id": row.chat_id, "topic_id": row.topic_id}
+            _dest_cache[key] = (now, dest)
+            return dest
         return None

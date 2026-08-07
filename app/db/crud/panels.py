@@ -107,10 +107,10 @@ class PanelsManager:
                 return True
             return False
 
-    async def count_panels(self):
+    async def count_panels(self) -> int:
         async with Session() as session:
-            result = await session.execute(select(Panels))
-            return result.scalar()
+            result = await session.execute(select(func.count()).select_from(Panels))
+            return int(result.scalar() or 0)
 
     async def search_by_field(self, field_name, value):
         async with Session() as session:

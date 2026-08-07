@@ -21,7 +21,6 @@ class WalletCRUD:
                 new_wallet = Wallet(address=address, type=wallet_type.upper(), api_key=api_key)
                 session.add(new_wallet)
                 await session.commit()
-                await session.refresh(new_wallet)
                 return new_wallet
             except SQLAlchemyError as e:
                 await session.rollback()
@@ -74,7 +73,6 @@ class WalletCRUD:
                     if api_key is not None:
                         wallet.api_key = api_key
                     await session.commit()
-                    await session.refresh(wallet)
                     return wallet
                 return None
             except SQLAlchemyError as e:

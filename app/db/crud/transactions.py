@@ -43,7 +43,6 @@ class TransactionCRUD:
             )
             session.add(transaction)
             await session.commit()
-            await session.refresh(transaction)
             return transaction
 
     async def get(self, tx_id: int):
@@ -60,7 +59,6 @@ class TransactionCRUD:
                     if hasattr(tx, key):
                         setattr(tx, key, value)
                 await session.commit()
-                await session.refresh(tx)
                 return tx
             return None
 
@@ -142,6 +140,17 @@ class TransactionCRUD:
                 stmt = stmt.where(Transaction.method == method)
             result = await session.execute(stmt)
             return result.scalar() or 0
+
+    async def count_user_transactions_by_method_status(self, user_id: int) -> dict[tuple[str | None, str | None], int]:
+        """Single GROUP BY method,status for a user's transactions."""
+        async with Session() as session:
+            stmt = (
+                select(Transaction.method, Transaction.status, func.count())
+                .where(Transaction.user_id == user_id)
+                .group_by(Transaction.method, Transaction.status)
+            )
+            result = await session.execute(stmt)
+            return {(method, status): int(count or 0) for method, status, count in result.all()}
 
     async def sum_transactions(
         self,

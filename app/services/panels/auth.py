@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 
 from httpx import HTTPStatusError, RequestError, TimeoutException
@@ -15,6 +16,9 @@ PANEL_AUTH_PLACEHOLDER_USERNAME = "-"
 _GROUPS_FALLBACK_STATUSES = frozenset({403, 404, 405})
 
 PanelGroupsResponse = GroupsResponse | GroupsSimpleResponse
+
+_panel_refresh_locks: dict[int, asyncio.Lock] = {}
+_panel_refresh_locks_guard = asyncio.Lock()
 
 
 def panel_uses_api_key(panel) -> bool:
@@ -59,13 +63,31 @@ async def verify_panel_password(base_url, username, password):
     return authed, token.access_token, groups
 
 
+async def _lock_for_panel(panel_code: int) -> asyncio.Lock:
+    async with _panel_refresh_locks_guard:
+        lock = _panel_refresh_locks.get(panel_code)
+        if lock is None:
+            lock = asyncio.Lock()
+            _panel_refresh_locks[panel_code] = lock
+        return lock
+
+
 async def refresh_panel_cookie(panel) -> str:
     if panel_uses_api_key(panel):
         return panel.cookie
-    api = PasarguardAPI(base_url=panel.base_url)
-    token = await api.get_token(username=panel.username, password=decrypt_data(panel.password))
-    await PanelsManager().update_panel(code=panel.code, cookie=token.access_token)
-    return token.access_token
+    lock = await _lock_for_panel(int(panel.code))
+    async with lock:
+        # Another waiter may have already refreshed while we queued for the lock.
+        fresh = await PanelsManager().get_panel_by_code(panel.code)
+        if fresh and fresh.cookie and fresh.cookie != panel.cookie:
+            panel.cookie = fresh.cookie
+            return fresh.cookie
+
+        api = PasarguardAPI(base_url=panel.base_url)
+        token = await api.get_token(username=panel.username, password=decrypt_data(panel.password))
+        panel.cookie = token.access_token
+        await PanelsManager().update_panel(code=panel.code, cookie=token.access_token)
+        return token.access_token
 
 
 async def fetch_panel_groups_with_auth(panel) -> PanelGroupsResponse:

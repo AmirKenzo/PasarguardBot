@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 import jdatetime
 import pytz
 
+IRAN_TZ = pytz.timezone("Asia/Tehran")
+
 
 def timestamp_to_persian_expiry(value: int | float | str | datetime) -> str:
     """
@@ -48,8 +50,6 @@ def timestamp_to_persian_expiry(value: int | float | str | datetime) -> str:
 
 
 def Time_Date(value=None):
-    iran_tz = pytz.timezone("Asia/Tehran")
-
     if value is None:
         dt = datetime.now(tz=UTC)
     elif isinstance(value, (int, float)):
@@ -66,7 +66,7 @@ def Time_Date(value=None):
     else:
         return {"error": "Unsupported input type"}
 
-    iran_time = dt.astimezone(iran_tz)
+    iran_time = dt.astimezone(IRAN_TZ)
     miladi = iran_time.strftime("%Y/%m/%d")
     miladi_full = iran_time.strftime("%Y/%m/%d %H:%M:%S")
 
@@ -134,6 +134,5 @@ def relative_time(timestamp):
     if days < 30:
         return f"{days} روز پیش"
 
-    iran_tz = pytz.timezone("Asia/Tehran")
-    iran_time = dt.astimezone(iran_tz)
+    iran_time = dt.astimezone(IRAN_TZ)
     return iran_time.strftime("%Y/%m/%d %H:%M")

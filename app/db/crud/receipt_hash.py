@@ -36,7 +36,6 @@ class ReceiptHashCRUD:
                 row = ReceiptHash(phash=phash, transaction_id=None, user_id=user_id, created_at=ts)
                 session.add(row)
                 await session.commit()
-                await session.refresh(row)
                 return row
             except IntegrityError:
                 await session.rollback()

@@ -176,11 +176,22 @@ class HelpButtonCRUD:
             return False
 
     async def initialize_default_buttons(self):
-
-        for i in range(1, 9):
-            existing = await self.get_button(i)
-            if not existing:
-                await self.set_button(i, None, None)
+        try:
+            async with Session() as session:
+                result = await session.execute(
+                    select(HelpButton.button_number).where(HelpButton.button_number.in_(list(range(1, 9))))
+                )
+                existing = set(result.scalars().all())
+                missing = [
+                    HelpButton(button_number=i, button_text=None, button_url=None)
+                    for i in range(1, 9)
+                    if i not in existing
+                ]
+                if missing:
+                    session.add_all(missing)
+                    await session.commit()
+        except SQLAlchemyError:
+            pass
 
 
 class HelpDownloadAppCRUD:
@@ -250,7 +261,6 @@ class HelpDownloadAppCRUD:
                 )
                 session.add(btn)
                 await session.commit()
-                await session.refresh(btn)
                 return btn
         except SQLAlchemyError:
             return None
@@ -284,7 +294,6 @@ class HelpDownloadAppCRUD:
                 )
                 session.add(btn)
                 await session.commit()
-                await session.refresh(btn)
                 return btn
         except SQLAlchemyError:
             return None

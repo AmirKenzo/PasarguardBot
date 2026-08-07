@@ -30,7 +30,6 @@ class CryptoPaymentsCRUD:
                     if paytime:
                         payment.paytime = paytime
                     await session.commit()
-                    await session.refresh(payment)
                     return payment
                 return None
         except SQLAlchemyError:

@@ -1,4 +1,8 @@
-"""Central job registration — single source of truth for all scheduled jobs."""
+"""Central job registration — single source of truth for all scheduled jobs.
+
+Legacy reseller modules ``hourly_billing.py`` / ``usage_billing.py`` are unused
+and intentionally not registered here (avoids double-charge if re-enabled by mistake).
+"""
 
 from datetime import datetime, timedelta
 

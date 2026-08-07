@@ -37,7 +37,6 @@ class AppFileManager:
                 )
                 db.add(app_file)
                 await db.commit()
-                await db.refresh(app_file)
                 return app_file
             except SQLAlchemyError as e:
                 await db.rollback()
@@ -100,7 +99,6 @@ class AppFileManager:
 
                 app_file.updated_at = datetime.utcnow()
                 await db.commit()
-                await db.refresh(app_file)
                 return app_file
             except SQLAlchemyError as e:
                 await db.rollback()

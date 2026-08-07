@@ -108,10 +108,8 @@ LEGACY_FIELD_TO_JSON: dict[str, tuple[str, str]] = {
 
 def _merged_settings(raw: Any, defaults: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(raw, dict):
-        return copy.deepcopy(defaults)
-    merged = copy.deepcopy(defaults)
-    merged.update(raw)
-    return merged
+        return dict(defaults)
+    return {**defaults, **raw}
 
 
 def button_settings(panel) -> dict[str, bool]:
@@ -133,7 +131,7 @@ def renewal_settings(panel) -> dict[str, Any]:
 def feature_settings(panel) -> dict[str, Any]:
     raw = getattr(panel, "feature_settings", None)
     if isinstance(raw, dict):
-        return copy.deepcopy(raw)
+        return dict(raw)
     return {}
 
 
@@ -145,10 +143,11 @@ def panel_service_upgrade(panel) -> dict[str, Any]:
 def panel_sales_settings(panel) -> dict[str, bool]:
     raw = feature_settings(panel).get(FEATURE_SALES)
     if not isinstance(raw, dict):
-        return copy.deepcopy(DEFAULT_FEATURE_SALES)
-    merged = copy.deepcopy(DEFAULT_FEATURE_SALES)
-    merged.update({key: bool(value) for key, value in raw.items() if key in DEFAULT_FEATURE_SALES})
-    return merged
+        return dict(DEFAULT_FEATURE_SALES)
+    return {
+        **DEFAULT_FEATURE_SALES,
+        **{key: bool(value) for key, value in raw.items() if key in DEFAULT_FEATURE_SALES},
+    }
 
 
 def panel_shop_sale_flag(panel) -> bool:
@@ -170,10 +169,11 @@ def panel_reseller_sale_enabled(panel) -> bool:
 def panel_reseller_button_settings(panel) -> dict[str, bool]:
     raw = feature_settings(panel).get(FEATURE_RESELLER_BUTTONS)
     if not isinstance(raw, dict):
-        return copy.deepcopy(DEFAULT_RESELLER_BUTTON_SETTINGS)
-    merged = copy.deepcopy(DEFAULT_RESELLER_BUTTON_SETTINGS)
-    merged.update({key: bool(value) for key, value in raw.items() if key in DEFAULT_RESELLER_BUTTON_SETTINGS})
-    return merged
+        return dict(DEFAULT_RESELLER_BUTTON_SETTINGS)
+    return {
+        **DEFAULT_RESELLER_BUTTON_SETTINGS,
+        **{key: bool(value) for key, value in raw.items() if key in DEFAULT_RESELLER_BUTTON_SETTINGS},
+    }
 
 
 def panel_reseller_button_enabled(panel, key: str) -> bool:
@@ -191,10 +191,11 @@ def toggle_panel_reseller_button_setting(settings: dict[str, Any], key: str) -> 
 def panel_reseller_button_settings_from_feature(settings: dict[str, Any]) -> dict[str, bool]:
     raw = settings.get(FEATURE_RESELLER_BUTTONS)
     if not isinstance(raw, dict):
-        return copy.deepcopy(DEFAULT_RESELLER_BUTTON_SETTINGS)
-    merged = copy.deepcopy(DEFAULT_RESELLER_BUTTON_SETTINGS)
-    merged.update({flag: bool(raw.get(flag, default)) for flag, default in DEFAULT_RESELLER_BUTTON_SETTINGS.items()})
-    return merged
+        return dict(DEFAULT_RESELLER_BUTTON_SETTINGS)
+    return {
+        **DEFAULT_RESELLER_BUTTON_SETTINGS,
+        **{flag: bool(raw.get(flag, default)) for flag, default in DEFAULT_RESELLER_BUTTON_SETTINGS.items()},
+    }
 
 
 def toggle_panel_sales_setting(settings: dict[str, Any], key: str) -> None:
@@ -206,10 +207,11 @@ def toggle_panel_sales_setting(settings: dict[str, Any], key: str) -> None:
 def panel_sales_settings_from_feature(settings: dict[str, Any]) -> dict[str, bool]:
     raw = settings.get(FEATURE_SALES)
     if not isinstance(raw, dict):
-        return copy.deepcopy(DEFAULT_FEATURE_SALES)
-    merged = copy.deepcopy(DEFAULT_FEATURE_SALES)
-    merged.update({flag: bool(raw.get(flag, default)) for flag, default in DEFAULT_FEATURE_SALES.items()})
-    return merged
+        return dict(DEFAULT_FEATURE_SALES)
+    return {
+        **DEFAULT_FEATURE_SALES,
+        **{flag: bool(raw.get(flag, default)) for flag, default in DEFAULT_FEATURE_SALES.items()},
+    }
 
 
 def _compact_volume_plan(plan: dict[str, Any]) -> dict[str, Any]:

@@ -1,6 +1,7 @@
 import json
 import random
 
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
@@ -19,7 +20,6 @@ class ResellerAccountCRUD:
                 account = ResellerAccount(**kwargs)
                 session.add(account)
                 await session.commit()
-                await session.refresh(account)
                 return True, account
         except SQLAlchemyError as e:
             return False, f"Error creating reseller account: {e}"
@@ -135,7 +135,18 @@ class ResellerAccountCRUD:
             return None
 
     async def count_accounts_by_plan(self, plan_id: int) -> int:
-        return len(await self.get_accounts_by_plan(plan_id))
+        plan_id = as_int(plan_id)
+        if plan_id is None:
+            return 0
+        try:
+            async with Session() as session:
+                result = await session.execute(
+                    select(func.count()).select_from(ResellerAccount).where(ResellerAccount.plan_id == plan_id)
+                )
+                return int(result.scalar() or 0)
+        except SQLAlchemyError as e:
+            log.error("Failed to count reseller accounts by plan: %s", e)
+            return 0
 
     async def delete_account(self, code) -> bool:
         code = as_int(code)

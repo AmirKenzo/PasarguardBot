@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from telethon import Button
@@ -108,11 +109,13 @@ async def mark_direct_pay_ready(
     product_label: str = "",
     volume: str = "",
 ) -> None:
-    await set_data(user_id, REDIS_DIRECT_PAY_READY, "1")
-    await set_data(user_id, REDIS_DIRECT_PAY_KIND, kind)
-    await set_data(user_id, REDIS_DIRECT_PAY_AMOUNT, int(amount))
-    await set_data(user_id, "direct_pay_product_label", product_label or "")
-    await set_data(user_id, "direct_pay_volume", volume or "")
+    await asyncio.gather(
+        set_data(user_id, REDIS_DIRECT_PAY_READY, "1"),
+        set_data(user_id, REDIS_DIRECT_PAY_KIND, kind),
+        set_data(user_id, REDIS_DIRECT_PAY_AMOUNT, int(amount)),
+        set_data(user_id, "direct_pay_product_label", product_label or ""),
+        set_data(user_id, "direct_pay_volume", volume or ""),
+    )
 
 
 # Backward-compatible alias used by purchase helpers.
@@ -180,9 +183,11 @@ async def build_insufficient_balance_message(
 
 
 async def create_balance_button(user_id: int):
-    balance_button_text = await get_button_text("bt.menu_add_balance", "💰 افزایش موجودی")
-    ready = await get_data(user_id, REDIS_DIRECT_PAY_READY)
-    kind = await get_data(user_id, REDIS_DIRECT_PAY_KIND)
+    balance_button_text, ready, kind = await asyncio.gather(
+        get_button_text("bt.menu_add_balance", "💰 افزایش موجودی"),
+        get_data(user_id, REDIS_DIRECT_PAY_READY),
+        get_data(user_id, REDIS_DIRECT_PAY_KIND),
+    )
     use_direct = False
     if ready and kind:
         if kind == direct_pay_store.KIND_RENEW:
@@ -200,54 +205,99 @@ async def create_direct_pay_balance_button(user_id: int):
 
 
 async def build_vpn_payload_from_session(user_id: int) -> dict[str, Any]:
+    gig, panel, selected_plan_id, username, discount_code, product_label, volume = await asyncio.gather(
+        get_data(user_id, "gig"),
+        get_data(user_id, "panel"),
+        get_data(user_id, "selected_plan_id"),
+        get_data(user_id, "username"),
+        get_data(user_id, "codetakhfif"),
+        get_data(user_id, "direct_pay_product_label"),
+        get_data(user_id, "direct_pay_volume"),
+    )
     return {
-        "gig": await get_data(user_id, "gig"),
-        "panel": await get_data(user_id, "panel"),
-        "selected_plan_id": await get_data(user_id, "selected_plan_id"),
-        "username": await get_data(user_id, "username"),
-        "discount_code": await get_data(user_id, "codetakhfif"),
-        "product_label": await get_data(user_id, "direct_pay_product_label") or "کانفیگ VPN",
-        "volume": await get_data(user_id, "direct_pay_volume") or "",
+        "gig": gig,
+        "panel": panel,
+        "selected_plan_id": selected_plan_id,
+        "username": username,
+        "discount_code": discount_code,
+        "product_label": product_label or "کانفیگ VPN",
+        "volume": volume or "",
     }
 
 
 async def build_reseller_payload_from_session(user_id: int) -> dict[str, Any]:
+    (
+        reseller_plan_id,
+        reseller_panel_code,
+        reseller_username,
+        reseller_volume,
+        discount_code,
+        product_label,
+        volume,
+    ) = await asyncio.gather(
+        get_data(user_id, "reseller_plan_id"),
+        get_data(user_id, "reseller_panel_code"),
+        get_data(user_id, "reseller_username"),
+        get_data(user_id, "reseller_volume"),
+        get_data(user_id, "codetakhfif"),
+        get_data(user_id, "direct_pay_product_label"),
+        get_data(user_id, "direct_pay_volume"),
+    )
     return {
-        "reseller_plan_id": await get_data(user_id, "reseller_plan_id"),
-        "reseller_panel_code": await get_data(user_id, "reseller_panel_code"),
-        "reseller_username": await get_data(user_id, "reseller_username"),
-        "reseller_volume": await get_data(user_id, "reseller_volume"),
-        "discount_code": await get_data(user_id, "codetakhfif"),
-        "product_label": await get_data(user_id, "direct_pay_product_label") or "پنل نمایندگی",
-        "volume": await get_data(user_id, "direct_pay_volume") or "",
+        "reseller_plan_id": reseller_plan_id,
+        "reseller_panel_code": reseller_panel_code,
+        "reseller_username": reseller_username,
+        "reseller_volume": reseller_volume,
+        "discount_code": discount_code,
+        "product_label": product_label or "پنل نمایندگی",
+        "volume": volume or "",
     }
 
 
 async def build_renew_payload_from_session(user_id: int) -> dict[str, Any]:
-    config_name = await get_data(user_id, "direct_pay_config_name") or ""
-    discount = await get_data(user_id, "codetakhfif")
+    (
+        config_name,
+        discount,
+        discount_code,
+        product_label,
+        service_code,
+        panel,
+        selected_plan_id,
+        volume,
+    ) = await asyncio.gather(
+        get_data(user_id, "direct_pay_config_name"),
+        get_data(user_id, "codetakhfif"),
+        get_data(user_id, "discount_code"),
+        get_data(user_id, "direct_pay_product_label"),
+        get_data(user_id, "ConfigID"),
+        get_data(user_id, "panel"),
+        get_data(user_id, "selected_plan_id"),
+        get_data(user_id, "direct_pay_volume"),
+    )
+    config_name = config_name or ""
     if discount is None:
-        discount = await get_data(user_id, "discount_code")
-    product_label = await get_data(user_id, "direct_pay_product_label")
+        discount = discount_code
     if not product_label:
         product_label = f"تمدید {config_name}" if config_name else "تمدید"
     return {
-        "service_code": await get_data(user_id, "ConfigID"),
-        "panel": await get_data(user_id, "panel"),
-        "selected_plan_id": await get_data(user_id, "selected_plan_id"),
+        "service_code": service_code,
+        "panel": panel,
+        "selected_plan_id": selected_plan_id,
         "discount_code": discount,
         "config_name": config_name,
         "product_label": product_label,
-        "volume": await get_data(user_id, "direct_pay_volume") or "",
+        "volume": volume or "",
     }
 
 
 async def start_direct_pay_topup(event) -> bool:
     """Persist pending purchase/renew to Redis and open payment-method menu with prefilled amount."""
     user_id = event.sender_id
-    ready = await get_data(user_id, REDIS_DIRECT_PAY_READY)
-    kind = await get_data(user_id, REDIS_DIRECT_PAY_KIND)
-    required_raw = await get_data(user_id, REDIS_DIRECT_PAY_AMOUNT)
+    ready, kind, required_raw = await asyncio.gather(
+        get_data(user_id, REDIS_DIRECT_PAY_READY),
+        get_data(user_id, REDIS_DIRECT_PAY_KIND),
+        get_data(user_id, REDIS_DIRECT_PAY_AMOUNT),
+    )
     if not ready or not kind or required_raw is None:
         return False
 
@@ -286,12 +336,14 @@ async def start_direct_pay_topup(event) -> bool:
     )
 
     await clear_user(user_id)
-    await set_data(user_id, REDIS_DIRECT_PAY_ACTIVE, "1")
-    await set_data(user_id, REDIS_MABLAGH, shortfall)
-    await set_data(user_id, REDIS_DIRECT_PAY_AMOUNT, required)
-    await set_data(user_id, REDIS_DIRECT_PAY_KIND, kind)
-    await set_data(user_id, "direct_pay_product_label", product_label)
-    await set_data(user_id, "direct_pay_volume", volume)
+    await asyncio.gather(
+        set_data(user_id, REDIS_DIRECT_PAY_ACTIVE, "1"),
+        set_data(user_id, REDIS_MABLAGH, shortfall),
+        set_data(user_id, REDIS_DIRECT_PAY_AMOUNT, required),
+        set_data(user_id, REDIS_DIRECT_PAY_KIND, kind),
+        set_data(user_id, "direct_pay_product_label", product_label),
+        set_data(user_id, "direct_pay_volume", volume),
+    )
 
     lang = user.language if user and user.language else "fa"
     if kind == direct_pay_store.KIND_RENEW:

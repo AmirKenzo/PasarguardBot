@@ -39,7 +39,6 @@ class BroadcastJobCRUD:
                 )
                 session.add(job)
                 await session.commit()
-                await session.refresh(job)
                 return job
             except SQLAlchemyError as e:
                 await session.rollback()
@@ -67,7 +66,6 @@ class BroadcastJobCRUD:
                         if hasattr(job, key):
                             setattr(job, key, value)
                     await session.commit()
-                    await session.refresh(job)
                     return job
                 return None
             except SQLAlchemyError as e:
