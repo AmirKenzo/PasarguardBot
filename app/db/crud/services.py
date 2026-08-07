@@ -515,6 +515,33 @@ class ServiceCRUD:
             logger.error(f"DB Error getting service by username and panel: {e}")
             return False, f"Error: {e}"
 
+    async def get_service_and_panel_by_username(self, username: str):
+        """Find service and its panel by username in one JOIN (prefer exact case match)."""
+        try:
+            async with Session() as session:
+                result = await session.execute(
+                    select(Service, Panels)
+                    .join(Panels, Service.in_panel == Panels.code)
+                    .where(Service.username == username)
+                )
+                row = result.first()
+                if row:
+                    return True, row[0], row[1]
+
+                result = await session.execute(
+                    select(Service, Panels)
+                    .join(Panels, Service.in_panel == Panels.code)
+                    .where(func.lower(Service.username) == username.lower())
+                )
+                rows = result.all()
+                if not rows:
+                    return False, None, None
+                service, panel = rows[0]
+                return True, service, panel
+        except SQLAlchemyError as e:
+            logger.error("DB Error getting service+panel by username: %s", e)
+            return False, None, None
+
     async def get_services_for_expiration_check_batch(
         self,
         panel_codes: list[int],
