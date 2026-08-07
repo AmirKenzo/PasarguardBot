@@ -1,4 +1,4 @@
-from sqlalchemy import and_, distinct, func, or_
+from sqlalchemy import and_, distinct, func, or_, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
@@ -351,14 +351,21 @@ class BroadcastJobCRUD:
         """Increment job counters atomically."""
         async with Session() as session:
             try:
-                result = await session.execute(select(BroadcastJob).filter_by(id=job_id))
-                job = result.scalar_one_or_none()
-                if job:
-                    job.sent_ok += sent_ok
-                    job.sent_fail += sent_fail
-                    job.blocked += blocked
-                    job.deleted += deleted
-                    job.floodwait_count += floodwait_count
+                values = {}
+                if sent_ok:
+                    values["sent_ok"] = BroadcastJob.sent_ok + sent_ok
+                if sent_fail:
+                    values["sent_fail"] = BroadcastJob.sent_fail + sent_fail
+                if blocked:
+                    values["blocked"] = BroadcastJob.blocked + blocked
+                if deleted:
+                    values["deleted"] = BroadcastJob.deleted + deleted
+                if floodwait_count:
+                    values["floodwait_count"] = BroadcastJob.floodwait_count + floodwait_count
+                if not values:
+                    return True
+                result = await session.execute(update(BroadcastJob).where(BroadcastJob.id == job_id).values(**values))
+                if result.rowcount:
                     await session.commit()
                     return True
                 return False

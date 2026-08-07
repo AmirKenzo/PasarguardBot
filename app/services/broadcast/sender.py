@@ -56,6 +56,13 @@ class BroadcastSender:
 
     def __init__(self, user_crud: UserCRUD | None = None) -> None:
         self.user_crud = user_crud or UserCRUD()
+        # Cache source messages / deserialized buttons once per job.
+        self._source_messages: dict[int, list] = {}
+        self._buttons_cache: dict[int, object] = {}
+
+    def clear_job_cache(self, job_id: int) -> None:
+        self._source_messages.pop(job_id, None)
+        self._buttons_cache.pop(job_id, None)
 
     async def send_test(self, job: BroadcastJob, admin_id: int) -> tuple[bool, str]:
         """Send a draft broadcast payload to the admin who created it."""
@@ -107,11 +114,30 @@ class BroadcastSender:
         elif "deactivated" in error_str or isinstance(error, errors.InputUserDeactivatedError):
             await set_user_status(user_id, "DeleteAccount")
 
-    async def _copy_message_with_buttons(self, user_id: int, from_chat: int, message_ids: list[int], buttons) -> None:
-        """Copy source message(s) as bot message with preserved inline keyboard."""
+    async def _get_source_messages(self, job_id: int, from_chat: int, message_ids: list[int]) -> list:
+        cached = self._source_messages.get(job_id)
+        if cached is not None:
+            return cached
         msgs = await Kenzo.get_messages(from_chat, ids=message_ids)
         if not msgs:
             raise ValueError("Source broadcast message not found")
+        self._source_messages[job_id] = list(msgs)
+        return self._source_messages[job_id]
+
+    def _get_buttons(self, job: BroadcastJob):
+        cached = self._buttons_cache.get(job.id)
+        if cached is not None or job.id in self._buttons_cache:
+            return cached
+        buttons = deserialize_buttons(job.payload_json.get("buttons"))
+        self._buttons_cache[job.id] = buttons
+        return buttons
+
+    async def _copy_message_with_buttons(
+        self, job: BroadcastJob, user_id: int, from_chat: int, message_ids: list[int]
+    ) -> None:
+        """Copy source message(s) as bot message with preserved inline keyboard."""
+        msgs = await self._get_source_messages(job.id, from_chat, message_ids)
+        buttons = self._get_buttons(job)
 
         if len(msgs) == 1:
             msg = msgs[0]
@@ -141,7 +167,7 @@ class BroadcastSender:
         is_forward = payload.get("is_forward", False)
         message_ids = payload.get("message_ids", [])
         from_chat = payload.get("from_chat")
-        buttons = deserialize_buttons(payload.get("buttons"))
+        buttons = self._get_buttons(job)
 
         if message_ids and from_chat:
             if is_forward:
@@ -153,7 +179,7 @@ class BroadcastSender:
                 )
                 return
 
-            await self._copy_message_with_buttons(user_id, from_chat, message_ids, buttons)
+            await self._copy_message_with_buttons(job, user_id, from_chat, message_ids)
             return
 
         if payload.get("text"):

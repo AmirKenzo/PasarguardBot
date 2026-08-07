@@ -28,6 +28,21 @@ _active_worker_task: asyncio.Task | None = None
 EMPTY_TARGET_RECHECK_SECONDS = 3
 EMPTY_TARGET_RECHECK_ATTEMPTS = 1
 
+# In-process pause/cancel signals so the worker avoids a DB round-trip per recipient.
+_job_runtime_status: dict[int, str] = {}
+
+
+def set_job_runtime_status(job_id: int, status: str) -> None:
+    _job_runtime_status[job_id] = status
+
+
+def get_job_runtime_status(job_id: int) -> str | None:
+    return _job_runtime_status.get(job_id)
+
+
+def clear_job_runtime_status(job_id: int) -> None:
+    _job_runtime_status.pop(job_id, None)
+
 
 class BroadcastManager:
     """Manages broadcast jobs with persistent storage and worker tasks."""
@@ -241,6 +256,7 @@ class BroadcastManager:
                 await self.release_lock()
                 return False, "Failed to update job status"
 
+            set_job_runtime_status(job_id, "running")
             self._worker_task = asyncio.create_task(self._worker_loop(job_id, lock_already_acquired=True))
 
             logger.info(f"Broadcast job {job_id} started (lock acquired)")
@@ -275,6 +291,7 @@ class BroadcastManager:
             # Update status - worker will check and pause
             job = await self.job_crud.update_job(job_id, status="paused")
             if job:
+                set_job_runtime_status(job_id, "paused")
                 logger.info(f"Broadcast job {job_id} paused")
                 return True, "Job paused successfully"
             return False, "Failed to pause job"
@@ -331,6 +348,7 @@ class BroadcastManager:
                     await self.release_lock()
                     return False, "Failed to update job status"
 
+                set_job_runtime_status(job_id, "running")
                 # Spawn worker task (lock is already acquired, worker will use it)
                 self._worker_task = asyncio.create_task(self._worker_loop(job_id, lock_already_acquired=True))
 
@@ -368,6 +386,7 @@ class BroadcastManager:
                     logger.error(f"Error waiting for canceled worker: {e}")
                 self._worker_task = None
 
+            set_job_runtime_status(job_id, "canceled")
             # Update status - worker will check and stop
             job = await self.job_crud.update_job(
                 job_id,
@@ -383,6 +402,8 @@ class BroadcastManager:
                 logger.info(f"Broadcast job {job_id} canceled")
                 # Delete canceled job from database
                 await self.job_crud.delete_job(job_id)
+                clear_job_runtime_status(job_id)
+                self.sender.clear_job_cache(job_id)
                 logger.info(f"Canceled job {job_id} deleted from database")
                 return True, "Job canceled successfully"
             return False, "Failed to cancel job"
@@ -499,20 +520,33 @@ class BroadcastManager:
             logger.info(
                 f"Job {job_id} initial state: status={job.status}, total_targets={job.total_targets}, cursor={job.cursor_user_id}"
             )
+            set_job_runtime_status(job_id, job.status)
             empty_target_attempts = 0
 
             while True:
-                # Check job status
+                runtime_status = get_job_runtime_status(job_id)
+                if runtime_status == "canceled":
+                    logger.info(f"Job {job_id} was canceled, stopping worker")
+                    break
+
+                if runtime_status == "paused":
+                    logger.info(f"Job {job_id} is paused, waiting...")
+                    await asyncio.sleep(2)
+                    continue
+
+                # Refresh job fields once per batch (not per recipient).
                 job = await self.job_crud.get_job(job_id)
                 if not job:
                     logger.error(f"Job {job_id} not found in worker")
                     break
 
                 if job.status == "canceled":
+                    set_job_runtime_status(job_id, "canceled")
                     logger.info(f"Job {job_id} was canceled, stopping worker")
                     break
 
                 if job.status == "paused":
+                    set_job_runtime_status(job_id, "paused")
                     logger.info(f"Job {job_id} is paused, waiting...")
                     await asyncio.sleep(2)
                     continue
@@ -520,6 +554,8 @@ class BroadcastManager:
                 if job.status != "running":
                     logger.warning(f"Job {job_id} status is {job.status}, stopping worker")
                     break
+
+                set_job_runtime_status(job_id, "running")
 
                 # Refresh target count during the run so users added while this
                 # broadcast is active are included in progress and final drain.
@@ -569,6 +605,8 @@ class BroadcastManager:
                         status="done",
                         finished_at=int(time.time()),
                     )
+                    clear_job_runtime_status(job_id)
+                    self.sender.clear_job_cache(job_id)
                     logger.info(
                         f"Job {job_id} completed successfully (status=done, monitor will show final message and delete)"
                     )
@@ -589,10 +627,10 @@ class BroadcastManager:
                 logger.info(f"Job {job_id}: Processing {len(users)} users in batch")
 
                 for idx, user in enumerate(users, 1):
-                    # Re-check status before each send
-                    job = await self.job_crud.get_job(job_id)
-                    if not job or job.status in ["canceled", "paused"]:
-                        logger.info(f"Job {job_id}: Status changed to {job.status if job else 'None'}, stopping batch")
+                    # Re-check pause/cancel without a DB round-trip per recipient.
+                    runtime_status = get_job_runtime_status(job_id)
+                    if runtime_status in ("canceled", "paused"):
+                        logger.info(f"Job {job_id}: Status changed to {runtime_status}, stopping batch")
                         break
 
                     last_user_id = user.id
@@ -762,6 +800,8 @@ class BroadcastManager:
                 error_message=str(e),
                 finished_at=int(time.time()),
             )
+            clear_job_runtime_status(job_id)
+            self.sender.clear_job_cache(job_id)
         finally:
             if lock_acquired:
                 logger.debug(f"Releasing lock for job {job_id}")
