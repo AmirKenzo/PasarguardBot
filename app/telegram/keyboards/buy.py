@@ -5,15 +5,18 @@ from telethon.tl.types import KeyboardButtonRow, ReplyInlineMarkup
 from app.db.crud.keyboards import KeyboardButtonCRUD
 
 from .common import _get_keyboard_button_config, styled_callback_button
-from .registry import KEYBOARD_BUTTON_DEFAULTS
+from .registry import KEYBOARD_BUTTON_DEFAULT_STYLES, KEYBOARD_BUTTON_DEFAULTS
 
 
 async def _buy_inline_button(button_key: str, data):
     keyboard_crud = KeyboardButtonCRUD()
+    default_style, default_icon = KEYBOARD_BUTTON_DEFAULT_STYLES.get(button_key, (None, None))
     text, style = await _get_keyboard_button_config(
         keyboard_crud,
         button_key,
         KEYBOARD_BUTTON_DEFAULTS[button_key],
+        default_style=default_style,
+        default_icon=default_icon,
     )
     return styled_callback_button(text, data, style)
 
@@ -40,6 +43,10 @@ async def buy_default_username_button(data=b"generate_username"):
 
 async def buy_retry_username_button(data=b"retry_buy_username"):
     return await _buy_inline_button("in.buy.retry_username", data)
+
+
+async def buy_custom_button(data):
+    return await _buy_inline_button("in.buy.custom", data)
 
 
 async def buy_empty_list_button():

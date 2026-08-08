@@ -59,6 +59,26 @@ TEXT_KEYS_CONFIG = {
             "placeholders": {"panel_name": "نام پنل"},
         },
         {"key": "buy_select_duration_message", "title": "متن انتخاب مدت زمان", "placeholders": {}},
+        {
+            "key": "custom_buy_enter_gb_message",
+            "title": "خرید دلخواه — وارد کردن حجم",
+            "placeholders": {
+                "panel_name": "نام پنل",
+                "price_per_gb": "قیمت هر گیگ",
+                "price_per_day": "قیمت هر روز",
+                "min_gb": "حداقل حجم",
+                "max_gb": "حداکثر حجم",
+            },
+        },
+        {
+            "key": "custom_buy_enter_days_message",
+            "title": "خرید دلخواه — وارد کردن زمان",
+            "placeholders": {
+                "gb": "حجم انتخاب‌شده",
+                "min_days": "حداقل روز",
+                "max_days": "حداکثر روز",
+            },
+        },
         {"key": "enter_username_message", "title": "متن وارد کردن نام کاربری", "placeholders": {}},
         {
             "key": "buy_username_conflict_message",

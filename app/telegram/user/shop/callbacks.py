@@ -11,8 +11,10 @@ from app.db.crud.plans import PlanManager
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
 from app.services.billing.sticky_discount import discounted_price, get_sticky_discount
+from app.services.panels.settings import is_custom_buy_ready, panel_custom_buy_settings
 from app.telegram.keyboards.buy import (
     build_buy_username_prompt_rows,
+    buy_back_button,
     buy_cancel_button,
 )
 from app.telegram.keyboards.home import bhome_buttons
@@ -21,15 +23,19 @@ from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.username import (
     generate_unique_username,
 )
-from app.telegram.state import get_data, get_step, set_data, set_step
+from app.telegram.state import get_data, get_step, set_data, set_data_many, set_step
+from app.telegram.user.shop.custom_buy import CUSTOM_PLAN_ID, format_gb_value
 from app.telegram.user.shop.helpers import (
     _buy_username_context,
     _complete_vpn_purchase,
     _confirm_buy_username,
+    _format_bot_text,
     _load_purchase_context,
     _show_buy_username_prompt,
     _user_lang,
+    clear_custom_buy_session,
     generate_volume_buttons,
+    resolve_buy_plan_from_session,
     show_buy_service_selection,
     show_buy_vpn_plans,
 )
@@ -41,7 +47,8 @@ logger = get_logger(__name__)
 async def buy_username_message_filter(event: Message) -> bool:
     if event.is_channel or not event.is_private:
         return False
-    if not (event.message.message or ""):
+    text = (event.message.message or "").strip()
+    if not text or text.startswith("/"):
         return False
     return await get_step(event.sender_id) == "enter_username"
 
@@ -49,7 +56,8 @@ async def buy_username_message_filter(event: Message) -> bool:
 async def buy_discount_code_filter(event: Message) -> bool:
     if event.is_channel or not event.is_private:
         return False
-    if not (event.message.message or ""):
+    text = (event.message.message or "").strip()
+    if not text or text.startswith("/"):
         return False
     return await get_step(event.sender_id) == "WhatingForCodeTakhfif"
 
@@ -119,6 +127,7 @@ async def select_plan_for_buy_callback(event: events.CallbackQuery.Event):
 
     await set_data(event.sender_id, "gig", plan.storage)
     await set_data(event.sender_id, "selected_plan_id", plan_id)
+    await clear_custom_buy_session(event.sender_id)
 
     panel_code = await get_data(event.sender_id, "panel")
     await PanelsManager().get_panel_by_code(code=panel_code)
@@ -161,6 +170,49 @@ async def generate_buy_username_callback(event: events.CallbackQuery.Event):
 
 
 @bot_is_offline
+async def custom_buy_callback(event: events.CallbackQuery.Event):
+    data = event.data.decode("utf-8")
+    panel_code = data.replace("CustomBuy_", "")
+    panel = await PanelsManager().get_panel_by_code(panel_code)
+    settings = panel_custom_buy_settings(panel) if panel else None
+    if not panel or settings is None or not is_custom_buy_ready(settings):
+        await event.answer("❌ خرید دلخواه برای این پنل فعال نیست.", alert=True)
+        raise events.StopPropagation
+
+    await clear_custom_buy_session(event.sender_id)
+    await set_data_many(
+        event.sender_id,
+        {
+            "panel": panel.code,
+            "selected_plan_id": CUSTOM_PLAN_ID,
+        },
+    )
+    await set_step(event.sender_id, "custom_buy_enter_gb")
+    gb_prompt = await _format_bot_text(
+        key="custom_buy_enter_gb_message",
+        default=(
+            "**🧩 خرید دلخواه — {panel_name}**\n\n"
+            "💰 هر گیگ: `{price_per_gb}` تومان\n"
+            "⏰ هر روز: `{price_per_day}` تومان\n\n"
+            "📥 حجم مورد نظر را به گیگ وارد کنید "
+            "(بین `{min_gb}` تا `{max_gb}`):"
+        ),
+        lang=await _user_lang(event.sender_id),
+        panel_name=panel.name,
+        price_per_gb=f"{settings['price_per_gb']:,}",
+        price_per_day=f"{settings['price_per_day']:,}",
+        min_gb=format_gb_value(settings["min_gb"]),
+        max_gb=format_gb_value(settings["max_gb"]),
+    )
+    await event.edit(
+        gb_prompt,
+        buttons=[[await buy_back_button(f"BuyVPN_{panel.code}")], [await buy_cancel_button("DataCancel")]],
+    )
+    await set_data(event.sender_id, "msgid_Buy", event.message_id)
+    raise events.StopPropagation
+
+
+@bot_is_offline
 async def apply_buy_discount_callback(event: events.CallbackQuery.Event):
     if await get_step(event.sender_id) != "crconf":
         await notify_session_expired(event)
@@ -181,8 +233,7 @@ async def confirm_discounted_buy_callback(event: events.CallbackQuery.Event):
     if await get_step(event.sender_id) != "Takhfif_confirm_purchase":
         await notify_session_expired(event)
         return
-    plan_id = await get_data(event.sender_id, "selected_plan_id")
-    plan = await PlanManager().get_plan(plan_id)
+    plan = await resolve_buy_plan_from_session(event.sender_id)
     new_price = await get_data(event.sender_id, "codetakhfif_newprice")
     code_takhfif = await get_data(event.sender_id, "codetakhfif")
     if plan is None or new_price is None or code_takhfif is None:
@@ -194,7 +245,7 @@ async def confirm_discounted_buy_callback(event: events.CallbackQuery.Event):
     try:
         new_price = int(float(new_price))
     except ValueError, TypeError:
-        new_price = plan.price
+        new_price = int(plan.price)
     status, _res = await DiscountCodeManager().validate_discount_code(code=code_takhfif, user_id=event.sender_id)
     if not status:
         await event.edit(
@@ -233,6 +284,7 @@ def register(client):
         select_duration_group_for_buy_callback, events.CallbackQuery(pattern=rb"^SelectDurationGroupForBuy:")
     )
     client.add_event_handler(select_plan_for_buy_callback, events.CallbackQuery(pattern=rb"^SelectPlan_"))
+    client.add_event_handler(custom_buy_callback, events.CallbackQuery(pattern=rb"^CustomBuy_"))
     client.add_event_handler(retry_buy_username_callback, events.CallbackQuery(data="retry_buy_username"))
     client.add_event_handler(generate_buy_username_callback, events.CallbackQuery(data="generate_username"))
     client.add_event_handler(apply_buy_discount_callback, events.CallbackQuery(pattern=rb"^ApplyCodeTakhfif"))

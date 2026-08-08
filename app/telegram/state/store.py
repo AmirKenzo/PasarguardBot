@@ -104,41 +104,65 @@ async def clear_step(user_id: int) -> None:
 
 async def set_data(user_id: int, key: str, value: Any, ttl: int | None = None) -> None:
     """Save one temporary field for a user (e.g. amount, panel_name)."""
+    await set_data_many(user_id, {key: value}, ttl=ttl)
+
+
+async def set_data_many(user_id: int, values: dict[str, Any], ttl: int | None = None) -> None:
+    """Save multiple temporary fields in one Redis round-trip."""
+    if not values:
+        return
     redis = await get_redis()
     if redis is None:
         return
     hash_key = build_state_key(user_id)
     try:
-        await redis.hset(hash_key, key, _serialize(value))
+        mapping = {key: _serialize(value) for key, value in values.items()}
+        await redis.hset(hash_key, mapping=mapping)
         await _refresh_ttl(redis, hash_key, ttl)
     except Exception as exc:
-        logger.warning("Redis set_data(%s, %s): %s", user_id, key, exc)
+        logger.warning("Redis set_data_many(%s, %s): %s", user_id, list(values), exc)
 
 
 async def get_data(user_id: int, key: str) -> Any:
     """Read one temporary field. Returns None if missing."""
+    values = await get_data_many(user_id, (key,))
+    return values.get(key)
+
+
+async def get_data_many(user_id: int, keys: tuple[str, ...] | list[str]) -> dict[str, Any]:
+    """Read multiple temporary fields in one Redis round-trip."""
+    if not keys:
+        return {}
     redis = await get_redis()
     if redis is None:
-        return None
+        return dict.fromkeys(keys)
     try:
-        raw = await redis.hget(build_state_key(user_id), key)
-        if raw is None:
-            return None
-        return _deserialize(raw)
+        raw_values = await redis.hmget(build_state_key(user_id), list(keys))
+        result: dict[str, Any] = {}
+        for key, raw in zip(keys, raw_values, strict=False):
+            result[key] = None if raw is None else _deserialize(raw)
+        return result
     except Exception as exc:
-        logger.warning("Redis get_data(%s, %s): %s", user_id, key, exc)
-        return None
+        logger.warning("Redis get_data_many(%s, %s): %s", user_id, list(keys), exc)
+        return dict.fromkeys(keys)
 
 
 async def delete_data(user_id: int, key: str) -> None:
     """Remove one temporary field."""
+    await delete_data_many(user_id, (key,))
+
+
+async def delete_data_many(user_id: int, keys: tuple[str, ...] | list[str]) -> None:
+    """Remove multiple temporary fields in one Redis round-trip."""
+    if not keys:
+        return
     redis = await get_redis()
     if redis is None:
         return
     try:
-        await redis.hdel(build_state_key(user_id), key)
+        await redis.hdel(build_state_key(user_id), *keys)
     except Exception as exc:
-        logger.warning("Redis delete_data(%s, %s): %s", user_id, key, exc)
+        logger.warning("Redis delete_data_many(%s, %s): %s", user_id, list(keys), exc)
 
 
 async def clear_user(user_id: int) -> None:
