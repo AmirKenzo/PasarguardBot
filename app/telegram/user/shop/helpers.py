@@ -30,6 +30,7 @@ from app.services.billing.direct_pay_flow import (
     create_balance_button,
 )
 from app.services.billing.direct_pay_store import KIND_VPN
+from app.services.billing.referral_rewards import process_referral_reward_payout
 from app.services.billing.sticky_discount import discounted_price, get_sticky_discount
 from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
@@ -503,6 +504,13 @@ async def create_vpn_purchase_for_user(
 
     if discount_code:
         await DiscountCodeManager().update_discount_usage(code=discount_code)
+
+    try:
+        user = await UserCRUD().read_user(user_id)
+        if user and user.ref:
+            await process_referral_reward_payout(user.ref, user_id)
+    except Exception as e:
+        logger.error("Error processing referral rewards: %s", e)
 
     await ServiceCRUD().create_service(
         code=code_service,
