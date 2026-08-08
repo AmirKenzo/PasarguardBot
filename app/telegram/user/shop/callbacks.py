@@ -125,9 +125,9 @@ async def select_plan_for_buy_callback(event: events.CallbackQuery.Event):
         await event.answer("❌ پلن یافت نشد!", alert=True)
         raise events.StopPropagation
 
+    await clear_custom_buy_session(event.sender_id)
     await set_data(event.sender_id, "gig", plan.storage)
     await set_data(event.sender_id, "selected_plan_id", plan_id)
-    await clear_custom_buy_session(event.sender_id)
 
     panel_code = await get_data(event.sender_id, "panel")
     await PanelsManager().get_panel_by_code(code=panel_code)

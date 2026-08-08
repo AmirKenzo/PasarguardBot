@@ -173,7 +173,7 @@ async def resolve_buy_plan_from_session(user_id: int):
 
 
 async def clear_custom_buy_session(user_id: int) -> None:
-    await delete_data_many(user_id, ("gig", "custom_days", "custom_price", "custom_ip_limit"))
+    await delete_data_many(user_id, ("custom_days", "custom_price", "custom_ip_limit"))
 
 
 async def build_buy_panel_rows(panels: list) -> list:
