@@ -725,7 +725,7 @@ requires-dist = [
     { name = "imagehash", specifier = ">=4.3.2" },
     { name = "jdatetime", specifier = ">=6.0.1" },
     { name = "pasarguard", specifier = ">=2.3.1" },
-    { name = "persiantools", specifier = ">=6.1.0" },
+    { name = "persiantools", specifier = ">=6.2.0" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "python-decouple", specifier = ">=3.8" },
@@ -751,14 +751,14 @@ dev = [
 
 [[package]]
 name = "persiantools"
-version = "6.1.0"
+version = "6.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/66/72/db141bf2f7bff1a98181baeba3b9953cc851010d3a2485e2ce8f80b6582e/persiantools-6.1.0.tar.gz", hash = "sha256:881bd9a80ca7851249f7cbab885cc625e010ca5c9ce91e77f197741a1aa438fc", size = 48506, upload-time = "2026-07-10T14:18:32.606Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/de/a2/c8f3930c3f0c50b20098e28160a29d0962eedb93cced89bb366b0262be0b/persiantools-6.2.0.tar.gz", hash = "sha256:21ae1ed27292d8a153946f6b16a660cb84a2d829e0a3a0afefee3e9f83ad41b8", size = 55959, upload-time = "2026-08-05T20:46:45.008Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/89/6770ff912e3c067d7f87b5e97594d355ef092b36137fb913f2729597f133/persiantools-6.1.0-py3-none-any.whl", hash = "sha256:5fbcce719abf512b43e63955636e083deeb5d272b6aa1dca2c80c283cca4677c", size = 27272, upload-time = "2026-07-10T14:18:31.293Z" },
+    { url = "https://files.pythonhosted.org/packages/81/14/6e5862cc921df714840fda14f7d65fdd52b3630fd83c66d905a3240da775/persiantools-6.2.0-py3-none-any.whl", hash = "sha256:02d0f1c9f8784b20700f23ef96f01706e8cc1b9bf9fe105b3a6c44492f4d61c6", size = 28771, upload-time = "2026-08-05T20:46:43.66Z" },
 ]
 
 [[package]]
