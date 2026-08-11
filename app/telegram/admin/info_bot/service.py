@@ -15,6 +15,7 @@ from app.db.crud.cryptopayments import (
     get_crypto_period_breakdown,
     get_global_crypto_breakdown,
 )
+from app.db.crud.referral import ReferralRewardCRUD
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
@@ -38,6 +39,7 @@ logger = get_logger(__name__)
 user_crud = UserCRUD()
 service_crud = ServiceCRUD()
 tx_crud = TransactionCRUD()
+referral_crud = ReferralRewardCRUD()
 
 
 def _stats_timestamps(now: datetime | None = None) -> dict:
@@ -233,7 +235,7 @@ def _collect_system_metrics() -> dict:
 async def main_payload(force: bool = False) -> dict:
     async def _produce() -> dict:
         ts = _stats_timestamps()
-        user_stats, sales, pending = await asyncio.gather(
+        user_stats, sales, pending, referral = await asyncio.gather(
             user_crud.get_user_stats(
                 month_ts=ts["month_ts"],
                 week_ts=ts["week_ts"],
@@ -245,12 +247,14 @@ async def main_payload(force: bool = False) -> dict:
             ),
             tx_crud.get_dashboard_sales(ts),
             tx_crud.get_pending_manual_summary(),
+            referral_crud.get_dashboard_stats(ts),
         )
         return {
             "updated_at": _now_utc().isoformat(),
             "users": user_stats,
             "sales": sales,
             "pending": pending,
+            "referral": referral,
         }
 
     return await _cached_json("stats:main", _produce, force=force)
@@ -260,6 +264,7 @@ def main_text(payload: dict) -> str:
     u = payload["users"]
     s = payload["sales"]
     p = payload["pending"]
+    ref = payload.get("referral", {})
     inactive = u["banned"] + u["blocked"] + u["deleted"]
     updated_at = _to_datetime(payload.get("updated_at"))
 
@@ -289,6 +294,11 @@ def main_text(payload: dict) -> str:
         f"📅 {bold('۳ روز پیش:')} {code(f'{s["sales_3d_ago"]:,}')} تومان",
         f"📊 {bold('۷ روز اخیر:')} {code(f'{s["sales_7d"]:,}')} تومان",
         "",
+        f"🎁 {bold('پاداش رفرال')}",
+        f"📅 {bold('امروز:')} {code(f'{ref.get("today", 0):,}')} تومان ({code(str(ref.get('count_today', 0)))} نفر)",
+        f"📅 {bold('دیروز:')} {code(f'{ref.get("yesterday", 0):,}')} تومان ({code(str(ref.get('count_yesterday', 0)))} نفر)",
+        f"🌍 {bold('کل:')} {code(f'{ref.get("all_time", 0):,}')} تومان ({code(str(ref.get('count_all', 0)))} نفر)",
+        "",
     ]
     cache_line = _format_cache_meta(payload)
     if cache_line:
@@ -310,9 +320,10 @@ async def _revenue_payload(period: str, force: bool = False) -> dict:
         end = period_range["end_ts"]
         settings = await SettingsManager().get_settings()
         arz_usd = int(getattr(settings, "arz_usd", 0) or 0)
-        breakdown, crypto = await asyncio.gather(
+        breakdown, crypto, referral = await asyncio.gather(
             tx_crud.get_breakdown(start, end),
             get_crypto_period_breakdown(start, end) if period != "all" else get_global_crypto_breakdown(),
+            referral_crud.get_period_stats(start, end) if period != "all" else referral_crud.get_period_stats(0),
         )
         return {
             "updated_at": _now_utc().isoformat(),
@@ -321,6 +332,7 @@ async def _revenue_payload(period: str, force: bool = False) -> dict:
             "arz_usd": arz_usd,
             "breakdown": breakdown,
             "crypto": crypto,
+            "referral": referral,
         }
 
     return await _cached_json(f"stats:revenue:{period}", _produce, force=force)
@@ -329,6 +341,7 @@ async def _revenue_payload(period: str, force: bool = False) -> dict:
 def _revenue_text(payload: dict) -> str:
     b = payload["breakdown"]
     cr = payload["crypto"]
+    ref = payload.get("referral", {})
     period = payload.get("period", "1d")
     updated_at = _to_datetime(payload.get("updated_at"))
     label = REVENUE_PERIODS.get(period, period)
@@ -372,6 +385,18 @@ def _revenue_text(payload: dict) -> str:
             crypto_usd_total += usd
             lines.append(f"🔹 {bold(arz)}: {code(vol_str)} {arz} · {code(f'{irt:,}')} TOMAN · ${code(f'{usd:,.2f}')}")
         lines.append(f"💵 {bold('جمع دلاری ارزها:')} ${code(f'{crypto_usd_total:,.2f}')}")
+
+    ref_count = int(ref.get("count", 0) or 0)
+    ref_sum = int(ref.get("reward_sum", 0) or 0)
+    if ref_count:
+        lines.extend(
+            [
+                "",
+                f"🎁 {bold('پاداش رفرال')}",
+                f"👥 {bold('تعداد:')} {code(f'{ref_count:,}')} · "
+                f"💰 {bold('پاداش دعوت‌کننده:')} {code(f'{ref_sum:,}')} تومان",
+            ]
+        )
 
     lines.extend(
         [

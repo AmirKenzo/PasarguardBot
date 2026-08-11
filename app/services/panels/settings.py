@@ -64,13 +64,24 @@ DEFAULT_RENEWAL_SETTINGS: dict[str, bool] = {
 
 FEATURE_SERVICE_UPGRADE = "service_upgrade"
 FEATURE_SALES = "sales"
+FEATURE_RESELLER_BUTTONS = "reseller_buttons"
+FEATURE_CUSTOM_BUY = "custom_buy"
 
 DEFAULT_FEATURE_SALES: dict[str, bool] = {
     "shop_enabled": True,
     "reseller_enabled": True,
 }
 
-FEATURE_RESELLER_BUTTONS = "reseller_buttons"
+DEFAULT_CUSTOM_BUY: dict[str, Any] = {
+    "enabled": False,
+    "price_per_gb": 0,
+    "price_per_day": 0,
+    "min_gb": 1,
+    "max_gb": 1000,
+    "min_days": 1,
+    "max_days": 365,
+    "ip_limit": 0,
+}
 
 DEFAULT_RESELLER_BUTTON_SETTINGS: dict[str, bool] = {
     "credentials": True,
@@ -174,6 +185,123 @@ def panel_reseller_button_settings(panel) -> dict[str, bool]:
         **DEFAULT_RESELLER_BUTTON_SETTINGS,
         **{key: bool(value) for key, value in raw.items() if key in DEFAULT_RESELLER_BUTTON_SETTINGS},
     }
+
+
+def _as_non_negative_int(value: Any, default: int = 0) -> int:
+    try:
+        number = int(value)
+    except TypeError, ValueError:
+        return default
+    return number if number >= 0 else default
+
+
+def _as_positive_number(value: Any, default: float) -> float:
+    try:
+        number = float(value)
+    except TypeError, ValueError:
+        return default
+    return number if number > 0 else default
+
+
+def _normalize_custom_buy_settings(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return dict(DEFAULT_CUSTOM_BUY)
+    return {
+        "enabled": bool(raw.get("enabled", DEFAULT_CUSTOM_BUY["enabled"])),
+        "price_per_gb": _as_non_negative_int(raw.get("price_per_gb"), DEFAULT_CUSTOM_BUY["price_per_gb"]),
+        "price_per_day": _as_non_negative_int(raw.get("price_per_day"), DEFAULT_CUSTOM_BUY["price_per_day"]),
+        "min_gb": _as_positive_number(raw.get("min_gb"), DEFAULT_CUSTOM_BUY["min_gb"]),
+        "max_gb": _as_positive_number(raw.get("max_gb"), DEFAULT_CUSTOM_BUY["max_gb"]),
+        "min_days": max(1, _as_non_negative_int(raw.get("min_days"), DEFAULT_CUSTOM_BUY["min_days"])),
+        "max_days": max(1, _as_non_negative_int(raw.get("max_days"), DEFAULT_CUSTOM_BUY["max_days"])),
+        "ip_limit": _as_non_negative_int(raw.get("ip_limit"), DEFAULT_CUSTOM_BUY["ip_limit"]),
+    }
+
+
+def panel_custom_buy_settings(panel) -> dict[str, Any]:
+    return _normalize_custom_buy_settings(feature_settings(panel).get(FEATURE_CUSTOM_BUY))
+
+
+def panel_custom_buy_settings_from_feature(settings: dict[str, Any]) -> dict[str, Any]:
+    raw = settings.get(FEATURE_CUSTOM_BUY) if isinstance(settings, dict) else None
+    return _normalize_custom_buy_settings(raw)
+
+
+def is_custom_buy_ready(settings: dict[str, Any]) -> bool:
+    return bool(
+        settings.get("enabled")
+        and int(settings.get("price_per_gb") or 0) > 0
+        and int(settings.get("price_per_day") or 0) > 0
+        and float(settings.get("min_gb") or 0) > 0
+        and float(settings.get("max_gb") or 0) >= float(settings.get("min_gb") or 0)
+        and int(settings.get("min_days") or 0) > 0
+        and int(settings.get("max_days") or 0) >= int(settings.get("min_days") or 0)
+    )
+
+
+def panel_custom_buy_enabled(panel) -> bool:
+    return is_custom_buy_ready(panel_custom_buy_settings(panel))
+
+
+def calculate_custom_buy_price(*, price_per_gb: int, price_per_day: int, storage_gb: float, duration_days: int) -> int:
+    return round(float(storage_gb) * int(price_per_gb) + int(duration_days) * int(price_per_day))
+
+
+def calculate_custom_buy_price_from_settings(settings: dict[str, Any], *, storage_gb: float, duration_days: int) -> int:
+    return calculate_custom_buy_price(
+        price_per_gb=int(settings["price_per_gb"]),
+        price_per_day=int(settings["price_per_day"]),
+        storage_gb=storage_gb,
+        duration_days=duration_days,
+    )
+
+
+def calculate_panel_custom_buy_price(panel, *, storage_gb: float, duration_days: int) -> int:
+    return calculate_custom_buy_price_from_settings(
+        panel_custom_buy_settings(panel),
+        storage_gb=storage_gb,
+        duration_days=duration_days,
+    )
+
+
+def _compact_custom_buy_namespace(namespace: dict[str, Any]) -> dict[str, Any] | None:
+    compact: dict[str, Any] = {}
+    enabled = bool(namespace.get("enabled", False))
+    if enabled != DEFAULT_CUSTOM_BUY["enabled"]:
+        compact["enabled"] = enabled
+    for key in ("price_per_gb", "price_per_day", "min_days", "max_days", "ip_limit"):
+        value = _as_non_negative_int(namespace.get(key), DEFAULT_CUSTOM_BUY[key])
+        if value != DEFAULT_CUSTOM_BUY[key]:
+            compact[key] = value
+    for key in ("min_gb", "max_gb"):
+        value = _as_positive_number(namespace.get(key), DEFAULT_CUSTOM_BUY[key])
+        default = DEFAULT_CUSTOM_BUY[key]
+        stored = int(value) if value == int(value) else value
+        if stored != default:
+            compact[key] = stored
+    return compact or None
+
+
+def update_custom_buy_in_feature_settings(feature: dict[str, Any], **updates: Any) -> dict[str, Any]:
+    current = panel_custom_buy_settings_from_feature(feature)
+    for key, value in updates.items():
+        if key in DEFAULT_CUSTOM_BUY:
+            current[key] = value
+    if current["max_gb"] < current["min_gb"]:
+        current["max_gb"] = current["min_gb"]
+    if current["max_days"] < current["min_days"]:
+        current["max_days"] = current["min_days"]
+    compact = _compact_custom_buy_namespace(current)
+    if compact:
+        feature[FEATURE_CUSTOM_BUY] = compact
+    else:
+        feature.pop(FEATURE_CUSTOM_BUY, None)
+    return current
+
+
+def toggle_custom_buy_enabled(feature: dict[str, Any]) -> dict[str, Any]:
+    current = panel_custom_buy_settings_from_feature(feature)
+    return update_custom_buy_in_feature_settings(feature, enabled=not current["enabled"])
 
 
 def panel_reseller_button_enabled(panel, key: str) -> bool:
@@ -284,6 +412,10 @@ def compact_feature_settings(settings: dict[str, Any]) -> dict[str, Any]:
             buttons = {flag: bool(value[flag]) for flag in DEFAULT_RESELLER_BUTTON_SETTINGS if flag in value}
             if buttons != DEFAULT_RESELLER_BUTTON_SETTINGS:
                 compact[key] = buttons
+        elif key == FEATURE_CUSTOM_BUY and isinstance(value, dict):
+            custom_buy = _compact_custom_buy_namespace(value)
+            if custom_buy:
+                compact[key] = custom_buy
         elif value not in (None, {}, []):
             compact[key] = value
     return compact

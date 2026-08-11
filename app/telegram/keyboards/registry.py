@@ -37,6 +37,7 @@ KEYBOARD_BUTTON_TITLES = {
     "in.balance.crypto": "پرداخت ارزی",
     "in.balance.manual": "کارت به کارت (دستی)",
     "in.balance.disabled": "شارژ غیرفعال",
+    "in.balance.referral": "دعوت دوستان",
     "in.balance.trx": "پرداخت TRX",
     "in.balance.usdt": "پرداخت USDT",
     "in.balance.ton": "پرداخت TON",
@@ -50,6 +51,7 @@ KEYBOARD_BUTTON_TITLES = {
     "in.buy.discount": "اعمال کد تخفیف",
     "in.buy.default_username": "اسم پیشفرض ربات",
     "in.buy.retry_username": "تغییر مجدد نام کانفیگ",
+    "in.buy.custom": "خرید حجم و زمان دلخواه",
     "in.buy.empty_list": "خرید (بدون سرویس)",
     "in.rs.show_creds": "نمایش رمز ورود",
     "in.rs.change_password": "تغییر رمز عبور",
@@ -104,6 +106,7 @@ KEYBOARD_BUTTON_DEFAULTS = {
     "in.balance.crypto": "💵 پرداخت ارزی",
     "in.balance.manual": "💳 کارت به کارت (تایید زیر 5 دقیقه)",
     "in.balance.disabled": "❌ شارژ حساب غیرفعال می‌باشد",
+    "in.balance.referral": "🎁 دعوت دوستان",
     "in.balance.trx": "💵 پرداخت با TRX (ترون)",
     "in.balance.usdt": "💵 پرداخت با USDT (تتر)",
     "in.balance.ton": "💎 پرداخت با TON (تون)",
@@ -117,6 +120,7 @@ KEYBOARD_BUTTON_DEFAULTS = {
     "in.buy.discount": "🎉 اعمال کد تخفیف",
     "in.buy.default_username": "🎲 اسم پیشفرض ربات",
     "in.buy.retry_username": "🔄 تغییر مجدد نام کانفیگ",
+    "in.buy.custom": "🧩 حجم و زمان دلخواه",
     "in.buy.empty_list": "🚀 خرید اکانت ویتوری",
     "in.rs.show_creds": "🔑 نمایش رمز ورود",
     "in.rs.change_password": "🔄 تغییر رمز عبور",
@@ -137,6 +141,7 @@ KEYBOARD_BUTTON_DEFAULTS = {
 KEYBOARD_BUTTON_DEFAULT_STYLES = {
     "bt.menu_my_services": ("primary", 5895443668663275064),
     "bt.menu_buy_service": ("success", 5373052667671093676),
+    "in.buy.custom": ("primary", None),
 }
 
 STYLE_LABELS = {

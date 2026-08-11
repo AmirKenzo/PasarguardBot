@@ -200,6 +200,7 @@ def build_panel_admin_settings_buttons(panel: Any) -> list:
         ],
         [Button.inline("🌐 پیشوند نود", data=f"panel_node_prefixes:{code}")],
         [Button.inline("🧪 تنظیمات تست", data=f"panel_test_settings:{code}")],
+        [Button.inline("🧩 خرید دلخواه (حجم/زمان)", data=f"panel_custom_buy:{code}")],
         [
             Button.inline("♾️ پلن‌های حجم اضافه", data=f"panel_volume_plans:{code}"),
             Button.inline("⏰ پلن‌های زمان اضافه", data=f"panel_time_plans:{code}"),

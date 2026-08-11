@@ -30,18 +30,26 @@ from app.services.billing.direct_pay_flow import (
     create_balance_button,
 )
 from app.services.billing.direct_pay_store import KIND_VPN
+from app.services.billing.referral_rewards import process_referral_reward_payout
 from app.services.billing.sticky_discount import discounted_price, get_sticky_discount
 from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
+from app.services.panels.custom_buy import build_custom_buy_plan, is_custom_plan_id
 from app.services.panels.groups import resolve_panel_group_ids
 from app.services.panels.nodes import filter_nodes_by_plan_type, format_node_name_for_display
-from app.services.panels.settings import panel_display_mode, panel_shop_sale_enabled, panel_user_limit
+from app.services.panels.settings import (
+    panel_custom_buy_enabled,
+    panel_display_mode,
+    panel_shop_sale_enabled,
+    panel_user_limit,
+)
 from app.services.subscriptions.links import format_subscription_links_for_message
 from app.telegram.keyboards.buy import (
     build_buy_confirm_button_rows,
     build_buy_service_selection_rows,
     build_buy_username_prompt_rows,
     buy_back_button,
+    buy_custom_button,
 )
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.keyboards.duration_buttons import build_duration_selection_button_rows
@@ -53,7 +61,7 @@ from app.telegram.shared.utils.username import (
     handle_buy_username_conflict,
     is_panel_username_conflict,
 )
-from app.telegram.state import clear_user, get_data, set_data, set_step
+from app.telegram.state import clear_user, delete_data_many, get_data, get_data_many, set_data, set_step
 from app.telegram.user.shop import states
 from app.utils.formatting.conversions import convert_storage, day_to_timestamp, gigabytes_to_bytes
 from app.utils.formatting.dates import Time_Date
@@ -67,6 +75,13 @@ logger = get_logger(__name__)
 async def _user_lang(user_id: int) -> str:
     info = await UserCRUD().read_user(user_id)
     return info.language if info and info.language else states.BOT_LANGUAGE
+
+
+async def _format_bot_text(key: str, default: str, lang: str, **placeholders: object) -> str:
+    template = await get_bot_text(key=key, default=default, lang=lang)
+    for name, value in placeholders.items():
+        template = template.replace(f"{{{name}}}", str(value))
+    return template
 
 
 async def check_user_balance(user_id: int, required_amount: int):
@@ -114,20 +129,51 @@ async def generate_volume_buttons(panel_code, duration=None, duration_group=None
         else:
             plans = await PlanManager().get_all_plans(panel_code=panel_code, duration=duration)
 
-        if not plans:
-            return [[Button.inline("❌ هیچ پلنی برای این پنل یافت نشد", data="no_plans")]]
-
         panel = await PanelsManager().get_panel_by_code(panel_code)
-        sorted_plans = sorted(plans, key=lambda plan: plan.storage)
-        volume_buttons = [
-            [await build_plan_inline_button(plan, panel, f"SelectPlan_{plan.id}", context="buy")]
-            for plan in sorted_plans
-        ]
+        volume_buttons = []
+        if plans:
+            sorted_plans = sorted(plans, key=lambda plan: plan.storage)
+            volume_buttons = [
+                [await build_plan_inline_button(plan, panel, f"SelectPlan_{plan.id}", context="buy")]
+                for plan in sorted_plans
+            ]
+        if panel and panel_custom_buy_enabled(panel):
+            volume_buttons.append([await buy_custom_button(f"CustomBuy_{panel_code}")])
+        if not volume_buttons:
+            return [[Button.inline("❌ هیچ پلنی برای این پنل یافت نشد", data="no_plans")]]
         volume_buttons.append([await buy_back_button(back_data)])
         return volume_buttons
     except Exception as e:
         logger.error(f"خطا در دریافت داده‌ها: {e}")
         return [[Button.inline("⚠️ خطا در دریافت پلن‌ها", data="error")]]
+
+
+async def resolve_buy_plan_from_session(user_id: int):
+    session = await get_data_many(
+        user_id,
+        ("selected_plan_id", "gig", "custom_days", "custom_price", "custom_ip_limit"),
+    )
+    plan_id = session.get("selected_plan_id")
+    if is_custom_plan_id(plan_id):
+        gig = session.get("gig")
+        days = session.get("custom_days")
+        price = session.get("custom_price")
+        ip_limit = session.get("custom_ip_limit")
+        if gig is None or days is None or price is None:
+            return None
+        return build_custom_buy_plan(
+            storage_gb=float(gig),
+            duration_days=int(days),
+            price=int(float(price)),
+            ip_limit=int(ip_limit or 0),
+        )
+    if plan_id is None:
+        return None
+    return await PlanManager().get_plan(plan_id)
+
+
+async def clear_custom_buy_session(user_id: int) -> None:
+    await delete_data_many(user_id, ("custom_days", "custom_price", "custom_ip_limit"))
 
 
 async def build_buy_panel_rows(panels: list) -> list:
@@ -188,9 +234,11 @@ async def show_buy_vpn_plans(event, panel, *, lang: str = "fa", back_data: str =
         return
 
     display_mode = panel_display_mode(panel)
+    custom_enabled = panel_custom_buy_enabled(panel)
     if display_mode == "duration_first":
         durations = await PlanManager().get_unique_durations(selected_code)
-        if not durations:
+        duration_groups = group_durations(durations) if durations else []
+        if not duration_groups and not custom_enabled:
             msg = "❌ هیچ پلنی برای این پنل موجود نیست!"
             if is_callback:
                 await event.answer(msg, alert=True)
@@ -198,22 +246,24 @@ async def show_buy_vpn_plans(event, panel, *, lang: str = "fa", back_data: str =
                 await event.respond(msg)
             return
 
-        duration_groups = group_durations(durations)
-        if not duration_groups:
-            msg = "❌ هیچ پلنی برای این پنل موجود نیست!"
-            if is_callback:
-                await event.answer(msg, alert=True)
+        back_row = [await buy_back_button(back_data)]
+        if duration_groups:
+            buttons = await build_duration_selection_button_rows(
+                selected_code,
+                duration_groups,
+                context="buy",
+                make_callback=lambda d: f"SelectDurationGroupForBuy:{selected_code}:{d}",
+                back_row=back_row,
+            )
+        else:
+            buttons = [back_row]
+        if custom_enabled:
+            custom_row = [await buy_custom_button(f"CustomBuy_{selected_code}")]
+            if buttons and buttons[-1] == back_row:
+                buttons.insert(-1, custom_row)
             else:
-                await event.respond(msg)
-            return
-
-        buttons = await build_duration_selection_button_rows(
-            selected_code,
-            duration_groups,
-            context="buy",
-            make_callback=lambda d: f"SelectDurationGroupForBuy:{selected_code}:{d}",
-            back_row=[await buy_back_button(back_data)],
-        )
+                buttons.append(custom_row)
+                buttons.append(back_row)
         message = await get_bot_text(
             key="buy_select_duration_message",
             default="⚡️ یکی از پلن های موجود رو از ۷ روزه تا ۹۰ روزه انتخاب کن :",
@@ -227,6 +277,13 @@ async def show_buy_vpn_plans(event, panel, *, lang: str = "fa", back_data: str =
         )
         message = panel_volume_text.replace("{panel_name}", panel.name)
         buttons = await generate_volume_buttons(selected_code, back_data=back_data)
+        if buttons and len(buttons) == 1 and buttons[0] and getattr(buttons[0][0], "data", b"") == b"no_plans":
+            msg = "❌ هیچ پلنی برای این پنل موجود نیست!"
+            if is_callback:
+                await event.answer(msg, alert=True)
+            else:
+                await event.respond(msg)
+            return
         await set_step(user_id, "selectData")
 
     await set_data(user_id, "panel", selected_code)
@@ -238,11 +295,11 @@ async def show_buy_vpn_plans(event, panel, *, lang: str = "fa", back_data: str =
 
 
 async def _buy_username_context(user_id: int):
-    panel_code = await get_data(user_id, "panel")
+    session = await get_data_many(user_id, ("panel", "gig"))
+    panel_code = session.get("panel")
     panel = await PanelsManager().get_panel_by_code(code=panel_code)
-    gig = await get_data(user_id, "gig")
-    plan_id = await get_data(user_id, "selected_plan_id")
-    plan = await PlanManager().get_plan(plan_id)
+    gig = session.get("gig")
+    plan = await resolve_buy_plan_from_session(user_id)
     return panel, gig, plan
 
 
@@ -341,10 +398,10 @@ async def _confirm_buy_username(event, username: str, *, edit: bool) -> None:
 
 
 async def _load_purchase_context(user_id: int):
-    gig = await get_data(user_id, "gig")
-    panel_code = await get_data(user_id, "panel")
-    plan_id = await get_data(user_id, "selected_plan_id")
-    plan = await PlanManager().get_plan(plan_id)
+    session = await get_data_many(user_id, ("gig", "panel"))
+    gig = session.get("gig")
+    panel_code = session.get("panel")
+    plan = await resolve_buy_plan_from_session(user_id)
     return gig, panel_code, plan
 
 
@@ -361,10 +418,24 @@ async def create_vpn_purchase_for_user(
     if payload:
         gig = payload.get("gig")
         panel_code = payload.get("panel")
-        plan_id = payload.get("selected_plan_id")
+        plan_id = payload.get("selected_plan_id", payload.get("plan_id"))
         username = payload.get("username")
-        plan = await PlanManager().get_plan(plan_id)
         discount_code = discount_code or payload.get("discount_code")
+        if is_custom_plan_id(plan_id):
+            days = payload.get("custom_days")
+            price = payload.get("custom_price")
+            ip_limit = payload.get("custom_ip_limit")
+            if gig is None or days is None or price is None:
+                plan = None
+            else:
+                plan = build_custom_buy_plan(
+                    storage_gb=float(gig),
+                    duration_days=int(days),
+                    price=int(float(price)),
+                    ip_limit=int(ip_limit or 0),
+                )
+        else:
+            plan = await PlanManager().get_plan(plan_id)
     else:
         gig, panel_code, plan = await _load_purchase_context(user_id)
         username = await get_data(user_id, "username")
@@ -503,6 +574,13 @@ async def create_vpn_purchase_for_user(
 
     if discount_code:
         await DiscountCodeManager().update_discount_usage(code=discount_code)
+
+    try:
+        user = await UserCRUD().read_user(user_id)
+        if user and user.ref:
+            await process_referral_reward_payout(user.ref, user_id)
+    except Exception as e:
+        logger.error("Error processing referral rewards: %s", e)
 
     await ServiceCRUD().create_service(
         code=code_service,

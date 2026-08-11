@@ -43,6 +43,7 @@ PANEL_ADMIN_PREFIXES = (
     "panel_test_settings:",
     "panel_test_volume:",
     "panel_test_duration:",
+    "panel_custom_buy",
     "panel_volume_plans:",
     "panel_time_plans:",
     "panel_add_volume_plan:",

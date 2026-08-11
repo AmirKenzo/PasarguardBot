@@ -45,7 +45,9 @@ from app.services.panels.settings import (
     delete_volume_plan_from_feature_settings,
     get_panel_time_plan,
     get_panel_volume_plan,
+    is_custom_buy_ready,
     panel_button_enabled,
+    panel_custom_buy_settings,
     panel_default_group_ids,
     panel_display_mode,
     panel_node_prefixes,
@@ -58,6 +60,7 @@ from app.services.panels.settings import (
     panel_user_limit,
     panel_webhook_notifications_enabled,
     subscription_settings,
+    toggle_custom_buy_enabled,
     toggle_panel_reseller_button_setting,
     toggle_panel_sales_setting,
     update_time_plan_in_feature_settings,
@@ -71,6 +74,7 @@ from app.telegram.admin.panels.service import (
     build_panel_test_settings_content,
     display_panels,
     mutate_panel_feature_settings,
+    show_panel_custom_buy_menu,
     show_panel_ms_buttons_menu,
     show_panel_time_plans_menu,
     show_panel_volume_plans_menu,
@@ -846,6 +850,72 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
         status_text = "فعال ✅" if new_status else "غیرفعال ❌"
         await event.answer(f"✅ {label} به {status_text} تغییر یافت!", alert=True)
         await show_panel_ms_buttons_menu(event, panel)
+
+    elif data.startswith("panel_custom_buy:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        await show_panel_custom_buy_menu(event, panel)
+
+    elif data.startswith("panel_custom_buy_toggle:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+
+        if not await mutate_panel_feature_settings(panel_code, toggle_custom_buy_enabled):
+            await event.answer("❌ خطا در ذخیره تنظیمات.", alert=True)
+            return
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        settings = panel_custom_buy_settings(panel)
+        ready = is_custom_buy_ready(settings)
+        if settings["enabled"] and not ready:
+            await event.answer("⚠️ روشن شد؛ برای فعال‌سازی نهایی نرخ هر گیگ و هر روز را تنظیم کنید.", alert=True)
+        else:
+            await event.answer(
+                f"✅ خرید دلخواه {'فعال' if ready else 'غیرفعال'} شد.",
+                alert=True,
+            )
+        await show_panel_custom_buy_menu(event, panel)
+
+    elif data.startswith("panel_custom_buy_price_gb:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        settings = panel_custom_buy_settings(panel)
+        await set_data(event.sender_id, "panel_custom_buy_code", str(panel_code))
+        await set_step(event.sender_id, "waiting_custom_buy_price_gb")
+        await event.edit(
+            "💰 **تنظیم قیمت هر گیگ (خرید دلخواه)**\n\n"
+            f"پنل: `{panel.name}`\n"
+            f"نرخ فعلی: `{settings['price_per_gb']:,}` تومان\n\n"
+            "قیمت هر گیگ را به تومان وارد کنید.\n"
+            "مثال: `5000`",
+            buttons=[[Button.inline("❌ انصراف", data=f"panel_custom_buy:{panel_code}")]],
+        )
+
+    elif data.startswith("panel_custom_buy_price_day:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        settings = panel_custom_buy_settings(panel)
+        await set_data(event.sender_id, "panel_custom_buy_code", str(panel_code))
+        await set_step(event.sender_id, "waiting_custom_buy_price_day")
+        await event.edit(
+            "⏰ **تنظیم قیمت هر روز (خرید دلخواه)**\n\n"
+            f"پنل: `{panel.name}`\n"
+            f"نرخ فعلی: `{settings['price_per_day']:,}` تومان\n\n"
+            "قیمت هر روز را به تومان وارد کنید.\n"
+            "مثال: `1000`",
+            buttons=[[Button.inline("❌ انصراف", data=f"panel_custom_buy:{panel_code}")]],
+        )
 
     elif data.startswith("panel_volume_plans:"):
         panel_code = int(data.split(":")[1])

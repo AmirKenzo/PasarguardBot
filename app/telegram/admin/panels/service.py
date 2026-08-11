@@ -12,7 +12,12 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
 from app.services.panels.auth import panel_auth_type_label
+from app.services.panels.custom_buy import format_gb_value
 from app.services.panels.settings import (
+    compact_feature_settings,
+    feature_settings,
+    is_custom_buy_ready,
+    panel_custom_buy_settings,
     panel_reseller_sale_flag,
     panel_shop_sale_flag,
     panel_test_duration_days,
@@ -22,7 +27,11 @@ from app.telegram.shared.keyboards.panel_buttons import (
     build_panel_admin_settings_buttons,
     build_panel_list_rows,
     build_panel_ms_buttons_menu,
+    build_panel_time_plans_admin_buttons,
+    build_panel_volume_plans_admin_buttons,
     panel_ms_buttons_menu_text,
+    panel_time_plans_admin_text,
+    panel_volume_plans_admin_text,
 )
 from app.utils.formatting.conversions import convert_storage
 
@@ -159,7 +168,6 @@ async def mutate_panel_feature_settings(panel_code: int, mutator) -> bool:
     panel = await panel_manager.get_panel_by_code(panel_code)
     if not panel:
         return False
-    from app.services.panels.settings import compact_feature_settings, feature_settings
 
     settings = feature_settings(panel)
     mutator(settings)
@@ -168,11 +176,6 @@ async def mutate_panel_feature_settings(panel_code: int, mutator) -> bool:
 
 
 async def show_panel_volume_plans_menu(event, panel) -> None:
-    from app.telegram.shared.keyboards.panel_buttons import (
-        build_panel_volume_plans_admin_buttons,
-        panel_volume_plans_admin_text,
-    )
-
     await event.edit(
         panel_volume_plans_admin_text(panel),
         buttons=build_panel_volume_plans_admin_buttons(panel),
@@ -180,12 +183,32 @@ async def show_panel_volume_plans_menu(event, panel) -> None:
 
 
 async def show_panel_time_plans_menu(event, panel) -> None:
-    from app.telegram.shared.keyboards.panel_buttons import (
-        build_panel_time_plans_admin_buttons,
-        panel_time_plans_admin_text,
-    )
-
     await event.edit(
         panel_time_plans_admin_text(panel),
         buttons=build_panel_time_plans_admin_buttons(panel),
     )
+
+
+async def show_panel_custom_buy_menu(event, panel) -> None:
+    settings = panel_custom_buy_settings(panel)
+    ready = is_custom_buy_ready(settings)
+    toggle_label = "✅ روشن" if settings["enabled"] else "❌ خاموش"
+    ready_label = "فعال برای کاربر ✅" if ready else "برای کاربر غیرفعال ❌"
+    text = (
+        f"**🧩 خرید دلخواه پنل {panel.name}**\n\n"
+        f"📌 سوییچ: {toggle_label}\n"
+        f"📣 وضعیت نهایی: {ready_label}\n"
+        f"💰 قیمت هر گیگ: `{settings['price_per_gb']:,}` تومان\n"
+        f"⏰ قیمت هر روز: `{settings['price_per_day']:,}` تومان\n"
+        f"📥 بازه حجم: `{format_gb_value(settings['min_gb'])}` تا `{format_gb_value(settings['max_gb'])}` گیگ\n"
+        f"📅 بازه زمان: `{settings['min_days']}` تا `{settings['max_days']}` روز\n\n"
+        "کاربر می‌تواند حجم و زمان دلخواه وارد کند؛ قیمت = (گیگ × نرخ گیگ) + (روز × نرخ روز).\n"
+        "برای فعال شدن دکمه کاربر، سوییچ باید روشن باشد و هر دو نرخ بزرگ‌تر از صفر باشند."
+    )
+    buttons = [
+        [Button.inline(f"روشن/خاموش ({toggle_label})", data=f"panel_custom_buy_toggle:{panel.code}")],
+        [Button.inline("💰 تنظیم نرخ هر گیگ", data=f"panel_custom_buy_price_gb:{panel.code}")],
+        [Button.inline("⏰ تنظیم نرخ هر روز", data=f"panel_custom_buy_price_day:{panel.code}")],
+        [Button.inline("🔙 بازگشت", data=f"panel_info:{panel.code}")],
+    ]
+    await event.edit(text, buttons=buttons)

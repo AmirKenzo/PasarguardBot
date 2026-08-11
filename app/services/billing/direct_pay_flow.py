@@ -205,7 +205,18 @@ async def create_direct_pay_balance_button(user_id: int):
 
 
 async def build_vpn_payload_from_session(user_id: int) -> dict[str, Any]:
-    gig, panel, selected_plan_id, username, discount_code, product_label, volume = await asyncio.gather(
+    (
+        gig,
+        panel,
+        selected_plan_id,
+        username,
+        discount_code,
+        product_label,
+        volume,
+        custom_days,
+        custom_ip_limit,
+        custom_price,
+    ) = await asyncio.gather(
         get_data(user_id, "gig"),
         get_data(user_id, "panel"),
         get_data(user_id, "selected_plan_id"),
@@ -213,6 +224,9 @@ async def build_vpn_payload_from_session(user_id: int) -> dict[str, Any]:
         get_data(user_id, "codetakhfif"),
         get_data(user_id, "direct_pay_product_label"),
         get_data(user_id, "direct_pay_volume"),
+        get_data(user_id, "custom_days"),
+        get_data(user_id, "custom_ip_limit"),
+        get_data(user_id, "custom_price"),
     )
     return {
         "gig": gig,
@@ -222,6 +236,9 @@ async def build_vpn_payload_from_session(user_id: int) -> dict[str, Any]:
         "discount_code": discount_code,
         "product_label": product_label or "کانفیگ VPN",
         "volume": volume or "",
+        "custom_days": custom_days,
+        "custom_ip_limit": custom_ip_limit,
+        "custom_price": custom_price,
     }
 
 

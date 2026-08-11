@@ -170,6 +170,7 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                     await _keyboard_admin_button(keyboard_crud, "in.balance.crypto", 3),
                     await _keyboard_admin_button(keyboard_crud, "in.balance.manual", 3),
                 ],
+                [await _keyboard_admin_button(keyboard_crud, "in.balance.referral", 3)],
                 [await _keyboard_admin_button(keyboard_crud, "in.balance.back_home", 3)],
                 [await _keyboard_admin_button(keyboard_crud, "in.balance.disabled", 3)],
                 [Button.inline("📋 ━━━━ زیرمنوی پرداخت ارزی ━━━━", data="no_action")],
@@ -211,6 +212,7 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                     await _keyboard_admin_button(keyboard_crud, "in.buy.default_username", 4),
                     await _keyboard_admin_button(keyboard_crud, "in.buy.retry_username", 4),
                 ],
+                [await _keyboard_admin_button(keyboard_crud, "in.buy.custom", 4)],
                 [
                     await _keyboard_admin_button(keyboard_crud, "in.buy.empty_list", 4),
                 ],
