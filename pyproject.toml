@@ -8,7 +8,7 @@ dependencies = [
     "aiohttp>=3.14.3",
     "alembic>=1.19.0",
     "apscheduler>=3.11.3",
-    "asyncmy>=0.2.11; sys_platform != 'win32'",
+    "asyncmy>=0.2.13; sys_platform != 'win32'",
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
     "imagehash>=4.3.2",
