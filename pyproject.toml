@@ -24,7 +24,7 @@ dependencies = [
     "psutil>=7.0.0",
     "rich>=14.0.0",
     "colorama>=0.4.6; sys_platform == 'win32'",
-    "sqlalchemy[asyncio]>=2.0.51",
+    "sqlalchemy[asyncio]>=2.0.52",
     "uvicorn>=0.52.1",
     "uvloop>=0.22.1; sys_platform != 'win32'",
     "cryptography>=50.0.0",
