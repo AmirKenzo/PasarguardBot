@@ -16,3 +16,4 @@ docs/package-lock.json
 business_connections.json
 /tests
 /todo
+*.sql
