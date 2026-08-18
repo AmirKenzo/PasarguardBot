@@ -7,16 +7,16 @@ cache keyed by admin id is enough. Only the lightweight step string lives in Red
 
 from __future__ import annotations
 
-from app.services.migration.base import ParsedMigration
+from app.services.migration.importer import ResolvedMigration
 
-_pending: dict[int, ParsedMigration] = {}
-
-
-def set_pending(admin_id: int, parsed: ParsedMigration) -> None:
-    _pending[admin_id] = parsed
+_pending: dict[int, ResolvedMigration] = {}
 
 
-def get_pending(admin_id: int) -> ParsedMigration | None:
+def set_pending(admin_id: int, resolved: ResolvedMigration) -> None:
+    _pending[admin_id] = resolved
+
+
+def get_pending(admin_id: int) -> ResolvedMigration | None:
     return _pending.get(admin_id)
 
 

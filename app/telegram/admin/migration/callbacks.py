@@ -25,8 +25,8 @@ def _migration_callback_filter(event: events.CallbackQuery.Event) -> bool:
 
 async def _run_confirmed_import(event: events.CallbackQuery.Event) -> None:
     admin_id = event.sender_id
-    parsed = cache.get_pending(admin_id)
-    if parsed is None:
+    resolved = cache.get_pending(admin_id)
+    if resolved is None:
         await event.answer(texts.NO_PENDING_DATA, alert=True)
         return
 
@@ -44,7 +44,7 @@ async def _run_confirmed_import(event: events.CallbackQuery.Event) -> None:
             await event.edit(texts.progress_text(status_line))
 
     try:
-        result = await importer.run_import(parsed, progress_cb=_progress)
+        result = await importer.commit_migration(resolved, progress_cb=_progress)
     except Exception:
         logger.exception("Migration: import run failed")
         await event.edit(texts.IMPORT_FAILED, buttons=keyboards.back_buttons())

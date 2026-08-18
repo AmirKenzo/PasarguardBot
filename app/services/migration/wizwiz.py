@@ -89,7 +89,6 @@ class WizwizAdapter(SourceAdapter):
                     owner_id=owner_id,
                     username_candidates=candidates,
                     created_at=_as_int(row.get("date")),
-                    expire_date=_as_int(row.get("expire_date")),
                     enabled=(row.get("status") or "0").strip() == "1",
                 )
             )

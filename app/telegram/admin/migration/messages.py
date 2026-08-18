@@ -9,6 +9,7 @@ from telethon import events
 from telethon.tl.custom import Message
 
 from app.logger import get_logger
+from app.services.migration import importer
 from app.services.migration.base import ParsedMigration
 from app.services.migration.registry import ADAPTERS
 from app.telegram.admin.migration import cache, keyboards, states, texts
@@ -76,9 +77,27 @@ async def _handle_uploaded_file(event: Message) -> None:
             with contextlib.suppress(OSError):
                 os.remove(tmp_path)
 
-    cache.set_pending(event.sender_id, parsed)
+    await status.edit(texts.CHECKING_PANELS)
+    call_count = 0
+
+    async def _progress(status_line: str) -> None:
+        nonlocal call_count
+        call_count += 1
+        if call_count % 3:
+            return
+        with contextlib.suppress(Exception):
+            await status.edit(texts.checking_panels_text(status_line))
+
+    try:
+        resolved = await importer.resolve_migration(parsed, progress_cb=_progress)
+    except Exception as exc:
+        logger.exception("Migration: failed to resolve parsed backup against panels")
+        await status.edit(texts.parse_failed_text(str(exc)))
+        return
+
+    cache.set_pending(event.sender_id, resolved)
     await set_step(event.sender_id, states.MIGRATION_CONFIRM_STEP)
-    await status.edit(texts.preview_text(parsed), buttons=keyboards.confirm_buttons(), parse_mode="md")
+    await status.edit(texts.preview_text(resolved), buttons=keyboards.confirm_buttons(), parse_mode="md")
 
 
 async def message_handler_migration(event: Message):

@@ -27,7 +27,9 @@ class ParsedService:
     owner_id: int
     username_candidates: list[str]
     created_at: int | None = None
-    expire_date: int | None = None
+    # Whether the source bot's own bookkeeping still marks this row active — only a
+    # pre-filter to skip obviously-dead rows before spending a panel API call on them.
+    # Actual expiry/data-limit/enabled state always comes live from the panel.
     enabled: bool = True
 
 

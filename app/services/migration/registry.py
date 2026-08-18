@@ -7,6 +7,7 @@ plus one entry here — nothing else in the migration engine or the admin UI nee
 from __future__ import annotations
 
 from app.services.migration.base import SourceAdapter
+from app.services.migration.faoxima import FaoximaAdapter
 from app.services.migration.wizwiz import WizwizAdapter
 
-ADAPTERS: dict[str, SourceAdapter] = {adapter.slug: adapter for adapter in (WizwizAdapter(),)}
+ADAPTERS: dict[str, SourceAdapter] = {adapter.slug: adapter for adapter in (WizwizAdapter(), FaoximaAdapter())}

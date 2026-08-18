@@ -18,6 +18,77 @@ def _split_columns(raw: str) -> list[str]:
     return [c.strip().strip("`") for c in raw.split(",")]
 
 
+def _split_top_level(body: str) -> list[str]:
+    """Split a CREATE TABLE body on top-level commas (not inside parens/quotes)."""
+    parts: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    in_string = False
+    quote_char = ""
+    i = 0
+    n = len(body)
+    while i < n:
+        ch = body[i]
+        if in_string:
+            buf.append(ch)
+            if ch == "\\" and i + 1 < n:
+                buf.append(body[i + 1])
+                i += 2
+                continue
+            if ch == quote_char:
+                in_string = False
+            i += 1
+            continue
+        if ch in ("'", '"'):
+            in_string = True
+            quote_char = ch
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == "(":
+            depth += 1
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == ")":
+            depth -= 1
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == "," and depth == 0:
+            parts.append("".join(buf))
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    if buf:
+        parts.append("".join(buf))
+    return parts
+
+
+def _columns_from_create_table(sql_text: str, table_name: str) -> list[str]:
+    """Column order for a table, read from its CREATE TABLE statement.
+
+    Needed for dumps (phpMyAdmin/mysqldump without --complete-insert) that write
+    INSERT INTO `table` VALUES (...) with no explicit column list.
+    """
+    match = re.search(
+        r"CREATE TABLE\s+`" + re.escape(table_name) + r"`\s*\((?P<body>.*?)\)\s*ENGINE",
+        sql_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        return []
+    columns = []
+    for raw_def in _split_top_level(match.group("body")):
+        raw_def = raw_def.strip()
+        if raw_def.startswith("`"):
+            end = raw_def.index("`", 1)
+            columns.append(raw_def[1:end])
+    return columns
+
+
 def _read_sql_tuple(text: str, pos: int) -> tuple[list[str], int]:
     """Read one `(...)` value tuple starting at text[pos] == '('.
 
@@ -94,16 +165,25 @@ def _unescape_sql_value(raw: str) -> str | None:
 def iter_insert_rows(sql_text: str, table_name: str) -> Iterator[dict[str, str | None]]:
     """Yield one dict[column_name, value] per row from every INSERT INTO `table_name` statement.
 
-    Column mapping comes from the statement's own explicit column list, not positional
-    guessing, so this stays correct even if a future dump reorders columns.
+    Handles both dump styles: an explicit column list (INSERT INTO `t` (a,b) VALUES ...,
+    used by wizwiz's mysqldump) and a bare one (INSERT INTO `t` VALUES ..., used by
+    faoxima's phpMyAdmin export) — in the bare case, column order is read once from the
+    table's own CREATE TABLE statement instead of guessed.
     """
     pattern = re.compile(
-        r"INSERT INTO\s+`" + re.escape(table_name) + r"`\s*\((?P<columns>[^)]*)\)\s*VALUES\s*",
+        r"INSERT INTO\s+`" + re.escape(table_name) + r"`\s*(?:\((?P<columns>[^)]*)\)\s*)?VALUES\s*",
         re.IGNORECASE,
     )
     n = len(sql_text)
+    fallback_columns: list[str] | None = None
     for match in pattern.finditer(sql_text):
-        columns = _split_columns(match.group("columns"))
+        col_group = match.group("columns")
+        if col_group:
+            columns = _split_columns(col_group)
+        else:
+            if fallback_columns is None:
+                fallback_columns = _columns_from_create_table(sql_text, table_name)
+            columns = fallback_columns
         i = match.end()
         while i < n:
             while i < n and sql_text[i] in " \t\r\n,":
