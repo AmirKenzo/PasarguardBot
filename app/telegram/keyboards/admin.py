@@ -106,6 +106,7 @@ Panel_Admin_Buttons = [
     [create_button("💰 شارژ گروهی"), create_button("🔄 ریست دریافت تست")],
     [create_button("📈 افزایش حجم و زمان همگانی"), create_button("🔐 قفل چنل ها")],
     [create_button("📝 مدیریت لاگ‌ها"), create_button("📦 بکاپ ربات")],
+    [create_button("🧬 مایگریشن از ربات دیگر")],
     [create_button("📝 متن‌های ربات"), create_button("⌨️ مدیریت دکمه‌های کیبورد")],
     [create_button("🎁 سیستم دعوت دوستان"), create_button("🔗 لینک های آماده")],
     [styled_simple_webview_button("📚 مستندات ربات", DOCS_URL)],
