@@ -26,7 +26,7 @@ def _as_int(value: str | None, default: int | None = None) -> int | None:
 
 class WizwizAdapter(SourceAdapter):
     slug = "wizwiz"
-    display_name = "ویزویز"
+    display_name = "ویزویز پرو"
 
     def parse(self, sql_text: str) -> ParsedMigration:
         parsed = ParsedMigration(source_slug=self.slug, source_label=self.display_name)
@@ -65,7 +65,7 @@ class WizwizAdapter(SourceAdapter):
             parsed.panels.append(
                 ParsedPanel(
                     source_id=source_id,
-                    name=f"وارد شده از ویزویز #{source_id}",
+                    name=f"وارد شده از ویزویز پرو #{source_id}",
                     base_url=base_url,
                     username=username,
                     password=password,
