@@ -56,6 +56,7 @@ PANEL_MS_RESELLER_BUTTON_TOGGLES: tuple[tuple[str, str], ...] = (
     ("toggle_status", "🕹 فعال/غیرفعال سازی پنل"),
     ("usage_report", "📊 گزارش مصرف"),
     ("usage_cap", "📦 محدودیت مصرف"),
+    ("buy_user_capacity", "👥 خرید ظرفیت کاربر اضافه"),
     ("delete", "🗑 حذف نمایندگی"),
 )
 
@@ -187,7 +188,7 @@ def build_panel_admin_settings_buttons(panel: Any) -> list:
         [Button.inline("✏️ نام", data=f"change_panel_name:{code}")],
         [Button.inline(f"🔑 ورود ({panel_auth_type_label(panel, short=True)})", data=f"panel_auth_type:{code}")],
         [Button.inline("📦 گروه پیش‌فرض", data=f"change_panel_group:{code}")],
-        [Button.inline("👥 محدودیت کاربر", data=f"panel_user_limit:{code}")],
+        [Button.inline("🧢 سقف خرید سرویس از این پنل", data=f"panel_user_limit:{code}")],
         [glass_inline_button("📱 دکمه‌های سرویس من", data=f"panel_ms_buttons:{code}")],
         [Button.inline(f"📊 نمایش ({display_short})", data=f"panel_display_mode:{code}")],
         [
@@ -201,6 +202,7 @@ def build_panel_admin_settings_buttons(panel: Any) -> list:
         [Button.inline("🌐 پیشوند نود", data=f"panel_node_prefixes:{code}")],
         [Button.inline("🧪 تنظیمات تست", data=f"panel_test_settings:{code}")],
         [Button.inline("🧩 خرید دلخواه (حجم/زمان)", data=f"panel_custom_buy:{code}")],
+        [Button.inline("👥 خرید ظرفیت کاربر (نمایندگی)", data=f"panel_reseller_capacity:{code}")],
         [
             Button.inline("♾️ پلن‌های حجم اضافه", data=f"panel_volume_plans:{code}"),
             Button.inline("⏰ پلن‌های زمان اضافه", data=f"panel_time_plans:{code}"),

@@ -37,6 +37,7 @@ from app.services.panels.settings import (
     get_panel_volume_plan,
     panel_node_prefixes,
     update_custom_buy_in_feature_settings,
+    update_reseller_capacity_in_feature_settings,
     update_time_plan_in_feature_settings,
     update_volume_plan_in_feature_settings,
 )
@@ -900,6 +901,39 @@ async def panel_admin_message_handler(event: Message):
             await set_step(event.sender_id, "Menu_panels")
         else:
             await event.respond("❌ لطفاً مبلغ را فقط با عدد وارد کنید.\n\nمثال: 5000")
+        return
+
+    if step == "waiting_reseller_capacity_price" and msg:
+        normalized_price = re.sub(r"[,\s٬،]", "", msg.strip())
+        if normalized_price.isdigit() and int(normalized_price) > 0:
+            panel_code = await get_data(event.sender_id, "panel_reseller_capacity_code")
+            if not panel_code:
+                await event.respond("❌ خطا در دریافت اطلاعات پنل. لطفاً دوباره تلاش کنید.")
+                await set_step(event.sender_id, "Menu_panels")
+                return
+            price_value = int(normalized_price)
+
+            def _update(settings):
+                update_reseller_capacity_in_feature_settings(settings, price_per_user=price_value)
+
+            if not await mutate_panel_feature_settings(int(panel_code), _update):
+                await event.respond("❌ خطا در ذخیره تنظیمات.")
+                await set_step(event.sender_id, "Menu_panels")
+                return
+            panel = await PanelsManager().get_panel_by_code(int(panel_code))
+            await event.respond(
+                f"✅ **قیمت خرید ظرفیت کاربر ذخیره شد.**\n\n"
+                f"📊 پنل: {panel.name if panel else panel_code}\n"
+                f"💰 قیمت هر کاربر: `{price_value:,}` تومان",
+                buttons=[
+                    [Button.inline("🔙 بازگشت به خرید ظرفیت کاربر", data=f"panel_reseller_capacity:{panel_code}")],
+                    [Button.inline("📉 لیست پنل‌ها", data="backPanel_list")],
+                ],
+            )
+            await clear_user(event.sender_id)
+            await set_step(event.sender_id, "Menu_panels")
+        else:
+            await event.respond("❌ لطفاً مبلغ را فقط با عدد صحیح مثبت وارد کنید.\n\nمثال: 2000")
         return
 
     if step == "waiting_custom_node_prefix" and msg:
