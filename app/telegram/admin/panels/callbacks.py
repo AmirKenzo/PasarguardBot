@@ -325,7 +325,11 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             await event.answer("پنل پیدا نشد!", alert=True)
             return
         await event.edit(
-            f"🌐 آدرس فعلی پنل:\n`{panel.base_url}`\n\nآدرس جدید را ارسال کنید.\n〰️ مثال: `https://panel.example.com`",
+            f"🌐 آدرس فعلی پنل:\n`{panel.base_url}`\n\n"
+            "آدرس جدید را ارسال کنید.\n"
+            "〰️ مثال: `https://panel.example.com`\n"
+            "〰️ اگر پنل روی پورت اختصاصی است: `https://panel.example.com:8000`\n\n"
+            "⚠️ فقط دامنه یا آی‌پی (و در صورت نیاز پورت) را وارد کنید؛ بدون path.",
             buttons=[[Button.inline("❌ انصراف", data=f"panel_auth_type:{panel_code}")]],
             parse_mode="markdown",
         )

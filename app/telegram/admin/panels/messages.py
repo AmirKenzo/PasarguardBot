@@ -195,7 +195,8 @@ async def panel_admin_message_handler(event: Message):
             message=(
                 "🌐 آدرس پنل را ارسال کنید.\n"
                 "〰️ مثال: `https://panel.example.com`\n"
-                "〰️ اگر پنل روی path نصب شده: `https://panel.example.com/admin`\n\n"
+                "〰️ اگر پنل روی پورت اختصاصی است: `https://panel.example.com:8000`\n\n"
+                "⚠️ فقط دامنه یا آی‌پی (و در صورت نیاز پورت) را وارد کنید؛ بدون path — مثلاً `/admin` یا هر مسیر دیگر اضافه نشود.\n\n"
                 "لینک تانل یا آیپی ایران در این مرحله نیاز نیست؛ بعداً از تنظیمات همان پنل قابل تنظیم است."
             ),
         )
