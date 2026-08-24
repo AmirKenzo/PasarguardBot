@@ -1,58 +1,57 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"python.analysis.inlayHints.variableTypes": true,
-		"python.analysis.autoImportCompletions": true,
-		"python.analysis.completeFunctionParens": true,
-		"python.analysis.inlayHints.pytestParameters": true,
-		"python.analysis.inlayHints.callArgumentNames": "all",
-		"python.analysis.inlayHints.functionReturnTypes": true,
-		"ruff.enable": true,
-		"ruff.importStrategy": "fromEnvironment",
-		"ruff.fixAll": true,
-		"ruff.organizeImports": true,
-		"ruff.showSyntaxErrors": true,
-		"[python]": {
-			"editor.defaultFormatter": "charliermarsh.ruff",
-			"editor.formatOnSave": true,
-			"editor.codeActionsOnSave": {
-				"source.fixAll.ruff": "explicit",
-				"source.organizeImports.ruff": "explicit",
-			},
-		},
-		"editor.codeActionsOnSave": {
-			"source.fixAll": "explicit",
-			"source.organizeImports": "never"
-		},
-		"remote.localPortHost": "allInterfaces",
-		"files.autoSave": "afterDelay",
-	},
-	"launch": {
-		"version": "0.2.0",
-		"configurations": [
-			{
-				"name": "Python Debugger: Current File",
-				"type": "debugpy",
-				"request": "launch",
-				"program": "main.py",
-				"console": "integratedTerminal"
-			}
-		],
-		"compounds": []
-	},
-	"extensions": {
-		"recommendations": [
-			"donjayamanne.python-extension-pack",
-			"charliermarsh.ruff",
-			"dbaeumer.vscode-eslint",
-			"esbenp.prettier-vscode",
-			"tamasfe.even-better-toml",
-			"Bar.python-import-helper"
-
-		]
-	}
+  "folders": [
+    {
+      "path": ".",
+    },
+  ],
+  "settings": {
+    "python.analysis.inlayHints.variableTypes": true,
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.completeFunctionParens": true,
+    "python.analysis.inlayHints.pytestParameters": true,
+    "python.analysis.inlayHints.callArgumentNames": "all",
+    "python.analysis.inlayHints.functionReturnTypes": true,
+    "ruff.enable": true,
+    "ruff.importStrategy": "useBundled",
+    "ruff.fixAll": true,
+    "ruff.organizeImports": true,
+    "ruff.showSyntaxErrors": true,
+    "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff",
+      "editor.formatOnSave": true,
+      "editor.codeActionsOnSave": {
+        "source.fixAll.ruff": "explicit",
+        "source.organizeImports.ruff": "explicit",
+      },
+    },
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "never",
+    },
+    "remote.localPortHost": "allInterfaces",
+    "files.autoSave": "afterDelay",
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Python Debugger: Current File",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "main.py",
+        "console": "integratedTerminal",
+      },
+    ],
+    "compounds": [],
+  },
+  "extensions": {
+    "recommendations": [
+      "donjayamanne.python-extension-pack",
+      "charliermarsh.ruff",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "tamasfe.even-better-toml",
+      "Bar.python-import-helper",
+    ],
+  },
 }
