@@ -1,9 +1,10 @@
 """Keyboard builders for user balance."""
 
 from telethon import Button
-from telethon.tl.types import KeyboardButtonCopy, KeyboardButtonRow, ReplyInlineMarkup
+from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app.telegram.keyboards.balance import balance_back_home_button, balance_send_receipt_button
+from app.telegram.keyboards.common import styled_copy_button
 
 
 async def balance_amount_error_rows() -> list:
@@ -36,7 +37,7 @@ def crypto_copy_markup(amount: str | float, wallet_address: str) -> ReplyInlineM
     wallet_text = str(wallet_address)
     return ReplyInlineMarkup(
         [
-            KeyboardButtonRow([KeyboardButtonCopy(texts.COPY_AMOUNT_LABEL, amount_text)]),
-            KeyboardButtonRow([KeyboardButtonCopy(texts.COPY_WALLET_LABEL, wallet_text)]),
+            KeyboardInlineButtonRow([styled_copy_button(texts.COPY_AMOUNT_LABEL, amount_text)]),
+            KeyboardInlineButtonRow([styled_copy_button(texts.COPY_WALLET_LABEL, wallet_text)]),
         ]
     )

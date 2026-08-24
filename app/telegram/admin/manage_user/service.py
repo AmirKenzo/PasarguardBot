@@ -7,12 +7,7 @@ from httpx import HTTPStatusError
 from pasarguard import PasarguardAPI, UserCreate
 from pasarguard.enums import UserDataLimitResetStrategy
 from telethon import Button
-from telethon.tl.types import (
-    KeyboardButtonCopy,
-    KeyboardButtonRow,
-    KeyboardButtonWebView,
-    ReplyInlineMarkup,
-)
+from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app import Kenzo
 from app.db.crud.panels import PanelsManager
@@ -22,6 +17,7 @@ from app.logger import LogType, get_logger
 from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.groups import resolve_panel_group_ids
 from app.telegram.admin.manage_user import states
+from app.telegram.keyboards.common import styled_copy_button, styled_webview_button
 from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.state import clear_user, get_data, set_step
 from app.utils.formatting.conversions import day_to_timestamp, gigabytes_to_bytes
@@ -121,15 +117,15 @@ async def finalize_admin_config(event, username: str):
         file=qr_file,
         buttons=ReplyInlineMarkup(
             [
-                KeyboardButtonRow(
+                KeyboardInlineButtonRow(
                     [
-                        KeyboardButtonWebView(
+                        styled_webview_button(
                             "برای مشاهده اطلاعات بیشتر کلیک کنید",
                             f"{subscription_url}",
                         )
                     ]
                 ),
-                KeyboardButtonRow([KeyboardButtonCopy("برای کپی لینک کلیک کنید", f"{subscription_url}")]),
+                KeyboardInlineButtonRow([styled_copy_button("برای کپی لینک کلیک کنید", f"{subscription_url}")]),
             ]
         ),
     )

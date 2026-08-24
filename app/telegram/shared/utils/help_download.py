@@ -17,14 +17,13 @@ import httpx
 from aiofasttelethonhelper import fast_upload
 from telethon import Button
 from telethon.errors import MessageNotModifiedError
-from telethon.tl.types import KeyboardButtonCallback
 
 from app import Kenzo
 from app.db.crud.app_files import AppFileManager
 from app.db.crud.help_buttons import HelpDownloadAppCRUD
 from app.db.crud.log_channels import LogChannelManager
 from app.logger import get_logger
-from app.telegram.keyboards.common import _help_button_style
+from app.telegram.keyboards.common import _help_button_style, styled_callback_button
 from config import GITHUB_TOKEN
 
 logger = get_logger(__name__)
@@ -747,7 +746,7 @@ class AppDownloadManager:
         data = f"Download_{app_key}_t_{target['id']}".encode()
         style_obj = _help_button_style(target.get("button_style"), target.get("button_icon"))
         if style_obj:
-            return KeyboardButtonCallback(text=text, data=data, style=style_obj)
+            return styled_callback_button(text, data, style_obj)
         return Button.inline(text, data=f"Download_{app_key}_t_{target['id']}")
 
     def _build_downloads_from_db(self, all_app_files, targets: list[dict]) -> tuple[str | None, dict[str, list]]:

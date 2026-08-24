@@ -8,6 +8,7 @@ import shutil
 import time
 from datetime import datetime, timedelta
 
+from telethon.tl import types
 from telethon.tl.functions.help import GetConfigRequest
 
 from app import Kenzo
@@ -22,6 +23,7 @@ from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.logger.tags import LogTag
+from app.services.telegram.rich_message import rt as _rt, rt_bold as _rt_bold
 from app.telegram.admin.info_bot.states import (
     HIDDEN_LINK,
     REVENUE_PERIODS,
@@ -510,51 +512,132 @@ _SYSTEM_RATE_ROWS: tuple[tuple[str, str, int], ...] = (
 )
 
 
-def _premium_emoji(document_id: int) -> str:
-    """Rich Markdown custom emoji embed."""
-    return f"![](tg://emoji?id={document_id})"
-
-
-def _system_rates_table(payload: dict) -> str:
-    """Rich table: Currency | Price (English). Rows come from `_SYSTEM_RATE_ROWS`."""
+def _system_versions_block(payload: dict) -> str:
+    rows = [
+        ("Bot", VERSIONS.app),
+        ("Telethon", f"{VERSIONS.telethon} (Layer {VERSIONS.telethon_layer})"),
+        ("FastAPI", VERSIONS.fastapi),
+        ("Pasarguard", VERSIONS.pasarguard),
+        ("Python", payload.get("python", "-")),
+    ]
     lines = [
-        "## 💱 نرخ ارز",
+        "## 📦 نسخه‌ها",
         "",
-        "| Currency | Price |",
+        "| Component | Version |",
         "|:---|---:|",
     ]
-    for symbol, payload_key, emoji_id in _SYSTEM_RATE_ROWS:
-        price = int(payload.get(payload_key, 0) or 0)
-        lines.append(f"| {_premium_emoji(emoji_id)} {symbol} | `{price:,}` IRT |")
+    lines.extend(f"| {name} | `{value}` |" for name, value in rows)
     return "\n".join(lines)
 
 
+def system_rate_button_rows(payload: dict) -> list[types.PageBlockButtonRow]:
+    """Bot API 10.3 'Button Revolution': currency name + live price as disabled (display-only) native buttons."""
+    buttons = [
+        types.PageButton(
+            text=_rt(f"{symbol} · {int(payload.get(payload_key, 0) or 0):,}"),
+            type=types.InlineButtonTypeDisabled(),
+            style=types.RichButtonStyle(bg_primary=True),
+        )
+        for symbol, payload_key, _emoji_id in _SYSTEM_RATE_ROWS
+    ]
+    return [types.PageBlockButtonRow(buttons=buttons[i : i + 2], align_center=True) for i in range(0, len(buttons), 2)]
+
+
+def _status_table(payload: dict, ping_sec: float) -> types.PageBlockTable:
+    cpu = payload["cpu_percent"]
+    ram = payload["ram_percent"]
+    disk = payload["disk_percent"]
+    rows = [
+        ("🚀 Ping", f"{ping_sec * 1000:.0f} ms"),
+        ("🤖 Bot", "🟢 Online" if payload.get("bot_mode") else "🔴 Offline"),
+        ("🛒 Sales", "🟢 Active" if payload.get("sale_mode") else "🔴 Paused"),
+        (f"🖥 CPU · {payload.get('cpu_cores', 0)} cores", f"{_bar(cpu)}  {cpu}%"),
+        ("🧠 RAM", f"{_bar(ram)}  {ram}% · {_fmt_bytes(payload['ram_used'])}/{_fmt_bytes(payload['ram_total'])}"),
+        ("💽 Disk", f"{_bar(disk)}  {disk}% · {_fmt_bytes(payload['disk_used'])}/{_fmt_bytes(payload['disk_total'])}"),
+    ]
+    return types.PageBlockTable(
+        title=_rt("🧪 System Status"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _versions_table() -> types.PageBlockTable:
+    version_rows = [
+        ("Bot", VERSIONS.app),
+        ("Telethon", f"{VERSIONS.telethon} (Layer {VERSIONS.telethon_layer})"),
+        ("FastAPI", VERSIONS.fastapi),
+        ("Pasarguard", VERSIONS.pasarguard),
+        ("Python", platform.python_version()),
+    ]
+    return types.PageBlockTable(
+        title=_rt("📦 نسخه‌ها"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(
+                cells=[
+                    types.PageTableCell(text=_rt("Component"), header=True),
+                    types.PageTableCell(text=_rt("Version"), header=True),
+                ]
+            ),
+            *(
+                types.PageTableRow(cells=[types.PageTableCell(text=_rt(name)), types.PageTableCell(text=_rt(value))])
+                for name, value in version_rows
+            ),
+        ],
+    )
+
+
+def system_rich_blocks(payload: dict, ping_sec: float) -> list:
+    """Native Bot API 10.3 rich message blocks for stats:system (buttons embedded in the body)."""
+    updated_at = _to_datetime(payload.get("updated_at"))
+    return [
+        _status_table(payload, ping_sec),
+        types.PageBlockDivider(),
+        _versions_table(),
+        types.PageBlockDivider(),
+        types.PageBlockParagraph(_rt_bold("💱 نرخ ارز")),
+        *system_rate_button_rows(payload),
+        types.PageBlockDivider(),
+        types.PageBlockFooter(
+            types.TextConcat(texts=[_rt_bold("🕒 آخرین بروزرسانی: "), _rt(_fmt_updated(updated_at))])
+        ),
+    ]
+
+
 def _system_text(payload: dict, ping_sec: float) -> str:
-    """Rich Markdown body for stats:system (metrics + crypto rates table)."""
     updated_at = _to_datetime(payload.get("updated_at"))
     cpu = payload["cpu_percent"]
     ram = payload["ram_percent"]
     disk = payload["disk_percent"]
     lines = [
-        "# 🧪 وضعیت سیستم",
-        f"🚀 **پینگ ربات:** `{ping_sec:.3f} ms`",
+        f"🧪 {bold('وضعیت سیستم')}",
+        f"🚀 {bold('پینگ ربات:')} {code(f'{ping_sec:.3f} ms')}",
+        f"🤖 {bold('ربات:')} {'🟢 روشن' if payload.get('bot_mode') else '🔴 خاموش'} · 🛒 {bold('فروش:')} {'🟢' if payload.get('sale_mode') else '🔴'}",
         "",
-        f"🖥 **CPU** (`{payload.get('cpu_cores', 0)}` هسته)",
-        f"{_bar(cpu)} `{cpu}%`",
+        f"🖥 {bold('CPU')} ({code(str(payload.get('cpu_cores', 0)))} هسته)",
+        f"{_bar(cpu)} {code(f'{cpu}%')}",
         "",
-        "🧠 **RAM**",
-        f"{_bar(ram)} `{ram}%` · `{_fmt_bytes(payload['ram_used'])}` / `{_fmt_bytes(payload['ram_total'])}`",
+        f"🧠 {bold('RAM')}",
+        f"{_bar(ram)} {code(f'{ram}%')} · {code(_fmt_bytes(payload['ram_used']))} / {code(_fmt_bytes(payload['ram_total']))}",
         "",
-        "💽 **Disk**",
-        f"{_bar(disk)} `{disk}%` · `{_fmt_bytes(payload['disk_used'])}` / `{_fmt_bytes(payload['disk_total'])}`",
+        f"💽 {bold('Disk')}",
+        f"{_bar(disk)} {code(f'{disk}%')} · {code(_fmt_bytes(payload['disk_used']))} / {code(_fmt_bytes(payload['disk_total']))}",
         "",
-        f"📚 Telethon `{VERSIONS.telethon}` · FastAPI `{VERSIONS.fastapi}` · Bot `{VERSIONS.app}`",
-        f"🐍 Python `{payload.get('python', '-')}`",
-        "",
-        "---",
-        "",
-        _system_rates_table(payload),
-        "",
-        f"🕒 **آخرین بروزرسانی:** `{_fmt_updated(updated_at)}`",
+        _system_versions_block(payload),
     ]
+    cache_line = _format_cache_meta(payload)
+    if cache_line:
+        lines.extend(["", cache_line])
+    rates = " · ".join(
+        f"{symbol} {code(f'{int(payload.get(payload_key, 0) or 0):,}')}"
+        for symbol, payload_key, _emoji_id in _SYSTEM_RATE_ROWS
+    )
+    lines.extend(["", f"💱 {bold('نرخ ارز:')} {rates}"])
+    lines.extend(["", f"🕒 {bold('آخرین بروزرسانی:')} {code(_fmt_updated(updated_at))}"])
     return "\n".join(lines)

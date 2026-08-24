@@ -1,6 +1,6 @@
 """Buy and renewal inline buttons."""
 
-from telethon.tl.types import KeyboardButtonRow, ReplyInlineMarkup
+from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
 
@@ -107,8 +107,8 @@ async def build_ms_renew_confirm_button_rows(
     """English docstring for build_ms_renew_confirm_button_rows."""
     return ReplyInlineMarkup(
         [
-            KeyboardButtonRow([await ms_renew_discount_button(discount_data)]),
-            KeyboardButtonRow(
+            KeyboardInlineButtonRow([await ms_renew_discount_button(discount_data)]),
+            KeyboardInlineButtonRow(
                 [
                     await ms_renew_back_button(back_data),
                     await ms_renew_confirm_button(confirm_data),

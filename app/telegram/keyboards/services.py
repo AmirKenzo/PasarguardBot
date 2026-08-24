@@ -1,6 +1,6 @@
 """Service-management inline keyboard builders."""
 
-from telethon.tl.types import KeyboardButtonCallback, KeyboardButtonRow, ReplyInlineMarkup
+from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.panels import PanelsManager
@@ -147,28 +147,28 @@ async def create_inline_service_buttons(services, panel=None, settings=None, adm
                 styled_callback_button(usage_chart_text, f"UsageChart:{services.code}:7:0", usage_chart_style)
             )
 
-    active_button_rows = [KeyboardButtonRow(active_buttons[i : i + 2]) for i in range(0, len(active_buttons), 2)]
+    active_button_rows = [KeyboardInlineButtonRow(active_buttons[i : i + 2]) for i in range(0, len(active_buttons), 2)]
 
     if admin:
         admin_extra = [
-            KeyboardButtonRow(
+            KeyboardInlineButtonRow(
                 [
-                    KeyboardButtonCallback("✅ فعال / ❌ غیرفعال", f"AdminConfigToggle:{services.code}"),
+                    styled_callback_button("✅ فعال / ❌ غیرفعال", f"AdminConfigToggle:{services.code}"),
                 ]
             ),
-            KeyboardButtonRow(
+            KeyboardInlineButtonRow(
                 [
-                    KeyboardButtonCallback("📦 حجم ±", f"AdminConfigVolume:{services.code}"),
-                    KeyboardButtonCallback("📅 زمان ±", f"AdminConfigTime:{services.code}"),
+                    styled_callback_button("📦 حجم ±", f"AdminConfigVolume:{services.code}"),
+                    styled_callback_button("📅 زمان ±", f"AdminConfigTime:{services.code}"),
                 ]
             ),
         ]
         back_buttons = [
-            KeyboardButtonRow(
-                [KeyboardButtonCallback("🗑 حذف کانفیگ کاربر (سریع)", f"DeleteServiceAdmin:{services.code}")]
+            KeyboardInlineButtonRow(
+                [styled_callback_button("🗑 حذف کانفیگ کاربر (سریع)", f"DeleteServiceAdmin:{services.code}")]
             ),
-            KeyboardButtonRow(
-                [KeyboardButtonCallback("بازگشت به لیست سرویس های کاربر", f"BackToServiceListAdmin:{services.id}")]
+            KeyboardInlineButtonRow(
+                [styled_callback_button("بازگشت به لیست سرویس های کاربر", f"BackToServiceListAdmin:{services.id}")]
             ),
         ]
         back_buttons = admin_extra + back_buttons
@@ -181,7 +181,7 @@ async def create_inline_service_buttons(services, panel=None, settings=None, adm
         ):
             logger.debug(f"Delete Config User Enable For: {services.code}")
             back_buttons.append(
-                KeyboardButtonRow(
+                KeyboardInlineButtonRow(
                     [
                         styled_callback_button(
                             delete_service_text, f"DeleteService:{services.code}", delete_service_style
@@ -190,7 +190,7 @@ async def create_inline_service_buttons(services, panel=None, settings=None, adm
                 )
             )
         back_buttons.append(
-            KeyboardButtonRow(
+            KeyboardInlineButtonRow(
                 [styled_callback_button(back_to_services_text, "BackToServiceList", back_to_services_style)]
             )
         )
@@ -205,8 +205,8 @@ async def create_inline_service_buttons(services, panel=None, settings=None, adm
 
     rows = []
     if first_row_buttons:
-        rows.append(KeyboardButtonRow(first_row_buttons))
+        rows.append(KeyboardInlineButtonRow(first_row_buttons))
     if admin or (settings.info_mode and panel_button_enabled(get_panel, "btn_info")):
-        rows.append(KeyboardButtonRow([web]))
+        rows.append(KeyboardInlineButtonRow([web]))
 
     return ReplyInlineMarkup(rows + active_button_rows + back_buttons)

@@ -1,12 +1,11 @@
 """Help menu and help-button management keyboards."""
 
 from telethon import Button
-from telethon.tl.types import KeyboardButtonCallback
 
 from app.db.crud.help_buttons import HelpButtonCRUD, HelpDownloadAppCRUD
 from config import ADMIN_ID, TUTORIAL_HELP_LINKS
 
-from .common import _build_help_button_telegram, _help_button_style
+from .common import _build_help_button_telegram, _help_button_style, styled_callback_button
 
 
 async def get_help_buttons(user_id: int | None = None):
@@ -114,7 +113,7 @@ async def create_help_buttons_config_ui(back_data: str = "backTOhelp"):
             style_obj = _help_button_style(btn.button_style, btn.button_icon)
             data = f"help_btn_config:{num}".encode()
             if style_obj:
-                buttons.append([KeyboardButtonCallback(text=label, data=data, style=style_obj)])
+                buttons.append([styled_callback_button(label, data, style_obj)])
             else:
                 buttons.append([Button.inline(label, data=f"help_btn_config:{num}")])
         else:

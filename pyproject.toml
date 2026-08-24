@@ -29,7 +29,7 @@ dependencies = [
     "uvloop>=0.22.1; sys_platform != 'win32'",
     "cryptography>=50.0.0",
     "cryptg>=0.6.0",
-    "telethon>=1.44.0",
+    "telethon",
 ]
 
 # ----------------- Ruff ----------------- #
@@ -100,3 +100,6 @@ asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[tool.uv.sources]
+telethon = { git = "https://codeberg.org/Lonami/Telethon.git" }

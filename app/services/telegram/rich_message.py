@@ -23,6 +23,16 @@ USAGE_HISTORY_PER_PAGE = RICH_MESSAGE_MAX_BLOCKS - USAGE_HISTORY_RICH_OVERHEAD_B
 _SUPPORTED_SCHEMES = frozenset({"http", "https", "tg", "mailto", "tel"})
 _MARKDOWN_LINK_RE = re.compile(r"(!?)\[([^\]]*)\]\(([^)]+)\)")
 _MEDIA_EMBED_RE = re.compile(r"!\[[^\]]*\]\([^)]+\)")
+_MD_MARK_RE = re.compile(r"[*`]")
+
+
+def rt(text) -> types.TypeRichText:
+    """Plain RichText leaf for native blocks; strips stray markdown marker characters."""
+    return types.TextPlain(text=_MD_MARK_RE.sub("", str(text)))
+
+
+def rt_bold(text) -> types.TypeRichText:
+    return types.TextBold(rt(text))
 
 
 class RichMessageError(Exception):
@@ -189,6 +199,32 @@ async def edit_rich_message(
                 prepared,
                 rtl=rtl,
                 noautolink=noautolink,
+            ),
+            reply_markup=reply_markup,
+        )
+    )
+
+
+async def edit_native_rich_message(
+    event,
+    blocks: list,
+    *,
+    buttons=None,
+    rtl: bool = True,
+    noautolink: bool = True,
+    documents: list[types.InputDocument] | None = None,
+    photos: list[types.InputPhoto] | None = None,
+) -> None:
+    """Edit an existing message into a native rich message built from explicit blocks (tables, button rows, …)."""
+    msg = await event.get_message()
+    reply_markup = Kenzo.build_reply_markup(buttons) if buttons else None
+    await Kenzo(
+        functions.messages.EditMessageRequest(
+            peer=msg.peer_id,
+            id=msg.id,
+            message="",
+            rich_message=types.InputRichMessage(
+                blocks=blocks, rtl=rtl, noautolink=noautolink, documents=documents, photos=photos
             ),
             reply_markup=reply_markup,
         )

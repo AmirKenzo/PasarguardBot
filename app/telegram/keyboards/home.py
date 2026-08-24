@@ -131,6 +131,3 @@ async def bhome_buttons(user_id, lang):
         bhome.append([styled_reply_button(menu_admin_panel, menu_admin_panel_style)])
 
     return ReplyKeyboardMarkup([KeyboardButtonRow(button) for button in bhome], resize=True)
-
-
-alaki = ReplyKeyboardMarkup([KeyboardButtonRow([styled_simple_webview_button("salam", "https://x.c")])])
