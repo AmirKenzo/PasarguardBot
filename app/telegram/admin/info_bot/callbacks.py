@@ -7,7 +7,7 @@ from app import CustomMarkdown
 from app.logger import get_logger
 from app.services.telegram.rich_message import edit_native_rich_message
 from app.telegram.admin.info_bot import keyboards, service, states
-from app.telegram.admin.top_customers import build_top_customers_message
+from app.telegram.admin.top_customers import build_top_customers_message, top_customers_rich_blocks
 from config import ADMIN_ID
 
 logger = get_logger(__name__)
@@ -50,8 +50,14 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
             view = action.split(":", 1)[1]
             if view not in ("today", "spend", "recharge", "config"):
                 view = "today"
-            msg, entities = await build_top_customers_message(view)
-            await event.edit(msg, formatting_entities=entities, buttons=keyboards.top_buttons(view))
+            buttons = keyboards.top_outer_buttons()
+            try:
+                blocks = await top_customers_rich_blocks(view)
+                await edit_native_rich_message(event, blocks, buttons=buttons, rtl=False)
+            except Exception as rich_exc:
+                logger.warning("stats:top rich edit failed, falling back: %s", rich_exc)
+                msg, entities = await build_top_customers_message(view)
+                await event.edit(msg, formatting_entities=entities, buttons=keyboards.top_buttons(view))
             return
 
         if action == "services" or action.startswith("services:"):

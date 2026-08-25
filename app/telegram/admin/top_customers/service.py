@@ -3,9 +3,12 @@
 import asyncio
 from datetime import datetime
 
+from telethon.tl import types
+
 from app import CustomMarkdown
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.transactions import TransactionCRUD
+from app.services.telegram.rich_message import rt as _rt, rt_bold as _rt_bold
 from app.utils.text.markdown import bold, code
 
 tx_crud = TransactionCRUD()
@@ -13,6 +16,13 @@ service_crud = ServiceCRUD()
 
 _MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
 _DIVIDER = "─────────────────"
+
+_TOP_VIEWS: tuple[tuple[str, str], ...] = (
+    ("today", "⭐ امروز"),
+    ("spend", "💰 مبلغ"),
+    ("recharge", "🔢 شارژ"),
+    ("config", "📦 کانفیگ"),
+)
 
 
 def _fmt_ts(ts: int) -> str:
@@ -127,3 +137,134 @@ async def build_top_customers_message(view: str = "today") -> tuple[str, list]:
     text = "\n".join(lines)
     msg, entities = CustomMarkdown.parse(text)
     return msg, entities
+
+
+def _ranked_table(title: str, headers: list[str], rows: list[list[str]], empty_text: str) -> types.PageBlockTable:
+    header_row = types.PageTableRow(cells=[types.PageTableCell(text=_rt(h), header=True) for h in headers])
+    if not rows:
+        body = [types.PageTableRow(cells=[types.PageTableCell(text=_rt(empty_text), colspan=len(headers))])]
+    else:
+        body = [types.PageTableRow(cells=[types.PageTableCell(text=_rt(c)) for c in row]) for row in rows]
+    return types.PageBlockTable(title=_rt(title), bordered=True, compact=True, rows=[header_row, *body])
+
+
+def _spend_table(
+    top: list[tuple[int | None, int, int]], title: str, empty_text: str = "داده‌ای موجود نیست"
+) -> types.PageBlockTable:
+    rows = [
+        [_MEDALS.get(i, f"{i}."), str(uid) if uid is not None else "?", f"{total:,} تومان", f"{cnt}"]
+        for i, (uid, total, cnt) in enumerate(top, 1)
+    ]
+    return _ranked_table(title, ["#", "کاربر", "مبلغ", "شارژ"], rows, empty_text)
+
+
+def _recharge_table(
+    top: list[tuple[int | None, int, int]], title: str, empty_text: str = "داده‌ای موجود نیست"
+) -> types.PageBlockTable:
+    rows = [
+        [_MEDALS.get(i, f"{i}."), str(uid) if uid is not None else "?", f"{cnt}", f"{total:,} تومان"]
+        for i, (uid, cnt, total) in enumerate(top, 1)
+    ]
+    return _ranked_table(title, ["#", "کاربر", "شارژ", "مبلغ"], rows, empty_text)
+
+
+def _config_table(
+    top: list[tuple[int | None, int]], title: str, empty_text: str = "داده‌ای موجود نیست"
+) -> types.PageBlockTable:
+    rows = [
+        [_MEDALS.get(i, f"{i}."), str(uid) if uid is not None else "?", f"{cnt}"] for i, (uid, cnt) in enumerate(top, 1)
+    ]
+    return _ranked_table(title, ["#", "کاربر", "کانفیگ"], rows, empty_text)
+
+
+def _most_today_table(most_today: tuple[int, int] | None) -> types.PageBlockTable:
+    rows = [[str(most_today[0]), f"{most_today[1]:,} تومان"]] if most_today else []
+    return _ranked_table("👑 بیشترین خرید امروز", ["کاربر", "مبلغ"], rows, "هنوز خریدی ثبت نشده")
+
+
+def _records_table(oldest: tuple[int, int] | None, newest: tuple[int, int] | None) -> types.PageBlockTable:
+    def _row(label: str, record: tuple[int, int] | None) -> list[str]:
+        if not record:
+            return [label, "—", "—"]
+        uid, ts = record
+        return [label, str(uid), _fmt_ts(ts)]
+
+    rows = [_row("قدیمی‌ترین", oldest), _row("جدیدترین", newest)]
+    return _ranked_table("📌 سوابق", ["نوع", "کاربر", "تاریخ"], rows, "—")
+
+
+def top_view_button_rows(active: str) -> list[types.PageBlockButtonRow]:
+    """Native Bot API 10.3 'Button Revolution' tab selector, replacing the plain inline keyboard."""
+    buttons = [
+        types.PageButton(
+            text=_rt(f"• {label}" if key == active else label),
+            type=types.InlineButtonTypeCallback(data=f"stats:top:{key}".encode()),
+            style=types.RichButtonStyle(bg_primary=True) if key == active else None,
+        )
+        for key, label in _TOP_VIEWS
+    ]
+    return [types.PageBlockButtonRow(buttons=buttons, align_center=True)]
+
+
+async def top_customers_rich_blocks(view: str = "today") -> list:
+    """Native Bot API 10.3 rich message blocks for stats:top (tables + in-body tab buttons)."""
+    now = datetime.utcnow()
+    today_start = datetime(now.year, now.month, now.day)
+    today_ts = int(today_start.timestamp())
+
+    heading = {
+        "spend": "🏆 برترین مشتریان — مبلغ خرید کل",
+        "recharge": "🏆 برترین مشتریان — تعداد شارژ",
+        "config": "🏆 برترین مشتریان — تعداد کانفیگ",
+    }.get(view, "🏆 برترین‌های امروز")
+
+    blocks: list = [types.PageBlockParagraph(_rt_bold(heading)), types.PageBlockDivider()]
+
+    if view == "spend":
+        top = await tx_crud.get_top_customers_by_spend(10)
+        blocks.append(_spend_table(top, "💰 مبلغ خرید کل"))
+
+    elif view == "recharge":
+        top = await tx_crud.get_top_customers_by_tx_count(10)
+        blocks.append(_recharge_table(top, "🔢 تعداد شارژ"))
+
+    elif view == "config":
+        top = await service_crud.get_top_customers_by_config_count(10)
+        blocks.append(_config_table(top, "📦 تعداد کانفیگ"))
+
+    else:
+        (
+            top_spenders,
+            top_recharge,
+            config_stats,
+            most_today,
+            oldest,
+            newest,
+        ) = await asyncio.gather(
+            tx_crud.get_top_spenders_today(today_ts, 5),
+            tx_crud.get_top_recharge_today(today_ts, 5),
+            service_crud.get_today_config_stats(today_ts, 5),
+            tx_crud.get_most_spender_today(today_ts),
+            tx_crud.get_oldest_customer(),
+            tx_crud.get_newest_customer(),
+        )
+
+        blocks.append(_most_today_table(most_today))
+        blocks.append(types.PageBlockDivider())
+        blocks.append(_spend_table(top_spenders, "💰 برترین خریداران (مبلغ)"))
+        blocks.append(types.PageBlockDivider())
+        blocks.append(_recharge_table(top_recharge, "🔢 بیشترین شارژ (تعداد)"))
+        blocks.append(types.PageBlockDivider())
+        blocks.append(
+            _config_table(
+                config_stats["top_buyers"],
+                f"📦 خرید کانفیگ — {config_stats['total_today']:,} عدد",
+                empty_text="امروز کانفیگی فروخته نشده",
+            )
+        )
+        blocks.append(types.PageBlockDivider())
+        blocks.append(_records_table(oldest, newest))
+
+    blocks.append(types.PageBlockDivider())
+    blocks.extend(top_view_button_rows(view))
+    return blocks

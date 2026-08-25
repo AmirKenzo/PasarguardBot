@@ -60,6 +60,10 @@ def top_buttons(view: str) -> list:
     ]
 
 
+def top_outer_buttons() -> list:
+    return [[inline_btn("🔙 بازگشت", f"{states.STATS_PREFIX}main")]]
+
+
 def revenue_buttons(period: str) -> list:
     prefix = states.STATS_PREFIX
     return [
