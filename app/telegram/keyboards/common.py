@@ -5,6 +5,7 @@ import re
 from telethon import Button
 from telethon.tl.types import (
     ButtonTypeDefault,
+    ButtonTypeSimpleWebView,
     InlineButtonTypeCallback,
     InlineButtonTypeCopy,
     InlineButtonTypeUrl,
@@ -153,8 +154,8 @@ def styled_url_button(text: str, url: str, style_obj=None):
 
 
 def styled_simple_webview_button(text: str, url: str, style_obj=None):
-    # Layer 229 merged the "simple" web_view variant into the regular InlineButtonTypeWebView.
-    return KeyboardInlineButton(text=text, type=InlineButtonTypeWebView(url=url), style=style_obj)
+    # Normal (non-inline) keyboard button, unlike styled_webview_button which is inline-only.
+    return KeyboardButton(text=text, type=ButtonTypeSimpleWebView(url=url), style=style_obj)
 
 
 def styled_reply_button(text: str, style_obj=None):
