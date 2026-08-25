@@ -60,6 +60,16 @@ def top_buttons(view: str) -> list:
     ]
 
 
+def revenue_buttons(period: str) -> list:
+    prefix = states.STATS_PREFIX
+    return [
+        [
+            inline_btn("🔄 بروزرسانی", f"{prefix}revenue:{period}:refresh"),
+            inline_btn("🔙 بازگشت", f"{prefix}main"),
+        ],
+    ]
+
+
 def services_buttons(period: str) -> list:
     rows = period_buttons("services", period)
     rows.insert(0, [inline_btn("🔄 بروزرسانی", f"{states.STATS_PREFIX}services:{period}:refresh")])

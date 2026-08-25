@@ -409,6 +409,186 @@ def _revenue_text(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def _revenue_summary_table(payload: dict) -> types.PageBlockTable:
+    b = payload["breakdown"]
+    cr = payload["crypto"]
+    total_sales = b["manual_approved_sum"] + b["auto_approved_sum"] + int(cr.get("total_amount", 0) or 0)
+    total_tx = b["manual_approved_count"] + b["auto_approved_count"] + int(cr.get("count", 0) or 0)
+    rows = [
+        ("💵 کل فروش بازه", f"{total_sales:,} تومان"),
+        ("🧾 تعداد تراکنش", f"{total_tx:,}"),
+    ]
+    return types.PageBlockTable(
+        title=_rt("📊 خلاصه فروش"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _revenue_cards_table(payload: dict) -> types.PageBlockTable:
+    b = payload["breakdown"]
+    rows = [
+        ("✅ دستی · تایید شده", b["manual_approved_count"], b["manual_approved_sum"]),
+        ("❌ دستی · رد شده", b["manual_rejected_count"], b["manual_rejected_sum"]),
+        ("⏳ دستی · در انتظار (صف)", b["manual_pending_total_count"], b["manual_pending_total_sum"]),
+        ("🤖 خودکار · تایید شده", b["auto_approved_count"], b["auto_approved_sum"]),
+    ]
+    return types.PageBlockTable(
+        title=_rt("💳 کارت‌به‌کارت"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(
+                cells=[
+                    types.PageTableCell(text=_rt("نوع"), header=True),
+                    types.PageTableCell(text=_rt("تعداد"), header=True),
+                    types.PageTableCell(text=_rt("مبلغ (تومان)"), header=True),
+                ]
+            ),
+            *(
+                types.PageTableRow(
+                    cells=[
+                        types.PageTableCell(text=_rt(label)),
+                        types.PageTableCell(text=_rt(f"{count:,}")),
+                        types.PageTableCell(text=_rt(f"{amount:,}")),
+                    ]
+                )
+                for label, count, amount in rows
+            ),
+        ],
+    )
+
+
+def _revenue_crypto_table(payload: dict) -> types.PageBlockTable | None:
+    cr = payload["crypto"]
+    arz_usd = int(payload.get("arz_usd", 0) or 0)
+    currencies = [c for c in (cr.get("currencies") or []) if int(c.get("count", 0) or 0) > 0]
+    if not currencies:
+        return None
+
+    rows = [
+        types.PageTableRow(
+            cells=[
+                types.PageTableCell(text=_rt("ارز"), header=True),
+                types.PageTableCell(text=_rt("حجم"), header=True),
+                types.PageTableCell(text=_rt("تومان"), header=True),
+                types.PageTableCell(text=_rt("دلار"), header=True),
+            ]
+        )
+    ]
+    crypto_usd_total = 0.0
+    for item in currencies:
+        arz = item["arz"]
+        vol_str = f"{item['crypto_sum']:,.4f}".rstrip("0").rstrip(".")
+        irt = item["amount_irt"]
+        usd = _irt_to_usd(irt, arz_usd)
+        crypto_usd_total += usd
+        rows.append(
+            types.PageTableRow(
+                cells=[
+                    types.PageTableCell(text=_rt(arz)),
+                    types.PageTableCell(text=_rt(vol_str)),
+                    types.PageTableCell(text=_rt(f"{irt:,}")),
+                    types.PageTableCell(text=_rt(f"${usd:,.2f}")),
+                ]
+            )
+        )
+    rows.append(
+        types.PageTableRow(
+            cells=[
+                types.PageTableCell(text=_rt("💵 جمع دلاری"), colspan=3),
+                types.PageTableCell(text=_rt(f"${crypto_usd_total:,.2f}")),
+            ]
+        )
+    )
+    return types.PageBlockTable(title=_rt("💎 ارز دیجیتال"), bordered=True, compact=True, rows=rows)
+
+
+def _revenue_referral_table(payload: dict) -> types.PageBlockTable | None:
+    ref = payload.get("referral", {})
+    ref_count = int(ref.get("count", 0) or 0)
+    if not ref_count:
+        return None
+    ref_sum = int(ref.get("reward_sum", 0) or 0)
+    return types.PageBlockTable(
+        title=_rt("🎁 پاداش رفرال"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(
+                cells=[types.PageTableCell(text=_rt("👥 تعداد")), types.PageTableCell(text=_rt(f"{ref_count:,}"))]
+            ),
+            types.PageTableRow(
+                cells=[
+                    types.PageTableCell(text=_rt("💰 پاداش دعوت‌کننده")),
+                    types.PageTableCell(text=_rt(f"{ref_sum:,} تومان")),
+                ]
+            ),
+        ],
+    )
+
+
+# Period keys shown as native "Button Revolution" selector rows on stats:revenue.
+_REVENUE_PERIOD_ROWS: tuple[tuple[str, ...], ...] = (
+    ("1d", "2d", "3d", "4d"),
+    ("5d", "6d", "7d"),
+    ("1m", "2m", "3m", "all"),
+)
+
+
+def revenue_period_button_rows(active: str) -> list[types.PageBlockButtonRow]:
+    """Native Bot API 10.3 'Button Revolution' period selector, replacing the plain inline keyboard."""
+    rows = []
+    for keys in _REVENUE_PERIOD_ROWS:
+        buttons = [
+            types.PageButton(
+                text=_rt(f"• {REVENUE_PERIODS[key]}" if key == active else REVENUE_PERIODS[key]),
+                type=types.InlineButtonTypeCallback(data=f"stats:revenue:{key}".encode()),
+                style=types.RichButtonStyle(bg_primary=True) if key == active else None,
+            )
+            for key in keys
+        ]
+        rows.append(types.PageBlockButtonRow(buttons=buttons, align_center=True))
+    return rows
+
+
+def revenue_rich_blocks(payload: dict) -> list:
+    """Native Bot API 10.3 rich message blocks for stats:revenue (tables + in-body period buttons)."""
+    period = payload.get("period", "1d")
+    label = REVENUE_PERIODS.get(period, period)
+    updated_at = _to_datetime(payload.get("updated_at"))
+
+    blocks: list = [
+        types.PageBlockParagraph(_rt_bold(f"💰 گزارش مالی — {label}")),
+        _revenue_summary_table(payload),
+        types.PageBlockDivider(),
+        _revenue_cards_table(payload),
+    ]
+
+    crypto_table = _revenue_crypto_table(payload)
+    if crypto_table is not None:
+        blocks.append(types.PageBlockDivider())
+        blocks.append(crypto_table)
+
+    referral_table = _revenue_referral_table(payload)
+    if referral_table is not None:
+        blocks.append(types.PageBlockDivider())
+        blocks.append(referral_table)
+
+    blocks.append(types.PageBlockDivider())
+    blocks.append(types.PageBlockParagraph(_rt_bold("📅 انتخاب بازه")))
+    blocks.extend(revenue_period_button_rows(period))
+    blocks.append(types.PageBlockDivider())
+    blocks.append(
+        types.PageBlockFooter(types.TextConcat(texts=[_rt_bold("🕒 آخرین بروزرسانی: "), _rt(_fmt_updated(updated_at))]))
+    )
+    return blocks
+
+
 async def _services_payload(period: str, force: bool = False) -> dict:
     async def _produce() -> dict:
         period_range = _stats_period_range(period)

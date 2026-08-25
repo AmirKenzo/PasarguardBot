@@ -29,13 +29,21 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
             await event.edit(msg, formatting_entities=entities, buttons=keyboards.main_menu_buttons())
             return
 
-        if action.startswith("revenue:"):
-            period = action.split(":", 1)[1]
+        if action == "revenue" or action.startswith("revenue:"):
+            parts = action.split(":")
+            period = parts[1] if len(parts) > 1 else "1d"
             if period not in states.REVENUE_PERIODS:
                 period = "1d"
-            payload = await service._revenue_payload(period, force=False)
-            msg, entities = CustomMarkdown.parse(service._revenue_text(payload))
-            await event.edit(msg, formatting_entities=entities, buttons=keyboards.period_buttons("revenue", period))
+            force = len(parts) > 2 and parts[2] == "refresh"
+            payload = await service._revenue_payload(period, force=force)
+            buttons = keyboards.revenue_buttons(period)
+            try:
+                blocks = service.revenue_rich_blocks(payload)
+                await edit_native_rich_message(event, blocks, buttons=buttons, rtl=False)
+            except Exception as rich_exc:
+                logger.warning("stats:revenue rich edit failed, falling back: %s", rich_exc)
+                msg, entities = CustomMarkdown.parse(service._revenue_text(payload))
+                await event.edit(msg, formatting_entities=entities, buttons=keyboards.period_buttons("revenue", period))
             return
 
         if action.startswith("top:"):
