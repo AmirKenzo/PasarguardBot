@@ -67,8 +67,16 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
                 period = "1d"
             force = len(parts) > 2 and parts[2] == "refresh"
             payload = await service._services_payload(period, force=force)
-            msg, entities = CustomMarkdown.parse(service._services_text(payload))
-            await event.edit(msg, formatting_entities=entities, buttons=keyboards.services_buttons(period))
+            buttons = keyboards.services_buttons(period)
+            try:
+                blocks = service.services_rich_blocks(payload)
+                await edit_native_rich_message(event, blocks, buttons=buttons, rtl=False)
+            except Exception as rich_exc:
+                logger.warning("stats:services rich edit failed, falling back: %s", rich_exc)
+                msg, entities = CustomMarkdown.parse(service._services_text(payload))
+                await event.edit(
+                    msg, formatting_entities=entities, buttons=keyboards.period_buttons("services", period)
+                )
             return
 
         if action in ("system", "system:refresh"):

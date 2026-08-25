@@ -532,22 +532,22 @@ def _revenue_referral_table(payload: dict) -> types.PageBlockTable | None:
     )
 
 
-# Period keys shown as native "Button Revolution" selector rows on stats:revenue.
-_REVENUE_PERIOD_ROWS: tuple[tuple[str, ...], ...] = (
+# Period keys shown as native "Button Revolution" selector rows on stats:revenue / stats:services.
+_PERIOD_BUTTON_ROWS: tuple[tuple[str, ...], ...] = (
     ("1d", "2d", "3d", "4d"),
     ("5d", "6d", "7d"),
     ("1m", "2m", "3m", "all"),
 )
 
 
-def revenue_period_button_rows(active: str) -> list[types.PageBlockButtonRow]:
+def _period_button_rows(section: str, active: str) -> list[types.PageBlockButtonRow]:
     """Native Bot API 10.3 'Button Revolution' period selector, replacing the plain inline keyboard."""
     rows = []
-    for keys in _REVENUE_PERIOD_ROWS:
+    for keys in _PERIOD_BUTTON_ROWS:
         buttons = [
             types.PageButton(
                 text=_rt(f"• {REVENUE_PERIODS[key]}" if key == active else REVENUE_PERIODS[key]),
-                type=types.InlineButtonTypeCallback(data=f"stats:revenue:{key}".encode()),
+                type=types.InlineButtonTypeCallback(data=f"stats:{section}:{key}".encode()),
                 style=types.RichButtonStyle(bg_primary=True) if key == active else None,
             )
             for key in keys
@@ -581,7 +581,7 @@ def revenue_rich_blocks(payload: dict) -> list:
 
     blocks.append(types.PageBlockDivider())
     blocks.append(types.PageBlockParagraph(_rt_bold("📅 انتخاب بازه")))
-    blocks.extend(revenue_period_button_rows(period))
+    blocks.extend(_period_button_rows("revenue", period))
     blocks.append(types.PageBlockDivider())
     blocks.append(
         types.PageBlockFooter(types.TextConcat(texts=[_rt_bold("🕒 آخرین بروزرسانی: "), _rt(_fmt_updated(updated_at))]))
@@ -651,6 +651,143 @@ def _services_text(payload: dict) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def _services_summary_table(s: dict) -> types.PageBlockTable:
+    rows = [
+        ("📦 کل", f"{s['total']:,}"),
+        ("✅ فعال", f"{s['active']:,}"),
+        ("⛔ غیرفعال", f"{s['disabled']:,}"),
+    ]
+    return types.PageBlockTable(
+        title=_rt("📊 کل سرویس‌ها"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _services_period_table(s: dict) -> types.PageBlockTable:
+    rows = [
+        ("💎 پولی", f"{s['paid_period']:,}"),
+        ("🧪 تست", f"{s['test_period']:,}"),
+    ]
+    return types.PageBlockTable(
+        title=_rt("🆕 ساخته‌شده در بازه"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _services_totals_table(s: dict) -> types.PageBlockTable:
+    rows = [
+        ("💎 پولی", f"{s['paid_total']:,}"),
+        ("🧪 تست", f"{s['test_total']:,}"),
+        ("💾 حجم کل", _fmt_bytes(s["total_volume_bytes"])),
+    ]
+    return types.PageBlockTable(
+        title=_rt("📈 انواع سرویس (کل)"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _services_expiry_table(s: dict) -> types.PageBlockTable:
+    rows = [
+        ("⚠️ ۳ روز آینده", f"{s['expiring_3d']:,}"),
+        ("📅 ۷ روز آینده", f"{s['expiring_7d']:,}"),
+        ("❌ منقضی", f"{s['expired']:,}"),
+    ]
+    return types.PageBlockTable(
+        title=_rt("⏰ انقضا"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _services_top_panels_table(s: dict) -> types.PageBlockTable | None:
+    top_panels = s.get("top_panels")
+    if not top_panels:
+        return None
+    return types.PageBlockTable(
+        title=_rt("🏆 پرترافیک پنل‌ها (بازه)"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(name)), types.PageTableCell(text=_rt(f"{cnt:,}"))])
+            for name, cnt in top_panels
+        ],
+    )
+
+
+def _services_top_volumes_table(s: dict) -> types.PageBlockTable | None:
+    top_volumes = s.get("top_volumes")
+    if not top_volumes:
+        return None
+    return types.PageBlockTable(
+        title=_rt("📦 پرفروش‌ترین حجم‌ها (بازه)"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(
+                cells=[types.PageTableCell(text=_rt(vol_label)), types.PageTableCell(text=_rt(f"{cnt:,}"))]
+            )
+            for vol_label, cnt in top_volumes
+        ],
+    )
+
+
+def services_rich_blocks(payload: dict) -> list:
+    """Native Bot API 10.3 rich message blocks for stats:services (tables + in-body period buttons)."""
+    s = payload["stats"]
+    period = payload.get("period", "1d")
+    label = REVENUE_PERIODS.get(period, period)
+    updated_at = _to_datetime(payload.get("updated_at"))
+
+    blocks: list = [
+        types.PageBlockParagraph(_rt_bold(f"📡 آمار سرویس‌ها — {label}")),
+        _services_summary_table(s),
+        types.PageBlockDivider(),
+        _services_period_table(s),
+        types.PageBlockDivider(),
+        _services_totals_table(s),
+        types.PageBlockDivider(),
+        _services_expiry_table(s),
+    ]
+
+    top_panels_table = _services_top_panels_table(s)
+    if top_panels_table is not None:
+        blocks.append(types.PageBlockDivider())
+        blocks.append(top_panels_table)
+
+    top_volumes_table = _services_top_volumes_table(s)
+    if top_volumes_table is not None:
+        blocks.append(types.PageBlockDivider())
+        blocks.append(top_volumes_table)
+
+    blocks.append(types.PageBlockDivider())
+    blocks.append(types.PageBlockParagraph(_rt_bold("📅 انتخاب بازه")))
+    blocks.extend(_period_button_rows("services", period))
+    blocks.append(types.PageBlockDivider())
+    blocks.append(
+        types.PageBlockFooter(types.TextConcat(texts=[_rt_bold("🕒 آخرین بروزرسانی: "), _rt(_fmt_updated(updated_at))]))
+    )
+    return blocks
 
 
 async def _system_payload(force: bool = False) -> dict:

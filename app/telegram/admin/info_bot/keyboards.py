@@ -75,9 +75,13 @@ def revenue_buttons(period: str) -> list:
 
 
 def services_buttons(period: str) -> list:
-    rows = period_buttons("services", period)
-    rows.insert(0, [inline_btn("🔄 بروزرسانی", f"{states.STATS_PREFIX}services:{period}:refresh")])
-    return rows
+    prefix = states.STATS_PREFIX
+    return [
+        [
+            inline_btn("🔄 بروزرسانی", f"{prefix}services:{period}:refresh"),
+            inline_btn("🔙 بازگشت", f"{prefix}main"),
+        ],
+    ]
 
 
 def system_buttons() -> list:
