@@ -315,6 +315,207 @@ def main_text(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def _main_users_table(u: dict) -> types.PageBlockTable:
+    rows = [
+        ("👤 کل کاربران", f"{u['total']:,}"),
+        ("✅ کاربران فعال", f"{u['active']:,}"),
+    ]
+    return types.PageBlockTable(
+        title=_rt("👥 آمار کاربران"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _main_signups_table(u: dict) -> types.PageBlockTable:
+    rows = [
+        ("امروز", u.get("members_today", 0)),
+        ("دیروز", u.get("members_1d_ago", 0)),
+        ("۲ روز پیش", u.get("members_2d_ago", 0)),
+        ("۳ روز پیش", u.get("members_3d_ago", 0)),
+        ("هفته", u["members_week"]),
+        ("ماه", u["members_month"]),
+    ]
+    return types.PageBlockTable(
+        title=_rt("📈 عضویت جدید"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(
+                cells=[
+                    types.PageTableCell(text=_rt("بازه"), header=True),
+                    types.PageTableCell(text=_rt("تعداد"), header=True),
+                ]
+            ),
+            *(
+                types.PageTableRow(
+                    cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(f"{value:,}"))]
+                )
+                for label, value in rows
+            ),
+        ],
+    )
+
+
+def _main_inactive_table(u: dict, inactive: int) -> types.PageBlockTable:
+    rows = [
+        ("🔒 بن", f"{u['banned']:,}"),
+        ("🚫 بلاک", f"{u['blocked']:,}"),
+        ("🗑 حذف", f"{u['deleted']:,}"),
+    ]
+    return types.PageBlockTable(
+        title=_rt(f"🚫 غیرفعال ({inactive:,})"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _main_pending_table(p: dict) -> types.PageBlockTable:
+    rows = [
+        ("⏳ تعداد", f"{p['count']:,}"),
+        ("💰 مبلغ", f"{p['amount']:,} تومان"),
+    ]
+    return types.PageBlockTable(
+        title=_rt("💳 کارت‌به‌کارت در انتظار تایید"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
+            for label, value in rows
+        ],
+    )
+
+
+def _main_sales_table(s: dict) -> types.PageBlockTable:
+    rows = [
+        ("امروز", s["sales_today"]),
+        ("دیروز", s["sales_yesterday"]),
+        ("۲ روز پیش", s["sales_2d_ago"]),
+        ("۳ روز پیش", s["sales_3d_ago"]),
+        ("۷ روز اخیر", s["sales_7d"]),
+    ]
+    return types.PageBlockTable(
+        title=_rt("💰 خلاصه فروش"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(
+                cells=[
+                    types.PageTableCell(text=_rt("بازه"), header=True),
+                    types.PageTableCell(text=_rt("مبلغ (تومان)"), header=True),
+                ]
+            ),
+            *(
+                types.PageTableRow(
+                    cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(f"{value:,}"))]
+                )
+                for label, value in rows
+            ),
+        ],
+    )
+
+
+def _main_referral_table(ref: dict) -> types.PageBlockTable:
+    rows = [
+        ("امروز", ref.get("today", 0), ref.get("count_today", 0)),
+        ("دیروز", ref.get("yesterday", 0), ref.get("count_yesterday", 0)),
+        ("کل", ref.get("all_time", 0), ref.get("count_all", 0)),
+    ]
+    return types.PageBlockTable(
+        title=_rt("🎁 پاداش رفرال"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(
+                cells=[
+                    types.PageTableCell(text=_rt("بازه"), header=True),
+                    types.PageTableCell(text=_rt("مبلغ (تومان)"), header=True),
+                    types.PageTableCell(text=_rt("نفرات"), header=True),
+                ]
+            ),
+            *(
+                types.PageTableRow(
+                    cells=[
+                        types.PageTableCell(text=_rt(label)),
+                        types.PageTableCell(text=_rt(f"{amount:,}")),
+                        types.PageTableCell(text=_rt(f"{count:,}")),
+                    ]
+                )
+                for label, amount, count in rows
+            ),
+        ],
+    )
+
+
+# Section-navigation keys shown as native "Button Revolution" rows on stats:main.
+_MAIN_NAV_BUTTONS: tuple[tuple[str, str], ...] = (
+    ("💰 گزارش مالی", "revenue:1d"),
+    ("🏆 مشتریان برتر", "top:today"),
+    ("📡 سرویس‌ها", "services:1d"),
+    ("🧪 سیستم", "system"),
+)
+
+
+def main_nav_button_rows() -> list[types.PageBlockButtonRow]:
+    """Native Bot API 10.3 'Button Revolution' section navigation, replacing the plain inline keyboard."""
+    buttons = [
+        types.PageButton(
+            text=_rt(label),
+            type=types.InlineButtonTypeCallback(data=f"stats:{action}".encode()),
+            style=types.RichButtonStyle(bg_primary=True),
+        )
+        for label, action in _MAIN_NAV_BUTTONS
+    ]
+    rows = [buttons[0:2], buttons[2:4]]
+    return [types.PageBlockButtonRow(buttons=r, align_center=True) for r in rows]
+
+
+def main_rich_blocks(payload: dict) -> list:
+    """Native Bot API 10.3 rich message blocks for stats:main (tables + in-body nav buttons)."""
+    u = payload["users"]
+    s = payload["sales"]
+    p = payload["pending"]
+    ref = payload.get("referral", {})
+    inactive = u["banned"] + u["blocked"] + u["deleted"]
+    updated_at = _to_datetime(payload.get("updated_at"))
+
+    return [
+        types.PageBlockParagraph(_rt_bold("📊 داشبورد آمار")),
+        _main_users_table(u),
+        types.PageBlockDivider(),
+        _main_signups_table(u),
+        types.PageBlockDivider(),
+        _main_inactive_table(u, inactive),
+        types.PageBlockDivider(),
+        _main_pending_table(p),
+        types.PageBlockDivider(),
+        _main_sales_table(s),
+        types.PageBlockDivider(),
+        _main_referral_table(ref),
+        types.PageBlockDivider(),
+        types.PageBlockParagraph(_rt_bold("🧭 بخش‌ها")),
+        *main_nav_button_rows(),
+        types.PageBlockDivider(),
+        types.PageBlockFooter(
+            types.TextConcat(
+                texts=[
+                    _rt_bold("🕒 آخرین بروزرسانی: "),
+                    _rt(_fmt_updated(updated_at)),
+                    _rt("  ·  Coded By @AmirKenzoo"),
+                ]
+            )
+        ),
+    ]
+
+
 async def _revenue_payload(period: str, force: bool = False) -> dict:
     async def _produce() -> dict:
         period_range = _stats_period_range(period)

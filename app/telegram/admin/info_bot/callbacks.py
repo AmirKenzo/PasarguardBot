@@ -25,8 +25,14 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
 
         if action in ("main", "refresh"):
             payload = await service.main_payload(force=action == "refresh")
-            msg, entities = CustomMarkdown.parse(service.main_text(payload))
-            await event.edit(msg, formatting_entities=entities, buttons=keyboards.main_menu_buttons())
+            buttons = keyboards.main_outer_buttons()
+            try:
+                blocks = service.main_rich_blocks(payload)
+                await edit_native_rich_message(event, blocks, buttons=buttons, rtl=False)
+            except Exception as rich_exc:
+                logger.warning("stats:main rich edit failed, falling back: %s", rich_exc)
+                msg, entities = CustomMarkdown.parse(service.main_text(payload))
+                await event.edit(msg, formatting_entities=entities, buttons=keyboards.main_menu_buttons())
             return
 
         if action == "revenue" or action.startswith("revenue:"):
