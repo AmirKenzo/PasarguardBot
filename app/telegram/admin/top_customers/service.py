@@ -205,8 +205,9 @@ def top_view_button_rows(active: str) -> list[types.PageBlockButtonRow]:
     ]
     back_button = types.PageButton(text=_rt("🔙 بازگشت"), type=types.InlineButtonTypeCallback(data=b"stats:main"))
     return [
-        types.PageBlockButtonRow(buttons=tab_buttons, align_center=True),
-        types.PageBlockButtonRow(buttons=[back_button], align_center=True),
+        types.PageBlockButtonRow(buttons=tab_buttons),
+        types.PageBlockDivider(),
+        types.PageBlockButtonRow(buttons=[back_button]),
     ]
 
 

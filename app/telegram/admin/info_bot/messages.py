@@ -18,7 +18,7 @@ async def message_handler_infobot(event: Message):
     payload = await service.main_payload(force=False)
     try:
         blocks = service.main_rich_blocks(payload)
-        await send_native_rich_message(event.chat_id, blocks, rtl=False)
+        await send_native_rich_message(event.chat_id, blocks)
     except Exception as rich_exc:
         logger.warning("stats:main rich send failed, falling back: %s", rich_exc)
         msg, entities = CustomMarkdown.parse(service.main_text(payload))

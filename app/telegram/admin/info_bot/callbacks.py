@@ -27,7 +27,7 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
             payload = await service.main_payload(force=action == "refresh")
             try:
                 blocks = service.main_rich_blocks(payload)
-                await edit_native_rich_message(event, blocks, rtl=False)
+                await edit_native_rich_message(event, blocks)
             except Exception as rich_exc:
                 logger.warning("stats:main rich edit failed, falling back: %s", rich_exc)
                 msg, entities = CustomMarkdown.parse(service.main_text(payload))
@@ -43,7 +43,7 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
             payload = await service._revenue_payload(period, force=force)
             try:
                 blocks = service.revenue_rich_blocks(payload)
-                await edit_native_rich_message(event, blocks, rtl=False)
+                await edit_native_rich_message(event, blocks)
             except Exception as rich_exc:
                 logger.warning("stats:revenue rich edit failed, falling back: %s", rich_exc)
                 msg, entities = CustomMarkdown.parse(service._revenue_text(payload))
@@ -56,7 +56,7 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
                 view = "today"
             try:
                 blocks = await top_customers_rich_blocks(view)
-                await edit_native_rich_message(event, blocks, rtl=False)
+                await edit_native_rich_message(event, blocks)
             except Exception as rich_exc:
                 logger.warning("stats:top rich edit failed, falling back: %s", rich_exc)
                 msg, entities = await build_top_customers_message(view)
@@ -72,7 +72,7 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
             payload = await service._services_payload(period, force=force)
             try:
                 blocks = service.services_rich_blocks(payload)
-                await edit_native_rich_message(event, blocks, rtl=False)
+                await edit_native_rich_message(event, blocks)
             except Exception as rich_exc:
                 logger.warning("stats:services rich edit failed, falling back: %s", rich_exc)
                 msg, entities = CustomMarkdown.parse(service._services_text(payload))
@@ -86,7 +86,7 @@ async def stats_panel_callback(event: events.CallbackQuery.Event):
             payload = await service._system_payload(force=action == "system:refresh")
             try:
                 blocks = service.system_rich_blocks(payload, ping_sec)
-                await edit_native_rich_message(event, blocks, rtl=False)
+                await edit_native_rich_message(event, blocks)
             except Exception as rich_exc:
                 logger.warning("stats:system rich edit failed, falling back: %s", rich_exc)
                 markdown = service._system_text(payload, ping_sec)

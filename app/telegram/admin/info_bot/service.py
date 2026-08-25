@@ -171,7 +171,7 @@ def _action_button_row(refresh_data: bytes) -> types.PageBlockButtonRow:
         text=_rt("🔙 بازگشت"),
         type=types.InlineButtonTypeCallback(data=b"stats:main"),
     )
-    return types.PageBlockButtonRow(buttons=[refresh_button, back_button], align_center=True)
+    return types.PageBlockButtonRow(buttons=[refresh_button, back_button])
 
 
 def _fmt_bytes(num: int) -> str:
@@ -376,8 +376,12 @@ def main_nav_button_rows() -> list[types.PageBlockButtonRow]:
         type=types.InlineButtonTypeCallback(data=b"stats:refresh"),
         style=types.RichButtonStyle(bg_success=True),
     )
-    rows = [nav_buttons[0:2], nav_buttons[2:4], [refresh_button]]
-    return [types.PageBlockButtonRow(buttons=r, align_center=True) for r in rows]
+    nav_rows = [nav_buttons[0:2], nav_buttons[2:4]]
+    return [
+        *(types.PageBlockButtonRow(buttons=r) for r in nav_rows),
+        types.PageBlockDivider(),
+        types.PageBlockButtonRow(buttons=[refresh_button]),
+    ]
 
 
 def main_rich_blocks(payload: dict) -> list:
@@ -693,7 +697,7 @@ def _period_button_rows(section: str, active: str) -> list[types.PageBlockButton
             )
             for key in keys
         ]
-        rows.append(types.PageBlockButtonRow(buttons=buttons, align_center=True))
+        rows.append(types.PageBlockButtonRow(buttons=buttons))
     return rows
 
 
@@ -723,6 +727,7 @@ def revenue_rich_blocks(payload: dict) -> list:
     blocks.append(types.PageBlockDivider())
     blocks.append(types.PageBlockParagraph(_rt_bold("📅 انتخاب بازه")))
     blocks.extend(_period_button_rows("revenue", period))
+    blocks.append(types.PageBlockDivider())
     blocks.append(_action_button_row(f"stats:revenue:{period}:refresh".encode()))
     blocks.append(types.PageBlockDivider())
     blocks.append(_updated_footer(updated_at))
@@ -923,6 +928,7 @@ def services_rich_blocks(payload: dict) -> list:
     blocks.append(types.PageBlockDivider())
     blocks.append(types.PageBlockParagraph(_rt_bold("📅 انتخاب بازه")))
     blocks.extend(_period_button_rows("services", period))
+    blocks.append(types.PageBlockDivider())
     blocks.append(_action_button_row(f"stats:services:{period}:refresh".encode()))
     blocks.append(types.PageBlockDivider())
     blocks.append(_updated_footer(updated_at))
@@ -996,7 +1002,7 @@ def system_rate_button_rows(payload: dict) -> list[types.PageBlockButtonRow]:
         )
         for symbol, payload_key, _emoji_id in _SYSTEM_RATE_ROWS
     ]
-    return [types.PageBlockButtonRow(buttons=buttons[i : i + 2], align_center=True) for i in range(0, len(buttons), 2)]
+    return [types.PageBlockButtonRow(buttons=buttons[i : i + 2]) for i in range(0, len(buttons), 2)]
 
 
 def _status_table(payload: dict, ping_sec: float) -> types.PageBlockTable:
