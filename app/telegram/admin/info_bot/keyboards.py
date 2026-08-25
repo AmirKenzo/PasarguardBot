@@ -60,30 +60,6 @@ def top_buttons(view: str) -> list:
     ]
 
 
-def top_outer_buttons() -> list:
-    return [[inline_btn("🔙 بازگشت", f"{states.STATS_PREFIX}main")]]
-
-
-def revenue_buttons(period: str) -> list:
-    prefix = states.STATS_PREFIX
-    return [
-        [
-            inline_btn("🔄 بروزرسانی", f"{prefix}revenue:{period}:refresh"),
-            inline_btn("🔙 بازگشت", f"{prefix}main"),
-        ],
-    ]
-
-
-def services_buttons(period: str) -> list:
-    prefix = states.STATS_PREFIX
-    return [
-        [
-            inline_btn("🔄 بروزرسانی", f"{prefix}services:{period}:refresh"),
-            inline_btn("🔙 بازگشت", f"{prefix}main"),
-        ],
-    ]
-
-
 def system_buttons() -> list:
     prefix = states.STATS_PREFIX
     return [

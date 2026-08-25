@@ -143,6 +143,37 @@ def _fmt_updated(updated_at: datetime) -> str:
     return f"{td['jf']} · {_relative_precise(updated_at)}"
 
 
+# Credit line shared by every rich-message footer across the stats panel.
+CREDIT_LINE = "Coded By @AmirKenzoo"
+
+
+def _updated_footer(updated_at: datetime) -> types.PageBlockFooter:
+    """Shared 'last updated + credit' footer for stats:main/revenue/services/system rich messages."""
+    return types.PageBlockFooter(
+        types.TextConcat(
+            texts=[
+                _rt_bold("🕒 آخرین بروزرسانی: "),
+                _rt(_fmt_updated(updated_at)),
+                _rt(f"  ·  {CREDIT_LINE}"),
+            ]
+        )
+    )
+
+
+def _action_button_row(refresh_data: bytes) -> types.PageBlockButtonRow:
+    """Native Bot API 10.3 refresh + back row, replacing the plain inline keyboard."""
+    refresh_button = types.PageButton(
+        text=_rt("🔄 بروزرسانی"),
+        type=types.InlineButtonTypeCallback(data=refresh_data),
+        style=types.RichButtonStyle(bg_success=True),
+    )
+    back_button = types.PageButton(
+        text=_rt("🔙 بازگشت"),
+        type=types.InlineButtonTypeCallback(data=b"stats:main"),
+    )
+    return types.PageBlockButtonRow(buttons=[refresh_button, back_button], align_center=True)
+
+
 def _fmt_bytes(num: int) -> str:
     if num <= 0:
         return "0 B"
@@ -364,72 +395,64 @@ def main_rich_blocks(payload: dict) -> list:
         _main_section(
             "👥 آمار کاربران",
             [
-                ("کل کاربران", f"{u['total']:,}"),
-                ("کاربران فعال", f"{u['active']:,}"),
+                ("👤 کل کاربران", f"{u['total']:,}"),
+                ("✅ کاربران فعال", f"{u['active']:,}"),
             ],
         ),
         types.PageBlockDivider(),
         _main_section(
             "📈 عضویت جدید",
             [
-                ("امروز", f"{u.get('members_today', 0):,}"),
-                ("دیروز", f"{u.get('members_1d_ago', 0):,}"),
-                ("۲ روز پیش", f"{u.get('members_2d_ago', 0):,}"),
-                ("۳ روز پیش", f"{u.get('members_3d_ago', 0):,}"),
-                ("هفته", f"{u['members_week']:,}"),
-                ("ماه", f"{u['members_month']:,}"),
+                ("🗓 امروز", f"{u.get('members_today', 0):,}"),
+                ("🗓 دیروز", f"{u.get('members_1d_ago', 0):,}"),
+                ("🗓 ۲ روز پیش", f"{u.get('members_2d_ago', 0):,}"),
+                ("🗓 ۳ روز پیش", f"{u.get('members_3d_ago', 0):,}"),
+                ("📊 هفته", f"{u['members_week']:,}"),
+                ("📊 ماه", f"{u['members_month']:,}"),
             ],
         ),
         types.PageBlockDivider(),
         _main_section(
             f"🚫 غیرفعال ({inactive:,})",
             [
-                ("بن", f"{u['banned']:,}"),
-                ("بلاک", f"{u['blocked']:,}"),
-                ("حذف", f"{u['deleted']:,}"),
+                ("🔒 بن", f"{u['banned']:,}"),
+                ("🚫 بلاک", f"{u['blocked']:,}"),
+                ("🗑 حذف", f"{u['deleted']:,}"),
             ],
         ),
         types.PageBlockDivider(),
         _main_section(
             "💳 کارت‌به‌کارت در انتظار تایید",
             [
-                ("تعداد", f"{p['count']:,}"),
-                ("مبلغ", f"{p['amount']:,} تومان"),
+                ("⏳ تعداد", f"{p['count']:,}"),
+                ("💰 مبلغ", f"{p['amount']:,} تومان"),
             ],
         ),
         types.PageBlockDivider(),
         _main_section(
             "💰 خلاصه فروش",
             [
-                ("امروز", f"{s['sales_today']:,} تومان"),
-                ("دیروز", f"{s['sales_yesterday']:,} تومان"),
-                ("۲ روز پیش", f"{s['sales_2d_ago']:,} تومان"),
-                ("۳ روز پیش", f"{s['sales_3d_ago']:,} تومان"),
-                ("۷ روز اخیر", f"{s['sales_7d']:,} تومان"),
+                ("📅 امروز", f"{s['sales_today']:,} تومان"),
+                ("📅 دیروز", f"{s['sales_yesterday']:,} تومان"),
+                ("📅 ۲ روز پیش", f"{s['sales_2d_ago']:,} تومان"),
+                ("📅 ۳ روز پیش", f"{s['sales_3d_ago']:,} تومان"),
+                ("📊 ۷ روز اخیر", f"{s['sales_7d']:,} تومان"),
             ],
         ),
         types.PageBlockDivider(),
         _main_section(
             "🎁 پاداش رفرال",
             [
-                ("امروز", f"{ref.get('today', 0):,} تومان ({ref.get('count_today', 0)} نفر)"),
-                ("دیروز", f"{ref.get('yesterday', 0):,} تومان ({ref.get('count_yesterday', 0)} نفر)"),
-                ("کل", f"{ref.get('all_time', 0):,} تومان ({ref.get('count_all', 0)} نفر)"),
+                ("📅 امروز", f"{ref.get('today', 0):,} تومان ({ref.get('count_today', 0)} نفر)"),
+                ("📅 دیروز", f"{ref.get('yesterday', 0):,} تومان ({ref.get('count_yesterday', 0)} نفر)"),
+                ("🌍 کل", f"{ref.get('all_time', 0):,} تومان ({ref.get('count_all', 0)} نفر)"),
             ],
         ),
         types.PageBlockDivider(),
         types.PageBlockParagraph(_rt_bold("🧭 بخش‌ها")),
         *main_nav_button_rows(),
         types.PageBlockDivider(),
-        types.PageBlockFooter(
-            types.TextConcat(
-                texts=[
-                    _rt_bold("🕒 آخرین بروزرسانی: "),
-                    _rt(_fmt_updated(updated_at)),
-                    _rt("  ·  Coded By @AmirKenzoo"),
-                ]
-            )
-        ),
+        _updated_footer(updated_at),
     ]
 
 
@@ -700,10 +723,9 @@ def revenue_rich_blocks(payload: dict) -> list:
     blocks.append(types.PageBlockDivider())
     blocks.append(types.PageBlockParagraph(_rt_bold("📅 انتخاب بازه")))
     blocks.extend(_period_button_rows("revenue", period))
+    blocks.append(_action_button_row(f"stats:revenue:{period}:refresh".encode()))
     blocks.append(types.PageBlockDivider())
-    blocks.append(
-        types.PageBlockFooter(types.TextConcat(texts=[_rt_bold("🕒 آخرین بروزرسانی: "), _rt(_fmt_updated(updated_at))]))
-    )
+    blocks.append(_updated_footer(updated_at))
     return blocks
 
 
@@ -901,10 +923,9 @@ def services_rich_blocks(payload: dict) -> list:
     blocks.append(types.PageBlockDivider())
     blocks.append(types.PageBlockParagraph(_rt_bold("📅 انتخاب بازه")))
     blocks.extend(_period_button_rows("services", period))
+    blocks.append(_action_button_row(f"stats:services:{period}:refresh".encode()))
     blocks.append(types.PageBlockDivider())
-    blocks.append(
-        types.PageBlockFooter(types.TextConcat(texts=[_rt_bold("🕒 آخرین بروزرسانی: "), _rt(_fmt_updated(updated_at))]))
-    )
+    blocks.append(_updated_footer(updated_at))
     return blocks
 
 
@@ -1039,9 +1060,9 @@ def system_rich_blocks(payload: dict, ping_sec: float) -> list:
         types.PageBlockParagraph(_rt_bold("💱 نرخ ارز")),
         *system_rate_button_rows(payload),
         types.PageBlockDivider(),
-        types.PageBlockFooter(
-            types.TextConcat(texts=[_rt_bold("🕒 آخرین بروزرسانی: "), _rt(_fmt_updated(updated_at))])
-        ),
+        _action_button_row(b"stats:system:refresh"),
+        types.PageBlockDivider(),
+        _updated_footer(updated_at),
     ]
 
 

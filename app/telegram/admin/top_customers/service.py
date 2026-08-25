@@ -194,8 +194,8 @@ def _records_table(oldest: tuple[int, int] | None, newest: tuple[int, int] | Non
 
 
 def top_view_button_rows(active: str) -> list[types.PageBlockButtonRow]:
-    """Native Bot API 10.3 'Button Revolution' tab selector, replacing the plain inline keyboard."""
-    buttons = [
+    """Native Bot API 10.3 'Button Revolution' tab selector + back, replacing the plain inline keyboard."""
+    tab_buttons = [
         types.PageButton(
             text=_rt(f"• {label}" if key == active else label),
             type=types.InlineButtonTypeCallback(data=f"stats:top:{key}".encode()),
@@ -203,7 +203,11 @@ def top_view_button_rows(active: str) -> list[types.PageBlockButtonRow]:
         )
         for key, label in _TOP_VIEWS
     ]
-    return [types.PageBlockButtonRow(buttons=buttons, align_center=True)]
+    back_button = types.PageButton(text=_rt("🔙 بازگشت"), type=types.InlineButtonTypeCallback(data=b"stats:main"))
+    return [
+        types.PageBlockButtonRow(buttons=tab_buttons, align_center=True),
+        types.PageBlockButtonRow(buttons=[back_button], align_center=True),
+    ]
 
 
 async def top_customers_rich_blocks(view: str = "today") -> list:
@@ -267,4 +271,6 @@ async def top_customers_rich_blocks(view: str = "today") -> list:
 
     blocks.append(types.PageBlockDivider())
     blocks.extend(top_view_button_rows(view))
+    blocks.append(types.PageBlockDivider())
+    blocks.append(types.PageBlockFooter(_rt("Coded By @AmirKenzoo")))
     return blocks
