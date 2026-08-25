@@ -229,3 +229,33 @@ async def edit_native_rich_message(
             reply_markup=reply_markup,
         )
     )
+
+
+async def send_native_rich_message(
+    chat_id: int,
+    blocks: list,
+    *,
+    buttons=None,
+    rtl: bool = True,
+    noautolink: bool = True,
+    documents: list[types.InputDocument] | None = None,
+    photos: list[types.InputPhoto] | None = None,
+) -> None:
+    """Send a new native rich message built from explicit blocks (tables, button rows, …).
+
+    Native "Button Revolution" buttons (InlineButtonTypeCallback inside a PageButton) only exist
+    inside InputRichMessage blocks — send_rich_message's InputRichMessageMarkdown has no block
+    slot for them, so a first-time send with in-body buttons needs this instead of that.
+    """
+    reply_markup = Kenzo.build_reply_markup(buttons) if buttons else None
+    await Kenzo(
+        functions.messages.SendMessageRequest(
+            peer=chat_id,
+            message="",
+            rich_message=types.InputRichMessage(
+                blocks=blocks, rtl=rtl, noautolink=noautolink, documents=documents, photos=photos
+            ),
+            reply_markup=reply_markup,
+            random_id=random.getrandbits(63),
+        )
+    )

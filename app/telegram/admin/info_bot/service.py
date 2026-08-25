@@ -315,147 +315,13 @@ def main_text(payload: dict) -> str:
     return "\n".join(lines)
 
 
-def _main_users_table(u: dict) -> types.PageBlockTable:
-    rows = [
-        ("👤 کل کاربران", f"{u['total']:,}"),
-        ("✅ کاربران فعال", f"{u['active']:,}"),
-    ]
-    return types.PageBlockTable(
-        title=_rt("👥 آمار کاربران"),
-        bordered=True,
-        compact=True,
-        rows=[
-            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
-            for label, value in rows
-        ],
-    )
+def _main_section(heading: str, rows: list[tuple[str, str]]) -> types.PageBlockParagraph:
+    """Clean label/value section as plain rich text (no table) for stats:main."""
+    body = "\n".join(f"{label}: {value}" for label, value in rows)
+    return types.PageBlockParagraph(types.TextConcat(texts=[_rt_bold(f"{heading}\n"), _rt(body)]))
 
 
-def _main_signups_table(u: dict) -> types.PageBlockTable:
-    rows = [
-        ("امروز", u.get("members_today", 0)),
-        ("دیروز", u.get("members_1d_ago", 0)),
-        ("۲ روز پیش", u.get("members_2d_ago", 0)),
-        ("۳ روز پیش", u.get("members_3d_ago", 0)),
-        ("هفته", u["members_week"]),
-        ("ماه", u["members_month"]),
-    ]
-    return types.PageBlockTable(
-        title=_rt("📈 عضویت جدید"),
-        bordered=True,
-        compact=True,
-        rows=[
-            types.PageTableRow(
-                cells=[
-                    types.PageTableCell(text=_rt("بازه"), header=True),
-                    types.PageTableCell(text=_rt("تعداد"), header=True),
-                ]
-            ),
-            *(
-                types.PageTableRow(
-                    cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(f"{value:,}"))]
-                )
-                for label, value in rows
-            ),
-        ],
-    )
-
-
-def _main_inactive_table(u: dict, inactive: int) -> types.PageBlockTable:
-    rows = [
-        ("🔒 بن", f"{u['banned']:,}"),
-        ("🚫 بلاک", f"{u['blocked']:,}"),
-        ("🗑 حذف", f"{u['deleted']:,}"),
-    ]
-    return types.PageBlockTable(
-        title=_rt(f"🚫 غیرفعال ({inactive:,})"),
-        bordered=True,
-        compact=True,
-        rows=[
-            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
-            for label, value in rows
-        ],
-    )
-
-
-def _main_pending_table(p: dict) -> types.PageBlockTable:
-    rows = [
-        ("⏳ تعداد", f"{p['count']:,}"),
-        ("💰 مبلغ", f"{p['amount']:,} تومان"),
-    ]
-    return types.PageBlockTable(
-        title=_rt("💳 کارت‌به‌کارت در انتظار تایید"),
-        bordered=True,
-        compact=True,
-        rows=[
-            types.PageTableRow(cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(value))])
-            for label, value in rows
-        ],
-    )
-
-
-def _main_sales_table(s: dict) -> types.PageBlockTable:
-    rows = [
-        ("امروز", s["sales_today"]),
-        ("دیروز", s["sales_yesterday"]),
-        ("۲ روز پیش", s["sales_2d_ago"]),
-        ("۳ روز پیش", s["sales_3d_ago"]),
-        ("۷ روز اخیر", s["sales_7d"]),
-    ]
-    return types.PageBlockTable(
-        title=_rt("💰 خلاصه فروش"),
-        bordered=True,
-        compact=True,
-        rows=[
-            types.PageTableRow(
-                cells=[
-                    types.PageTableCell(text=_rt("بازه"), header=True),
-                    types.PageTableCell(text=_rt("مبلغ (تومان)"), header=True),
-                ]
-            ),
-            *(
-                types.PageTableRow(
-                    cells=[types.PageTableCell(text=_rt(label)), types.PageTableCell(text=_rt(f"{value:,}"))]
-                )
-                for label, value in rows
-            ),
-        ],
-    )
-
-
-def _main_referral_table(ref: dict) -> types.PageBlockTable:
-    rows = [
-        ("امروز", ref.get("today", 0), ref.get("count_today", 0)),
-        ("دیروز", ref.get("yesterday", 0), ref.get("count_yesterday", 0)),
-        ("کل", ref.get("all_time", 0), ref.get("count_all", 0)),
-    ]
-    return types.PageBlockTable(
-        title=_rt("🎁 پاداش رفرال"),
-        bordered=True,
-        compact=True,
-        rows=[
-            types.PageTableRow(
-                cells=[
-                    types.PageTableCell(text=_rt("بازه"), header=True),
-                    types.PageTableCell(text=_rt("مبلغ (تومان)"), header=True),
-                    types.PageTableCell(text=_rt("نفرات"), header=True),
-                ]
-            ),
-            *(
-                types.PageTableRow(
-                    cells=[
-                        types.PageTableCell(text=_rt(label)),
-                        types.PageTableCell(text=_rt(f"{amount:,}")),
-                        types.PageTableCell(text=_rt(f"{count:,}")),
-                    ]
-                )
-                for label, amount, count in rows
-            ),
-        ],
-    )
-
-
-# Section-navigation keys shown as native "Button Revolution" rows on stats:main.
+# Section-navigation keys + refresh, shown as native "Button Revolution" rows on stats:main.
 _MAIN_NAV_BUTTONS: tuple[tuple[str, str], ...] = (
     ("💰 گزارش مالی", "revenue:1d"),
     ("🏆 مشتریان برتر", "top:today"),
@@ -465,8 +331,8 @@ _MAIN_NAV_BUTTONS: tuple[tuple[str, str], ...] = (
 
 
 def main_nav_button_rows() -> list[types.PageBlockButtonRow]:
-    """Native Bot API 10.3 'Button Revolution' section navigation, replacing the plain inline keyboard."""
-    buttons = [
+    """Native Bot API 10.3 'Button Revolution' navigation + refresh, replacing the plain inline keyboard."""
+    nav_buttons = [
         types.PageButton(
             text=_rt(label),
             type=types.InlineButtonTypeCallback(data=f"stats:{action}".encode()),
@@ -474,12 +340,17 @@ def main_nav_button_rows() -> list[types.PageBlockButtonRow]:
         )
         for label, action in _MAIN_NAV_BUTTONS
     ]
-    rows = [buttons[0:2], buttons[2:4]]
+    refresh_button = types.PageButton(
+        text=_rt("🔄 بروزرسانی"),
+        type=types.InlineButtonTypeCallback(data=b"stats:refresh"),
+        style=types.RichButtonStyle(bg_success=True),
+    )
+    rows = [nav_buttons[0:2], nav_buttons[2:4], [refresh_button]]
     return [types.PageBlockButtonRow(buttons=r, align_center=True) for r in rows]
 
 
 def main_rich_blocks(payload: dict) -> list:
-    """Native Bot API 10.3 rich message blocks for stats:main (tables + in-body nav buttons)."""
+    """Native Bot API 10.3 rich message blocks for stats:main (clean text sections + in-body nav buttons)."""
     u = payload["users"]
     s = payload["sales"]
     p = payload["pending"]
@@ -489,17 +360,63 @@ def main_rich_blocks(payload: dict) -> list:
 
     return [
         types.PageBlockParagraph(_rt_bold("📊 داشبورد آمار")),
-        _main_users_table(u),
         types.PageBlockDivider(),
-        _main_signups_table(u),
+        _main_section(
+            "👥 آمار کاربران",
+            [
+                ("کل کاربران", f"{u['total']:,}"),
+                ("کاربران فعال", f"{u['active']:,}"),
+            ],
+        ),
         types.PageBlockDivider(),
-        _main_inactive_table(u, inactive),
+        _main_section(
+            "📈 عضویت جدید",
+            [
+                ("امروز", f"{u.get('members_today', 0):,}"),
+                ("دیروز", f"{u.get('members_1d_ago', 0):,}"),
+                ("۲ روز پیش", f"{u.get('members_2d_ago', 0):,}"),
+                ("۳ روز پیش", f"{u.get('members_3d_ago', 0):,}"),
+                ("هفته", f"{u['members_week']:,}"),
+                ("ماه", f"{u['members_month']:,}"),
+            ],
+        ),
         types.PageBlockDivider(),
-        _main_pending_table(p),
+        _main_section(
+            f"🚫 غیرفعال ({inactive:,})",
+            [
+                ("بن", f"{u['banned']:,}"),
+                ("بلاک", f"{u['blocked']:,}"),
+                ("حذف", f"{u['deleted']:,}"),
+            ],
+        ),
         types.PageBlockDivider(),
-        _main_sales_table(s),
+        _main_section(
+            "💳 کارت‌به‌کارت در انتظار تایید",
+            [
+                ("تعداد", f"{p['count']:,}"),
+                ("مبلغ", f"{p['amount']:,} تومان"),
+            ],
+        ),
         types.PageBlockDivider(),
-        _main_referral_table(ref),
+        _main_section(
+            "💰 خلاصه فروش",
+            [
+                ("امروز", f"{s['sales_today']:,} تومان"),
+                ("دیروز", f"{s['sales_yesterday']:,} تومان"),
+                ("۲ روز پیش", f"{s['sales_2d_ago']:,} تومان"),
+                ("۳ روز پیش", f"{s['sales_3d_ago']:,} تومان"),
+                ("۷ روز اخیر", f"{s['sales_7d']:,} تومان"),
+            ],
+        ),
+        types.PageBlockDivider(),
+        _main_section(
+            "🎁 پاداش رفرال",
+            [
+                ("امروز", f"{ref.get('today', 0):,} تومان ({ref.get('count_today', 0)} نفر)"),
+                ("دیروز", f"{ref.get('yesterday', 0):,} تومان ({ref.get('count_yesterday', 0)} نفر)"),
+                ("کل", f"{ref.get('all_time', 0):,} تومان ({ref.get('count_all', 0)} نفر)"),
+            ],
+        ),
         types.PageBlockDivider(),
         types.PageBlockParagraph(_rt_bold("🧭 بخش‌ها")),
         *main_nav_button_rows(),

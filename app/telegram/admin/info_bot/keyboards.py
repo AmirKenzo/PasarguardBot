@@ -50,10 +50,6 @@ def main_menu_buttons() -> list:
     ]
 
 
-def main_outer_buttons() -> list:
-    return [[inline_btn("🔄 بروزرسانی", f"{states.STATS_PREFIX}refresh")]]
-
-
 def top_buttons(view: str) -> list:
     prefix = states.STATS_PREFIX
     tabs = [("today", "⭐ امروز"), ("spend", "💰 مبلغ"), ("recharge", "🔢 شارژ"), ("config", "📦 کانفیگ")]
