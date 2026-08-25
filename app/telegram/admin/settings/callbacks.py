@@ -10,6 +10,7 @@ from app.db.crud.help_buttons import HelpButtonCRUD
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
+from app.services.telegram.rich_message import edit_native_rich_message
 from app.telegram.admin.settings import keyboards, states, texts
 from app.telegram.keyboards.customization import (
     create_keyboard_button_config_view,
@@ -27,6 +28,7 @@ from app.telegram.keyboards.settings import (
     get_settings_menu_section,
     get_settings_menu_text,
     get_settings_section_key_for_attr,
+    settings_menu_rich_blocks,
 )
 from app.telegram.keyboards.texts import (
     TEXT_KEYS_CONFIG,
@@ -44,8 +46,13 @@ logger = get_logger(__name__)
 
 
 async def _edit_settings_menu(event: events.CallbackQuery.Event, settings, section_key: str | None = None) -> None:
-    buttons = await create_buttons_settings(settings, section_key=section_key)
-    await event.edit(get_settings_menu_text(section_key), buttons=buttons)
+    try:
+        blocks = await settings_menu_rich_blocks(settings, section_key=section_key)
+        await edit_native_rich_message(event, blocks)
+    except Exception as rich_exc:
+        logger.warning("settings menu rich edit failed, falling back: %s", rich_exc)
+        buttons = await create_buttons_settings(settings, section_key=section_key)
+        await event.edit(get_settings_menu_text(section_key), buttons=buttons)
 
 
 def settings_callback_filter(event: events.CallbackQuery.Event) -> bool:
@@ -66,6 +73,7 @@ async def callback_settings_menu_page(event: events.CallbackQuery.Event):
         await event.answer("این بخش تنظیمات پیدا نشد.", alert=True)
         return
 
+    await event.answer()
     settings = await SettingsManager().get_settings()
     await _edit_settings_menu(event, settings, section_key)
 
@@ -88,17 +96,20 @@ async def callback_settings_toggle(event: events.CallbackQuery.Event):
             return
 
         if setting_name == "start_reaction":
-            await toggle_start_reaction()
+            new_value = await toggle_start_reaction()
+            toast = f"{item.label}: {'✅ فعال شد' if new_value else '❌ غیرفعال شد'}"
         else:
             current_value = bool(getattr(settings, setting_name, item.default))
             update_kwargs = {setting_name: not current_value}
             if setting_name == "pay_mode" and not current_value:
                 update_kwargs["manual_card_visibility"] = None
             await SettingsManager().update_setting(settings.id, **update_kwargs)
+            toast = f"{item.label}: {'❌ غیرفعال شد' if current_value else '✅ فعال شد'}"
     except Exception as e:
         await event.answer(f"خطا در به‌روزرسانی تنظیمات: {e!s}", alert=True)
         return
 
+    await event.answer(toast)
     updated_settings = await SettingsManager().get_settings()
     await _edit_settings_menu(
         event,

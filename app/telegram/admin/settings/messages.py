@@ -11,6 +11,7 @@ from app.db.crud.help_buttons import HelpButtonCRUD
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
+from app.services.telegram.rich_message import send_native_rich_message
 from app.telegram.admin.settings import states, texts
 from app.telegram.keyboards.common import extract_custom_emoji_document_id
 from app.telegram.keyboards.customization import (
@@ -23,7 +24,7 @@ from app.telegram.keyboards.help import (
     create_help_reorder_ui,
 )
 from app.telegram.keyboards.registry import KEYBOARD_BUTTON_TITLES
-from app.telegram.keyboards.settings import create_buttons_settings, get_settings_menu_text
+from app.telegram.keyboards.settings import create_buttons_settings, get_settings_menu_text, settings_menu_rich_blocks
 from app.telegram.keyboards.texts import TEXT_KEYS_CONFIG, create_text_sections_buttons
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from config import ADMIN_ID
@@ -39,8 +40,13 @@ async def message_handler_settings(event: Message):
 
     logger.info("message_handler_settings")
     settings = await SettingsManager().get_settings()
-    buttons = await create_buttons_settings(settings)
-    await event.respond(get_settings_menu_text(), buttons=buttons)
+    try:
+        blocks = await settings_menu_rich_blocks(settings)
+        await send_native_rich_message(event.chat_id, blocks)
+    except Exception as rich_exc:
+        logger.warning("settings menu rich send failed, falling back: %s", rich_exc)
+        buttons = await create_buttons_settings(settings)
+        await event.respond(get_settings_menu_text(), buttons=buttons)
 
 
 async def _settings_admin_message_filter(event: Message) -> bool:

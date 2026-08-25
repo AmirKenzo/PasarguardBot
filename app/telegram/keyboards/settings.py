@@ -2,7 +2,10 @@
 
 from dataclasses import dataclass
 
+from telethon.tl import types
+
 from app.logger import get_logger
+from app.services.telegram.rich_message import rt as _rt, rt_bold as _rt_bold
 from app.telegram.user.start.helpers import is_start_reaction_enabled
 
 from .common import build_telegram_button_style, styled_callback_button
@@ -266,3 +269,129 @@ async def create_buttons_settings(settings, section_key: str | None = None):
         await _append_settings_section(buttons, settings, section)
 
     return buttons
+
+
+async def _settings_rich_toggle_button(settings, item: SettingsMenuItem) -> types.PageButton:
+    if item.attr == "start_reaction":
+        value = await is_start_reaction_enabled()
+    else:
+        value = bool(getattr(settings, item.attr, item.default))
+    return types.PageButton(
+        text=_rt(item.label),
+        type=types.InlineButtonTypeCallback(data=f"settings.{item.attr}".encode()),
+        style=types.RichButtonStyle(bg_success=True) if value else types.RichButtonStyle(bg_danger=True),
+    )
+
+
+async def _settings_rich_section_rows(settings, section: SettingsMenuSection) -> list[types.PageBlockButtonRow]:
+    """Native Bot API 10.3 'Button Revolution' toggle grid, replacing the plain inline keyboard."""
+    rows: list[types.PageBlockButtonRow] = []
+    current_row: list[types.PageButton] = []
+    columns = max(1, section.columns)
+
+    for item in section.items:
+        button = await _settings_rich_toggle_button(settings, item)
+        if item.wide:
+            if current_row:
+                rows.append(types.PageBlockButtonRow(buttons=current_row))
+                current_row = []
+            rows.append(types.PageBlockButtonRow(buttons=[button]))
+            continue
+
+        current_row.append(button)
+        if len(current_row) == columns:
+            rows.append(types.PageBlockButtonRow(buttons=current_row))
+            current_row = []
+
+    if current_row:
+        rows.append(types.PageBlockButtonRow(buttons=current_row))
+    return rows
+
+
+def _settings_rich_home_button() -> types.PageButton:
+    return types.PageButton(
+        text=_rt("🏠 فهرست بخش‌ها"),
+        type=types.InlineButtonTypeCallback(data=b"settings_menu:home"),
+        style=types.RichButtonStyle(bg_primary=True),
+    )
+
+
+def _settings_rich_nav_button_rows(section_key: str) -> list[types.PageBlockButtonRow]:
+    sections = [section for section in SETTINGS_MENU_SECTIONS if section.separate_page]
+    current_index = next((index for index, section in enumerate(sections) if section.key == section_key), None)
+    if current_index is None:
+        return [types.PageBlockButtonRow(buttons=[_settings_rich_home_button()])]
+
+    row = []
+    if current_index > 0:
+        row.append(
+            types.PageButton(
+                text=_rt("⬅️ بخش قبلی"),
+                type=types.InlineButtonTypeCallback(data=f"settings_menu:{sections[current_index - 1].key}".encode()),
+                style=types.RichButtonStyle(bg_primary=True),
+            )
+        )
+
+    row.append(_settings_rich_home_button())
+
+    if current_index < len(sections) - 1:
+        row.append(
+            types.PageButton(
+                text=_rt("بخش بعدی ➡️"),
+                type=types.InlineButtonTypeCallback(data=f"settings_menu:{sections[current_index + 1].key}".encode()),
+                style=types.RichButtonStyle(bg_primary=True),
+            )
+        )
+
+    return [types.PageBlockButtonRow(buttons=row)]
+
+
+async def settings_menu_rich_blocks(settings, section_key: str | None = None) -> list:
+    """Native Bot API 10.3 rich message blocks for the ⚙️ settings panel (toggle buttons in-body)."""
+    section = get_settings_menu_section(section_key)
+    status_line = "🟢 سبز یعنی فعال   ·   🔴 قرمز یعنی غیرفعال"
+
+    if section is not None:
+        blocks: list = [
+            types.PageBlockParagraph(_rt_bold(section.title)),
+            types.PageBlockParagraph(_rt(section.description)),
+            types.PageBlockParagraph(_rt(f"{status_line}\nبرای تغییر هر گزینه، روی همان دکمه بزن.")),
+            types.PageBlockDivider(),
+        ]
+        blocks.extend(await _settings_rich_section_rows(settings, section))
+        blocks.append(types.PageBlockDivider())
+        blocks.extend(_settings_rich_nav_button_rows(section.key))
+        return blocks
+
+    blocks = [
+        types.PageBlockParagraph(_rt_bold("⚙️ مرکز کنترل تنظیمات ربات")),
+        types.PageBlockParagraph(
+            _rt(
+                "برای مدیریت راحت‌تر، تنظیمات به چند بخش جدا تقسیم شده‌اند. "
+                "وارد هر بخش شو، توضیح همان بخش را بخوان و فقط گزینه‌های همان قسمت را تغییر بده."
+            )
+        ),
+        types.PageBlockParagraph(_rt(status_line)),
+        types.PageBlockDivider(),
+    ]
+
+    for menu_section in SETTINGS_MENU_SECTIONS:
+        if menu_section.separate_page:
+            blocks.append(
+                types.PageBlockButtonRow(
+                    buttons=[
+                        types.PageButton(
+                            text=_rt(menu_section.title),
+                            type=types.InlineButtonTypeCallback(data=f"settings_menu:{menu_section.key}".encode()),
+                            style=types.RichButtonStyle(bg_primary=True),
+                        )
+                    ]
+                )
+            )
+            continue
+
+        blocks.append(types.PageBlockParagraph(_rt_bold(menu_section.title)))
+        blocks.extend(await _settings_rich_section_rows(settings, menu_section))
+        blocks.append(types.PageBlockDivider())
+
+    return blocks
