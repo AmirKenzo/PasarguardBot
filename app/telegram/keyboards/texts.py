@@ -309,9 +309,40 @@ TEXT_KEYS_CONFIG = {
     ],
     "renewal": [
         {"key": "renewal_step_one_text", "title": "متن مرحله اول تمدید", "placeholders": {}},
-        {"key": "renewal_step_two_text", "title": "متن مرحله دوم تمدید", "placeholders": {"panel_name": "نام پنل"}},
-        {"key": "renewal_final_step_text", "title": "متن مرحله نهایی تمدید", "placeholders": {}},
-        {"key": "renewal_success_text", "title": "متن موفقیت تمدید", "placeholders": {}},
+        {
+            "key": "renewal_step_two_text",
+            "title": "متن مرحله دوم تمدید",
+            "placeholders": {
+                "panel_name": "نام پنل",
+                "duration": "مدت زمان انتخابی",
+            },
+        },
+        {
+            "key": "renewal_final_step_text",
+            "title": "متن مرحله نهایی تمدید",
+            "placeholders": {
+                "service_code": "کد سرویس",
+                "plan_name": "پلن انتخابی",
+                "current_remaining_volume": "حجم باقیمانده الان",
+                "new_remaining_volume": "حجم باقیمانده بعد تمدید",
+                "duration": "مدت زمان بعد تمدید",
+                "ip_limit": "محدودیت کاربر",
+                "price": "قیمت نهایی",
+            },
+        },
+        {
+            "key": "renewal_success_text",
+            "title": "متن موفقیت تمدید",
+            "placeholders": {
+                "service_code": "کد سرویس",
+                "config_name": "نام کانفیگ",
+                "plan_name": "پلن انتخابی",
+                "new_volume": "حجم جدید",
+                "expiration_date": "تاریخ انقضا",
+                "price": "مبلغ کسر شده",
+                "new_balance": "موجودی جدید",
+            },
+        },
     ],
     "other": [
         {"key": "help_message", "title": "متن راهنما", "placeholders": {}},
