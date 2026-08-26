@@ -10,12 +10,7 @@ from httpx import HTTPStatusError
 from pasarguard import PasarguardAPI, UserCreate
 from pasarguard.enums import UserDataLimitResetStrategy
 from telethon import Button
-from telethon.tl.types import (
-    KeyboardButtonCopy,
-    KeyboardButtonRow,
-    KeyboardButtonWebView,
-    ReplyInlineMarkup,
-)
+from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app import Kenzo
 from app.db.crud.discount_codes import DiscountCodeManager
@@ -51,6 +46,7 @@ from app.telegram.keyboards.buy import (
     buy_back_button,
     buy_custom_button,
 )
+from app.telegram.keyboards.common import styled_copy_button, styled_webview_button
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.keyboards.duration_buttons import build_duration_selection_button_rows
 from app.telegram.shared.keyboards.panel_buttons import build_panel_display_button
@@ -392,9 +388,9 @@ async def _confirm_buy_username(event, username: str, *, edit: bool) -> None:
         await set_step(event.sender_id, "crconf")
     await set_data(event.sender_id, "username", username)
     if edit:
-        await event.edit(confirm_text, buttons=confirm_buttons, parse_mode="md", link_preview=False)
+        await event.edit(confirm_text, buttons=confirm_buttons, link_preview=False)
     else:
-        await event.respond(confirm_text, buttons=confirm_buttons, parse_mode="md", link_preview=False)
+        await event.respond(confirm_text, buttons=confirm_buttons, link_preview=False)
 
 
 async def _load_purchase_context(user_id: int):
@@ -603,15 +599,15 @@ async def create_vpn_purchase_for_user(
     await set_step(user_id, "home")
     purchase_buttons = ReplyInlineMarkup(
         [
-            KeyboardButtonRow(
+            KeyboardInlineButtonRow(
                 [
-                    KeyboardButtonWebView(
+                    styled_webview_button(
                         "برای مشاهده اطلاعات بیشتر کلیک کنید",
                         f"{primary_subscription_url}",
                     )
                 ]
             ),
-            KeyboardButtonRow([KeyboardButtonCopy("برای کپی لینک کلیک کنید", f"{primary_subscription_url}")]),
+            KeyboardInlineButtonRow([styled_copy_button("برای کپی لینک کلیک کنید", f"{primary_subscription_url}")]),
         ]
     )
     short_caption = (

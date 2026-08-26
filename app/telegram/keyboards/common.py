@@ -4,13 +4,15 @@ import re
 
 from telethon import Button
 from telethon.tl.types import (
+    ButtonTypeDefault,
+    ButtonTypeSimpleWebView,
+    InlineButtonTypeCallback,
+    InlineButtonTypeCopy,
+    InlineButtonTypeUrl,
+    InlineButtonTypeWebView,
     KeyboardButton,
-    KeyboardButtonCallback,
-    KeyboardButtonCopy,
-    KeyboardButtonSimpleWebView,
     KeyboardButtonStyle,
-    KeyboardButtonUrl,
-    KeyboardButtonWebView,
+    KeyboardInlineButton,
     MessageEntityCustomEmoji,
 )
 
@@ -136,65 +138,28 @@ def _normalize_callback_data(data) -> bytes:
 
 def styled_callback_button(text: str, data, style_obj=None):
     payload = _normalize_callback_data(data)
-    try:
-        return (
-            KeyboardButtonCallback(text=text, data=payload, style=style_obj)
-            if style_obj
-            else KeyboardButtonCallback(text=text, data=payload)
-        )
-    except TypeError:
-        return KeyboardButtonCallback(text, payload)
+    return KeyboardInlineButton(text=text, type=InlineButtonTypeCallback(data=payload), style=style_obj)
 
 
 def styled_copy_button(text: str, copy_text: str, style_obj=None):
-    try:
-        return (
-            KeyboardButtonCopy(text=text, copy_text=copy_text, style=style_obj)
-            if style_obj
-            else KeyboardButtonCopy(text=text, copy_text=copy_text)
-        )
-    except TypeError:
-        return KeyboardButtonCopy(text, copy_text)
+    return KeyboardInlineButton(text=text, type=InlineButtonTypeCopy(copy_text=copy_text), style=style_obj)
 
 
 def styled_webview_button(text: str, url: str, style_obj=None):
-    try:
-        return (
-            KeyboardButtonWebView(text=text, url=url, style=style_obj)
-            if style_obj
-            else KeyboardButtonWebView(text=text, url=url)
-        )
-    except TypeError:
-        return KeyboardButtonWebView(text, url)
+    return KeyboardInlineButton(text=text, type=InlineButtonTypeWebView(url=url), style=style_obj)
 
 
 def styled_url_button(text: str, url: str, style_obj=None):
-    try:
-        return (
-            KeyboardButtonUrl(text=text, url=url, style=style_obj)
-            if style_obj
-            else KeyboardButtonUrl(text=text, url=url)
-        )
-    except TypeError:
-        return KeyboardButtonUrl(text=text, url=url)
+    return KeyboardInlineButton(text=text, type=InlineButtonTypeUrl(url=url), style=style_obj)
 
 
 def styled_simple_webview_button(text: str, url: str, style_obj=None):
-    try:
-        return (
-            KeyboardButtonSimpleWebView(text=text, url=url, style=style_obj)
-            if style_obj
-            else KeyboardButtonSimpleWebView(text=text, url=url)
-        )
-    except TypeError:
-        return KeyboardButtonSimpleWebView(text=text, url=url)
+    # Normal (non-inline) keyboard button, unlike styled_webview_button which is inline-only.
+    return KeyboardButton(text=text, type=ButtonTypeSimpleWebView(url=url), style=style_obj)
 
 
 def styled_reply_button(text: str, style_obj=None):
-    try:
-        return KeyboardButton(text=text, style=style_obj) if style_obj else KeyboardButton(text=text)
-    except TypeError:
-        return KeyboardButton(text=text)
+    return KeyboardButton(text=text, type=ButtonTypeDefault(), style=style_obj)
 
 
 def _help_button_style(style: str | None, icon: int | None):
@@ -223,19 +188,14 @@ async def _get_keyboard_button_config(
     return text, build_telegram_button_style(style, icon)
 
 
-def _build_help_url_button(btn) -> Button | KeyboardButtonUrl:
-    """Build help button: KeyboardButtonUrl with optional style, plain text (no glass)."""
+def _build_help_url_button(btn) -> KeyboardInlineButton | None:
+    """Build help button: inline URL button with optional style, plain text (no glass)."""
     text = (btn.button_text or "").strip()
     url = (btn.button_url or "").strip()
     if not text or not url:
         return None
     style_obj = _help_button_style(btn.button_style, btn.button_icon)
-    try:
-        if style_obj:
-            return KeyboardButtonUrl(text=text, url=url, style=style_obj)
-        return KeyboardButtonUrl(text=text, url=url)
-    except TypeError:
-        return KeyboardButtonUrl(text=text, url=url)
+    return KeyboardInlineButton(text=text, type=InlineButtonTypeUrl(url=url), style=style_obj)
 
 
 def _build_help_button_telegram(btn):
@@ -244,6 +204,6 @@ def _build_help_button_telegram(btn):
         style_obj = _help_button_style(getattr(btn, "button_style", None), getattr(btn, "button_icon", None))
         data = f"Download_{btn.callback_key}".encode()
         if style_obj:
-            return KeyboardButtonCallback(text=(btn.button_text or "").strip(), data=data, style=style_obj)
+            return styled_callback_button((btn.button_text or "").strip(), data, style_obj)
         return Button.inline((btn.button_text or "").strip(), data=f"Download_{btn.callback_key}")
     return _build_help_url_button(btn)

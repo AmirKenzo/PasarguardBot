@@ -66,6 +66,7 @@ FEATURE_SERVICE_UPGRADE = "service_upgrade"
 FEATURE_SALES = "sales"
 FEATURE_RESELLER_BUTTONS = "reseller_buttons"
 FEATURE_CUSTOM_BUY = "custom_buy"
+FEATURE_RESELLER_CAPACITY = "reseller_user_capacity"
 
 DEFAULT_FEATURE_SALES: dict[str, bool] = {
     "shop_enabled": True,
@@ -89,7 +90,13 @@ DEFAULT_RESELLER_BUTTON_SETTINGS: dict[str, bool] = {
     "toggle_status": True,
     "usage_report": True,
     "usage_cap": True,
+    "buy_user_capacity": True,
     "delete": True,
+}
+
+DEFAULT_RESELLER_CAPACITY: dict[str, Any] = {
+    "enabled": False,
+    "price_per_user": 2000,
 }
 
 JSON_SETTING_COLUMNS = (
@@ -304,6 +311,61 @@ def toggle_custom_buy_enabled(feature: dict[str, Any]) -> dict[str, Any]:
     return update_custom_buy_in_feature_settings(feature, enabled=not current["enabled"])
 
 
+def _normalize_reseller_capacity_settings(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return dict(DEFAULT_RESELLER_CAPACITY)
+    return {
+        "enabled": bool(raw.get("enabled", DEFAULT_RESELLER_CAPACITY["enabled"])),
+        "price_per_user": _as_non_negative_int(raw.get("price_per_user"), DEFAULT_RESELLER_CAPACITY["price_per_user"]),
+    }
+
+
+def panel_reseller_capacity_settings(panel) -> dict[str, Any]:
+    return _normalize_reseller_capacity_settings(feature_settings(panel).get(FEATURE_RESELLER_CAPACITY))
+
+
+def panel_reseller_capacity_settings_from_feature(settings: dict[str, Any]) -> dict[str, Any]:
+    raw = settings.get(FEATURE_RESELLER_CAPACITY) if isinstance(settings, dict) else None
+    return _normalize_reseller_capacity_settings(raw)
+
+
+def is_reseller_capacity_ready(settings: dict[str, Any]) -> bool:
+    return bool(settings.get("enabled") and int(settings.get("price_per_user") or 0) > 0)
+
+
+def panel_reseller_capacity_enabled(panel) -> bool:
+    return is_reseller_capacity_ready(panel_reseller_capacity_settings(panel))
+
+
+def _compact_reseller_capacity_namespace(namespace: dict[str, Any]) -> dict[str, Any] | None:
+    compact: dict[str, Any] = {}
+    enabled = bool(namespace.get("enabled", False))
+    if enabled != DEFAULT_RESELLER_CAPACITY["enabled"]:
+        compact["enabled"] = enabled
+    price_per_user = _as_non_negative_int(namespace.get("price_per_user"), DEFAULT_RESELLER_CAPACITY["price_per_user"])
+    if price_per_user != DEFAULT_RESELLER_CAPACITY["price_per_user"]:
+        compact["price_per_user"] = price_per_user
+    return compact or None
+
+
+def update_reseller_capacity_in_feature_settings(feature: dict[str, Any], **updates: Any) -> dict[str, Any]:
+    current = panel_reseller_capacity_settings_from_feature(feature)
+    for key, value in updates.items():
+        if key in DEFAULT_RESELLER_CAPACITY:
+            current[key] = value
+    compact = _compact_reseller_capacity_namespace(current)
+    if compact:
+        feature[FEATURE_RESELLER_CAPACITY] = compact
+    else:
+        feature.pop(FEATURE_RESELLER_CAPACITY, None)
+    return current
+
+
+def toggle_reseller_capacity_enabled(feature: dict[str, Any]) -> dict[str, Any]:
+    current = panel_reseller_capacity_settings_from_feature(feature)
+    return update_reseller_capacity_in_feature_settings(feature, enabled=not current["enabled"])
+
+
 def panel_reseller_button_enabled(panel, key: str) -> bool:
     return bool(panel_reseller_button_settings(panel).get(key, True))
 
@@ -416,6 +478,10 @@ def compact_feature_settings(settings: dict[str, Any]) -> dict[str, Any]:
             custom_buy = _compact_custom_buy_namespace(value)
             if custom_buy:
                 compact[key] = custom_buy
+        elif key == FEATURE_RESELLER_CAPACITY and isinstance(value, dict):
+            reseller_capacity = _compact_reseller_capacity_namespace(value)
+            if reseller_capacity:
+                compact[key] = reseller_capacity
         elif value not in (None, {}, []):
             compact[key] = value
     return compact

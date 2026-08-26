@@ -1,8 +1,20 @@
 """Bot-text management keyboards."""
 
 from telethon import Button
+from telethon.extensions import html as html_ext
 
+from app import Kenzo
 from app.db.crud.bot_texts import BotTextCRUD
+
+
+def render_stored_text_html(value: str | None) -> str:
+    """Convert a stored bot-text value (our custom markdown, incl. premium emoji) into
+    safe HTML so it renders correctly when embedded inside an HTML-parsed admin message."""
+    if not value:
+        return ""
+    clean_text, entities = Kenzo.parse_mode.parse(value)
+    return html_ext.unparse(clean_text, entities)
+
 
 TEXT_SECTIONS = {
     "start": {"name": "پیام استارت", "icon": "🚀"},
@@ -140,6 +152,7 @@ TEXT_KEYS_CONFIG = {
             "placeholders": {
                 "volume": "حجم سرویس",
                 "duration": "مدت زمان",
+                "config_name": "نام کانفیگ",
                 "config_type": "نوع کانفیگ",
                 "locations": "لوکیشن های موجود",
                 "user_limit": "محدودیت کاربر",
@@ -296,9 +309,40 @@ TEXT_KEYS_CONFIG = {
     ],
     "renewal": [
         {"key": "renewal_step_one_text", "title": "متن مرحله اول تمدید", "placeholders": {}},
-        {"key": "renewal_step_two_text", "title": "متن مرحله دوم تمدید", "placeholders": {"panel_name": "نام پنل"}},
-        {"key": "renewal_final_step_text", "title": "متن مرحله نهایی تمدید", "placeholders": {}},
-        {"key": "renewal_success_text", "title": "متن موفقیت تمدید", "placeholders": {}},
+        {
+            "key": "renewal_step_two_text",
+            "title": "متن مرحله دوم تمدید",
+            "placeholders": {
+                "panel_name": "نام پنل",
+                "duration": "مدت زمان انتخابی",
+            },
+        },
+        {
+            "key": "renewal_final_step_text",
+            "title": "متن مرحله نهایی تمدید",
+            "placeholders": {
+                "service_code": "کد سرویس",
+                "plan_name": "پلن انتخابی",
+                "current_remaining_volume": "حجم باقیمانده الان",
+                "new_remaining_volume": "حجم باقیمانده بعد تمدید",
+                "duration": "مدت زمان بعد تمدید",
+                "ip_limit": "محدودیت کاربر",
+                "price": "قیمت نهایی",
+            },
+        },
+        {
+            "key": "renewal_success_text",
+            "title": "متن موفقیت تمدید",
+            "placeholders": {
+                "service_code": "کد سرویس",
+                "config_name": "نام کانفیگ",
+                "plan_name": "پلن انتخابی",
+                "new_volume": "حجم جدید",
+                "expiration_date": "تاریخ انقضا",
+                "price": "مبلغ کسر شده",
+                "new_balance": "موجودی جدید",
+            },
+        },
     ],
     "other": [
         {"key": "help_message", "title": "متن راهنما", "placeholders": {}},
@@ -432,7 +476,8 @@ async def build_edit_text_view(
 
     if current_val:
         preview = (
-            f"📝 متن فعلی ({'فارسی' if lang_code == 'fa' else 'انگلیسی'}):\n<blockquote expandable>{current_val}</blockquote>"
+            f"📝 متن فعلی ({'فارسی' if lang_code == 'fa' else 'انگلیسی'}):\n"
+            f"<blockquote expandable>{render_stored_text_html(current_val)}</blockquote>"
             f"{banner_info}"
             f"{placeholder_info}\n\n"
             f"<b>لطفاً متن جدید برای «{pretty}» را ارسال کنید یا یکی از گزینه‌های زیر را انتخاب کنید.</b>"

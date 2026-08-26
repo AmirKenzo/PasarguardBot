@@ -17,7 +17,9 @@ from app.services.panels.settings import (
     compact_feature_settings,
     feature_settings,
     is_custom_buy_ready,
+    is_reseller_capacity_ready,
     panel_custom_buy_settings,
+    panel_reseller_capacity_settings,
     panel_reseller_sale_flag,
     panel_shop_sale_flag,
     panel_test_duration_days,
@@ -209,6 +211,27 @@ async def show_panel_custom_buy_menu(event, panel) -> None:
         [Button.inline(f"روشن/خاموش ({toggle_label})", data=f"panel_custom_buy_toggle:{panel.code}")],
         [Button.inline("💰 تنظیم نرخ هر گیگ", data=f"panel_custom_buy_price_gb:{panel.code}")],
         [Button.inline("⏰ تنظیم نرخ هر روز", data=f"panel_custom_buy_price_day:{panel.code}")],
+        [Button.inline("🔙 بازگشت", data=f"panel_info:{panel.code}")],
+    ]
+    await event.edit(text, buttons=buttons)
+
+
+async def show_panel_reseller_capacity_menu(event, panel) -> None:
+    settings = panel_reseller_capacity_settings(panel)
+    ready = is_reseller_capacity_ready(settings)
+    toggle_label = "✅ روشن" if settings["enabled"] else "❌ خاموش"
+    ready_label = "فعال برای نماینده ✅" if ready else "برای نماینده غیرفعال ❌"
+    text = (
+        f"**👥 خرید ظرفیت کاربر اضافه — پنل {panel.name}**\n\n"
+        f"📌 سوییچ: {toggle_label}\n"
+        f"📣 وضعیت نهایی: {ready_label}\n"
+        f"💰 قیمت هر کاربر: `{settings['price_per_user']:,}` تومان\n\n"
+        "نماینده می‌تواند جدا از ظرفیت اصلی پلن، User Limit پنل خود را با پرداخت افزایش دهد.\n"
+        "برای فعال شدن دکمه نماینده، سوییچ باید روشن باشد و قیمت هر کاربر بزرگ‌تر از صفر باشد."
+    )
+    buttons = [
+        [Button.inline(f"روشن/خاموش ({toggle_label})", data=f"panel_reseller_capacity_toggle:{panel.code}")],
+        [Button.inline("💰 تنظیم قیمت هر کاربر", data=f"panel_reseller_capacity_price:{panel.code}")],
         [Button.inline("🔙 بازگشت", data=f"panel_info:{panel.code}")],
     ]
     await event.edit(text, buttons=buttons)

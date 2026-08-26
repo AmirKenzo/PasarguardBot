@@ -10,6 +10,7 @@ from app.db.crud.help_buttons import HelpButtonCRUD
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
+from app.services.telegram.rich_message import edit_native_rich_message
 from app.telegram.admin.settings import keyboards, states, texts
 from app.telegram.keyboards.customization import (
     create_keyboard_button_config_view,
@@ -27,6 +28,7 @@ from app.telegram.keyboards.settings import (
     get_settings_menu_section,
     get_settings_menu_text,
     get_settings_section_key_for_attr,
+    settings_menu_rich_blocks,
 )
 from app.telegram.keyboards.texts import (
     TEXT_KEYS_CONFIG,
@@ -35,6 +37,7 @@ from app.telegram.keyboards.texts import (
     create_language_select_buttons,
     create_text_keys_buttons,
     create_text_sections_buttons,
+    render_stored_text_html,
 )
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from app.telegram.user.start.helpers import toggle_start_reaction
@@ -44,8 +47,13 @@ logger = get_logger(__name__)
 
 
 async def _edit_settings_menu(event: events.CallbackQuery.Event, settings, section_key: str | None = None) -> None:
-    buttons = await create_buttons_settings(settings, section_key=section_key)
-    await event.edit(get_settings_menu_text(section_key), buttons=buttons)
+    try:
+        blocks = await settings_menu_rich_blocks(settings, section_key=section_key)
+        await edit_native_rich_message(event, blocks)
+    except Exception as rich_exc:
+        logger.warning("settings menu rich edit failed, falling back: %s", rich_exc)
+        buttons = await create_buttons_settings(settings, section_key=section_key)
+        await event.edit(get_settings_menu_text(section_key), buttons=buttons)
 
 
 def settings_callback_filter(event: events.CallbackQuery.Event) -> bool:
@@ -66,6 +74,7 @@ async def callback_settings_menu_page(event: events.CallbackQuery.Event):
         await event.answer("این بخش تنظیمات پیدا نشد.", alert=True)
         return
 
+    await event.answer()
     settings = await SettingsManager().get_settings()
     await _edit_settings_menu(event, settings, section_key)
 
@@ -88,17 +97,20 @@ async def callback_settings_toggle(event: events.CallbackQuery.Event):
             return
 
         if setting_name == "start_reaction":
-            await toggle_start_reaction()
+            new_value = await toggle_start_reaction()
+            toast = f"{item.label}: {'✅ فعال شد' if new_value else '❌ غیرفعال شد'}"
         else:
             current_value = bool(getattr(settings, setting_name, item.default))
             update_kwargs = {setting_name: not current_value}
             if setting_name == "pay_mode" and not current_value:
                 update_kwargs["manual_card_visibility"] = None
             await SettingsManager().update_setting(settings.id, **update_kwargs)
+            toast = f"{item.label}: {'❌ غیرفعال شد' if current_value else '✅ فعال شد'}"
     except Exception as e:
         await event.answer(f"خطا در به‌روزرسانی تنظیمات: {e!s}", alert=True)
         return
 
+    await event.answer(toast)
     updated_settings = await SettingsManager().get_settings()
     await _edit_settings_menu(
         event,
@@ -228,11 +240,12 @@ async def callback_settings_admin(event: events.CallbackQuery.Event):
         style_val = parts[3]
         keyboard_crud = KeyboardButtonCRUD()
         if style_val == "none":
-            await keyboard_crud.set_button(button_key, button_style="")
-            await event.answer("رنگ دکمه حذف شد.")
+            saved = await keyboard_crud.set_button(button_key, button_style="")
+            success_msg = "رنگ دکمه حذف شد."
         else:
-            await keyboard_crud.set_button(button_key, button_style=style_val)
-            await event.answer(f"رنگ تغییر کرد به {STYLE_LABELS.get(style_val, style_val)}.")
+            saved = await keyboard_crud.set_button(button_key, button_style=style_val)
+            success_msg = f"رنگ تغییر کرد به {STYLE_LABELS.get(style_val, style_val)}."
+        await event.answer(success_msg if saved else "❌ ذخیره رنگ با خطا مواجه شد.", alert=not saved)
         preview, buttons = await create_keyboard_button_config_view(button_key, page, keyboard_crud)
         with contextlib.suppress(MessageNotModifiedError):
             await event.edit(
@@ -265,8 +278,8 @@ async def callback_settings_admin(event: events.CallbackQuery.Event):
             await event.answer("❌ کلید دکمه نامعتبر است.", alert=True)
             return
         keyboard_crud = KeyboardButtonCRUD()
-        await keyboard_crud.set_button(button_key, clear_icon=True)
-        await event.answer("آیکون دکمه حذف شد.")
+        saved = await keyboard_crud.set_button(button_key, clear_icon=True)
+        await event.answer("آیکون دکمه حذف شد." if saved else "❌ حذف آیکون با خطا مواجه شد.", alert=not saved)
         preview, buttons = await create_keyboard_button_config_view(button_key, page, keyboard_crud)
         with contextlib.suppress(MessageNotModifiedError):
             await event.edit(
@@ -582,7 +595,8 @@ async def callback_settings_admin(event: events.CallbackQuery.Event):
 
                 if current_val:
                     preview = (
-                        f"📝 متن فعلی ({'فارسی' if lang_code == 'fa' else 'انگلیسی'}):\n<blockquote expandable>{current_val}</blockquote>"
+                        f"📝 متن فعلی ({'فارسی' if lang_code == 'fa' else 'انگلیسی'}):\n"
+                        f"<blockquote expandable>{render_stored_text_html(current_val)}</blockquote>"
                         f"{banner_info}"
                         f"{placeholder_info}\n\n"
                         f"<b>لطفاً متن جدید برای «{pretty}» را ارسال کنید یا یکی از گزینه‌های زیر را انتخاب کنید.</b>"

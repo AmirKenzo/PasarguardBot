@@ -6,13 +6,13 @@ import base64
 
 from telethon import Button
 from telethon.tl.types import (
-    KeyboardButtonCallback,
-    KeyboardButtonCopy,
-    KeyboardButtonSimpleWebView,
+    InlineButtonTypeCallback,
+    InlineButtonTypeCopy,
+    InlineButtonTypeSwitchInline,
+    InlineButtonTypeUrl,
+    InlineButtonTypeWebView,
     KeyboardButtonStyle,
-    KeyboardButtonSwitchInline,
-    KeyboardButtonUrl,
-    KeyboardButtonWebView,
+    KeyboardInlineButton,
     ReplyInlineMarkup,
 )
 
@@ -68,25 +68,24 @@ def _serialize_button_item(button) -> dict | None:
     if style:
         item["style"] = style
 
-    if isinstance(button, KeyboardButtonUrl):
+    btn_type = getattr(button, "type", None)
+    if isinstance(btn_type, InlineButtonTypeUrl):
         item["type"] = "url"
-        item["url"] = button.url
-    elif isinstance(button, KeyboardButtonCallback):
+        item["url"] = btn_type.url
+    elif isinstance(btn_type, InlineButtonTypeCallback):
         item["type"] = "callback"
-        item["data"] = _encode_bytes(button.data)
-    elif isinstance(button, KeyboardButtonSwitchInline):
+        item["data"] = _encode_bytes(btn_type.data)
+    elif isinstance(btn_type, InlineButtonTypeSwitchInline):
         item["type"] = "switch_inline"
-        item["query"] = _encode_bytes(button.query)
-        item["same_peer"] = bool(button.same_peer)
-    elif isinstance(button, KeyboardButtonWebView):
+        item["query"] = _encode_bytes(btn_type.query)
+        item["same_peer"] = bool(btn_type.same_peer)
+    elif isinstance(btn_type, InlineButtonTypeWebView):
+        # "simple_web_view" kept as an alias so previously stored rows round-trip unchanged.
         item["type"] = "web_view"
-        item["url"] = button.url
-    elif isinstance(button, KeyboardButtonSimpleWebView):
-        item["type"] = "simple_web_view"
-        item["url"] = button.url
-    elif isinstance(button, KeyboardButtonCopy):
+        item["url"] = btn_type.url
+    elif isinstance(btn_type, InlineButtonTypeCopy):
         item["type"] = "copy"
-        item["copy_text"] = button.copy_text
+        item["copy_text"] = btn_type.copy_text
     else:
         return None
     return item
@@ -100,55 +99,30 @@ def _deserialize_button_item(item: dict):
     if btn_type == "url":
         url = item.get("url") or item.get("value", "")
         if style_obj:
-            try:
-                return KeyboardButtonUrl(text=text, url=url, style=style_obj)
-            except TypeError:
-                pass
+            return KeyboardInlineButton(text=text, type=InlineButtonTypeUrl(url=url), style=style_obj)
         return Button.url(text, url)
 
     if btn_type == "callback":
         raw_data = _decode_bytes(item.get("data") or item.get("value", ""))
         if style_obj:
-            try:
-                return KeyboardButtonCallback(text=text, data=raw_data, style=style_obj)
-            except TypeError:
-                pass
+            return KeyboardInlineButton(text=text, type=InlineButtonTypeCallback(data=raw_data), style=style_obj)
         return Button.inline(text, raw_data)
 
     if btn_type == "switch_inline":
-        query = _decode_bytes(item.get("query") or item.get("value", ""))
-        return KeyboardButtonSwitchInline(
+        query = _decode_bytes(item.get("query") or item.get("value", "")).decode("utf-8")
+        return KeyboardInlineButton(
             text=text,
-            query=query,
-            same_peer=bool(item.get("same_peer", False)),
+            type=InlineButtonTypeSwitchInline(query=query, same_peer=bool(item.get("same_peer", False))),
+            style=style_obj,
         )
 
-    if btn_type == "web_view":
+    if btn_type in ("web_view", "simple_web_view"):
         url = item.get("url", "")
-        if style_obj:
-            try:
-                return KeyboardButtonWebView(text=text, url=url, style=style_obj)
-            except TypeError:
-                pass
-        return KeyboardButtonWebView(text=text, url=url)
-
-    if btn_type == "simple_web_view":
-        url = item.get("url", "")
-        if style_obj:
-            try:
-                return KeyboardButtonSimpleWebView(text=text, url=url, style=style_obj)
-            except TypeError:
-                pass
-        return KeyboardButtonSimpleWebView(text=text, url=url)
+        return KeyboardInlineButton(text=text, type=InlineButtonTypeWebView(url=url), style=style_obj)
 
     if btn_type == "copy":
         copy_text = item.get("copy_text") or item.get("value", "")
-        if style_obj:
-            try:
-                return KeyboardButtonCopy(text=text, copy_text=copy_text, style=style_obj)
-            except TypeError:
-                pass
-        return KeyboardButtonCopy(text=text, copy_text=copy_text)
+        return KeyboardInlineButton(text=text, type=InlineButtonTypeCopy(copy_text=copy_text), style=style_obj)
 
     return None
 

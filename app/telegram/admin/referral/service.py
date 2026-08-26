@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from telethon import Button
-from telethon.tl.types import KeyboardButtonCopy, KeyboardButtonRow, ReplyInlineMarkup
+from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app.db.crud.referral import ReferralManager
 from app.db.crud.user import UserCRUD
 from app.services.billing.referral import build_referral_start_param
 from app.telegram.keyboards.balance import balance_back_home_button
+from app.telegram.keyboards.common import styled_copy_button
 from app.telegram.state import set_step
 
 
@@ -127,16 +128,16 @@ async def handle_referral_callbacks(event, data):
         referral_message = referral_message.replace("{referral_reward_amount}", f"{settings.referral_reward_amount:,}")
         referral_message = referral_message.replace("{referral_bonus_amount}", f"{settings.referral_bonus_amount:,}")
 
-        copy_button = KeyboardButtonCopy("📋 کپی لینک دعوت", referral_link)
+        copy_button = styled_copy_button("📋 کپی لینک دعوت", referral_link)
 
         stats_button = Button.inline("📊 آمار دعوت‌های من", data="my_referral_stats")
         back_home_button = await balance_back_home_button()
 
         custom_markup = ReplyInlineMarkup(
             [
-                KeyboardButtonRow([copy_button]),
-                KeyboardButtonRow([stats_button]),
-                KeyboardButtonRow([back_home_button]),
+                KeyboardInlineButtonRow([copy_button]),
+                KeyboardInlineButtonRow([stats_button]),
+                KeyboardInlineButtonRow([back_home_button]),
             ]
         )
 

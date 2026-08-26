@@ -46,6 +46,7 @@ from app.services.panels.settings import (
     get_panel_time_plan,
     get_panel_volume_plan,
     is_custom_buy_ready,
+    is_reseller_capacity_ready,
     panel_button_enabled,
     panel_custom_buy_settings,
     panel_default_group_ids,
@@ -53,6 +54,7 @@ from app.services.panels.settings import (
     panel_node_prefixes,
     panel_renew_volume_remaining_mode,
     panel_reseller_button_settings,
+    panel_reseller_capacity_settings,
     panel_reseller_sale_flag,
     panel_shop_sale_flag,
     panel_show_prefixes_in_locations,
@@ -63,6 +65,7 @@ from app.services.panels.settings import (
     toggle_custom_buy_enabled,
     toggle_panel_reseller_button_setting,
     toggle_panel_sales_setting,
+    toggle_reseller_capacity_enabled,
     update_time_plan_in_feature_settings,
     update_volume_plan_in_feature_settings,
 )
@@ -76,6 +79,7 @@ from app.telegram.admin.panels.service import (
     mutate_panel_feature_settings,
     show_panel_custom_buy_menu,
     show_panel_ms_buttons_menu,
+    show_panel_reseller_capacity_menu,
     show_panel_time_plans_menu,
     show_panel_volume_plans_menu,
     update_panel_buttons,
@@ -321,7 +325,11 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             await event.answer("پنل پیدا نشد!", alert=True)
             return
         await event.edit(
-            f"🌐 آدرس فعلی پنل:\n`{panel.base_url}`\n\nآدرس جدید را ارسال کنید.\n〰️ مثال: `https://panel.example.com`",
+            f"🌐 آدرس فعلی پنل:\n`{panel.base_url}`\n\n"
+            "آدرس جدید را ارسال کنید.\n"
+            "〰️ مثال: `https://panel.example.com`\n"
+            "〰️ اگر پنل روی پورت اختصاصی است: `https://panel.example.com:8000`\n\n"
+            "⚠️ فقط دامنه یا آی‌پی (و در صورت نیاز پورت) را وارد کنید؛ بدون path.",
             buttons=[[Button.inline("❌ انصراف", data=f"panel_auth_type:{panel_code}")]],
             parse_mode="markdown",
         )
@@ -916,6 +924,53 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             "مثال: `1000`",
             buttons=[[Button.inline("❌ انصراف", data=f"panel_custom_buy:{panel_code}")]],
         )
+
+    elif data.startswith("panel_reseller_capacity_toggle:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+
+        if not await mutate_panel_feature_settings(panel_code, toggle_reseller_capacity_enabled):
+            await event.answer("❌ خطا در ذخیره تنظیمات.", alert=True)
+            return
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        settings = panel_reseller_capacity_settings(panel)
+        ready = is_reseller_capacity_ready(settings)
+        if settings["enabled"] and not ready:
+            await event.answer("⚠️ روشن شد؛ برای فعال‌سازی نهایی قیمت هر کاربر را تنظیم کنید.", alert=True)
+        else:
+            await event.answer(
+                f"✅ خرید ظرفیت کاربر {'فعال' if ready else 'غیرفعال'} شد.",
+                alert=True,
+            )
+        await show_panel_reseller_capacity_menu(event, panel)
+
+    elif data.startswith("panel_reseller_capacity_price:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        settings = panel_reseller_capacity_settings(panel)
+        await set_data(event.sender_id, "panel_reseller_capacity_code", str(panel_code))
+        await set_step(event.sender_id, "waiting_reseller_capacity_price")
+        await event.edit(
+            "💰 **تنظیم قیمت هر کاربر (خرید ظرفیت نمایندگی)**\n\n"
+            f"نرخ فعلی: `{settings['price_per_user']:,}` تومان\n\n"
+            "قیمت هر کاربر اضافه را به تومان وارد کنید.\n"
+            "مثال: `2000`",
+            buttons=[[Button.inline("❌ انصراف", data=f"panel_reseller_capacity:{panel_code}")]],
+        )
+
+    elif data.startswith("panel_reseller_capacity:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        await show_panel_reseller_capacity_menu(event, panel)
 
     elif data.startswith("panel_volume_plans:"):
         panel_code = int(data.split(":")[1])

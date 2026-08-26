@@ -12,7 +12,9 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.crud.settings import SettingsManager
+from app.db.crud.user import UserCRUD
 from app.logger import get_logger
+from app.services.billing.direct_pay_flow import create_balance_button
 from app.services.billing.reseller_pricing import (
     calculate_purchase_price,
     pricing_mode_label,
@@ -27,13 +29,24 @@ from app.services.panels.admins import (
     get_reseller_admin_user_count,
     reset_reseller_admin_password,
 )
-from app.services.panels.settings import panel_reseller_sale_enabled
+from app.services.panels.settings import (
+    panel_reseller_capacity_enabled,
+    panel_reseller_capacity_settings,
+    panel_reseller_sale_enabled,
+)
+from app.services.reseller.capacity import (
+    CAPACITY_CUSTOM_MAX,
+    calculate_capacity_price,
+    increase_reseller_capacity,
+    validate_capacity_quantity,
+)
 from app.services.reseller.logging import send_reseller_log
 from app.services.reseller.usage_cap import parse_usage_cap_gb, set_reseller_usage_cap, usage_cap_menu_text
 from app.telegram.keyboards import reseller as rs_buttons
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import clear_user, delete_data, get_data, get_step, set_data, set_step
+from app.telegram.state.lock import acquire_user_lock, release_user_lock
 from app.telegram.user.reseller.helpers import (
     _complete_reseller_purchase,
     _user_lang,
@@ -55,6 +68,8 @@ from app.telegram.user.reseller.helpers import (
     show_usage_history,
 )
 from app.telegram.user.reseller.keyboards import (
+    build_capacity_confirm_buttons,
+    build_capacity_preset_buttons,
     build_delete_confirm_buttons,
     build_my_reseller_account_buttons,
     build_my_resellers_list_buttons,
@@ -144,6 +159,47 @@ async def _show_reseller_renew_confirm(event, account, plan):
     await set_data(user_id, "reseller_renew_plan_id", str(plan.id))
     await set_data(user_id, "reseller_renew_account_code", str(account.code))
     await set_step(user_id, "reseller_renew_confirm")
+
+
+async def _clear_capacity_state(user_id: int) -> None:
+    await delete_data(user_id, "reseller_capacity_code")
+    await delete_data(user_id, "reseller_capacity_quantity")
+    await delete_data(user_id, "reseller_capacity_source")
+
+
+async def _show_capacity_confirm(event, account, panel, quantity: int, *, source: str) -> None:
+    user_id = event.sender_id
+    price_per_user = int(panel_reseller_capacity_settings(panel)["price_per_user"])
+    total_amount = calculate_capacity_price(panel, quantity, price_per_user=price_per_user)
+    limit_before = int(account.max_users or 0)
+    limit_after = limit_before + quantity
+
+    user = await UserCRUD().read_user(user_id)
+    balance = int(user.amount or 0) if user else 0
+    shortfall = max(total_amount - balance, 0)
+
+    lines = [
+        f"**🧾 تأیید خرید ظرفیت کاربر — `{account.username}`**\n",
+        f"👥 User Limit فعلی: {limit_before}",
+        f"➕ تعداد درخواستی: {quantity}",
+        f"📊 User Limit جدید: {limit_after}",
+        f"💰 قیمت هر کاربر: {price_per_user:,} تومان",
+        f"💵 مبلغ کل: {total_amount:,} تومان",
+        f"👛 موجودی فعلی: {balance:,} تومان",
+    ]
+    if shortfall > 0:
+        lines.append(f"⚠️ مبلغ موردنیاز برای تکمیل خرید: {shortfall:,} تومان")
+    text = await get_reseller_text(
+        "reseller_capacity_confirm",
+        "\n".join(lines),
+        user_id,
+    )
+
+    await set_data(user_id, "reseller_capacity_code", str(account.code))
+    await set_data(user_id, "reseller_capacity_quantity", str(quantity))
+    await set_data(user_id, "reseller_capacity_source", source)
+    await reseller_flow_edit(event, text, buttons=await build_capacity_confirm_buttons(account.code))
+    await set_step(user_id, "reseller_capacity_confirm")
 
 
 @bot_is_offline
@@ -417,6 +473,134 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             ok, acc = await ResellerAccountCRUD().get_account(code)
             if ok:
                 await show_account_detail(event, acc)
+        return
+
+    if data.startswith("ResellerAccount_capacity_amount:"):
+        parts = data.split(":")
+        code = int(parts[1])
+        quantity = int(parts[2])
+        acc = await _get_owned_account(event, code)
+        if not acc:
+            return
+        if await _reject_if_admin_locked(event, acc):
+            return
+        panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
+        if not panel or not panel_reseller_capacity_enabled(panel):
+            await event.answer("خرید ظرفیت کاربر برای این پنل فعال نیست.", alert=True)
+            return
+        await _show_capacity_confirm(event, acc, panel, quantity, source="preset")
+        return
+
+    if data.startswith("ResellerAccount_capacity_custom:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        if not acc:
+            return
+        if await _reject_if_admin_locked(event, acc):
+            return
+        panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
+        if not panel or not panel_reseller_capacity_enabled(panel):
+            await event.answer("خرید ظرفیت کاربر برای این پنل فعال نیست.", alert=True)
+            return
+        await set_data(user_id, "reseller_capacity_code", str(code))
+        await set_step(user_id, "reseller_capacity_custom_input")
+        await reseller_flow_edit(
+            event,
+            await get_reseller_text(
+                "reseller_capacity_custom_prompt",
+                f"**🔢 تعداد کاربر دلخواه — `{acc.username}`**\n\n"
+                f"تعداد کاربر اضافه‌ای که می‌خواهید بخرید را وارد کنید (حداکثر {CAPACITY_CUSTOM_MAX:,}):",
+                user_id,
+            ),
+            buttons=[[await rs_buttons.rs_capacity_back_button(code)]],
+        )
+        return
+
+    if data.startswith("ResellerAccount_capacity_confirm:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        if not acc:
+            return
+        if await _reject_if_admin_locked(event, acc):
+            return
+        if await get_step(user_id) != "reseller_capacity_confirm":
+            await event.answer("نشست منقضی شده.", alert=True)
+            return
+        stored_code = await get_data(user_id, "reseller_capacity_code")
+        quantity_raw = await get_data(user_id, "reseller_capacity_quantity")
+        if not stored_code or int(stored_code) != code or not quantity_raw:
+            await event.answer("نشست منقضی شده.", alert=True)
+            return
+        panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
+        if not panel or not panel_reseller_capacity_enabled(panel):
+            await event.answer("خرید ظرفیت کاربر برای این پنل فعال نیست.", alert=True)
+            return
+
+        if not await acquire_user_lock(user_id, "reseller_capacity_buy", ttl=20):
+            await event.answer("درخواست قبلی در حال پردازش است.", alert=True)
+            return
+        source = await get_data(user_id, "reseller_capacity_source") or "preset"
+        try:
+            success, msg = await increase_reseller_capacity(
+                acc,
+                panel,
+                quantity=int(quantity_raw),
+                telegram_id=user_id,
+                source=source,
+                actor_id=user_id,
+            )
+        finally:
+            await release_user_lock(user_id, "reseller_capacity_buy")
+
+        if not success and msg.startswith("موجودی کافی نیست"):
+            await _clear_capacity_state(user_id)
+            await set_step(user_id, "home")
+            await event.delete()
+            await event.respond(msg, buttons=await create_balance_button(user_id))
+            return
+
+        await _clear_capacity_state(user_id)
+        await set_step(user_id, "home")
+        await event.answer(msg, alert=True)
+        ok, acc = await ResellerAccountCRUD().get_account(code)
+        if ok:
+            await show_account_detail(event, acc)
+        return
+
+    if data.startswith("ResellerAccount_capacity_cancel:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        await _clear_capacity_state(user_id)
+        await set_step(user_id, "home")
+        if acc:
+            await show_account_detail(event, acc)
+        return
+
+    if data.startswith("ResellerAccount_capacity:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        if not acc:
+            return
+        if await _reject_if_admin_locked(event, acc):
+            return
+        panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
+        if not panel or not panel_reseller_capacity_enabled(panel):
+            await event.answer("خرید ظرفیت کاربر برای این پنل فعال نیست.", alert=True)
+            return
+        await _clear_capacity_state(user_id)
+        await set_step(user_id, "home")
+        await reseller_flow_edit(
+            event,
+            await get_reseller_text(
+                "reseller_capacity_menu",
+                f"**👥 خرید ظرفیت کاربر اضافه — `{acc.username}`**\n\n"
+                f"👥 User Limit فعلی: {acc.max_users or 0}\n"
+                f"💰 قیمت هر کاربر: {panel_reseller_capacity_settings(panel)['price_per_user']:,} تومان\n\n"
+                "تعداد کاربر اضافه را انتخاب کنید:",
+                user_id,
+            ),
+            buttons=await build_capacity_preset_buttons(code),
+        )
         return
 
     if data.startswith("ResellerAccount_delete:") and not data.startswith("ResellerAccount_delete_confirm:"):
@@ -806,6 +990,49 @@ async def reseller_usage_cap_message(event: Message):
             await event.respond(text, buttons=await build_my_reseller_account_buttons(acc))
 
 
+async def reseller_capacity_custom_message_filter(event: Message) -> bool:
+    return (
+        event.is_private
+        and bool(event.message.message)
+        and await get_step(event.sender_id) == "reseller_capacity_custom_input"
+    )
+
+
+@bot_is_offline
+async def reseller_capacity_custom_message(event: Message):
+    user_id = event.sender_id
+    code_raw = await get_data(user_id, "reseller_capacity_code")
+    if not code_raw:
+        await set_step(user_id, "home")
+        return
+    ok, acc = await ResellerAccountCRUD().get_account(int(code_raw))
+    if not ok or acc.telegram_id != user_id:
+        await _clear_capacity_state(user_id)
+        await set_step(user_id, "home")
+        await event.respond("نمایندگی یافت نشد.")
+        return
+    if is_admin_locked(acc):
+        await _clear_capacity_state(user_id)
+        await set_step(user_id, "home")
+        await event.respond("این نمایندگی توسط ادمین غیرفعال شده است.")
+        return
+    panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
+    if not panel or not panel_reseller_capacity_enabled(panel):
+        await _clear_capacity_state(user_id)
+        await set_step(user_id, "home")
+        await event.respond("خرید ظرفیت کاربر برای این پنل فعال نیست.")
+        return
+
+    quantity, error = validate_capacity_quantity(event.message.message)
+    if error:
+        await event.respond(await get_reseller_text("reseller_capacity_invalid_amount", error, user_id))
+        return
+
+    with contextlib.suppress(Exception):
+        await event.delete()
+    await _show_capacity_confirm(event, acc, panel, quantity, source="custom")
+
+
 def register(client):
     client.add_event_handler(
         reseller_buy_callback,
@@ -830,4 +1057,8 @@ def register(client):
     client.add_event_handler(
         reseller_usage_cap_message,
         events.NewMessage(incoming=True, func=reseller_usage_cap_message_filter),
+    )
+    client.add_event_handler(
+        reseller_capacity_custom_message,
+        events.NewMessage(incoming=True, func=reseller_capacity_custom_message_filter),
     )

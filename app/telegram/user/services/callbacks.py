@@ -12,7 +12,7 @@ from httpx import HTTPStatusError
 from pasarguard import PasarguardAPI, ProxySettings, UserModify, UserResponse
 from telethon import Button, events
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
-from telethon.tl.types import KeyboardButtonRow, ReplyInlineMarkup
+from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.keyboards import get_button_text
@@ -388,7 +388,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         )
 
         try:
-            await event.edit(confirm_text, buttons=confirm_buttons, parse_mode="md", link_preview=False)
+            await event.edit(confirm_text, buttons=confirm_buttons, link_preview=False)
         except MessageNotModifiedError:
             await event.answer()
         except Exception as e:
@@ -556,7 +556,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
             "**🎉 کد تخفیف جادویی خود را وارد کنید!**\n💰 برای اعمال تخفیف ویژه، کد خود را همین حالا ارسال کنید! 🚀",
             parse_mode="md",
             link_preview=False,
-            buttons=ReplyInlineMarkup([KeyboardButtonRow([await ms_renew_back_button(_back_apply)])]),
+            buttons=ReplyInlineMarkup([KeyboardInlineButtonRow([await ms_renew_back_button(_back_apply)])]),
         )
         await set_data(event.sender_id, "msg_id_takhfif", mag_id.id)
         await set_step(event.sender_id, "WhatingForCodeTakhfifTamdid")

@@ -15,6 +15,7 @@ from app import Kenzo
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.cryptopayments import add_order_crypto_payment, count_pending_orders
 from app.db.crud.keyboards import get_button_text
+from app.db.crud.log_channels import LogChannelManager
 from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
 from app.db.crud.receipt_hash import ReceiptHashCRUD, compute_receipt_phash
 from app.db.crud.settings import SettingsManager
@@ -54,6 +55,7 @@ from app.telegram.state import clear_user, get_data, get_step, set_data, set_ste
 from app.telegram.user.balance import keyboards, states, texts
 from app.utils.formatting.dates import Time_Date
 from app.utils.text.bot_texts import get_bot_text
+from config import LOG_CHANNEL
 
 logger = get_logger(__name__)
 
@@ -470,6 +472,19 @@ async def mablagh_sharj_handler(event: Message):
     if event.message.photo:
         photo = event.message.photo
         mablagh = await get_data(event.sender_id, "mablagh")
+
+        manual_card_log_destination = await LogChannelManager().get_log_channel_destination(LogType.MANUAL_CARD.value)
+        if not manual_card_log_destination and LOG_CHANNEL is None:
+            log_channel_missing_template = await get_bot_text(
+                key="manual_card_log_channel_missing",
+                default=texts.MANUAL_CARD_LOG_CHANNEL_MISSING_DEFAULT,
+                lang="fa",
+            )
+            await event.respond(log_channel_missing_template, buttons=await bhome_buttons(event.sender_id, "fa"))
+            await set_step(event.sender_id, step=states.STEP_START)
+            await clear_user(event.sender_id)
+            raise events.StopPropagation
+
         phash_str: str | None = None
 
         photo_bytes = await event.client.download_media(photo, bytes)

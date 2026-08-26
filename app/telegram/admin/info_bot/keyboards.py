@@ -60,12 +60,6 @@ def top_buttons(view: str) -> list:
     ]
 
 
-def services_buttons(period: str) -> list:
-    rows = period_buttons("services", period)
-    rows.insert(0, [inline_btn("🔄 بروزرسانی", f"{states.STATS_PREFIX}services:{period}:refresh")])
-    return rows
-
-
 def system_buttons() -> list:
     prefix = states.STATS_PREFIX
     return [

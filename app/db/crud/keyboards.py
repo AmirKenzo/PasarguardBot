@@ -74,12 +74,13 @@ class KeyboardButtonCRUD:
                     if clear_icon or button_icon is not None:
                         existing.button_icon = None if clear_icon else button_icon
                 else:
-                    if button_text is None:
-                        return False
+                    # button_text is NOT NULL in the DB; fall back to "" (treated as
+                    # "unset" everywhere text is read) so style/icon can be saved
+                    # even before the admin has customized the button's text.
                     session.add(
                         KeyboardButton(
                             button_key=button_key,
-                            button_text=button_text,
+                            button_text=button_text or "",
                             description=description,
                             button_style=button_style.strip() if button_style is not None else None,
                             button_icon=button_icon,

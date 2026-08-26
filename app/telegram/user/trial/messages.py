@@ -9,7 +9,7 @@ from pasarguard import PasarguardAPI, UserCreate
 from pasarguard.enums import UserDataLimitResetStrategy
 from telethon import Button, events
 from telethon.tl.custom import Message
-from telethon.tl.types import KeyboardButtonCopy, KeyboardButtonRow, KeyboardButtonWebView, ReplyInlineMarkup
+from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app import Kenzo
 from app.db.crud.keyboards import get_button_text
@@ -22,7 +22,7 @@ from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.settings import panel_test_duration_days, panel_test_volume_gb
 from app.services.subscriptions.links import format_subscription_links_for_message
-from app.telegram.keyboards.common import is_keyboard_config_step
+from app.telegram.keyboards.common import is_keyboard_config_step, styled_copy_button, styled_webview_button
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.guards.channel_gate import ensure_channel_membership, extract_start_param
 from app.telegram.shared.utils.logging import send_log_message
@@ -204,15 +204,15 @@ async def free_trial_handler(event: Message):
 
         trial_buttons = ReplyInlineMarkup(
             [
-                KeyboardButtonRow(
+                KeyboardInlineButtonRow(
                     [
-                        KeyboardButtonWebView(
+                        styled_webview_button(
                             "برای مشاهده اطلاعات بیشتر کلیک کنید",
                             f"{primary_subscription_url}",
                         )
                     ]
                 ),
-                KeyboardButtonRow([KeyboardButtonCopy("برای کپی لینک کلیک کنید", f"{primary_subscription_url}")]),
+                KeyboardInlineButtonRow([styled_copy_button("برای کپی لینک کلیک کنید", f"{primary_subscription_url}")]),
             ]
         )
         await respond_with_photo_and_text(
