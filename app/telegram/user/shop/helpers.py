@@ -388,9 +388,9 @@ async def _confirm_buy_username(event, username: str, *, edit: bool) -> None:
         await set_step(event.sender_id, "crconf")
     await set_data(event.sender_id, "username", username)
     if edit:
-        await event.edit(confirm_text, buttons=confirm_buttons, parse_mode="md", link_preview=False)
+        await event.edit(confirm_text, buttons=confirm_buttons, link_preview=False)
     else:
-        await event.respond(confirm_text, buttons=confirm_buttons, parse_mode="md", link_preview=False)
+        await event.respond(confirm_text, buttons=confirm_buttons, link_preview=False)
 
 
 async def _load_purchase_context(user_id: int):

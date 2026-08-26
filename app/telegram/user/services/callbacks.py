@@ -388,7 +388,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         )
 
         try:
-            await event.edit(confirm_text, buttons=confirm_buttons, parse_mode="md", link_preview=False)
+            await event.edit(confirm_text, buttons=confirm_buttons, link_preview=False)
         except MessageNotModifiedError:
             await event.answer()
         except Exception as e:
