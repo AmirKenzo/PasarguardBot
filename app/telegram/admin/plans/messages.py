@@ -462,8 +462,8 @@ async def message_handler_plans(event: Message):
     elif (msg or event.message.media) and await get_step(user_id) == "duration_btn_set_icon":
         panel_code_data = await get_data(user_id, "duration_btn_panel_code")
         duration_data = await get_data(user_id, "duration_btn_duration")
-        panel_code = int(panel_code_data) if panel_code_data and panel_code_data.isdigit() else None
-        duration = int(duration_data) if duration_data and duration_data.isdigit() else None
+        panel_code = int(panel_code_data) if panel_code_data is not None and str(panel_code_data).isdigit() else None
+        duration = int(duration_data) if duration_data is not None and str(duration_data).isdigit() else None
         if panel_code is None or duration is None:
             await event.respond("❌ داده نامعتبر.")
             await set_step(user_id, "panel")
@@ -531,8 +531,8 @@ async def message_handler_plans(event: Message):
     elif (msg or event.message.media) and await get_step(user_id) == "plan_btn_set_icon":
         plan_id_data = await get_data(user_id, "plan_btn_plan_id")
         page_data = await get_data(user_id, "plan_btn_page")
-        plan_id = int(plan_id_data) if plan_id_data and plan_id_data.isdigit() else None
-        current_page = int(page_data) if page_data and page_data.isdigit() else 1
+        plan_id = int(plan_id_data) if plan_id_data is not None and str(plan_id_data).isdigit() else None
+        current_page = int(page_data) if page_data is not None and str(page_data).isdigit() else 1
         if not plan_id:
             await event.respond("❌ پلن یافت نشد.")
             await set_step(user_id, "panel")
