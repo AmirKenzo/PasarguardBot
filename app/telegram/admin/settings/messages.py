@@ -25,7 +25,7 @@ from app.telegram.keyboards.help import (
 )
 from app.telegram.keyboards.registry import KEYBOARD_BUTTON_TITLES
 from app.telegram.keyboards.settings import create_buttons_settings, get_settings_menu_text, settings_menu_rich_blocks
-from app.telegram.keyboards.texts import TEXT_KEYS_CONFIG, create_text_sections_buttons
+from app.telegram.keyboards.texts import TEXT_KEYS_CONFIG, create_text_sections_buttons, render_stored_text_html
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from config import ADMIN_ID
 
@@ -445,7 +445,7 @@ async def message_handler_settings_admin(event: Message):
         # Show preview with confirmation buttons
         preview_text = (
             f"📝 **پیش‌نمایش متن جدید برای «{pretty}»**\n\n"
-            f"<blockquote expandable>{msg}</blockquote>\n\n"
+            f"<blockquote expandable>{render_stored_text_html(msg)}</blockquote>\n\n"
             f"⚠️ آیا می‌خواهید این متن را ذخیره کنید؟"
         )
 

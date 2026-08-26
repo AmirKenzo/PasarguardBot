@@ -239,6 +239,7 @@ async def buy_discount_code_handler(event: Message):
 
     panel_code = await get_data(event.sender_id, "panel")
     gig = await get_data(event.sender_id, "gig")
+    username = await get_data(event.sender_id, "username")
     panel = await PanelsManager().get_panel_by_code(code=panel_code)
     plan = await resolve_buy_plan_from_session(event.sender_id)
     if plan is None:
@@ -268,6 +269,7 @@ async def buy_discount_code_handler(event: Message):
             "**ساخت کانفیگ اختصاصی V2Ray با مشخصات زیر را تأیید می‌کنید؟**\n\n"
             "**▪️ حجم سرویس :** {volume}\n"
             "**⏰ مدت زمان :** {duration} روز\n"
+            "**▫️نام کانفیگ :** `{config_name}`\n"
             "**▫️نوع کانفیگ :** {config_type}\n"
             "**▫️ لوکیشن های موجودسرویس :** \n**^qc^{locations}^qc^**\n"
             "**🔌 محدودیت کاربر :** {user_limit}\n"
@@ -280,6 +282,7 @@ async def buy_discount_code_handler(event: Message):
     confirm_text = (
         confirm_text_template.replace("{volume}", volume_text)
         .replace("{duration}", str(plan.duration))
+        .replace("{config_name}", username or "")
         .replace("{config_type}", panel.name)
         .replace("{locations}", locations)
         .replace("{user_limit}", ip_limit_text)

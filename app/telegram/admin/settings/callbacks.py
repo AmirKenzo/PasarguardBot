@@ -37,6 +37,7 @@ from app.telegram.keyboards.texts import (
     create_language_select_buttons,
     create_text_keys_buttons,
     create_text_sections_buttons,
+    render_stored_text_html,
 )
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from app.telegram.user.start.helpers import toggle_start_reaction
@@ -593,7 +594,8 @@ async def callback_settings_admin(event: events.CallbackQuery.Event):
 
                 if current_val:
                     preview = (
-                        f"📝 متن فعلی ({'فارسی' if lang_code == 'fa' else 'انگلیسی'}):\n<blockquote expandable>{current_val}</blockquote>"
+                        f"📝 متن فعلی ({'فارسی' if lang_code == 'fa' else 'انگلیسی'}):\n"
+                        f"<blockquote expandable>{render_stored_text_html(current_val)}</blockquote>"
                         f"{banner_info}"
                         f"{placeholder_info}\n\n"
                         f"<b>لطفاً متن جدید برای «{pretty}» را ارسال کنید یا یکی از گزینه‌های زیر را انتخاب کنید.</b>"
