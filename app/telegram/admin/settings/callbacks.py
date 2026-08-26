@@ -240,11 +240,12 @@ async def callback_settings_admin(event: events.CallbackQuery.Event):
         style_val = parts[3]
         keyboard_crud = KeyboardButtonCRUD()
         if style_val == "none":
-            await keyboard_crud.set_button(button_key, button_style="")
-            await event.answer("رنگ دکمه حذف شد.")
+            saved = await keyboard_crud.set_button(button_key, button_style="")
+            success_msg = "رنگ دکمه حذف شد."
         else:
-            await keyboard_crud.set_button(button_key, button_style=style_val)
-            await event.answer(f"رنگ تغییر کرد به {STYLE_LABELS.get(style_val, style_val)}.")
+            saved = await keyboard_crud.set_button(button_key, button_style=style_val)
+            success_msg = f"رنگ تغییر کرد به {STYLE_LABELS.get(style_val, style_val)}."
+        await event.answer(success_msg if saved else "❌ ذخیره رنگ با خطا مواجه شد.", alert=not saved)
         preview, buttons = await create_keyboard_button_config_view(button_key, page, keyboard_crud)
         with contextlib.suppress(MessageNotModifiedError):
             await event.edit(
@@ -277,8 +278,8 @@ async def callback_settings_admin(event: events.CallbackQuery.Event):
             await event.answer("❌ کلید دکمه نامعتبر است.", alert=True)
             return
         keyboard_crud = KeyboardButtonCRUD()
-        await keyboard_crud.set_button(button_key, clear_icon=True)
-        await event.answer("آیکون دکمه حذف شد.")
+        saved = await keyboard_crud.set_button(button_key, clear_icon=True)
+        await event.answer("آیکون دکمه حذف شد." if saved else "❌ حذف آیکون با خطا مواجه شد.", alert=not saved)
         preview, buttons = await create_keyboard_button_config_view(button_key, page, keyboard_crud)
         with contextlib.suppress(MessageNotModifiedError):
             await event.edit(
