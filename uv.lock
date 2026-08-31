@@ -670,21 +670,21 @@ wheels = [
 
 [[package]]
 name = "pasarguard"
-version = "2.3.1"
+version = "2.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datetime" },
     { name = "httpx", extra = ["socks"] },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/91/3be0aff2af98d91478bfe7b0e8e688419d0e2b4d0cd77c326e9d743c8961/pasarguard-2.3.1.tar.gz", hash = "sha256:adfe515b272ccb7e10e18c089e9d07d443ef437cc9752ea9902b1766a053af2a", size = 120961, upload-time = "2026-07-14T19:41:33.715Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/92/07/ab6b8dbe0605e4afd670bcbe7facb31ae9364420e5288f70ff6697f73be4/pasarguard-2.4.0.tar.gz", hash = "sha256:7bbc4c5c2c220f66052256f324ab45ee498d597334c0b21417588a06ec600b8f", size = 122204, upload-time = "2026-08-26T21:36:07.021Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/c4/be21560ffc2cfb8e03a32e927ca27654dc3d7861b51c3d123f9db1ed8d6b/pasarguard-2.3.1-py3-none-any.whl", hash = "sha256:3dbe6d1a4677d440f5fa114d385d4f40b68cf0e2dcbb083cfca0f0890d2aaa10", size = 49974, upload-time = "2026-07-14T19:41:32.348Z" },
+    { url = "https://files.pythonhosted.org/packages/af/a9/c3daf86e5f37a75a315fa4f0dd19dcc9b376e207ad4ae2c4dbbda206c361/pasarguard-2.4.0-py3-none-any.whl", hash = "sha256:ec407c409941f331e109c483dc46245625f80028bd0d26931dde062c6f5e70f1", size = 50251, upload-time = "2026-08-26T21:36:06.032Z" },
 ]
 
 [[package]]
 name = "pasarguardbot"
-version = "1.6.1"
+version = "1.6.2"
 source = { virtual = "." }
 dependencies = [
     { name = "aiofasttelethonhelper" },
