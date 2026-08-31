@@ -172,6 +172,13 @@ async def message_handler_reseller_plans(event: Message):
 
     if step == "reseller_plan_add_max_users" and is_number(msg):
         await set_data(user_id, "reseller_plan_max_users", msg.replace(",", ""))
+        mode = await get_data(user_id, "reseller_plan_mode")
+        if mode == "usage":
+            await set_data(user_id, "reseller_plan_duration", "0")
+            with contextlib.suppress(Exception):
+                await event.delete()
+            await _finalize_new_plan(event, user_id)
+            return
         await set_step(user_id, "reseller_plan_add_duration")
         await event.respond("مدت اعتبار (روز — 0 نامحدود):")
         return
