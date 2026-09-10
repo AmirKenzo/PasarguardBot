@@ -28,7 +28,7 @@
     "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "postcss": "^8.5.26",
+    "postcss": "^8.5.28",
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2",
