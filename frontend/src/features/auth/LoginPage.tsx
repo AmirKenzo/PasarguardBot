@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Lock, Shield, ShoppingBag, Signal, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../../api/webapp";
-import { Button, Input } from "../../components/ui";
+import { Button, Input, MagicCard, Particles, ShimmerButton } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
 
 export default function LoginPage() {
@@ -53,6 +53,7 @@ export default function LoginPage() {
     <div className="relative min-h-screen overflow-hidden bg-bg p-4">
       <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
       <div className="pointer-events-none absolute -left-24 bottom-0 h-72 w-72 rounded-full bg-accent/15 blur-3xl" />
+      <Particles className="opacity-60" quantity={50} />
 
       <div className="relative mx-auto flex min-h-screen max-w-5xl items-center justify-center">
         <div className="grid w-full gap-6 lg:grid-cols-[1.05fr_0.95fr]">
@@ -114,9 +115,9 @@ export default function LoginPage() {
                   ltr
                 />
               )}
-              <Button type="submit" fullWidth loading={loading}>
+              <ShimmerButton type="submit" disabled={loading} className="w-full">
                 {otpSent ? "تایید" : "ارسال کد"}
-              </Button>
+              </ShimmerButton>
               {otpSent && (
                 <Button
                   type="button"
@@ -149,10 +150,10 @@ function FeatureCard({
   text: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface-2 p-4">
+    <MagicCard className="bg-surface-2 p-4">
       <Icon size={22} className="text-primary" />
       <p className="mt-3 font-bold text-text">{title}</p>
       <p className="mt-1 text-xs text-muted">{text}</p>
-    </div>
+    </MagicCard>
   );
 }

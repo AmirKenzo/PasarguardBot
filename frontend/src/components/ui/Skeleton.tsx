@@ -1,7 +1,7 @@
 export function Skeleton({ className = "" }: { className?: string }) {
   return (
-    <div className={`relative overflow-hidden rounded-md bg-surface-2 ${className}`}>
-      <div className="animate-shimmer absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+    <div className={`relative overflow-hidden rounded-md bg-surface-2 ring-1 ring-border/50 ${className}`}>
+      <div className="animate-shimmer absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-primary/15 to-transparent" />
     </div>
   );
 }

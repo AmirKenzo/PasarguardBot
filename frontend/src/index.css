@@ -48,5 +48,5 @@ body {
   }
 }
 .animate-shimmer {
-  animation: shimmer 1.6s infinite;
+  animation: shimmer 1.8s ease-in-out infinite;
 }
