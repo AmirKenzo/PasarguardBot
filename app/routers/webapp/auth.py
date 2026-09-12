@@ -150,7 +150,7 @@ async def _build_user_profile(
 
     invite_count = int(user_record.invite) if user_record and user_record.invite else 0
     balance_amount = int(user_record.amount) if user_record and user_record.amount else 0
-    is_safe_mode = bool(user_record.safe) if user_record else False
+    is_safe_mode = bool(user_record.safe_mode) if user_record else False
     phone_number = user_record.number if user_record else None
 
     join_date = None
