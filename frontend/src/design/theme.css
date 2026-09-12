@@ -20,12 +20,12 @@
   --c-warning-rgb: 217 119 6;
   --c-danger-rgb: 220 38 38;
   --c-border-rgb: 15 23 42;
-  --c-border-alpha: 0.09;
+  --c-border-alpha: 0.11;
   --c-overlay-rgb: 15 23 42;
   --c-overlay-alpha: 0.45;
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-md: 0 8px 24px -8px rgb(76 61 219 / 0.22);
-  --shadow-lg: 0 18px 40px -12px rgb(76 61 219 / 0.28);
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 12px -4px rgb(15 23 42 / 0.10);
+  --shadow-md: 0 4px 10px -4px rgb(15 23 42 / 0.10), 0 14px 32px -10px rgb(76 61 219 / 0.22);
+  --shadow-lg: 0 8px 20px -6px rgb(15 23 42 / 0.14), 0 26px 52px -14px rgb(76 61 219 / 0.30);
 }
 
 [data-theme="dark"] {
@@ -43,12 +43,12 @@
   --c-warning-rgb: 251 191 36;
   --c-danger-rgb: 248 113 113;
   --c-border-rgb: 255 255 255;
-  --c-border-alpha: 0.08;
+  --c-border-alpha: 0.12;
   --c-overlay-rgb: 2 4 10;
   --c-overlay-alpha: 0.6;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-md: 0 8px 24px -8px rgb(0 0 0 / 0.55);
-  --shadow-lg: 0 18px 44px -14px rgb(0 0 0 / 0.65);
+  --shadow-sm: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 3px 10px rgb(0 0 0 / 0.35);
+  --shadow-md: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 16px 36px -10px rgb(0 0 0 / 0.55);
+  --shadow-lg: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 28px 58px -14px rgb(0 0 0 / 0.65);
 }
 
 :root {
