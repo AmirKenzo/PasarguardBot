@@ -70,7 +70,7 @@ services:
       - ${PASARGUARDBOT_CONFIG_DIR:-.}/.env:/app/.env:ro
       - ${PASARGUARDBOT_CONFIG_DIR:-.}/logs:/app/logs
       - ${PASARGUARDBOT_CONFIG_DIR:-.}/sessions:/app/sessions
-      - ${PASARGUARDBOT_CONFIG_DIR:-/var/lib/pasarguardbot}:${PASARGUARDBOT_CONFIG_DIR:-/var/lib/pasarguardbot}:ro
+      - /var/lib/pasarguardbot:/var/lib/pasarguardbot:ro
     depends_on:
       mariadb:
         condition: service_healthy
