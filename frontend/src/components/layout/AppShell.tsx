@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Home, ListVideo, ShoppingBag, User, Wallet } from "lucide-react";
 import { PageTransition } from "./PageTransition";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { AppVersion } from "../ui/AppVersion";
 
 const NAV_ITEMS = [
   { to: "/", label: "خانه", icon: Home, end: true },
@@ -93,9 +94,12 @@ export function AppShell() {
           </span>
         </div>
         <NavButtons orientation="col" />
-        <div className="mt-auto flex items-center justify-between px-1 pt-4">
-          <span className="text-xs text-muted">ظاهر</span>
-          <ThemeToggle />
+        <div className="mt-auto flex flex-col gap-3 px-1 pt-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">ظاهر</span>
+            <ThemeToggle />
+          </div>
+          <AppVersion className="text-center" />
         </div>
       </aside>
 

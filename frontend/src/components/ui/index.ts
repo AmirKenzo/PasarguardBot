@@ -17,3 +17,4 @@ export * from "./Avatar";
 export * from "./Select";
 export * from "./Toast";
 export * from "./ThemeToggle";
+export * from "./AppVersion";
