@@ -1,0 +1,59 @@
+/* Design tokens, stored as "R G B" channel triplets so Tailwind's opacity
+   modifiers (bg-primary/12, text-danger/70, ...) work against CSS variables.
+   Overridden at runtime by ThemeProvider when running inside Telegram
+   (theme params synced live); these are the fallback palettes used in a
+   plain browser (login page, dev preview). */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --c-bg-rgb: 244 245 249;
+  --c-surface-rgb: 255 255 255;
+  --c-surface-2-rgb: 238 240 246;
+  --c-text-rgb: 16 19 28;
+  --c-text-muted-rgb: 107 114 128;
+  --c-primary-rgb: 109 92 246;
+  --c-primary-strong-rgb: 91 70 245;
+  --c-primary-text-rgb: 255 255 255;
+  --c-accent-rgb: 6 182 212;
+  --c-success-rgb: 22 163 74;
+  --c-warning-rgb: 217 119 6;
+  --c-danger-rgb: 220 38 38;
+  --c-border-rgb: 15 23 42;
+  --c-border-alpha: 0.09;
+  --c-overlay-rgb: 15 23 42;
+  --c-overlay-alpha: 0.45;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 8px 24px -8px rgb(76 61 219 / 0.22);
+  --shadow-lg: 0 18px 40px -12px rgb(76 61 219 / 0.28);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --c-bg-rgb: 10 12 20;
+  --c-surface-rgb: 19 21 34;
+  --c-surface-2-rgb: 27 30 47;
+  --c-text-rgb: 241 242 247;
+  --c-text-muted-rgb: 139 143 163;
+  --c-primary-rgb: 139 125 255;
+  --c-primary-strong-rgb: 115 97 255;
+  --c-primary-text-rgb: 255 255 255;
+  --c-accent-rgb: 34 211 238;
+  --c-success-rgb: 74 222 128;
+  --c-warning-rgb: 251 191 36;
+  --c-danger-rgb: 248 113 113;
+  --c-border-rgb: 255 255 255;
+  --c-border-alpha: 0.08;
+  --c-overlay-rgb: 2 4 10;
+  --c-overlay-alpha: 0.6;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 8px 24px -8px rgb(0 0 0 / 0.55);
+  --shadow-lg: 0 18px 44px -14px rgb(0 0 0 / 0.65);
+}
+
+:root {
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+}

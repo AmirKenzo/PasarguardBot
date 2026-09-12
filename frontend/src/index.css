@@ -1,0 +1,52 @@
+@import "./design/theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  font-family: "Estedad", "Inter", system-ui, sans-serif;
+  scroll-behavior: smooth;
+  background-color: rgb(var(--c-bg-rgb));
+}
+
+body {
+  min-height: 100vh;
+  background-color: rgb(var(--c-bg-rgb));
+  color: rgb(var(--c-text-rgb));
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.ltr-field {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-border-rgb) / 0.4);
+  border-radius: 999px;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--c-primary-rgb));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.animate-shimmer {
+  animation: shimmer 1.6s infinite;
+}

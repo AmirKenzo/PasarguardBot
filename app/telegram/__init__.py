@@ -13,6 +13,7 @@ from app.db.crud.settings import SettingsManager
 from app.jobs.scheduler import start_scheduler
 from app.logger import LogTag, get_logger
 from app.logger.telethon import register_telethon_client, unregister_telethon_client
+from app.services.send_queue import start_send_queue_worker, stop_send_queue_worker
 from app.telegram.middlewares import register_global_middlewares
 from app.telegram.shared.utils.plugins import PluginLoadError, load_plugins_collect_errors
 from app.version import log_runtime_versions
@@ -258,6 +259,7 @@ async def run_telethon(stop_event: asyncio.Event | None = None):
     await load_plugins_telethon()
 
     start_scheduler()
+    start_send_queue_worker()
 
     # Resume any running broadcast from its persisted cursor after restart.
     from app.services.broadcast.manager import broadcast_manager
@@ -272,6 +274,7 @@ async def run_telethon(stop_event: asyncio.Event | None = None):
         if stop_event is None:
             return
         await stop_event.wait()
+        await stop_send_queue_worker()
         unregister_telethon_client(Kenzo)
         await Kenzo.disconnect()
         logger.info("%s Bot disconnected", LogTag.TELEGRAM)
@@ -281,4 +284,5 @@ async def run_telethon(stop_event: asyncio.Event | None = None):
         await Kenzo.run_until_disconnected()
     finally:
         stopper.cancel()
+        await stop_send_queue_worker()
         unregister_telethon_client(Kenzo)

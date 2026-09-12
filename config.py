@@ -50,6 +50,11 @@ GITHUB_TOKEN = config("GITHUB_TOKEN", default="")
 # Enable or disable FastAPI based on port configuration
 ENABLE_FASTAPI = FAST_API_PORT is not None
 
+# --- Outbound message send-queue (rate-limited delivery via app/services/send_queue.py) ---
+SEND_QUEUE_ENABLED = config("SEND_QUEUE_ENABLED", cast=bool, default=False)
+SEND_QUEUE_DELAY_SEC = config("SEND_QUEUE_DELAY_SEC", cast=float, default=1.0)
+SEND_QUEUE_MAX_LEN = config("SEND_QUEUE_MAX_LEN", cast=int, default=10_000)
+
 # --- Redis (conversation state, locks, callback payloads, optional cache) ---
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6161")
 # Shared Redis across bots: set e.g. pasarguard:mainbot; empty = sha256(BOT_TOKEN) fallback

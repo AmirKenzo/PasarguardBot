@@ -746,6 +746,22 @@ async def get_user_services_paginated(
     return await _paginate_services(filters=filters, page=page, limit=limit)
 
 
+async def get_user_service_panel_counts(user_id: int) -> list[tuple[int, int]]:
+    """Get (panel_code, service_count) pairs for a user's services, grouped by panel."""
+    try:
+        async with Session() as session:
+            stmt = (
+                select(Service.in_panel, func.count())
+                .where(Service.id == user_id, Service.in_panel.is_not(None))
+                .group_by(Service.in_panel)
+            )
+            result = await session.execute(stmt)
+            return [(int(panel_code), int(count)) for panel_code, count in result.all()]
+    except SQLAlchemyError as e:
+        logger.error(f"Error grouping services by panel: {e}")
+        return []
+
+
 async def search_services_paginated(
     *,
     page: int = 1,

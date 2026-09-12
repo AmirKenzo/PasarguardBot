@@ -17,6 +17,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/AmirKenzo/PasarguardBot/main
 
 بعد از نصب: `pasarguardbot`
 
+## وب‌اپ (Telegram Mini App)
+
+یک پنل کاربری وب برای مشتریان (مشاهده سرویس‌ها، تمدید، شارژ کیف پول) در مسیر [`frontend/`](frontend/) قرار دارد. برای راه‌اندازی و بیلد به [`frontend/README.md`](frontend/README.md) مراجعه کنید؛ در بیلد Docker به‌صورت خودکار ساخته می‌شود.
+
 ## لایسنس
 
 [GNU AGPL-3.0](LICENSE)

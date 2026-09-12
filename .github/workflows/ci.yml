@@ -21,3 +21,6 @@ permissions:
 jobs:
   python:
     uses: ./.github/workflows/python-quality.yml
+
+  frontend:
+    uses: ./.github/workflows/frontend-quality.yml

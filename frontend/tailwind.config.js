@@ -1,0 +1,46 @@
+/** @type {import('tailwindcss').Config} */
+function withOpacity(rgbVar) {
+  return `rgb(var(${rgbVar}) / <alpha-value>)`;
+}
+
+export default {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: ["selector", '[data-theme="dark"]'],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ["Estedad", "Inter", "system-ui", "sans-serif"],
+      },
+      colors: {
+        bg: withOpacity("--c-bg-rgb"),
+        surface: withOpacity("--c-surface-rgb"),
+        "surface-2": withOpacity("--c-surface-2-rgb"),
+        text: withOpacity("--c-text-rgb"),
+        muted: withOpacity("--c-text-muted-rgb"),
+        primary: {
+          DEFAULT: withOpacity("--c-primary-rgb"),
+          strong: withOpacity("--c-primary-strong-rgb"),
+        },
+        "primary-text": withOpacity("--c-primary-text-rgb"),
+        accent: withOpacity("--c-accent-rgb"),
+        success: withOpacity("--c-success-rgb"),
+        warning: withOpacity("--c-warning-rgb"),
+        danger: withOpacity("--c-danger-rgb"),
+        border: "rgb(var(--c-border-rgb) / var(--c-border-alpha))",
+        overlay: "rgb(var(--c-overlay-rgb) / var(--c-overlay-alpha))",
+      },
+      borderRadius: {
+        sm: "var(--radius-sm)",
+        md: "var(--radius-md)",
+        lg: "var(--radius-lg)",
+        full: "var(--radius-full)",
+      },
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+      },
+    },
+  },
+  plugins: [],
+};

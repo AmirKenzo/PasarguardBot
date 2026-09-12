@@ -17,6 +17,13 @@ updates:
     ignore:
       - dependency-name: "fumadocs-ui"
 
+  - package-ecosystem: "bun"
+    directory: "/frontend"
+    target-branch: "dev"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+
   - package-ecosystem: "docker"
     directory: "/"
     target-branch: "dev"
