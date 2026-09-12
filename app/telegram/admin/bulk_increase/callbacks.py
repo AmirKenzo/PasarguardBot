@@ -49,7 +49,7 @@ def _permission_scope_value(value: Any) -> int:
 
     try:
         return int(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return 0
 
 
