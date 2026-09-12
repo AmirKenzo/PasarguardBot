@@ -34,6 +34,11 @@ ADMIN_ID: list = config("ADMIN_ID", cast=lambda v: [int(i) for i in v.split(",")
 LOG_CHANNEL = config("LOG_CHANNEL", cast=optional_int, default=None)
 SQLALCHEMY_DATABASE_URL = config("SQLALCHEMY_DATABASE_URL")
 FAST_API_PORT = config("FASTAPI_PORT", cast=optional_int, default=None)
+# Optional native TLS for the FastAPI server (uvicorn). Set both to serve HTTPS
+# directly — no reverse proxy needed. Paths are read from inside the container,
+# so mount your certificate/key into the same path (see docker-compose.yml).
+SSL_CERTFILE = config("SSL_CERTFILE", default="")
+SSL_KEYFILE = config("SSL_KEYFILE", default="")
 BOT_TAG = config("BOT_TAG", default="")
 ADMIN_ID_TAG = config("ADMIN_ID_TAG", default="")
 CHANNEL_ID_TAG = config("CHANNEL_ID_TAG", default="")

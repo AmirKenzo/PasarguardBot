@@ -7,7 +7,7 @@ import uvicorn
 
 from app.jobs.scheduler import scheduler
 from app.telegram import run_telethon
-from config import ENABLE_FASTAPI, FAST_API_PORT
+from config import ENABLE_FASTAPI, FAST_API_PORT, SSL_CERTFILE, SSL_KEYFILE
 
 # Ensure project root is on sys.path (uv run / direct execution)
 _ROOT = Path(__file__).resolve().parent
@@ -69,10 +69,15 @@ async def main():
         # Import FastAPI app only when the API is enabled (avoids unused app/RAM).
         from app.routers import api_app as fastapi_app
 
-        config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=FAST_API_PORT, log_level="info")
+        ssl_kwargs = {}
+        if SSL_CERTFILE and SSL_KEYFILE:
+            ssl_kwargs = {"ssl_certfile": SSL_CERTFILE, "ssl_keyfile": SSL_KEYFILE}
+
+        config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=FAST_API_PORT, log_level="info", **ssl_kwargs)
         server = uvicorn.Server(config)
         api_task = asyncio.create_task(server.serve())
-        logger.info("%s FastAPI listening on port %s", LogTag.API, FAST_API_PORT)
+        scheme = "https" if ssl_kwargs else "http"
+        logger.info("%s FastAPI listening on %s://0.0.0.0:%s", LogTag.API, scheme, FAST_API_PORT)
     else:
         logger.info("%s FastAPI disabled (FASTAPI_PORT not configured)", LogTag.API)
 
