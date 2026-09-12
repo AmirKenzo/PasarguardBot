@@ -38,6 +38,8 @@ BOT_TAG = config("BOT_TAG", default="")
 ADMIN_ID_TAG = config("ADMIN_ID_TAG", default="")
 CHANNEL_ID_TAG = config("CHANNEL_ID_TAG", default="")
 TUTORIAL_HELP_LINKS = config("TUTORIAL_HELP_LINKS", default="https://t.me/")
+# HTTPS URL of the deployed frontend WebApp (used by the admin /webapp test command)
+WEBAPP_URL = config("WEBAPP_URL", default="")
 DISABLE_UPTIME_BUTTONS = config("DISABLE_UPTIME_BUTTONS", cast=bool, default=True)
 LINK_UPTIME_BUTTONS = config("LINK_UPTIME_BUTTONS", default="https://t.me/")
 # TRON network: empty = mainnet; "nile" or "shasta" for testnets
