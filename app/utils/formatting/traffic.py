@@ -22,7 +22,7 @@ def format_usage_progress_bar(used_bytes, total_bytes, blocks: int = 10) -> str:
     try:
         used = max(int(used_bytes or 0), 0)
         total = int(total_bytes or 0)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return "نامشخص"
 
     if total <= 0:

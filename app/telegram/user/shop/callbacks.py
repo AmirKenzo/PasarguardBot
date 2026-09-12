@@ -244,7 +244,7 @@ async def confirm_discounted_buy_callback(event: events.CallbackQuery.Event):
         raise events.StopPropagation
     try:
         new_price = int(float(new_price))
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         new_price = int(plan.price)
     status, _res = await DiscountCodeManager().validate_discount_code(code=code_takhfif, user_id=event.sender_id)
     if not status:

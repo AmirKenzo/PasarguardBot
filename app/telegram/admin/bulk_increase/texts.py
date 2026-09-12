@@ -68,7 +68,7 @@ def timestamp_or_none(value: Any) -> int | None:
         return int(value)
     try:
         return int(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
 
 

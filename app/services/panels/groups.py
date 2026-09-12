@@ -39,7 +39,7 @@ def deserialize_group_ids(raw: str | None) -> list[int]:
         data = json.loads(raw)
         if isinstance(data, list):
             return [int(x) for x in data]
-    except TypeError, ValueError, json.JSONDecodeError:
+    except (TypeError, ValueError, json.JSONDecodeError):
         pass
     try:
         return [int(x) for x in str(raw).split(",") if x.strip().isdigit()]
@@ -183,7 +183,7 @@ async def get_add_panel_groups_from_redis(user_id: int) -> list[tuple[int, str]]
     if isinstance(data, str):
         try:
             raw = json.loads(data)
-        except TypeError, ValueError, json.JSONDecodeError:
+        except (TypeError, ValueError, json.JSONDecodeError):
             return []
     if not isinstance(raw, list):
         return []
@@ -193,7 +193,7 @@ async def get_add_panel_groups_from_redis(user_id: int) -> list[tuple[int, str]]
             continue
         try:
             parsed.append((int(item[0]), str(item[1])))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             continue
     return parsed
 

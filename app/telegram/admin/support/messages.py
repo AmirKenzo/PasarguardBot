@@ -30,7 +30,7 @@ async def handle_support_reply(event: Message):
 
     try:
         recipient_id = int(target_id)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         await event.reply("شناسه کاربر نامعتبر است.")
         await delete_data(event.sender_id, "idUserSupport")
         await set_step(event.sender_id, "none")

@@ -50,7 +50,7 @@ def _parse_record(raw: object, user_id: int) -> BusinessConnectionRecord | None:
             user_id=int(raw.get("user_id", user_id)),
             connection_id=str(raw["connection_id"]),
         )
-    except KeyError, TypeError, ValueError:
+    except (KeyError, TypeError, ValueError):
         return None
 
 
@@ -100,7 +100,7 @@ def _read_connections() -> dict[int, BusinessConnectionRecord]:
     for key, value in raw.items():
         try:
             user_id = int(key)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             continue
         record = _parse_record(value, user_id)
         if record is not None:

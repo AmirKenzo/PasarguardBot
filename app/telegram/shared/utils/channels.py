@@ -150,7 +150,7 @@ async def resolve_lock_channel_from_input(client, raw: str) -> tuple[dict[str, A
                         "title": f"کانال {channel_id}",
                         "link": f"https://t.me/c/{c_id}",
                     }, "id_parsed_no_entity"
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         pass
 
     if raw.startswith("@"):

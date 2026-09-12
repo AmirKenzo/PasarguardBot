@@ -197,7 +197,7 @@ def panel_reseller_button_settings(panel) -> dict[str, bool]:
 def _as_non_negative_int(value: Any, default: int = 0) -> int:
     try:
         number = int(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return default
     return number if number >= 0 else default
 
@@ -205,7 +205,7 @@ def _as_non_negative_int(value: Any, default: int = 0) -> int:
 def _as_positive_number(value: Any, default: float) -> float:
     try:
         number = float(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return default
     return number if number > 0 else default
 
@@ -494,7 +494,7 @@ def _normalize_volume_upgrade_plan(raw: Any) -> dict[str, Any] | None:
         plan_id = int(raw.get("id") or 0)
         storage_gb = float(raw.get("storage_gb") or 0)
         price = int(raw.get("price") or 0)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
     if plan_id <= 0 or storage_gb <= 0 or price < 0:
         return None
@@ -522,7 +522,7 @@ def _normalize_time_upgrade_plan(raw: Any) -> dict[str, Any] | None:
         plan_id = int(raw.get("id") or 0)
         duration_days = int(raw.get("duration_days") or 0)
         price = int(raw.get("price") or 0)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
     if plan_id <= 0 or duration_days <= 0 or price < 0:
         return None
@@ -805,7 +805,7 @@ def panel_user_limit(panel) -> int | None:
         return None
     try:
         return int(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
 
 
@@ -858,7 +858,7 @@ def parse_group_ids_value(raw: Any) -> list[int]:
         for item in raw:
             try:
                 result.append(int(item))
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 continue
         return result
     if isinstance(raw, str):
@@ -869,7 +869,7 @@ def parse_group_ids_value(raw: Any) -> list[int]:
             data = json.loads(text)
             if isinstance(data, list):
                 return parse_group_ids_value(data)
-        except TypeError, ValueError, json.JSONDecodeError:
+        except (TypeError, ValueError, json.JSONDecodeError):
             pass
         return [int(x) for x in text.split(",") if x.strip().isdigit()]
     return []

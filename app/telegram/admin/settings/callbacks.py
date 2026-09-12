@@ -164,7 +164,7 @@ async def callback_settings_admin(event: events.CallbackQuery.Event):
             )
             await event.edit(prompt, buttons=[[Button.inline("❌ انصراف", data="help_btn_reorder_cancel")]])
             await event.answer()
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             await event.answer("❌ درخواست نامعتبر", alert=True)
         return
 

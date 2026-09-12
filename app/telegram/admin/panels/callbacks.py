@@ -364,7 +364,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             return
         try:
             group_id = int(data.split(":")[1])
-        except IndexError, ValueError:
+        except (IndexError, ValueError):
             await event.answer("شناسه گروه نامعتبر است.", alert=True)
             return
 
@@ -483,7 +483,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             _, panel_id_str, group_id_str = data.split(":")
             panel_code = int(panel_id_str)
             group_id = int(group_id_str)
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             await event.answer("شناسه نامعتبر است.", alert=True)
             return
 
@@ -529,7 +529,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
     elif data.startswith("panel_update_group_select_all:"):
         try:
             panel_code = int(data.split(":")[1])
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             await event.answer("شناسه نامعتبر است.", alert=True)
             return
 
@@ -569,7 +569,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
     elif data.startswith("panel_update_group_confirm:"):
         try:
             panel_code = int(data.split(":")[1])
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             await event.answer("شناسه نامعتبر است.", alert=True)
             return
 
@@ -611,7 +611,7 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
     elif data.startswith("panel_update_group_cancel:"):
         try:
             panel_code = int(data.split(":")[1])
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             await event.answer("شناسه نامعتبر است.", alert=True)
             return
 

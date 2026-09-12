@@ -28,7 +28,7 @@ _TOP_VIEWS: tuple[tuple[str, str], ...] = (
 def _fmt_ts(ts: int) -> str:
     try:
         return datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
-    except ValueError, OSError:
+    except (ValueError, OSError):
         return str(ts)
 
 

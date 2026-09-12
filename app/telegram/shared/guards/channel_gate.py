@@ -92,7 +92,7 @@ async def bump_channel_gate_generation() -> None:
     redis_val = await get_app_cache(_CHANNEL_GATE_GEN_KEY)
     try:
         next_gen = str(int(redis_val or "0") + 1)
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         next_gen = "1"
     await set_app_cache(_CHANNEL_GATE_GEN_KEY, next_gen)
 

@@ -404,7 +404,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         if len(parts) >= 4:
             try:
                 plan_id = int(parts[3])
-            except ValueError, IndexError:
+            except (ValueError, IndexError):
                 plan_id = None
         else:
             plan_id = None
@@ -585,7 +585,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         # Convert new_price to int (may be string or float)
         try:
             new_price = int(float(new_price))
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             new_price = plan.price
 
         is_sufficient, message = await check_user_balance(event.sender_id, new_price)

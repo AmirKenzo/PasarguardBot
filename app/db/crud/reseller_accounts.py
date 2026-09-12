@@ -199,7 +199,7 @@ class ResellerAccountCRUD:
         try:
             data = json.loads(raw)
             return data if isinstance(data, dict) else {}
-        except TypeError, json.JSONDecodeError:
+        except (TypeError, json.JSONDecodeError):
             return {}
 
     @staticmethod

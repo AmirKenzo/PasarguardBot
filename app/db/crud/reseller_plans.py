@@ -102,7 +102,7 @@ class ResellerPlanManager:
             return None
         try:
             return json.loads(raw)
-        except TypeError, json.JSONDecodeError:
+        except (TypeError, json.JSONDecodeError):
             return None
 
     @staticmethod

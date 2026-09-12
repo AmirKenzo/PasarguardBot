@@ -111,7 +111,7 @@ async def _handle_balance_change(bm, event, msg: str, *, positive: bool) -> None
                     new_balance=int(new_balance),
                 )
             )
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         await bm.edit_message(texts.ADD_NUMERIC_ERROR if positive else texts.REMOVE_NUMERIC_ERROR)
     except Exception as e:
         await bm.edit_message(texts.generic_error_text(str(e)))
@@ -202,7 +202,7 @@ async def _handle_info_command(bm, event, msg: str) -> None:
             lines.append(f"🧪 وضعیت تست: {'تست شده' if user.tested else 'تست نشده'}")
 
         await bm.edit_message("\n".join(lines))
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         await bm.edit_message(texts.INFO_ID_ERROR)
     except Exception as e:
         await bm.edit_message(texts.generic_error_text(str(e)))

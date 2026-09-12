@@ -406,5 +406,5 @@ async def get_direct_pay_prefilled_amount(user_id: int) -> int | None:
         return None
     try:
         return int(raw)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None

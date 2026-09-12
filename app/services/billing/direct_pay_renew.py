@@ -61,7 +61,7 @@ async def create_vpn_renew_for_user(
     try:
         plan_id_int = int(plan_id)
         service_code_int = int(service_code)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return False, "invalid_ids"
 
     plan = await PlanManager().get_plan(plan_id_int)

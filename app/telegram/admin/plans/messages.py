@@ -626,7 +626,7 @@ async def message_handler_plans(event: Message):
                                 time = int(value)
                             elif key == "ip_limit":
                                 ip_limit = int(value)
-                        except ValueError, TypeError:
+                        except (ValueError, TypeError):
                             # Skip invalid values but continue parsing other fields
                             continue
 

@@ -269,7 +269,7 @@ async def msg_manage_user_admin(event: Message):
             return
         try:
             target_user_id = int(target_user_id_str)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             await event.respond("Invalid session.")
             await delete_data(event.sender_id, "AdminBulkDeleteTargetUserId")
             await set_step(event.sender_id, "MToUserInfo")
@@ -359,7 +359,7 @@ async def msg_manage_user_admin(event: Message):
             return
         try:
             target_user_id = int(target_user_id_str)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             await event.respond("Invalid session.")
             await delete_data(event.sender_id, "AdminSearchConfigTargetUserId")
             await set_step(event.sender_id, "MToUserInfo")
@@ -424,7 +424,7 @@ async def msg_manage_user_admin(event: Message):
 
         try:
             target_user_id = int(target_user_id_str)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             await event.respond("شناسه کاربر نامعتبر است.")
             await delete_data(event.sender_id, "confirmPhoneUserId")
             await set_step(event.sender_id, "panel")

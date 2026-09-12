@@ -764,7 +764,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         if discount_code and discounted_raw is not None:
             try:
                 amount = int(discounted_raw)
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 discount_code = None
         success, msg = await renew_reseller_account(code, plan_id, user_id, amount=amount, discount_code=discount_code)
         await delete_data(user_id, "reseller_renew_discount_code")

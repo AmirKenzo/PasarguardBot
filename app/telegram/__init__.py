@@ -66,7 +66,7 @@ def _static_metadata(module_path: Path) -> dict[str, object]:
             if isinstance(target, ast.Name) and target.id in {"MODULE_NAME", "MODULE_ENABLED", "MODULE_ORDER"}:
                 try:
                     metadata[target.id] = ast.literal_eval(node.value)
-                except ValueError, SyntaxError:
+                except (ValueError, SyntaxError):
                     continue
     return metadata
 

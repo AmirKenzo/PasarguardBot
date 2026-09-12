@@ -113,7 +113,7 @@ def normalize_target(raw: dict[str, Any], index: int = 0) -> dict[str, Any]:
     if icon is not None:
         try:
             icon = int(icon)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             icon = None
     return {
         "id": tid,

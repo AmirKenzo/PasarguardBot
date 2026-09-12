@@ -172,7 +172,7 @@ async def resolve_reseller_purchase_amount(user_id: int, plan, volume: float | N
     if discounted_raw is not None and code:
         try:
             return int(discounted_raw), code
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             pass
     return base, None
 

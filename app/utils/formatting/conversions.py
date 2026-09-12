@@ -18,7 +18,7 @@ def as_int(value: int | str | None) -> int | None:
                 return None
             return int(stripped)
         return int(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
 
 

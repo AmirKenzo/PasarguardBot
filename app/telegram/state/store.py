@@ -59,7 +59,7 @@ def _deserialize(raw: str) -> Any:
         return raw
     try:
         return json.loads(raw)
-    except TypeError, ValueError, json.JSONDecodeError:
+    except (TypeError, ValueError, json.JSONDecodeError):
         return raw
 
 

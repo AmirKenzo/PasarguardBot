@@ -51,7 +51,7 @@ def _deserialize(raw: str) -> dict[str, Any] | None:
         data = json.loads(raw)
         if isinstance(data, dict) and data.get("code"):
             return data
-    except TypeError, ValueError, json.JSONDecodeError:
+    except (TypeError, ValueError, json.JSONDecodeError):
         return None
     return None
 
@@ -138,7 +138,7 @@ async def clear_sticky_for_code(code: str) -> int:
         for member in members or []:
             try:
                 user_id = int(member)
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 continue
             await redis.delete(_user_key(user_id))
             await redis.srem(_all_users_key(), str(user_id))

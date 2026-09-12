@@ -52,7 +52,7 @@ def validate_custom_gb(
     text = (raw or "").strip().replace(",", ".")
     try:
         value = float(text)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None, "❌ حجم باید عدد باشد.\n\nمثال: 30"
     if value <= 0:
         return None, "❌ حجم باید بزرگ‌تر از صفر باشد."

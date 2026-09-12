@@ -38,7 +38,7 @@ def _admin_max_users(admin: Any) -> int | None:
         return None
     try:
         parsed = int(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
     return parsed if parsed > 0 else None
 
@@ -46,7 +46,7 @@ def _admin_max_users(admin: Any) -> int | None:
 def _admin_data_limit(admin: Any) -> int | None:
     try:
         value = int(getattr(admin, "data_limit", 0) or 0)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
     return value if value > 0 else None
 
@@ -66,7 +66,7 @@ def _admin_expire_label(admin: Any) -> str | None:
             continue
         try:
             return timestamp_to_persian_expiry(raw)
-        except TypeError, ValueError, OSError:
+        except (TypeError, ValueError, OSError):
             return str(raw)
     return None
 

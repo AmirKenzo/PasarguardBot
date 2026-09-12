@@ -101,7 +101,7 @@ async def message_handler_settings_admin(event: Message):
         num_part = normalized.split()[0] if normalized.split() else normalized
         try:
             k = int(num_part.strip())
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             await event.respond("لطفاً فقط یک عدد بفرستید (مثلاً 5 یا ۱۰). یا /cancel برای انصراف.")
             return
         btn_id_str = await get_data(event.sender_id, "help_btn_reorder_id")

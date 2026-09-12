@@ -17,7 +17,7 @@ from config import ADMIN_ID
 def is_number(msg: str) -> bool:
     try:
         return math.isfinite(float(msg))
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return False
 
 

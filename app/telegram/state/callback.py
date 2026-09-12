@@ -22,7 +22,7 @@ def _serialize_payload(payload: Any) -> str:
 def _deserialize_payload(raw: str) -> Any:
     try:
         return json.loads(raw)
-    except TypeError, ValueError, json.JSONDecodeError:
+    except (TypeError, ValueError, json.JSONDecodeError):
         return raw
 
 

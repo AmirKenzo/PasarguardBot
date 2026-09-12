@@ -15,7 +15,7 @@ def _decode_jwt_payload(token: str) -> dict | None:
         padding = "=" * (-len(payload_b64) % 4)
         payload_bytes = base64.urlsafe_b64decode(payload_b64 + padding)
         return json.loads(payload_bytes)
-    except ValueError, json.JSONDecodeError, UnicodeDecodeError:
+    except (ValueError, json.JSONDecodeError, UnicodeDecodeError):
         return None
 
 
