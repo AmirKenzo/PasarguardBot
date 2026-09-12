@@ -4,7 +4,6 @@ import asyncio
 import hashlib
 import hmac
 import json
-import os
 import time
 from typing import Any
 
@@ -43,50 +42,6 @@ def validate_webapp_data(params: dict[str, str]) -> tuple[bool, str | None]:
     return True, None
 
 
-def hash_password(password: str) -> str:
-    """Return a salted password hash.
-
-    Existing SHA256 hashes are still accepted by verify_password for backward
-    compatibility; newly stored passwords use PBKDF2.
-    """
-
-    salt = os.urandom(16).hex()
-    rounds = 200_000
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), rounds).hex()
-    return f"pbkdf2_sha256${rounds}${salt}${digest}"
-
-
-def verify_password(password: str, stored_hash: str | None) -> bool:
-    if not stored_hash:
-        return False
-    if stored_hash.startswith("pbkdf2_sha256$"):
-        try:
-            _, rounds, salt, digest = stored_hash.split("$", 3)
-            candidate = hashlib.pbkdf2_hmac(
-                "sha256",
-                password.encode(),
-                bytes.fromhex(salt),
-                int(rounds),
-            ).hex()
-            return hmac.compare_digest(candidate, digest)
-        except ValueError, TypeError:
-            return False
-
-    # Legacy hashes created by the old helper.
-    legacy = hashlib.sha256(password.encode()).hexdigest()
-    return hmac.compare_digest(legacy, stored_hash)
-
-
-async def hash_password_async(password: str) -> str:
-    """Hash password off the event loop (PBKDF2 is CPU-heavy)."""
-    return await asyncio.to_thread(hash_password, password)
-
-
-async def verify_password_async(password: str, stored_hash: str | None) -> bool:
-    """Verify password off the event loop (PBKDF2 is CPU-heavy)."""
-    return await asyncio.to_thread(verify_password, password, stored_hash)
-
-
 def _session_signing_key() -> bytes:
     global _SESSION_HMAC_KEY
     if _SESSION_HMAC_KEY is None:
@@ -94,16 +49,15 @@ def _session_signing_key() -> bytes:
     return _SESSION_HMAC_KEY
 
 
-def create_session_token(user_id: int, version: int = 0, minutes: int = 120) -> str:
+def create_session_token(user_id: int, minutes: int = 120) -> str:
     """Create an HMAC-signed session token for the given user ID.
 
-    Includes a per-user session version for instant invalidation on logout.
-    Format: ``{uid}.{ver}.{exp}.{hex_hmac}`` (no per-request KDF).
+    Format: ``{uid}.{exp}.{hex_hmac}`` (no per-request KDF). Logout revokes the
+    token itself (see `revoke_session_token`) instead of a per-user DB version.
     """
     uid = int(user_id)
-    ver = int(version)
     exp = int(time.time()) + int(minutes) * 60
-    body = f"{uid}.{ver}.{exp}"
+    body = f"{uid}.{exp}"
     sig = hmac.new(_session_signing_key(), body.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"{body}.{sig}"
 
@@ -111,23 +65,22 @@ def create_session_token(user_id: int, version: int = 0, minutes: int = 120) -> 
 def _parse_hmac_session_token(token: str) -> tuple[bool, str | None, dict[str, Any] | None] | None:
     """Parse HMAC session token. Returns None if token is not HMAC-shaped."""
     parts = token.split(".")
-    if len(parts) != 4:
+    if len(parts) != 3:
         return None
-    uid_s, ver_s, exp_s, sig = parts
-    if not (uid_s.isdigit() and ver_s.isdigit() and exp_s.isdigit() and len(sig) == 64):
+    uid_s, exp_s, sig = parts
+    if not (uid_s.isdigit() and exp_s.isdigit() and len(sig) == 64):
         return None
-    body = f"{uid_s}.{ver_s}.{exp_s}"
+    body = f"{uid_s}.{exp_s}"
     expected = hmac.new(_session_signing_key(), body.encode("utf-8"), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, sig):
         return False, "توکن نامعتبر است", None
     uid = int(uid_s)
-    ver = int(ver_s)
     exp = int(exp_s)
     if not uid:
         return False, "توکن نامعتبر است", None
     if exp < int(time.time()):
         return False, "نشست منقضی شده است", None
-    return True, None, {"uid": uid, "ver": ver, "exp": exp}
+    return True, None, {"uid": uid, "exp": exp}
 
 
 def _parse_legacy_session_token(token: str) -> tuple[bool, str | None, dict[str, Any] | None]:
@@ -135,13 +88,12 @@ def _parse_legacy_session_token(token: str) -> tuple[bool, str | None, dict[str,
     try:
         data = json.loads(decrypt_data(token))
         uid = int(data.get("uid", 0))
-        ver = int(data.get("ver", 0))
         exp = int(data.get("exp", 0))
         if not uid:
             return False, "توکن نامعتبر است", None
         if exp < int(time.time()):
             return False, "نشست منقضی شده است", None
-        return True, None, {"uid": uid, "ver": ver, "exp": exp}
+        return True, None, {"uid": uid, "exp": exp}
     except Exception:
         return False, "توکن نامعتبر است", None
 
@@ -158,7 +110,7 @@ def parse_session_token(token: str) -> tuple[bool, str | None, dict[str, Any] | 
 
 
 async def parse_session_token_async(token: str) -> tuple[bool, str | None, dict[str, Any] | None]:
-    """Async parse: HMAC stays on-loop; legacy AES+PBKDF2 runs in a worker thread."""
+    """Async parse: HMAC stays on-loop; legacy AES decrypt runs in a worker thread."""
     token = (token or "").strip()
     if not token:
         return False, "توکن نامعتبر است", None

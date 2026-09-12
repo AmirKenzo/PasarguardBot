@@ -1,11 +1,6 @@
 /** Mirrors app/models/webapp/auth.py */
 import type { ServiceStatus, UserProfile } from "./common";
 
-export interface WebAppLoginRequest {
-  username: string;
-  password: string;
-}
-
 export interface PhoneLoginStartRequest {
   phone: string;
 }
@@ -30,34 +25,5 @@ export interface WebAppInfoResponse {
 export interface WebAppChangeResponse {
   ok: boolean;
   subscription_url?: string | null;
-  error?: string | null;
-}
-
-export interface WebAccountCreateRequest {
-  username: string;
-  password: string;
-  session_token?: string | null;
-}
-
-export interface WebAccountCreateResponse {
-  ok: boolean;
-  message: string;
-  error?: string | null;
-}
-
-export interface WebAccountChangePasswordRequest {
-  new_password: string;
-  session_token?: string | null;
-}
-
-export interface WebAccountChangePasswordResponse {
-  ok: boolean;
-  message: string;
-  error?: string | null;
-}
-
-export interface WebRegistrationModeResponse {
-  ok: boolean;
-  message: string;
   error?: string | null;
 }

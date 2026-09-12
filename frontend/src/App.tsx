@@ -5,8 +5,6 @@ import { Spinner } from "./components/ui/Spinner";
 import { useAuth } from "./context/AuthContext";
 
 const LoginPage = lazy(() => import("./features/auth/LoginPage"));
-const AccountCreatePage = lazy(() => import("./features/auth/AccountCreatePage"));
-const ChangePasswordPage = lazy(() => import("./features/auth/ChangePasswordPage"));
 const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage"));
 const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
 const HelpPage = lazy(() => import("./features/help/HelpPage"));
@@ -63,8 +61,6 @@ export default function App() {
           <Route path="balance/manual" element={<ManualDeposit />} />
           <Route path="balance/crypto" element={<CryptoDeposit />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="profile/create-account" element={<AccountCreatePage />} />
-          <Route path="profile/change-password" element={<ChangePasswordPage />} />
           <Route path="help" element={<HelpPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

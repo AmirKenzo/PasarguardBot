@@ -1,15 +1,8 @@
-"""WebApp DTOs: login, OTP, session, logout, web account management."""
+"""WebApp DTOs: phone OTP login, Telegram init-data session, logout."""
 
 from pydantic import BaseModel, Field
 
 from app.models.webapp.common import ServiceStatus, UserProfile
-
-
-class WebAppLoginRequest(BaseModel):
-    """Login request for web app."""
-
-    username: str = Field(..., description="Username for login")
-    password: str = Field(..., description="Password for login")
 
 
 class PhoneLoginStartRequest(BaseModel):
@@ -46,49 +39,4 @@ class WebAppChangeResponse(BaseModel):
 
     ok: bool
     subscription_url: str | None = None
-    error: str | None = None
-
-
-class WebAccountCreateRequest(BaseModel):
-    """Request to create web account."""
-
-    username: str = Field(..., description="Username for web account")
-    password: str = Field(..., description="Password for web account")
-    session_token: str | None = Field(None, description="Session token from login")
-
-
-class WebAccountCreateResponse(BaseModel):
-    """Response for web account creation."""
-
-    ok: bool
-    message: str
-    error: str | None = None
-
-
-class WebAccountChangePasswordRequest(BaseModel):
-    """Request to change web account password."""
-
-    new_password: str = Field(..., description="New password")
-    session_token: str | None = Field(None, description="Session token from login")
-
-
-class WebAccountChangePasswordResponse(BaseModel):
-    """Response for password change."""
-
-    ok: bool
-    message: str
-    error: str | None = None
-
-
-class WebRegistrationModeRequest(BaseModel):
-    """Request to change registration mode."""
-
-    mode: str = Field(..., description="Registration mode: all, customers, none")
-
-
-class WebRegistrationModeResponse(BaseModel):
-    """Response for registration mode change."""
-
-    ok: bool
-    message: str
     error: str | None = None

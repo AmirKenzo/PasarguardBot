@@ -1,4 +1,4 @@
-"""Auth, session, OTP login, logout, and web-account endpoints."""
+"""Auth: Telegram init-data login, phone OTP login, session, and logout."""
 
 import asyncio
 import contextlib
@@ -13,8 +13,6 @@ from fastapi import APIRouter, Request
 from app import Kenzo
 from app.db.crud.cryptopayments import get_user_crypto_stats
 from app.db.crud.discount_codes import DiscountCodeManager
-from app.db.crud.services import get_user_services
-from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD
 from app.logger import LogType, get_logger
@@ -22,15 +20,9 @@ from app.models.webapp import (
     LogoutRequest,
     PhoneLoginStartRequest,
     PhoneLoginVerifyRequest,
-    WebAccountChangePasswordRequest,
-    WebAccountChangePasswordResponse,
-    WebAccountCreateRequest,
-    WebAccountCreateResponse,
     WebAppChangeResponse,
     WebAppInfoResponse,
-    WebAppLoginRequest,
     WebAppUserData,
-    WebRegistrationModeResponse,
 )
 from app.routers.webapp.state import (
     get_header_auth,
@@ -44,10 +36,8 @@ from app.services.send_queue import enqueue
 from app.utils.formatting.dates import Time_Date
 from app.utils.security.webapp_auth import (
     create_session_token,
-    hash_password_async,
     parse_session_token_async,
     validate_webapp_data,
-    verify_password_async,
 )
 
 logger = get_logger(__name__)
@@ -75,12 +65,10 @@ async def _send_login_notification(
         if not user_record:
             return
 
-        username = user_record.web_username or "نامشخص"
         phone = user_record.number or "نامشخص"
 
         notification_text = (
             f"🔐 **ورود به وب‌سایت**\n\n"
-            f"👤 **کاربر:** {username}\n"
             f"📱 **شماره:** {phone}\n"
             f"🆔 **آیدی:** `{user_id}`\n"
             f"🌐 **روش ورود:** {login_method}\n"
@@ -174,10 +162,8 @@ async def _build_user_profile(
 
     return {
         "id": user_id,
-        "username": (telegram_user.username if telegram_user else None)
-        or (user_record.web_username if user_record else None),
-        "first_name": (telegram_user.first_name if telegram_user else None)
-        or (user_record.web_username if user_record else None),
+        "username": telegram_user.username if telegram_user else None,
+        "first_name": telegram_user.first_name if telegram_user else None,
         "photo_url": telegram_user.photo_url if telegram_user else None,
         "invite": invite_count,
         "amount": balance_amount,
@@ -213,8 +199,6 @@ def _merge_request_auth(
 
 async def authenticate_user(
     init_data: str | None = None,
-    username: str | None = None,
-    password: str | None = None,
     session_token: str | None = None,
 ) -> int | None:
     """Authenticate user and return user ID."""
@@ -236,19 +220,7 @@ async def authenticate_user(
         ok, err, payload = await parse_session_token_async(session_token)
         if not ok or not payload:
             raise ValueError(err or "توکن نامعتبر است")
-        uid = int(payload["uid"])
-        # Check session version in DB
-        user = await UserCRUD().read_user(uid)
-        db_ver = int(getattr(user, "session_version", 0) or 0) if user else 0
-        if int(payload.get("ver", 0)) != db_ver:
-            raise ValueError("نشست منقضی شده است")
-        return uid
-
-    if username and password:
-        user_record = await UserCRUD().get_user_by_web_username(username)
-        if not user_record or not await verify_password_async(password, user_record.web_password):
-            raise ValueError("احراز هویت ناموفق")
-        return user_record.id
+        return int(payload["uid"])
 
     raise ValueError("اطلاعات ناقص است")
 
@@ -275,29 +247,6 @@ async def get_webapp_info(request: Request) -> WebAppInfoResponse:
         telegram_user = WebAppUserData(**user_data)
 
         payload = await build_user_payload_no_services(user_id, telegram_user=telegram_user)
-        return WebAppInfoResponse(**payload)
-
-    except Exception as e:
-        return WebAppInfoResponse(ok=False, error=str(e))
-
-
-@router.post("/webapp/login", response_model=WebAppInfoResponse)
-async def webapp_login(login_request: WebAppLoginRequest) -> WebAppInfoResponse:
-    """Authenticate user and return user information."""
-
-    try:
-        user_record = await UserCRUD().get_user_by_web_username(login_request.username)
-
-        if not user_record or not await verify_password_async(login_request.password, user_record.web_password):
-            return WebAppInfoResponse(ok=False, error="نام کاربری یا رمز عبور اشتباه است")
-
-        user_ver = await UserCRUD().get_session_version(int(user_record.id))
-        token = create_session_token(int(user_record.id), version=user_ver)
-        payload = await build_user_payload_no_services(user_record.id, user_record=user_record)
-        payload["session_token"] = token
-
-        await _send_login_notification(int(user_record.id), "نام کاربری و رمز عبور", user_record=user_record)
-
         return WebAppInfoResponse(**payload)
 
     except Exception as e:
@@ -352,8 +301,7 @@ async def verify_phone_login(req: PhoneLoginVerifyRequest) -> WebAppInfoResponse
             return WebAppInfoResponse(ok=False, error="کد وارد شده نادرست است")
 
         otp_sessions.pop(key, None)
-        user_ver = await UserCRUD().get_session_version(int(sess["user_id"]))
-        token = create_session_token(int(sess["user_id"]), version=user_ver)
+        token = create_session_token(int(sess["user_id"]))
         payload = await build_user_payload_no_services(int(user.id), user_record=user)
         payload["session_token"] = token
 
@@ -384,10 +332,6 @@ async def get_webapp_info_session(
     if not ok or not payload:
         return WebAppInfoResponse(ok=False, error=err or "توکن نامعتبر است")
     uid = int(payload["uid"])  # type: ignore
-    user = await UserCRUD().read_user(uid)
-    db_ver = int(getattr(user, "session_version", 0) or 0) if user else 0
-    if int(payload.get("ver", 0)) != db_ver:
-        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است")
     try:
         payload = await build_user_payload_no_services(int(uid))
         payload["session_token"] = token
@@ -406,143 +350,7 @@ async def logout(req: LogoutRequest) -> WebAppChangeResponse:
         ok, err, payload = await parse_session_token_async(token)
         if not ok or not payload:
             return WebAppChangeResponse(ok=False, error=err or "توکن نامعتبر است")
-        await UserCRUD().bump_session_version(int(payload["uid"]))
         revoke_session_token(token)
         return WebAppChangeResponse(ok=True)
     except Exception as e:
         return WebAppChangeResponse(ok=False, error=str(e))
-
-
-@router.post("/webapp/account/create", response_model=WebAccountCreateResponse)
-async def create_web_account(request: WebAccountCreateRequest) -> WebAccountCreateResponse:
-    """Create web account for user."""
-
-    try:
-        settings_manager = SettingsManager()
-        settings = await settings_manager.get_settings()
-
-        if not settings or not settings.web_account_creation_enabled:
-            return WebAccountCreateResponse(
-                ok=False, message="ساخت اکانت وب غیرفعال است", error="ساخت اکانت وب موقتاً غیرفعال می‌باشد"
-            )
-
-        if settings.web_registration_mode == "none":
-            return WebAccountCreateResponse(
-                ok=False, message="ساخت اکانت وب غیرفعال است", error="ساخت اکانت وب موقتاً غیرفعال می‌باشد"
-            )
-
-        if len(request.username) < 3:
-            return WebAccountCreateResponse(
-                ok=False, message="نام کاربری باید حداقل ۳ کاراکتر باشد", error="نام کاربری کوتاه است"
-            )
-
-        if len(request.password) < 6:
-            return WebAccountCreateResponse(
-                ok=False, message="رمز عبور باید حداقل ۶ کاراکتر باشد", error="رمز عبور کوتاه است"
-            )
-
-        user_crud = UserCRUD()
-        existing_user = await user_crud.get_user_by_web_username(request.username)
-        if existing_user:
-            return WebAccountCreateResponse(
-                ok=False, message="این نام کاربری قبلاً استفاده شده است", error="نام کاربری تکراری است"
-            )
-
-        # Authenticate via header (preferred) or body session_token.
-        user_id = None
-        token, init_data = _merge_request_auth(session_token=request.session_token)
-        if token or init_data:
-            try:
-                user_id = await authenticate_user(session_token=token, init_data=init_data)
-            except ValueError:
-                return WebAccountCreateResponse(ok=False, message="احراز هویت ناموفق", error="توکن نامعتبر است")
-
-        if settings.web_registration_mode == "customers" and user_id:
-            user_services = await get_user_services(user_id)
-            if isinstance(user_services, str) or not user_services:
-                return WebAccountCreateResponse(
-                    ok=False, message="فقط مشتریان می‌توانند اکانت بسازند", error="شما سرویس فعالی ندارید"
-                )
-
-        if user_id:
-            success = await user_crud.update_user(
-                user_id,
-                web_username=request.username,
-                web_password=await hash_password_async(request.password),
-            )
-            if success:
-                return WebAccountCreateResponse(ok=True, message="اکانت وب با موفقیت ایجاد شد")
-            return WebAccountCreateResponse(
-                ok=False, message="خطا در ایجاد اکانت", error="خطا در به‌روزرسانی اطلاعات کاربر"
-            )
-        return WebAccountCreateResponse(
-            ok=False, message="این endpoint نیاز به احراز هویت دارد", error="کاربر احراز هویت نشده است"
-        )
-
-    except Exception as e:
-        return WebAccountCreateResponse(ok=False, message="خطا در ایجاد اکانت", error=str(e))
-
-
-@router.post("/webapp/account/change-password", response_model=WebAccountChangePasswordResponse)
-async def change_web_account_password(request: WebAccountChangePasswordRequest) -> WebAccountChangePasswordResponse:
-    """Change web account password."""
-
-    try:
-        token, init_data = _merge_request_auth(session_token=request.session_token)
-        if not token and not init_data:
-            return WebAccountChangePasswordResponse(
-                ok=False, message="این endpoint نیاز به احراز هویت دارد", error="توکن احراز هویت ارسال نشده است"
-            )
-
-        try:
-            user_id = await authenticate_user(session_token=token, init_data=init_data)
-        except ValueError as e:
-            return WebAccountChangePasswordResponse(ok=False, message="احراز هویت ناموفق", error=str(e))
-
-        if len(request.new_password) < 6:
-            return WebAccountChangePasswordResponse(
-                ok=False, message="رمز عبور جدید باید حداقل ۶ کاراکتر باشد", error="رمز عبور کوتاه است"
-            )
-
-        user_crud = UserCRUD()
-        user_record = await user_crud.read_user(user_id)
-
-        if not user_record or not user_record.web_username:
-            return WebAccountChangePasswordResponse(ok=False, message="اکانت وب یافت نشد", error="کاربر اکانت وب ندارد")
-
-        # No need to verify current password - direct password change
-        success = await user_crud.update_user(user_id, web_password=await hash_password_async(request.new_password))
-
-        if success:
-            return WebAccountChangePasswordResponse(ok=True, message="رمز عبور با موفقیت تغییر کرد")
-        return WebAccountChangePasswordResponse(
-            ok=False, message="خطا در تغییر رمز عبور", error="خطا در به‌روزرسانی رمز عبور"
-        )
-
-    except Exception as e:
-        return WebAccountChangePasswordResponse(ok=False, message="خطا در تغییر رمز عبور", error=str(e))
-
-
-@router.get("/webapp/registration/status", response_model=WebRegistrationModeResponse)
-async def get_registration_status() -> WebRegistrationModeResponse:
-    """Get current registration mode status."""
-
-    try:
-        settings_manager = SettingsManager()
-        settings = await settings_manager.get_settings()
-
-        if not settings:
-            return WebRegistrationModeResponse(ok=False, message="تنظیمات یافت نشد", error="تنظیمات سیستم یافت نشد")
-
-        mode_text = {
-            "all": "همه کاربران می‌توانند اکانت بسازند",
-            "customers": "فقط مشتریان می‌توانند اکانت بسازند",
-            "none": "ساخت اکانت غیرفعال است",
-        }
-
-        return WebRegistrationModeResponse(
-            ok=True, message=f"وضعیت ثبت‌نام: {mode_text.get(settings.web_registration_mode, 'نامشخص')}"
-        )
-
-    except Exception as e:
-        return WebRegistrationModeResponse(ok=False, message="خطا در دریافت وضعیت ثبت‌نام", error=str(e))

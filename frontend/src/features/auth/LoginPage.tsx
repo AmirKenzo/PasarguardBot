@@ -3,20 +3,10 @@ import { motion } from "framer-motion";
 import { Lock, Shield, ShoppingBag, Signal, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../../api/webapp";
-import { Button, Input, Tabs } from "../../components/ui";
+import { Button, Input } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
 
-type Tab = "credentials" | "phone";
-
-const TAB_ITEMS = [
-  { value: "credentials", label: "نام کاربری / رمز" },
-  { value: "phone", label: "شماره تلفن" },
-];
-
 export default function LoginPage() {
-  const [tab, setTab] = useState<Tab>("credentials");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -24,30 +14,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { setToken, setUser } = useAuth();
   const navigate = useNavigate();
-
-  function onLoginSuccess(token: string, user?: NonNullable<Awaited<ReturnType<typeof authApi.login>>["user"]>) {
-    setToken(token);
-    if (user) setUser(user);
-    navigate("/", { replace: true });
-  }
-
-  async function handleCredentialsSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const res = await authApi.login({ username: username.trim(), password });
-      if (res.session_token && res.user) {
-        onLoginSuccess(res.session_token, res.user);
-      } else {
-        setError("ورود ناموفق");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "خطای شبکه");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleOtpStart(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +36,9 @@ export default function LoginPage() {
     try {
       const res = await authApi.otpVerify({ phone: phone.trim(), code: code.trim() });
       if (res.session_token && res.user) {
-        onLoginSuccess(res.session_token, res.user);
+        setToken(res.session_token);
+        setUser(res.user);
+        navigate("/", { replace: true });
       } else {
         setError("کد نامعتبر");
       }
@@ -105,7 +73,7 @@ export default function LoginPage() {
               <FeatureCard icon={Signal} title="سرویس‌ها" text="وضعیت، لینک و مصرف" />
               <FeatureCard icon={ShoppingBag} title="خرید سریع" text="پلن، تخفیف و تحویل" />
               <FeatureCard icon={Wallet} title="کیف پول" text="شارژ دستی، خودکار و کریپتو" />
-              <FeatureCard icon={Shield} title="امن" text="ورود با OTP یا اکانت وب" />
+              <FeatureCard icon={Shield} title="امن" text="ورود با کد یک‌بارمصرف تلگرام" />
             </div>
           </motion.section>
 
@@ -116,18 +84,10 @@ export default function LoginPage() {
           >
             <div className="mb-6 text-center">
               <h2 className="text-2xl font-black text-text">خوش برگشتی</h2>
-              <p className="mt-2 text-sm text-muted">یکی از روش‌های ورود را انتخاب کن.</p>
+              <p className="mt-2 text-sm text-muted">
+                شماره تلفن حساب تلگرامت رو وارد کن تا کد ورود برات ارسال شود.
+              </p>
             </div>
-
-            <Tabs
-              items={TAB_ITEMS}
-              value={tab}
-              onChange={(value) => {
-                setTab(value as Tab);
-                setError("");
-                setOtpSent(false);
-              }}
-            />
 
             {error && (
               <div className="mt-4 rounded-md border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">
@@ -135,64 +95,43 @@ export default function LoginPage() {
               </div>
             )}
 
-            {tab === "credentials" ? (
-              <form onSubmit={handleCredentialsSubmit} className="mt-6 space-y-4">
+            <form onSubmit={otpSent ? handleOtpVerify : handleOtpStart} className="mt-6 space-y-4">
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="شماره تلفن"
+                required
+                disabled={otpSent}
+              />
+              {otpSent && (
                 <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="نام کاربری"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="کد ۶ رقمی"
                   required
+                  maxLength={6}
+                  ltr
                 />
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="رمز عبور"
-                  required
-                />
-                <Button type="submit" fullWidth loading={loading}>
-                  ورود
+              )}
+              <Button type="submit" fullWidth loading={loading}>
+                {otpSent ? "تایید" : "ارسال کد"}
+              </Button>
+              {otpSent && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => {
+                    setOtpSent(false);
+                    setCode("");
+                    setError("");
+                  }}
+                >
+                  تغییر شماره
                 </Button>
-              </form>
-            ) : (
-              <form onSubmit={otpSent ? handleOtpVerify : handleOtpStart} className="mt-6 space-y-4">
-                <Input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="شماره تلفن"
-                  required
-                  disabled={otpSent}
-                />
-                {otpSent && (
-                  <Input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder="کد ۶ رقمی"
-                    required
-                    maxLength={6}
-                    ltr
-                  />
-                )}
-                <Button type="submit" fullWidth loading={loading}>
-                  {otpSent ? "تایید" : "ارسال کد"}
-                </Button>
-                {otpSent && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    fullWidth
-                    onClick={() => {
-                      setOtpSent(false);
-                      setCode("");
-                      setError("");
-                    }}
-                  >
-                    تغییر شماره
-                  </Button>
-                )}
-              </form>
-            )}
+              )}
+            </form>
           </motion.section>
         </div>
       </div>

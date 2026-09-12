@@ -2,14 +2,8 @@ import type {
   LogoutRequest,
   PhoneLoginStartRequest,
   PhoneLoginVerifyRequest,
-  WebAccountChangePasswordRequest,
-  WebAccountChangePasswordResponse,
-  WebAccountCreateRequest,
-  WebAccountCreateResponse,
   WebAppChangeResponse,
   WebAppInfoResponse,
-  WebAppLoginRequest,
-  WebRegistrationModeResponse,
 } from "../../types/webapp";
 import { apiGet, apiPost, authHeaders, ApiError } from "./client";
 
@@ -34,10 +28,6 @@ export function getInfoSession(sessionToken: string) {
   return apiGet<WebAppInfoResponse>("/info/session", {}, { session_token: sessionToken });
 }
 
-export function login(body: WebAppLoginRequest) {
-  return apiPost<WebAppInfoResponse>("/login", body);
-}
-
 export function otpStart(body: PhoneLoginStartRequest) {
   return apiPost<WebAppChangeResponse>("/otp/start", body);
 }
@@ -48,18 +38,4 @@ export function otpVerify(body: PhoneLoginVerifyRequest) {
 
 export function logout(body: LogoutRequest) {
   return apiPost<WebAppChangeResponse>("/logout", {}, { session_token: body.session_token });
-}
-
-export function createAccount(body: WebAccountCreateRequest) {
-  const { session_token, ...rest } = body;
-  return apiPost<WebAccountCreateResponse>("/account/create", rest, { session_token });
-}
-
-export function changePassword(body: WebAccountChangePasswordRequest) {
-  const { session_token, ...rest } = body;
-  return apiPost<WebAccountChangePasswordResponse>("/account/change-password", rest, { session_token });
-}
-
-export function getRegistrationStatus() {
-  return apiGet<WebRegistrationModeResponse>("/registration/status");
 }

@@ -1,11 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import {
-  ChevronLeft,
-  HelpCircle,
-  KeyRound,
-  LogOut,
-  UserPlus,
-} from "lucide-react";
+import { ChevronLeft, HelpCircle, LogOut } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Avatar, Badge, Button, Card, IconBadge, SkeletonCard } from "../../components/ui";
 import { ErrorState } from "../../components/ui/EmptyState";
@@ -97,8 +91,6 @@ export default function ProfilePage() {
       </Card>
 
       <Card className="mb-4 divide-y divide-border overflow-hidden">
-        <ProfileLink to="/profile/create-account" icon={UserPlus} label="ساخت اکانت وب" />
-        <ProfileLink to="/profile/change-password" icon={KeyRound} label="تغییر رمز عبور" />
         <ProfileLink to="/help" icon={HelpCircle} label="راهنما" />
       </Card>
 
@@ -135,7 +127,7 @@ function ProfileLink({
   label,
 }: {
   to: string;
-  icon: typeof UserPlus;
+  icon: typeof HelpCircle;
   label: string;
 }) {
   return (
