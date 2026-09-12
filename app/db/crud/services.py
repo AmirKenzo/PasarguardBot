@@ -736,10 +736,12 @@ async def _paginate_services(*, filters: list, page: int, limit: int) -> tuple[l
 
 
 async def get_user_services_paginated(
-    user_id: int, page: int = 1, limit: int = 10, search: str | None = None
+    user_id: int, page: int = 1, limit: int = 10, search: str | None = None, panel_code: int | None = None
 ) -> tuple[list, int]:
     """Get user services with pagination. Search: prefix on code or username."""
     filters = [Service.id == user_id]
+    if panel_code is not None:
+        filters.append(Service.in_panel == panel_code)
     search_filter = _inline_service_search_filter(search) if search else None
     if search_filter is not None:
         filters.append(search_filter)
