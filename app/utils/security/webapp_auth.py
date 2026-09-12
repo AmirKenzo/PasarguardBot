@@ -69,7 +69,7 @@ def verify_password(password: str, stored_hash: str | None) -> bool:
                 int(rounds),
             ).hex()
             return hmac.compare_digest(candidate, digest)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
 
     # Legacy hashes created by the old helper.
