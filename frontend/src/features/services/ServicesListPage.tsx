@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Clock, Database, Search, Satellite, Server } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { EmojiIcon } from "../../components/EmojiIcon";
 import { EmptyState, Input, Pagination, SegmentedControl, SkeletonCard } from "../../components/ui";
 import { ErrorState } from "../../components/ui/EmptyState";
@@ -102,7 +103,7 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
   );
 }
 
-function PanelGroupCard({ group, onSelect }: { group: PanelGroupItem; onSelect: () => void }) {
+function PanelGroupCard({ group, onSelect, t }: { group: PanelGroupItem; onSelect: () => void; t: (key: string) => string }) {
   const { haptic } = useTelegram();
   return (
     <motion.div variants={itemVariants} layout>
@@ -123,11 +124,11 @@ function PanelGroupCard({ group, onSelect }: { group: PanelGroupItem; onSelect: 
           <div className="min-w-0 flex-1">
             <p className="truncate font-bold text-text">{group.panel_name}</p>
             <p className="mt-1 text-xs text-muted">
-              {group.service_count.toLocaleString("fa-IR")} سرویس در این پنل
+              {group.service_count.toLocaleString()} {t("services.servicePanel")}
             </p>
           </div>
           <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-primary ring-1 ring-border transition group-hover:bg-primary/15">
-            مشاهده
+            {t("services.view")}
           </span>
         </div>
       </motion.button>
@@ -136,6 +137,7 @@ function PanelGroupCard({ group, onSelect }: { group: PanelGroupItem; onSelect: 
 }
 
 export default function ServicesListPage() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState<number>(5);
   const [searchQuery, setSearchQuery] = useState("");
@@ -180,18 +182,18 @@ export default function ServicesListPage() {
             className="mb-1 flex items-center gap-1.5 text-sm font-medium text-primary"
           >
             <ChevronRight size={16} />
-            بازگشت به پنل‌ها
+            {t("services.backToPanel")}
           </button>
         ) : null}
         <h1 className="text-2xl font-bold tracking-tight text-text">
-          {selectedPanel ? selectedPanel.panel_name : "سرویس‌ها"}
+          {selectedPanel ? selectedPanel.panel_name : t("services.title")}
         </h1>
         <p className="text-sm text-muted">
           {showPanelGroups
-            ? "پنل‌هایی که از آن‌ها سرویس خریداری کرده‌اید"
+            ? t("services.panelServicesDesc")
             : total > 0
-              ? `${total} سرویس فعال در حساب شما`
-              : "سرویس‌های حساب خود را اینجا مدیریت کنید"}
+              ? `${total} ${t("services.activeServices")}`
+              : t("services.manageServices")}
         </p>
       </motion.header>
 
@@ -205,7 +207,7 @@ export default function ServicesListPage() {
           <Search size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <Input
             type="search"
-            placeholder="جستجوی نام یا کد سرویس..."
+            placeholder={t("services.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pr-10"
@@ -225,8 +227,8 @@ export default function ServicesListPage() {
         panelGroups.length === 0 ? (
           <EmptyState
             icon={Server}
-            title="سرویسی یافت نشد"
-            description="هنوز از هیچ پنلی سرویسی خریداری نکرده‌اید."
+            title={t("services.noPanels")}
+            description={t("services.noPanelsDesc")}
           />
         ) : (
           <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-3">
@@ -235,6 +237,7 @@ export default function ServicesListPage() {
                 key={group.panel_code}
                 group={group}
                 onSelect={() => setSelectedPanel(group)}
+                t={t}
               />
             ))}
           </motion.div>
@@ -242,8 +245,8 @@ export default function ServicesListPage() {
       ) : services.length === 0 ? (
         <EmptyState
           icon={Satellite}
-          title="سرویسی یافت نشد"
-          description="هنوز سرویسی ثبت نشده یا نتیجه‌ای برای جستجو پیدا نشد."
+          title={t("services.noServices")}
+          description={t("services.noServicesDesc")}
         />
       ) : (
         <>
@@ -268,7 +271,7 @@ export default function ServicesListPage() {
             className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"
           >
             <div className="flex items-center gap-2.5 text-sm text-muted">
-              <span className="whitespace-nowrap">در هر صفحه</span>
+              <span className="whitespace-nowrap">{t("services.perPage")}</span>
               <SegmentedControl
                 options={LIMIT_SEGMENTS}
                 value={String(limit)}

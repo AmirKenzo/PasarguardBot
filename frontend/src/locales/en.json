@@ -1,10 +1,14 @@
 {
   "nav": {
+    "home": "Home",
     "services": "Services",
     "buy": "Buy",
     "wallet": "Wallet",
     "profile": "Profile",
-    "help": "Help"
+    "help": "Help",
+    "appearance": "Appearance",
+    "language": "Language",
+    "panelTitle": "Control Panel"
   },
   "auth": {
     "secureAccess": "Secure Access",
@@ -35,10 +39,54 @@
     "networkError": "Network error"
   },
   "dashboard": {
+    "title": "Dashboard",
     "welcome": "Welcome",
+    "greeting": "Hello",
     "services": "Services",
     "balance": "Wallet Balance",
-    "actions": "Actions"
+    "actions": "Quick Actions",
+    "myServices": "My Services",
+    "buyService": "Buy Service",
+    "increaseBalance": "Increase Balance",
+    "walletBalance": "Wallet Balance",
+    "increase": "Increase",
+    "successfulInvites": "Successful Invites",
+    "recentActivity": "Recent Activity",
+    "allTransactions": "All Transactions",
+    "noTransactions": "No transactions found.",
+    "loadError": "Error loading profile"
+  },
+  "services": {
+    "title": "Services",
+    "myServices": "My Services",
+    "active": "Active",
+    "inactive": "Inactive",
+    "expired": "Expired",
+    "days": "days",
+    "remaining": "remaining",
+    "noServices": "No services found",
+    "noServicesDesc": "No services registered yet or no results found for your search.",
+    "details": "Details",
+    "renew": "Renew",
+    "buy": "Buy",
+    "status": "Status",
+    "backToPanel": "Back to Panels",
+    "panelServicesDesc": "Panels from which you have purchased services",
+    "activeServices": "active services in your account",
+    "manageServices": "Manage your account services here",
+    "servicePanel": "services in this panel",
+    "searchPlaceholder": "Search service name or code...",
+    "view": "View",
+    "perPage": "Per page",
+    "noPanels": "No services found",
+    "noPanelsDesc": "You haven't purchased any services from any panels yet."
+  },
+  "transaction": {
+    "paid": "Paid",
+    "approved": "Approved",
+    "pending": "Pending",
+    "rejected": "Rejected",
+    "expired": "Rejected/Expired"
   },
   "common": {
     "loading": "Loading...",

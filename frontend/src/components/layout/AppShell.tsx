@@ -1,22 +1,29 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Home, ListVideo, ShoppingBag, User, Wallet } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { PageTransition } from "./PageTransition";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { LanguageToggle } from "../ui/LanguageToggle";
 import { AppVersion } from "../ui/AppVersion";
 
-const NAV_ITEMS = [
-  { to: "/", label: "خانه", icon: Home, end: true },
-  { to: "/services", label: "سرویس‌ها", icon: ListVideo, end: false },
-  { to: "/buy", label: "خرید", icon: ShoppingBag, end: false },
-  { to: "/balance", label: "کیف پول", icon: Wallet, end: false },
-  { to: "/profile", label: "پروفایل", icon: User, end: false },
-];
+function NAV_ITEMS() {
+  return [
+    { to: "/", labelKey: "nav.home", icon: Home, end: true },
+    { to: "/services", labelKey: "nav.services", icon: ListVideo, end: false },
+    { to: "/buy", labelKey: "nav.buy", icon: ShoppingBag, end: false },
+    { to: "/balance", labelKey: "nav.wallet", icon: Wallet, end: false },
+    { to: "/profile", labelKey: "nav.profile", icon: User, end: false },
+  ];
+}
 
 function NavButtons({ orientation }: { orientation: "row" | "col" }) {
+  const { t } = useTranslation();
+  const items = NAV_ITEMS();
+
   return (
     <>
-      {NAV_ITEMS.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
@@ -57,7 +64,7 @@ function NavButtons({ orientation }: { orientation: "row" | "col" }) {
                   animate={{ opacity: isActive ? 1 : 0.85 }}
                   transition={{ duration: 0.15 }}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </motion.span>
               </>
             ) : (
@@ -72,7 +79,7 @@ function NavButtons({ orientation }: { orientation: "row" | "col" }) {
                 <span className="relative z-10 flex items-center justify-center">
                   <item.icon size={20} strokeWidth={isActive ? 2.3 : 1.8} />
                 </span>
-                <span className="relative z-10">{item.label}</span>
+                <span className="relative z-10">{t(item.labelKey)}</span>
               </>
             )
           }
@@ -84,20 +91,25 @@ function NavButtons({ orientation }: { orientation: "row" | "col" }) {
 
 export function AppShell() {
   const location = useLocation();
+  const { t } = useTranslation();
 
   return (
     <div className="mx-auto flex min-h-screen max-w-6xl">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-l border-border bg-surface p-4 md:flex">
         <div className="mb-5 flex items-center justify-between px-1">
           <span className="bg-gradient-to-l from-primary to-accent bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
-            پنل کاربری
+            {t("nav.panelTitle")}
           </span>
         </div>
         <NavButtons orientation="col" />
-        <div className="mt-auto flex flex-col gap-3 px-1 pt-4">
+        <div className="mt-auto flex flex-col gap-3 px-1 pt-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">ظاهر</span>
+            <span className="text-xs text-muted">{t("nav.appearance")}</span>
             <ThemeToggle />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">🌐 {t("nav.language", "Language")}</span>
+            <LanguageToggle />
           </div>
           <AppVersion className="text-center" />
         </div>
@@ -106,9 +118,12 @@ export function AppShell() {
       <div className="flex min-h-screen w-full flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur md:hidden">
           <span className="bg-gradient-to-l from-primary to-accent bg-clip-text text-base font-extrabold tracking-tight text-transparent">
-            پنل کاربری
+            {t("nav.panelTitle")}
           </span>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
         </header>
 
         <main className="flex-1 px-4 pb-24 pt-4 md:pb-8">

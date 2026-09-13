@@ -1,10 +1,14 @@
 {
   "nav": {
+    "home": "خانه",
     "services": "سرویس‌ها",
     "buy": "خرید",
     "wallet": "کیف پول",
     "profile": "پروفایل",
-    "help": "کمک"
+    "help": "کمک",
+    "appearance": "ظاهر",
+    "language": "زبان",
+    "panelTitle": "پنل کاربری"
   },
   "auth": {
     "secureAccess": "دسترسی ایمن",
@@ -35,10 +39,54 @@
     "networkError": "خطای شبکه"
   },
   "dashboard": {
+    "title": "داشبورد",
     "welcome": "خوش برگشتی",
+    "greeting": "سلام",
     "services": "سرویس‌ها",
     "balance": "موجودی کیف پول",
-    "actions": "اقدامات"
+    "actions": "اقدامات",
+    "myServices": "سرویس‌های من",
+    "buyService": "خرید سرویس",
+    "increaseBalance": "افزایش موجودی",
+    "walletBalance": "موجودی کیف پول",
+    "increase": "افزایش",
+    "successfulInvites": "دعوت موفق",
+    "recentActivity": "فعالیت اخیر",
+    "allTransactions": "همه تراکنش‌ها",
+    "noTransactions": "تراکنشی یافت نشد.",
+    "loadError": "خطا در بارگذاری پروفایل"
+  },
+  "services": {
+    "title": "سرویس‌ها",
+    "myServices": "سرویس‌های من",
+    "active": "فعال",
+    "inactive": "غیرفعال",
+    "expired": "منقضی",
+    "days": "روز",
+    "remaining": "باقی‌مانده",
+    "noServices": "سرویسی یافت نشد",
+    "noServicesDesc": "هنوز سرویسی ثبت نشده یا نتیجه‌ای برای جستجو پیدا نشد.",
+    "details": "جزئیات",
+    "renew": "تمدید",
+    "buy": "خرید",
+    "status": "وضعیت",
+    "backToPanel": "بازگشت به پنل‌ها",
+    "panelServicesDesc": "پنل‌هایی که از آن‌ها سرویس خریداری کرده‌اید",
+    "activeServices": "سرویس فعال در حساب شما",
+    "manageServices": "سرویس‌های حساب خود را اینجا مدیریت کنید",
+    "servicePanel": "سرویس در این پنل",
+    "searchPlaceholder": "جستجوی نام یا کد سرویس...",
+    "view": "مشاهده",
+    "perPage": "در هر صفحه",
+    "noPanels": "سرویسی یافت نشد",
+    "noPanelsDesc": "هنوز از هیچ پنلی سرویسی خریداری نکرده‌اید."
+  },
+  "transaction": {
+    "paid": "تایید شده",
+    "approved": "تایید شده",
+    "pending": "در انتظار",
+    "rejected": "رد شده",
+    "expired": "رد/منقضی"
   },
   "common": {
     "loading": "در حال بارگذاری...",
