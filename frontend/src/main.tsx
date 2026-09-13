@@ -7,11 +7,16 @@ import { ThemeProvider } from "./design/ThemeProvider";
 import { LanguageProvider } from "./context/LanguageContext";
 import { captureTelegramInitData } from "./telegramInit";
 import { AuthProvider } from "./context/AuthContext";
+import { rememberPanelRedirect } from "./features/admin/redirect";
 import App from "./App";
 import "./i18n";
 import "./index.css";
 
 captureTelegramInitData();
+
+if (new URLSearchParams(window.location.search).get("panel") === "1") {
+  rememberPanelRedirect("/panel");
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,5 +42,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         </QueryClientProvider>
       </LanguageProvider>
     </ThemeProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

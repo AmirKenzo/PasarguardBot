@@ -8,12 +8,7 @@ from config import WEBAPP_URL
 from .common import create_button, glass_inline_button, glass_text_button, styled_simple_webview_button
 
 DOCS_URL = "https://amirkenzo.github.io/PasarguardBot/"
-
-# The admin panel is a route inside the WebApp (which uses a hash router),
-# so it needs no URL of its own. Telegram rejects a non-https WebApp button and
-# fails the whole message, so an http URL drops the button instead of taking the
-# admin keyboard down with it; the panel is still reachable in a browser.
-WEB_PANEL_URL = f"{WEBAPP_URL.rstrip('/')}#/panel" if WEBAPP_URL.startswith("https://") else ""
+WEB_PANEL_URL = f"{WEBAPP_URL.rstrip('/')}?panel=1" if WEBAPP_URL.startswith("https://") else ""
 
 Lock_Channels_Menu_Buttons = [
     [glass_text_button("افزودن کانال"), glass_text_button("حذف کانال")],
