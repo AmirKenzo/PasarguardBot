@@ -133,7 +133,7 @@ export default function DashboardPage() {
             {txData.transactions.map((tx) => (
               <div
                 key={tx.id}
-                className="flex items-center gap-3 rounded-md bg-surface-2 px-3 py-2 shadow-sm ring-1 ring-border/60"
+                className="flex items-center gap-3 rounded-md bg-surface-2 px-3 py-2 shadow-sm ring-1 ring-border"
               >
                 <IconBadge icon={transactionIcon(tx.emoji)} tone={txStatusTone(tx.status)} size="sm" />
                 <div className="min-w-0 flex-1">

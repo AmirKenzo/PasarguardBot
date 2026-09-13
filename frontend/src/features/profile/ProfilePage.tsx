@@ -146,7 +146,7 @@ function InfoTile({
   tone?: Tone;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg bg-surface-2 px-3 py-2.5 ring-1 ring-border/60">
+    <div className="flex items-center gap-2.5 rounded-lg bg-surface-2 px-3 py-2.5 ring-1 ring-border">
       <IconBadge icon={Icon} tone={tone} size="sm" />
       <div className="min-w-0">
         <span className="block text-xs text-muted">{label}</span>
@@ -168,7 +168,7 @@ function TxStat({
   total: number;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg bg-surface-2 px-3 py-2.5 ring-1 ring-border/60">
+    <div className="flex items-center gap-2.5 rounded-lg bg-surface-2 px-3 py-2.5 ring-1 ring-border">
       <IconBadge icon={Icon} tone="muted" size="sm" />
       <div className="min-w-0">
         <span className="block text-xs text-muted">{label}</span>

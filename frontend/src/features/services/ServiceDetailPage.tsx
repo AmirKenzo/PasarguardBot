@@ -63,7 +63,7 @@ const tileVariants = {
 
 function StatCell({ icon: Icon, label, value }: { icon?: LucideIcon; label: string; value: string }) {
   return (
-    <div className="rounded-md bg-surface-2/70 px-3 py-2.5 shadow-sm ring-1 ring-border/60">
+    <div className="rounded-md bg-surface-2/70 px-3 py-2.5 shadow-sm ring-1 ring-border">
       <p className="flex items-center gap-1 text-[11px] text-muted">
         {Icon && <Icon size={11} />}
         {label}

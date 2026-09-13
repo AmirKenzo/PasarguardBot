@@ -26,6 +26,9 @@ export default {
         success: withOpacity("--c-success-rgb"),
         warning: withOpacity("--c-warning-rgb"),
         danger: withOpacity("--c-danger-rgb"),
+        // NOTE: unlike every other color above, this has a fixed baked-in alpha instead of
+        // Tailwind's <alpha-value> placeholder — an opacity modifier (e.g. border-border/60)
+        // REPLACES that alpha instead of multiplying it, so never suffix this token with /NN.
         border: "rgb(var(--c-border-rgb) / var(--c-border-alpha))",
         overlay: "rgb(var(--c-overlay-rgb) / var(--c-overlay-alpha))",
       },

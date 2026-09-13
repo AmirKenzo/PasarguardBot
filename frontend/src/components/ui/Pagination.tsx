@@ -41,10 +41,10 @@ function NavButton({
       whileHover={disabled ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: 0.92 }}
       transition={{ type: "spring", stiffness: 500, damping: 26 }}
-      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border backdrop-blur-md transition-colors ${
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border backdrop-blur-md transition-colors ${
         disabled
-          ? "border-border/50 bg-surface/40 text-muted/40"
-          : "border-border/70 bg-surface/70 text-text shadow-sm hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+          ? "bg-surface/40 text-muted/40"
+          : "bg-surface/70 text-text shadow-sm hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
       }`}
       aria-label={label}
     >
