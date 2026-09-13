@@ -12,6 +12,7 @@ from starlette.responses import Response
 from app.routers.webapp.state import webapp_auth_headers
 from app.version import VERSIONS
 
+from .panel import panel_router
 from .webapp import webapp_router
 from .webhook import webhook_router
 
@@ -34,6 +35,10 @@ def _extract_bearer(authorization: str | None) -> str | None:
     return value.strip()
 
 
+# Routes whose handlers read credentials from the auth ContextVar.
+AUTH_HEADER_PREFIXES = ("/api/webapp", "/api/panel")
+
+
 class WebAppAuthHeaderMiddleware(BaseHTTPMiddleware):
     """Promote session/init auth from headers into a request ContextVar.
 
@@ -45,7 +50,7 @@ class WebAppAuthHeaderMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
-        if path.startswith("/api/webapp"):
+        if path.startswith(AUTH_HEADER_PREFIXES):
             session = request.headers.get("x-session-token") or _extract_bearer(request.headers.get("authorization"))
             init_data = request.headers.get("x-telegram-init-data")
             token = webapp_auth_headers.set((session or None, init_data or None))
@@ -60,6 +65,7 @@ api_app.add_middleware(WebAppAuthHeaderMiddleware)
 
 api_app.include_router(webhook_router, prefix="/api", tags=["Webhook"])
 api_app.include_router(webapp_router, prefix="/api", tags=["WebApp"])
+api_app.include_router(panel_router, prefix="/api", tags=["AdminPanel"])
 
 # Serve built frontend assets
 frontend_dist_dir = Path(__file__).resolve().parents[2] / "frontend" / "dist"

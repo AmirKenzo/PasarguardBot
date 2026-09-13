@@ -120,7 +120,10 @@ def _bulk_trackable_services(services: list, issues: list[str], panel_label: str
     return valid_services, skipped
 
 
-async def _safe_edit(event: events.CallbackQuery.Event, text: str, buttons=None) -> None:
+async def _safe_edit(event: events.CallbackQuery.Event | None, text: str, buttons=None) -> None:
+    # event is None when the run was started from the web panel: no message to edit.
+    if event is None:
+        return
     try:
         await event.edit(text, buttons=buttons)
     except Exception as exc:
@@ -391,12 +394,14 @@ async def _process_panel_manually(
 
 
 async def _run_bulk_increase(
-    event: events.CallbackQuery.Event,
+    event: events.CallbackQuery.Event | None,
     panels: list,
     volume: str | None,
     time_days_raw: str | None,
     panel_text: str,
-) -> None:
+    *,
+    actor_id: int | None = None,
+) -> dict:
     volume_text, time_text = texts.operation_texts(volume, time_days_raw)
     volume_bytes = gigabytes_to_bytes(float(volume)) if volume else 0
     time_days = int(time_days_raw) if time_days_raw else 0
@@ -448,9 +453,13 @@ async def _run_bulk_increase(
         else:
             await _process_panel_manually(event, panel, job["services"], volume_bytes, time_days, state, issues)
 
-    await clear_bulk_increase_steps(event.sender_id)
+    if actor_id is None and event is not None:
+        actor_id = event.sender_id
+    if event is not None:
+        await clear_bulk_increase_steps(event.sender_id)
     await _safe_edit(event, texts.build_result_message(state, issues), buttons=Panel_Admin_Buttons)
-    await send_log_message(LogType.OTHER, message=texts.build_log_message(state, event.sender_id))
+    await send_log_message(LogType.OTHER, message=texts.build_log_message(state, actor_id))
+    return {**state, "issues": issues, "affected_users": len(state["affected_users"])}
 
 
 def bulk_increase_callback_filter(event: events.CallbackQuery.Event) -> bool:
