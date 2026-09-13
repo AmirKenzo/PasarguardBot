@@ -550,146 +550,152 @@ export default function ServiceDetailPage() {
         </motion.p>
       )}
 
-      <motion.div
-        custom={0}
-        variants={fadeUp}
-        initial="hidden"
-        animate="show"
-        className="relative overflow-hidden rounded-lg border border-border bg-surface p-4 shadow-sm"
-      >
-        <div className="pointer-events-none absolute -left-10 -top-14 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
-
-        <div className="relative flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span
-                className={`absolute inset-0 rounded-full opacity-40 blur-sm ${
-                  tone.badge === "success"
-                    ? "bg-success"
-                    : tone.badge === "danger"
-                      ? "bg-danger"
-                      : tone.badge === "warning"
-                        ? "bg-warning"
-                        : "bg-muted"
-                }`}
-              />
-              <span
-                className={`relative block h-2 w-2 rounded-full ${
-                  tone.badge === "success"
-                    ? "bg-success"
-                    : tone.badge === "danger"
-                      ? "bg-danger"
-                      : tone.badge === "warning"
-                        ? "bg-warning"
-                        : "bg-muted"
-                }`}
-              />
-            </span>
-            <Badge tone={tone.badge}>{statusLabel(service.status)}</Badge>
-          </div>
-          <span className="text-xs text-muted">{t("serviceDetail.code")} {service.code}</span>
-        </div>
-
-        <div className="relative mt-4 grid grid-cols-2 gap-2.5">
-          <StatCell icon={Clock} label={t("serviceDetail.remainingTime")} value={expiry.remaining} />
-          <StatCell icon={Database} label={t("serviceDetail.totalVolume")} value={totalVolumeDisplay} />
-        </div>
-      </motion.div>
-
-      <Section title={t("serviceDetail.serviceInfo")} index={1}>
-        <Card className="divide-y divide-border overflow-hidden">
-          {infoRows.map((row) => (
-            <InfoRow key={row.key} icon={row.icon} label={row.label} value={row.value} />
-          ))}
-        </Card>
-      </Section>
-
-      {(buttons.copy_link || service.helper_subscription_url) && (
-        <Section title={t("serviceDetail.subscriptionLink")} index={2}>
-          <div className="space-y-2">
-            {buttons.copy_link && service.subscription_url && (
-              <CopyButton
-                label={t("serviceDetail.copyMainLink")}
-                value={service.subscription_url}
-                copiedKey="main"
-                activeKey={copied}
-                onCopied={(key) => {
-                  haptic.notify("success");
-                  setCopied(key);
-                  window.setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800);
-                }}
-              />
-            )}
-            {service.helper_subscription_url && (
-              <CopyButton
-                label={t("serviceDetail.copyHelperLink")}
-                value={service.helper_subscription_url}
-                copiedKey="helper"
-                activeKey={copied}
-                onCopied={(key) => {
-                  haptic.notify("success");
-                  setCopied(key);
-                  window.setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800);
-                }}
-              />
-            )}
-          </div>
-        </Section>
-      )}
-
-      <Section title={t("serviceDetail.actions")} index={3}>
-        <motion.div
-          variants={tileGridVariants}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-2 gap-2"
-        >
-          {manageActions
-            .filter((a) => a.show)
-            .map((action) => (
-              <ActionTile
-                key={action.key}
-                icon={action.icon}
-                label={action.label}
-                hint={action.hint}
-                onClick={action.onClick}
-              />
-            ))}
-        </motion.div>
-      </Section>
-
-      {(buttons.change_link || buttons.change_sub) && !service.is_test && (
-        <Section title={t("serviceDetail.accessSecurity")} index={4}>
+      <div className="xl:grid xl:grid-cols-[1.6fr_1fr] xl:items-start xl:gap-6">
+        <div className="space-y-6">
           <motion.div
-            variants={tileGridVariants}
+            custom={0}
+            variants={fadeUp}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-2 gap-2"
+            className="relative overflow-hidden rounded-lg border border-border bg-surface p-4 shadow-sm"
           >
-            {buttons.change_link && (
-              <ActionTile
-                icon={RefreshCw}
-                label={t("serviceDetail.changeLink")}
-                hint={t("serviceDetail.changeLinkHint")}
-                danger
-                loading={changeLink.isPending}
-                onClick={handleChangeLink}
-              />
-            )}
-            {buttons.change_sub && (
-              <ActionTile
-                icon={Link2}
-                label={t("serviceDetail.changeSub")}
-                hint={t("serviceDetail.changeSubHint")}
-                danger
-                loading={changeSub.isPending}
-                onClick={handleChangeSub}
-              />
-            )}
+            <div className="pointer-events-none absolute -left-10 -top-14 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
+
+            <div className="relative flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span
+                    className={`absolute inset-0 rounded-full opacity-40 blur-sm ${
+                      tone.badge === "success"
+                        ? "bg-success"
+                        : tone.badge === "danger"
+                          ? "bg-danger"
+                          : tone.badge === "warning"
+                            ? "bg-warning"
+                            : "bg-muted"
+                    }`}
+                  />
+                  <span
+                    className={`relative block h-2 w-2 rounded-full ${
+                      tone.badge === "success"
+                        ? "bg-success"
+                        : tone.badge === "danger"
+                          ? "bg-danger"
+                          : tone.badge === "warning"
+                            ? "bg-warning"
+                            : "bg-muted"
+                    }`}
+                  />
+                </span>
+                <Badge tone={tone.badge}>{statusLabel(service.status)}</Badge>
+              </div>
+              <span className="text-xs text-muted">{t("serviceDetail.code")} {service.code}</span>
+            </div>
+
+            <div className="relative mt-4 grid grid-cols-2 gap-2.5">
+              <StatCell icon={Clock} label={t("serviceDetail.remainingTime")} value={expiry.remaining} />
+              <StatCell icon={Database} label={t("serviceDetail.totalVolume")} value={totalVolumeDisplay} />
+            </div>
           </motion.div>
-          <p className="text-[11px] leading-5 text-muted">{t("serviceDetail.changeSubWarning")}</p>
-        </Section>
-      )}
+
+          <Section title={t("serviceDetail.serviceInfo")} index={1}>
+            <Card className="divide-y divide-border overflow-hidden">
+              {infoRows.map((row) => (
+                <InfoRow key={row.key} icon={row.icon} label={row.label} value={row.value} />
+              ))}
+            </Card>
+          </Section>
+
+          {(buttons.copy_link || service.helper_subscription_url) && (
+            <Section title={t("serviceDetail.subscriptionLink")} index={2}>
+              <div className="space-y-2">
+                {buttons.copy_link && service.subscription_url && (
+                  <CopyButton
+                    label={t("serviceDetail.copyMainLink")}
+                    value={service.subscription_url}
+                    copiedKey="main"
+                    activeKey={copied}
+                    onCopied={(key) => {
+                      haptic.notify("success");
+                      setCopied(key);
+                      window.setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800);
+                    }}
+                  />
+                )}
+                {service.helper_subscription_url && (
+                  <CopyButton
+                    label={t("serviceDetail.copyHelperLink")}
+                    value={service.helper_subscription_url}
+                    copiedKey="helper"
+                    activeKey={copied}
+                    onCopied={(key) => {
+                      haptic.notify("success");
+                      setCopied(key);
+                      window.setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800);
+                    }}
+                  />
+                )}
+              </div>
+            </Section>
+          )}
+        </div>
+
+        <div className="mt-6 space-y-6 xl:mt-0">
+          <Section title={t("serviceDetail.actions")} index={3}>
+            <motion.div
+              variants={tileGridVariants}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-2 gap-2 xl:grid-cols-1"
+            >
+              {manageActions
+                .filter((a) => a.show)
+                .map((action) => (
+                  <ActionTile
+                    key={action.key}
+                    icon={action.icon}
+                    label={action.label}
+                    hint={action.hint}
+                    onClick={action.onClick}
+                  />
+                ))}
+            </motion.div>
+          </Section>
+
+          {(buttons.change_link || buttons.change_sub) && !service.is_test && (
+            <Section title={t("serviceDetail.accessSecurity")} index={4}>
+              <motion.div
+                variants={tileGridVariants}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-2 gap-2 xl:grid-cols-1"
+              >
+                {buttons.change_link && (
+                  <ActionTile
+                    icon={RefreshCw}
+                    label={t("serviceDetail.changeLink")}
+                    hint={t("serviceDetail.changeLinkHint")}
+                    danger
+                    loading={changeLink.isPending}
+                    onClick={handleChangeLink}
+                  />
+                )}
+                {buttons.change_sub && (
+                  <ActionTile
+                    icon={Link2}
+                    label={t("serviceDetail.changeSub")}
+                    hint={t("serviceDetail.changeSubHint")}
+                    danger
+                    loading={changeSub.isPending}
+                    onClick={handleChangeSub}
+                  />
+                )}
+              </motion.div>
+              <p className="mt-2 text-[11px] leading-5 text-muted">{t("serviceDetail.changeSubWarning")}</p>
+            </Section>
+          )}
+        </div>
+      </div>
 
       <ConfigLinksSheet
         open={linksOpen}

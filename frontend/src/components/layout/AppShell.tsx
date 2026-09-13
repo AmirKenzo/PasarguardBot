@@ -126,7 +126,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-4 md:px-6 md:pb-8 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-4 md:px-6 md:pb-8 lg:px-8">
           <AnimatePresence mode="wait" initial={false}>
             <PageTransition key={location.pathname}>
               <Outlet />
