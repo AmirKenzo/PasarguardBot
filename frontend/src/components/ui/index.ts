@@ -21,3 +21,4 @@ export * from "./AppVersion";
 export * from "./ShimmerButton";
 export * from "./MagicCard";
 export * from "./Particles";
+export * from "./SmokeyBackground";
