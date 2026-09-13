@@ -94,7 +94,7 @@ export function AppShell() {
   const { t } = useTranslation();
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-6xl">
+    <div className="flex min-h-screen w-full">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-l border-border bg-surface p-4 md:flex">
         <div className="mb-5 flex items-center justify-between px-1">
           <span className="bg-gradient-to-l from-primary to-accent bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
@@ -126,7 +126,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 pb-24 pt-4 md:pb-8">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-4 md:px-6 md:pb-8 lg:px-8">
           <AnimatePresence mode="wait" initial={false}>
             <PageTransition key={location.pathname}>
               <Outlet />
