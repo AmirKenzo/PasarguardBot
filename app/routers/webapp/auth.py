@@ -178,13 +178,19 @@ async def build_user_payload_no_services(
 
     Opening the WebApp is a valid first contact with the bot, same as /start,
     so a user with no DB row yet (never messaged the bot) gets registered here.
+    Best-effort: the WebApp must still open even if this registration fails or
+    is slow, so it's bounded by a timeout and never allowed to fail the request.
     """
 
     if user_record is None:
         user_record = await UserCRUD().read_user(user_id)
         if user_record is None:
-            await add_user(user_id=user_id, step="start", time_s=Time_Date()["stamp"])
-            user_record = await UserCRUD().read_user(user_id)
+            try:
+                await asyncio.wait_for(add_user(user_id=user_id, step="start", time_s=Time_Date()["stamp"]), timeout=5)
+            except Exception:
+                logger.warning("webapp: failed to auto-register user %s", user_id, exc_info=True)
+            else:
+                user_record = await UserCRUD().read_user(user_id)
 
     user_profile = await _build_user_profile(user_id, user_record, telegram_user)
     return {"ok": True, "user": user_profile}
