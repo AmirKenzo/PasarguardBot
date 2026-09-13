@@ -19,6 +19,8 @@ from app.models.webapp.balance import (
     BalanceDepositManualResponse,
     BalanceMethodsRequest,
     BalanceMethodsResponse,
+    BalancePhoneRequestRequest,
+    BalancePhoneRequestResponse,
 )
 from app.models.webapp.buy import (
     WebAppBuyConfirmRequest,
@@ -101,6 +103,8 @@ __all__ = [
     "BalanceDepositManualResponse",
     "BalanceMethodsRequest",
     "BalanceMethodsResponse",
+    "BalancePhoneRequestRequest",
+    "BalancePhoneRequestResponse",
     "DiscountInfo",
     "LogoutRequest",
     "PanelGroupItem",

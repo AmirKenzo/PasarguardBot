@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, Card, Input } from "../../components/ui";
@@ -8,25 +8,75 @@ import {
   useBalanceMethodsQuery,
   useDepositManualMutation,
   useDepositManualReceiptMutation,
+  useRequestPhoneVerificationMutation,
 } from "../../queries/useBalance";
 
 function parseAmount(value: string): number {
   return parseInt(value.replace(/,/g, ""), 10) || 0;
 }
 
+const PHONE_VERIFY_POLL_MS = 2000;
+const PHONE_VERIFY_TIMEOUT_MS = 30000;
+
 export default function ManualDeposit() {
   const { t } = useTranslation();
-  const { data: methods } = useBalanceMethodsQuery();
+  const { data: methods, refetch: refetchMethods } = useBalanceMethodsQuery();
   const deposit = useDepositManualMutation();
   const receipt = useDepositManualReceiptMutation();
+  const requestPhone = useRequestPhoneVerificationMutation();
   const { show } = useToast();
   const [amount, setAmount] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [receiptSent, setReceiptSent] = useState(false);
+  const [verifyingPhone, setVerifyingPhone] = useState(false);
 
   const result = deposit.data;
   const min = methods?.manual_deposit_min ?? 0;
   const max = methods?.manual_deposit_max ?? 0;
+
+  // Poll the methods endpoint while waiting for the bot to receive the
+  // shared contact — Telegram delivers it as a normal message, not a
+  // direct API response, so there's no other way to know it landed.
+  useEffect(() => {
+    if (!verifyingPhone) return;
+    const interval = setInterval(() => void refetchMethods(), PHONE_VERIFY_POLL_MS);
+    const timeout = setTimeout(() => {
+      setVerifyingPhone(false);
+      show(t("manualDeposit.phoneVerifyTimeout"), "error");
+    }, PHONE_VERIFY_TIMEOUT_MS);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [verifyingPhone, refetchMethods, show, t]);
+
+  useEffect(() => {
+    if (verifyingPhone && methods && !methods.phone_verify_required) {
+      setVerifyingPhone(false);
+      show(t("manualDeposit.phoneVerifySuccess"), "success");
+    }
+  }, [verifyingPhone, methods, show, t]);
+
+  async function handleShareContact() {
+    const tg = window.Telegram?.WebApp;
+    if (!tg?.requestContact) {
+      show(t("manualDeposit.phoneVerifyUnsupported"), "error");
+      return;
+    }
+    try {
+      await requestPhone.mutateAsync();
+    } catch (err) {
+      show(err instanceof Error ? err.message : t("manualDeposit.genericError"), "error");
+      return;
+    }
+    tg.requestContact((sent) => {
+      if (!sent) {
+        show(t("manualDeposit.phoneVerifyCancelled"), "info");
+        return;
+      }
+      setVerifyingPhone(true);
+    });
+  }
 
   async function handleSubmit() {
     const value = parseAmount(amount);
@@ -95,6 +145,18 @@ export default function ManualDeposit() {
           </label>
           <Button fullWidth loading={receipt.isPending} disabled={!file} onClick={() => void handleReceiptSubmit()}>
             {t("manualDeposit.submitReceipt")}
+          </Button>
+        </Card>
+      ) : methods?.phone_verify_required ? (
+        <Card className="space-y-3 p-5 text-center">
+          <p className="font-medium text-text">{t("manualDeposit.phoneVerifyTitle")}</p>
+          <p className="text-sm text-muted">{t("manualDeposit.phoneVerifyDesc")}</p>
+          <Button
+            fullWidth
+            loading={verifyingPhone || requestPhone.isPending}
+            onClick={() => void handleShareContact()}
+          >
+            {verifyingPhone ? t("manualDeposit.phoneVerifyWaiting") : t("manualDeposit.phoneVerifyButton")}
           </Button>
         </Card>
       ) : (

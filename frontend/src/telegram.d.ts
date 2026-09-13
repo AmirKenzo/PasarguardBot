@@ -96,6 +96,8 @@ interface TelegramWebApp {
   openInvoice: (url: string, callback?: (status: "paid" | "cancelled" | "failed" | "pending") => void) => void;
   showAlert: (message: string, cb?: () => void) => void;
   showConfirm: (message: string, cb?: (confirmed: boolean) => void) => void;
+  /** Native "share phone number" prompt. `sent` is true only if the user approved sharing. */
+  requestContact?: (cb?: (sent: boolean) => void) => void;
 }
 
 declare global {

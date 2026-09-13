@@ -5,6 +5,7 @@ import type {
   BalanceDepositManualRequest,
   BalanceDepositManualResponse,
   BalanceMethodsResponse,
+  BalancePhoneRequestResponse,
   WebAppBalanceMethodsRequest,
 } from "../../types/webapp";
 import type { AuthPayload } from "./client";
@@ -12,6 +13,10 @@ import { apiPost, apiPostForm } from "./client";
 
 export function getBalanceMethods(body: WebAppBalanceMethodsRequest) {
   return apiPost<BalanceMethodsResponse>("/balance/methods", body);
+}
+
+export function requestPhoneVerification(auth: AuthPayload) {
+  return apiPost<BalancePhoneRequestResponse>("/balance/phone/request", {}, auth);
 }
 
 export function depositManual(body: BalanceDepositManualRequest) {

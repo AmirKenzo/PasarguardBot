@@ -23,6 +23,8 @@ from app.models.webapp import (
     BalanceDepositManualResponse,
     BalanceMethodsRequest,
     BalanceMethodsResponse,
+    BalancePhoneRequestRequest,
+    BalancePhoneRequestResponse,
 )
 from app.routers.webapp.auth import authenticate_user
 from app.services.pricing.crypto_amounts import (
@@ -31,6 +33,8 @@ from app.services.pricing.crypto_amounts import (
     calculate_usdt_amount_with_tax,
 )
 from app.services.send_queue import enqueue
+from app.telegram.state import set_step
+from app.telegram.user.balance import states
 from app.telegram.user.balance.keyboards import transaction_review_buttons
 from app.utils.formatting.dates import Time_Date
 
@@ -38,20 +42,27 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
+def _phone_verify_required(settings, user) -> bool:
+    """Same gate as the bot: card-to-card needs a verified phone first."""
+    return bool(getattr(settings, "pay_phone_verify", True)) and not (getattr(user, "number", None) if user else None)
+
+
 @router.post("/webapp/balance/methods", response_model=BalanceMethodsResponse)
 async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsResponse:
     """Get balance top-up methods (same as bot: manual card, crypto)."""
     try:
-        await authenticate_user(
+        user_id = await authenticate_user(
             init_data=request.init_data,
             session_token=request.session_token,
         )
         settings = await SettingsManager().get_settings()
         if not settings:
             return BalanceMethodsResponse(ok=False, error="تنظیمات یافت نشد")
+        user = await UserCRUD().read_user(user_id)
+        phone_verify_required = _phone_verify_required(settings, user)
         card_number = None
         card_name = None
-        if settings.pay_mode:
+        if settings.pay_mode and not phone_verify_required:
             cards = await ManualCardManager().get_all_cards()
             if settings.manual_card_random_mode and cards:
                 card = random.choice(cards)
@@ -77,11 +88,33 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
             arz_usd=int(getattr(settings, "arz_usd", 0) or 0),
             arz_trx=int(getattr(settings, "arz_trx", 0) or 0),
             arz_ton=int(getattr(settings, "arz_ton", 0) or 0),
+            phone_verify_required=phone_verify_required,
         )
     except ValueError as e:
         return BalanceMethodsResponse(ok=False, error=str(e))
     except Exception as e:
         return BalanceMethodsResponse(ok=False, error=str(e))
+
+
+@router.post("/webapp/balance/phone/request", response_model=BalancePhoneRequestResponse)
+async def request_phone_verification(request: BalancePhoneRequestRequest) -> BalancePhoneRequestResponse:
+    """Arm the bot's existing contact-share step.
+
+    The next contact this user shares with the bot (via Telegram's native
+    `requestContact` WebApp prompt) gets verified and saved, same as the
+    in-bot "share phone number" button.
+    """
+    try:
+        user_id = await authenticate_user(
+            init_data=request.init_data,
+            session_token=request.session_token,
+        )
+        await set_step(user_id=user_id, step=states.STEP_CONF_NUMBER)
+        return BalancePhoneRequestResponse(ok=True)
+    except ValueError as e:
+        return BalancePhoneRequestResponse(ok=False, error=str(e))
+    except Exception as e:
+        return BalancePhoneRequestResponse(ok=False, error=str(e))
 
 
 @router.post("/webapp/balance/deposit/manual", response_model=BalanceDepositManualResponse)
@@ -95,6 +128,9 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
         settings = await SettingsManager().get_settings()
         if not settings or not settings.pay_mode:
             return BalanceDepositManualResponse(ok=False, error="پرداخت کارت به کارت غیرفعال است")
+        user = await UserCRUD().read_user(user_id)
+        if _phone_verify_required(settings, user):
+            return BalanceDepositManualResponse(ok=False, error="ابتدا باید شماره تلفن خود را تایید کنید.")
         amount = request.amount
         min_a = int(settings.manual_deposit_min or 0)
         max_a = int(settings.manual_deposit_max or 0)

@@ -27,6 +27,19 @@ class BalanceMethodsResponse(BaseModel):
     arz_usd: int = 0
     arz_trx: int = 0
     arz_ton: int = 0
+    phone_verify_required: bool = False
+    error: str | None = None
+
+
+class BalancePhoneRequestRequest(BaseModel):
+    """Auth for arming Telegram contact-share phone verification."""
+
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalancePhoneRequestResponse(BaseModel):
+    ok: bool
     error: str | None = None
 
 

@@ -13,6 +13,14 @@ export function useBalanceMethodsQuery() {
   });
 }
 
+export function useRequestPhoneVerificationMutation() {
+  const { auth } = useWebAppAuth();
+
+  return useMutation({
+    mutationFn: () => balanceApi.requestPhoneVerification(auth!),
+  });
+}
+
 export function useDepositManualMutation() {
   const { auth } = useWebAppAuth();
   const queryClient = useQueryClient();

@@ -211,7 +211,15 @@
     "amountRangeError": "Enter an amount between {{min}} and {{max}} Toman.",
     "receiptSuccess": "Receipt sent",
     "receiptError": "Failed to send receipt",
-    "genericError": "Error"
+    "genericError": "Error",
+    "phoneVerifyTitle": "Verify Phone Number",
+    "phoneVerifyDesc": "To use card-to-card deposit, you first need to verify your Telegram phone number.",
+    "phoneVerifyButton": "Share Phone Number",
+    "phoneVerifyWaiting": "Verifying...",
+    "phoneVerifyCancelled": "Phone number sharing was cancelled",
+    "phoneVerifySuccess": "Phone number verified",
+    "phoneVerifyTimeout": "No confirmation received. Please try again.",
+    "phoneVerifyUnsupported": "Please update Telegram to use this."
   },
   "extendTime": {
     "title": "Extend Time",

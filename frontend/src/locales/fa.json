@@ -211,7 +211,15 @@
     "amountRangeError": "مبلغ بین {{min}} تا {{max}} تومان وارد کنید.",
     "receiptSuccess": "رسید ارسال شد",
     "receiptError": "خطا در ارسال رسید",
-    "genericError": "خطا"
+    "genericError": "خطا",
+    "phoneVerifyTitle": "تایید شماره تلفن",
+    "phoneVerifyDesc": "برای واریز کارت به کارت، ابتدا باید شماره تلفن تلگرام خود را تایید کنید.",
+    "phoneVerifyButton": "اشتراک‌گذاری شماره تلفن",
+    "phoneVerifyWaiting": "در حال تایید...",
+    "phoneVerifyCancelled": "اشتراک‌گذاری شماره لغو شد",
+    "phoneVerifySuccess": "شماره تلفن تایید شد",
+    "phoneVerifyTimeout": "تاییدیه دریافت نشد. دوباره تلاش کنید.",
+    "phoneVerifyUnsupported": "برای این کار باید تلگرام را به‌روزرسانی کنید."
   },
   "extendTime": {
     "title": "افزایش زمان",

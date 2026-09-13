@@ -18,6 +18,12 @@ export interface BalanceMethodsResponse {
   arz_usd: number;
   arz_trx: number;
   arz_ton: number;
+  phone_verify_required: boolean;
+  error?: string | null;
+}
+
+export interface BalancePhoneRequestResponse {
+  ok: boolean;
   error?: string | null;
 }
 
