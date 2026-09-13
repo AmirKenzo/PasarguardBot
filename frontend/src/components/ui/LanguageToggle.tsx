@@ -2,10 +2,12 @@ import { Globe, Moon, Sun } from "lucide-react";
 import { useTheme } from "../../design/ThemeProvider";
 import { useLanguage } from "../../context/LanguageContext";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 export function LanguageToggle() {
   const { scheme, mode, setMode } = useTheme();
   const { language, setLanguage } = useLanguage();
+  const { i18n } = useTranslation();
 
   const toggleTheme = () => {
     if (mode === "auto") {
@@ -13,6 +15,11 @@ export function LanguageToggle() {
     } else {
       setMode(mode === "dark" ? "light" : "dark");
     }
+  };
+
+  const handleLanguageChange = () => {
+    const newLang = language === "fa" ? "en" : "fa";
+    setLanguage(newLang);
   };
 
   const isDark = mode === "dark" || (mode === "auto" && scheme === "dark");
@@ -32,12 +39,12 @@ export function LanguageToggle() {
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setLanguage(language === "fa" ? "en" : "fa")}
+        onClick={handleLanguageChange}
         className="flex items-center justify-center rounded-lg bg-primary/10 p-2.5 text-primary transition-colors hover:bg-primary/20"
-        title={language === "fa" ? "English" : "فارسی"}
+        title={i18n.language === "fa" ? "English" : "فارسی"}
       >
         <Globe size={18} />
-        <span className="ms-1.5 text-xs font-bold">{language === "fa" ? "EN" : "FA"}</span>
+        <span className="ms-1.5 text-xs font-bold">{i18n.language === "fa" ? "EN" : "FA"}</span>
       </motion.button>
     </div>
   );
