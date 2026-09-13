@@ -10,8 +10,6 @@ class WebAppChangeLinkRequest(BaseModel):
 
     code: int = Field(..., description="Service code")
     init_data: str | None = Field(None, description="Telegram init data")
-    username: str | None = Field(None, description="Username for auth")
-    password: str | None = Field(None, description="Password for auth")
     session_token: str | None = Field(None, description="Session token from OTP login")
 
 
@@ -20,8 +18,6 @@ class WebAppChangeSubscriptionRequest(BaseModel):
 
     code: int = Field(..., description="Service code")
     init_data: str | None = Field(None, description="Telegram init data")
-    username: str | None = Field(None, description="Username for auth")
-    password: str | None = Field(None, description="Password for auth")
     session_token: str | None = Field(None, description="Session token from OTP login")
 
 

@@ -10,6 +10,7 @@ instead of growing one large file:
   - buy: new purchase flow (delegates to WebAppPurchaseService)
   - balance: balance top-up methods and deposit flows
   - transactions: unified payment transaction history
+  - upgrade: extend-time / extra-volume purchases and config transfer
   - state: shared in-memory auth state (OTP sessions, revoked tokens, locks)
 """
 
@@ -25,6 +26,7 @@ from app.routers.webapp.buy import router as buy_router
 from app.routers.webapp.renew import router as renew_router
 from app.routers.webapp.services import router as services_router
 from app.routers.webapp.transactions import router as transactions_router
+from app.routers.webapp.upgrade import router as upgrade_router
 from app.routers.webapp.usage_chart import router as usage_chart_router
 
 logger = get_logger(__name__)
@@ -47,6 +49,7 @@ webapp_router.include_router(renew_router)
 webapp_router.include_router(buy_router)
 webapp_router.include_router(balance_router)
 webapp_router.include_router(transactions_router)
+webapp_router.include_router(upgrade_router)
 
 logger.debug("WebApp router loaded successfully")
 

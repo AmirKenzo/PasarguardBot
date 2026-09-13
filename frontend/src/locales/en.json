@@ -212,6 +212,39 @@
     "receiptError": "Failed to send receipt",
     "genericError": "Error"
   },
+  "extendTime": {
+    "title": "Extend Time",
+    "noPlans": "No plans found",
+    "selectPlan": "Choose a plan to extend the service duration:",
+    "confirmAndBuy": "Confirm & Buy",
+    "success": "Time extended successfully",
+    "addedTime": "Added time",
+    "newExpiry": "New expiry",
+    "amountPaid": "Amount charged",
+    "newBalance": "New balance",
+    "backToService": "Back to Service"
+  },
+  "extraVolume": {
+    "title": "Add Volume",
+    "noPlans": "No plans found",
+    "selectPlan": "Choose a plan to add extra volume:",
+    "confirmAndBuy": "Confirm & Buy",
+    "success": "Volume added successfully",
+    "addedVolume": "Added volume",
+    "newTotalVolume": "New total volume",
+    "amountPaid": "Amount charged",
+    "newBalance": "New balance",
+    "backToService": "Back to Service"
+  },
+  "transferConfig": {
+    "title": "Transfer Config",
+    "hint": "Enter the destination user's numeric Telegram ID. They must have already started the bot.",
+    "targetIdPlaceholder": "e.g. 123456789",
+    "confirm": "Confirm Transfer",
+    "success": "Config transferred successfully",
+    "invalidId": "Please enter a valid numeric ID",
+    "selfTransferError": "You cannot transfer a config to yourself"
+  },
   "usageChart": {
     "title": "Usage Chart",
     "dailyUsageByLocation": "Daily usage by location",
@@ -345,7 +378,13 @@
     "usageChart": "Usage Chart",
     "usageChartHint": "Daily usage",
     "renew": "Renew",
-    "renewHint": "Extend volume/time"
+    "renewHint": "Extend volume/time",
+    "extendTime": "Extend Time",
+    "extendTimeHint": "Buy extra days",
+    "extraVolume": "Add Volume",
+    "extraVolumeHint": "Buy extra data",
+    "transferConfig": "Transfer",
+    "transferConfigHint": "Move to another user"
   },
   "transaction": {
     "paid": "Paid",

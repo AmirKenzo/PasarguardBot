@@ -530,8 +530,6 @@ async def change_user_link(request: WebAppChangeLinkRequest) -> WebAppChangeResp
     try:
         user_id = await authenticate_user(
             init_data=request.init_data,
-            username=request.username,
-            password=request.password,
             session_token=request.session_token,
         )
 
@@ -551,8 +549,6 @@ async def change_user_subscription(request: WebAppChangeSubscriptionRequest) -> 
     try:
         user_id = await authenticate_user(
             init_data=request.init_data,
-            username=request.username,
-            password=request.password,
             session_token=request.session_token,
         )
 

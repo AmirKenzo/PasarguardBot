@@ -15,6 +15,8 @@ const TransactionsPage = lazy(() => import("./features/balance/TransactionsPage"
 const ServicesListPage = lazy(() => import("./features/services/ServicesListPage"));
 const ServiceDetailPage = lazy(() => import("./features/services/ServiceDetailPage"));
 const RenewFlow = lazy(() => import("./features/services/RenewFlow"));
+const ExtendTimeFlow = lazy(() => import("./features/services/ExtendTimeFlow"));
+const ExtraVolumeFlow = lazy(() => import("./features/services/ExtraVolumeFlow"));
 const BuyWizardPage = lazy(() => import("./features/buy/BuyWizardPage"));
 
 function Loader() {
@@ -55,6 +57,8 @@ export default function App() {
           <Route path="services" element={<ServicesListPage />} />
           <Route path="services/:code" element={<ServiceDetailPage />} />
           <Route path="services/:code/renew" element={<RenewFlow />} />
+          <Route path="services/:code/extend-time" element={<ExtendTimeFlow />} />
+          <Route path="services/:code/extra-volume" element={<ExtraVolumeFlow />} />
           <Route path="buy" element={<BuyWizardPage />} />
           <Route path="balance" element={<BalanceHubPage />} />
           <Route path="balance/transactions" element={<TransactionsPage />} />

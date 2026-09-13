@@ -212,6 +212,39 @@
     "receiptError": "خطا در ارسال رسید",
     "genericError": "خطا"
   },
+  "extendTime": {
+    "title": "افزایش زمان",
+    "noPlans": "پلنی یافت نشد",
+    "selectPlan": "پلن مورد نظر برای افزایش زمان را انتخاب کنید:",
+    "confirmAndBuy": "تأیید و خرید",
+    "success": "افزایش زمان با موفقیت انجام شد",
+    "addedTime": "زمان اضافه‌شده",
+    "newExpiry": "انقضای جدید",
+    "amountPaid": "مبلغ کسر شده",
+    "newBalance": "موجودی جدید",
+    "backToService": "بازگشت به سرویس"
+  },
+  "extraVolume": {
+    "title": "افزایش حجم",
+    "noPlans": "پلنی یافت نشد",
+    "selectPlan": "پلن مورد نظر برای افزایش حجم را انتخاب کنید:",
+    "confirmAndBuy": "تأیید و خرید",
+    "success": "افزایش حجم با موفقیت انجام شد",
+    "addedVolume": "حجم اضافه‌شده",
+    "newTotalVolume": "حجم کل جدید",
+    "amountPaid": "مبلغ کسر شده",
+    "newBalance": "موجودی جدید",
+    "backToService": "بازگشت به سرویس"
+  },
+  "transferConfig": {
+    "title": "واگذاری کانفیگ",
+    "hint": "شناسه عددی تلگرام کاربر مقصد را وارد کنید. کاربر باید قبلاً ربات را استارت کرده باشد.",
+    "targetIdPlaceholder": "مثال: 123456789",
+    "confirm": "تأیید انتقال",
+    "success": "کانفیگ با موفقیت انتقال داده شد",
+    "invalidId": "لطفاً فقط شناسه عددی معتبر وارد کنید",
+    "selfTransferError": "نمی‌توانید کانفیگ را به خودتان انتقال دهید"
+  },
   "usageChart": {
     "title": "نمودار مصرف",
     "dailyUsageByLocation": "مصرف روزانه بر اساس لوکیشن",
@@ -345,7 +378,13 @@
     "usageChart": "نمودار مصرف",
     "usageChartHint": "مصرف روزانه",
     "renew": "تمدید",
-    "renewHint": "افزایش حجم/زمان"
+    "renewHint": "افزایش حجم/زمان",
+    "extendTime": "افزایش زمان",
+    "extendTimeHint": "خرید روز اضافه",
+    "extraVolume": "افزایش حجم",
+    "extraVolumeHint": "خرید حجم اضافه",
+    "transferConfig": "واگذاری",
+    "transferConfigHint": "انتقال به کاربر دیگر"
   },
   "transaction": {
     "paid": "تایید شده",

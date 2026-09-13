@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { renewApi, servicesApi, usageChartApi } from "../api/webapp";
+import { renewApi, servicesApi, upgradeApi, usageChartApi } from "../api/webapp";
 import { useWebAppAuth } from "../hooks/useWebAppAuth";
 
 export function useServicesQuery(page: number, limit: number, search: string, panelCode: number | null = null) {
@@ -109,6 +109,70 @@ export function useRenewConfirmMutation() {
       void queryClient.invalidateQueries({ queryKey: ["service-detail", variables.code] });
       void queryClient.invalidateQueries({ queryKey: ["services"] });
       void queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+export function useExtendTimeOptionsQuery(code: number | null) {
+  const { auth, ready } = useWebAppAuth();
+
+  return useQuery({
+    queryKey: ["extend-time-options", code, auth?.session_token, auth?.init_data],
+    queryFn: () => upgradeApi.getExtendTimeOptions({ ...auth!, code: code! }),
+    enabled: ready && auth != null && code != null && !Number.isNaN(code),
+  });
+}
+
+export function useExtendTimeConfirmMutation() {
+  const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: { code: number; planId: number }) =>
+      upgradeApi.confirmExtendTime({ ...auth!, code: body.code, plan_id: body.planId }),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["service-detail", variables.code] });
+      void queryClient.invalidateQueries({ queryKey: ["services"] });
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+export function useExtraVolumeOptionsQuery(code: number | null) {
+  const { auth, ready } = useWebAppAuth();
+
+  return useQuery({
+    queryKey: ["extra-volume-options", code, auth?.session_token, auth?.init_data],
+    queryFn: () => upgradeApi.getExtraVolumeOptions({ ...auth!, code: code! }),
+    enabled: ready && auth != null && code != null && !Number.isNaN(code),
+  });
+}
+
+export function useExtraVolumeConfirmMutation() {
+  const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: { code: number; planId: number }) =>
+      upgradeApi.confirmExtraVolume({ ...auth!, code: body.code, plan_id: body.planId }),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["service-detail", variables.code] });
+      void queryClient.invalidateQueries({ queryKey: ["services"] });
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+export function useTransferConfigMutation() {
+  const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: { code: number; targetUserId: number }) =>
+      upgradeApi.transferConfig({ ...auth!, code: body.code, target_user_id: body.targetUserId }),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["service-detail", variables.code] });
+      void queryClient.invalidateQueries({ queryKey: ["services"] });
     },
   });
 }

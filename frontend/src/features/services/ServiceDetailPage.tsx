@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
   ArrowDownToLine,
+  ArrowRightLeft,
   BarChart3,
   CalendarDays,
   Check,
@@ -16,6 +17,7 @@ import {
   Layers,
   Link2,
   Pencil,
+  PlusCircle,
   QrCode,
   RefreshCw,
   Repeat,
@@ -41,6 +43,7 @@ import {
 import type { ServiceButtons } from "../../types/webapp";
 import { ClientsSheet } from "./ClientsSheet";
 import { ConfigLinksSheet } from "./ConfigLinksSheet";
+import { TransferConfigSheet } from "./TransferConfigSheet";
 import { UsageChartSheet } from "./UsageChartPanel";
 
 const fadeUp = {
@@ -296,6 +299,7 @@ export default function ServiceDetailPage() {
   const [linksOpen, setLinksOpen] = useState(false);
   const [clientsOpen, setClientsOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -493,6 +497,39 @@ export default function ServiceDetailPage() {
         navigate(`/services/${code}/renew`);
       },
     },
+    {
+      key: "extendTime",
+      icon: Clock,
+      label: t("serviceDetail.extendTime"),
+      hint: t("serviceDetail.extendTimeHint"),
+      show: !!buttons.extend_time,
+      onClick: () => {
+        haptic.select();
+        navigate(`/services/${code}/extend-time`);
+      },
+    },
+    {
+      key: "extraVolume",
+      icon: PlusCircle,
+      label: t("serviceDetail.extraVolume"),
+      hint: t("serviceDetail.extraVolumeHint"),
+      show: !!buttons.extra_volume,
+      onClick: () => {
+        haptic.select();
+        navigate(`/services/${code}/extra-volume`);
+      },
+    },
+    {
+      key: "transfer",
+      icon: ArrowRightLeft,
+      label: t("serviceDetail.transferConfig"),
+      hint: t("serviceDetail.transferConfigHint"),
+      show: !!buttons.transfer_config,
+      onClick: () => {
+        haptic.select();
+        setTransferOpen(true);
+      },
+    },
   ];
 
   return (
@@ -663,6 +700,12 @@ export default function ServiceDetailPage() {
       />
       <ClientsSheet open={clientsOpen} onClose={() => setClientsOpen(false)} code={code} username={service.username} />
       <UsageChartSheet open={usageOpen} onClose={() => setUsageOpen(false)} code={code} username={service.username} />
+      <TransferConfigSheet
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        code={code}
+        username={service.username}
+      />
       <QrModal
         open={qrOpen}
         onClose={() => setQrOpen(false)}

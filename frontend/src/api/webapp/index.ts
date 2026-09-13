@@ -6,3 +6,4 @@ export * as renewApi from "./renew";
 export * as buyApi from "./buy";
 export * as balanceApi from "./balance";
 export * as transactionsApi from "./transactions";
+export * as upgradeApi from "./upgrade";
