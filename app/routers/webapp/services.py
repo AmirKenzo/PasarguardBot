@@ -11,7 +11,7 @@ from pasarguard import PasarguardAPI, ProxySettings, UserModify
 from app.db.crud.panels import PanelsManager
 from app.db.crud.services import ServiceCRUD, get_user_service_panel_counts, get_user_services_paginated
 from app.db.crud.settings import SettingsManager
-from app.logger import get_logger
+from app.logger import LogType, get_logger
 from app.models.webapp import (
     PanelGroupItem,
     ServiceButtons,
@@ -37,7 +37,9 @@ from app.services.panels.config_links import (
     fetch_user_config_links,
 )
 from app.services.panels.settings import panel_button_enabled
+from app.services.send_queue import enqueue
 from app.utils.formatting.conversions import to_unix_timestamp
+from app.utils.formatting.dates import Time_Date
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -370,10 +372,27 @@ async def _change_user_link(service_code: int, user_id: int) -> None:
         raise ValueError("پنل یافت نشد")
 
     marzban_api = PasarguardAPI(panel.base_url)
-    await marzban_api.modify_user_by_id(
+    revoked = await marzban_api.modify_user_by_id(
         user_id=require_panel_userid(service),
         user=UserModify(proxy_settings=ProxySettings()),
         token=panel.cookie,
+    )
+
+    subscription_url_log = getattr(revoked, "subscription_url", None)
+    if subscription_url_log and not subscription_url_log.startswith("http"):
+        subscription_url_log = f"{panel.base_url}{subscription_url_log}"
+
+    await enqueue(
+        message=(
+            f"🔗 **تغییر لینک اتصال (وب‌اپ)**\n\n"
+            f"👻 شناسه کاربر: `{user_id}`\n"
+            f"📅 تاریخ تغییر (میلادی): `{Time_Date()['mf']}`\n"
+            f"📅 تاریخ تغییر (شمسی): `{Time_Date()['jf']}`\n"
+            f"🔖 کد پنل: `{panel.code}`\n"
+            f"🎫 کد سرویس: `{service_code}`\n"
+            f"🔗 لینک جدید: `{subscription_url_log}`"
+        ),
+        log_type=LogType.OTHER,
     )
 
 
@@ -400,6 +419,19 @@ async def _change_user_subscription(service_code: int, user_id: int) -> str:
     subscription_url = revoked_subscription.subscription_url
     if subscription_url and not subscription_url.startswith("http"):
         subscription_url = f"{panel.base_url}{subscription_url}"
+
+    await enqueue(
+        message=(
+            f"🔗 **تغییر لینک ساب (وب‌اپ)**\n\n"
+            f"👻 شناسه کاربر: `{user_id}`\n"
+            f"📅 تاریخ تغییر (میلادی): `{Time_Date()['mf']}`\n"
+            f"📅 تاریخ تغییر (شمسی): `{Time_Date()['jf']}`\n"
+            f"🔖 کد پنل: `{panel.code}`\n"
+            f"🎫 کد سرویس: `{service_code}`\n"
+            f"🔗 لینک جدید: `{subscription_url}`"
+        ),
+        log_type=LogType.OTHER,
+    )
 
     return subscription_url
 

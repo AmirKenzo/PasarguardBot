@@ -8,7 +8,7 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import UserCRUD
-from app.logger import get_logger
+from app.logger import LogType, get_logger
 from app.models.webapp import (
     RenewPlanItem,
     WebAppRenewConfirmRequest,
@@ -19,6 +19,9 @@ from app.models.webapp import (
 from app.routers.webapp.auth import authenticate_user
 from app.routers.webapp.state import renew_confirm_locks
 from app.services.billing.renewal import PaidRenewalError, execute_paid_service_renewal, require_panel_userid
+from app.services.send_queue import enqueue
+from app.utils.formatting.dates import Time_Date
+from app.utils.formatting.traffic import format_size
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -168,6 +171,21 @@ async def _confirm_renew_locked(request: WebAppRenewConfirmRequest) -> WebAppRen
 
         if request.discount_code and request.discount_code.strip():
             await DiscountCodeManager().update_discount_usage(request.discount_code.strip())
+
+        await enqueue(
+            message=(
+                f"📢 **تمدید سرویس (وب‌اپ)**\n\n"
+                f"👤 شناسه کاربر: `{user_id}`\n"
+                f"📅 تاریخ تمدید (میلادی): `{Time_Date()['mf']}`\n"
+                f"📅 تاریخ تمدید (شمسی): `{Time_Date()['jf']}`\n"
+                f"🎫 کد سرویس: `{request.code}`\n"
+                f"**🔷 اسم کانفیگ:** `{serv_msg.username}`\n"
+                f"**📥 حجم جدید کانفیگ:** `{format_size(new_hajm, decimal_places=2)}`\n"
+                f"💸 مبلغ پرداخت شده: `{price:,}` تومان\n"
+                f"💵 موجودی جدید کاربر: `{new_balance:,}` تومان"
+            ),
+            log_type=LogType.OTHER,
+        )
 
         return WebAppRenewConfirmResponse(
             ok=True,

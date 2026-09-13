@@ -30,6 +30,7 @@ from app.services.pricing.crypto_amounts import (
     calculate_trx_amount_with_tax,
     calculate_usdt_amount_with_tax,
 )
+from app.services.send_queue import enqueue
 from app.telegram.user.balance.keyboards import transaction_review_buttons
 from app.utils.formatting.dates import Time_Date
 
@@ -258,6 +259,18 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
             createtime=Time_Date()["stamp"],
             msg_id=None,
         )
+
+        await enqueue(
+            message=(
+                f"#فاکتور_جدید_{currency.upper()} (وب‌اپ)\n"
+                f"👤 شناسه کاربر: `{user_id}`\n"
+                f"💡 شماره فاکتور: `{order_id}`\n"
+                f"💵 مبلغ فاکتور: `{amount:,}` تومان\n"
+                f"💰 مقدار {currency.upper()}: `{amount_crypto}`"
+            ),
+            log_type=LogType.CRYPTO,
+        )
+
         return BalanceDepositCryptoResponse(
             ok=True,
             order_id=order_id,
