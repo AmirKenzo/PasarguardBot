@@ -46,7 +46,8 @@ async def channels_overview(payload: PanelRequest, request: Request) -> PanelCha
         )
         return PanelChannelsResponse(
             channels=[
-                PanelChannelRow(id=int(channel.id), title=channel.title, link=channel.link) for channel in channels
+                PanelChannelRow(id=int(channel["id"]), title=channel["title"], link=channel["link"])
+                for channel in channels
             ],
             log_channels=[
                 PanelLogChannelRow(
