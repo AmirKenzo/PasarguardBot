@@ -12,8 +12,8 @@
   --c-surface-2-rgb: 238 240 246;
   --c-text-rgb: 16 19 28;
   --c-text-muted-rgb: 107 114 128;
-  --c-primary-rgb: 109 92 246;
-  --c-primary-strong-rgb: 91 70 245;
+  --c-primary-rgb: 59 130 246;
+  --c-primary-strong-rgb: 37 99 235;
   --c-primary-text-rgb: 255 255 255;
   --c-accent-rgb: 6 182 212;
   --c-success-rgb: 22 163 74;
@@ -24,8 +24,8 @@
   --c-overlay-rgb: 15 23 42;
   --c-overlay-alpha: 0.45;
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 12px -4px rgb(15 23 42 / 0.10);
-  --shadow-md: 0 4px 10px -4px rgb(15 23 42 / 0.10), 0 14px 32px -10px rgb(76 61 219 / 0.22);
-  --shadow-lg: 0 8px 20px -6px rgb(15 23 42 / 0.14), 0 26px 52px -14px rgb(76 61 219 / 0.30);
+  --shadow-md: 0 4px 10px -4px rgb(15 23 42 / 0.10), 0 14px 32px -10px rgb(59 130 246 / 0.22);
+  --shadow-lg: 0 8px 20px -6px rgb(15 23 42 / 0.14), 0 26px 52px -14px rgb(59 130 246 / 0.30);
 }
 
 [data-theme="dark"] {
@@ -35,8 +35,8 @@
   --c-surface-2-rgb: 27 30 47;
   --c-text-rgb: 241 242 247;
   --c-text-muted-rgb: 139 143 163;
-  --c-primary-rgb: 139 125 255;
-  --c-primary-strong-rgb: 115 97 255;
+  --c-primary-rgb: 96 165 250;
+  --c-primary-strong-rgb: 147 197 253;
   --c-primary-text-rgb: 255 255 255;
   --c-accent-rgb: 34 211 238;
   --c-success-rgb: 74 222 128;
