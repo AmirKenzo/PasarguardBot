@@ -1,11 +1,6 @@
 import { useMemo, useState } from "react";
 import type { WebAppUsageChartDayItem, WebAppUsageChartSeriesItem } from "../types/webapp";
-
-function formatGb(bytes: number) {
-  if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(2)} GB`;
-  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(0)} MB`;
-  return `${(bytes / 1024).toFixed(0)} KB`;
-}
+import { formatBytes, formatDayLabel } from "../lib/format";
 
 function shortDate(iso: string) {
   const [, m, d] = iso.split("-");
@@ -67,7 +62,7 @@ export function UsageAreaChart({
           const pt = s.points.find((p) => p.date === hoverDay.date);
           return pt && pt.bytes > 0 ? { name: s.name, color: s.color, ...pt } : null;
         })
-        .filter(Boolean) as Array<{ name: string; color: string; bytes: number; size_text: string }>
+        .filter(Boolean) as Array<{ name: string; color: string; bytes: number; date: string }>
     : [];
 
   return (
@@ -92,7 +87,7 @@ export function UsageAreaChart({
               stroke="rgb(var(--c-border-rgb) / var(--c-border-alpha))"
             />
             <text x={pad.l - 8} y={yAt(tick) + 4} textAnchor="end" className="fill-muted text-[9px]">
-              {formatGb(tick)}
+              {formatBytes(tick)}
             </text>
           </g>
         ))}
@@ -155,8 +150,8 @@ export function UsageAreaChart({
 
       {hoverDay && (
         <div className="absolute left-3 top-3 max-w-[230px] rounded-md border border-border bg-surface/95 p-3 shadow-lg backdrop-blur-md">
-          <p className="text-xs font-semibold text-text">{hoverDay.label}</p>
-          <p className="mt-0.5 text-base font-bold text-text">{hoverDay.size_text}</p>
+          <p className="text-xs font-semibold text-text">{formatDayLabel(hoverDay.date)}</p>
+          <p className="mt-0.5 text-base font-bold text-text">{formatBytes(hoverDay.bytes, 1)}</p>
           <div className="mt-2 max-h-28 space-y-1.5 overflow-y-auto">
             {hoverBreakdown.map((node) => (
               <div key={node.name} className="flex items-center justify-between gap-2 text-[11px]">
@@ -164,7 +159,7 @@ export function UsageAreaChart({
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: node.color }} />
                   <span className="truncate">{node.name}</span>
                 </span>
-                <span className="shrink-0 text-muted">{node.size_text}</span>
+                <span className="shrink-0 text-muted">{formatBytes(node.bytes, 1)}</span>
               </div>
             ))}
           </div>

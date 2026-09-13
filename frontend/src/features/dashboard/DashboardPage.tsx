@@ -7,6 +7,7 @@ import { Avatar, Badge, Card, IconBadge, Skeleton, SkeletonCard } from "../../co
 import { ErrorState } from "../../components/ui/EmptyState";
 import { useAuth } from "../../context/AuthContext";
 import { formatToman, formatUnixDate } from "../../lib/format";
+import { transactionTypeLabel } from "../../lib/serviceHelpers";
 import { transactionIcon } from "../../lib/transactionIcon";
 import { useRecentTransactionsQuery } from "../../queries/useTransactions";
 
@@ -77,7 +78,7 @@ export default function DashboardPage() {
             className="ring-2 ring-white/30"
           />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">{user.first_name || user.username || "کاربر"}</p>
+            <p className="truncate font-semibold">{user.first_name || user.username || t("common.user")}</p>
             <p className="truncate text-xs text-primary-text/70">@{user.username || "-"}</p>
           </div>
           {user.discount && (
@@ -142,7 +143,7 @@ export default function DashboardPage() {
               >
                 <IconBadge icon={transactionIcon(tx.emoji)} tone={txStatusTone(tx.status)} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-text">{tx.type}</p>
+                  <p className="truncate text-sm text-text">{transactionTypeLabel(tx.type_key, tx.currency)}</p>
                   <p className="text-xs text-muted">{formatUnixDate(tx.created_at)}</p>
                 </div>
                 <div className="text-left">

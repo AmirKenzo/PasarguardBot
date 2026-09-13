@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 export interface AvatarProps {
   src?: string | null;
   name?: string | null;
@@ -6,12 +8,14 @@ export interface AvatarProps {
 }
 
 export function Avatar({ src, name, size = 48, className = "" }: AvatarProps) {
-  const initial = (name || "کاربر").trim().charAt(0).toUpperCase();
+  const { t } = useTranslation();
+  const fallbackName = name || t("common.user");
+  const initial = fallbackName.trim().charAt(0).toUpperCase();
   if (src) {
     return (
       <img
         src={src}
-        alt={name || "کاربر"}
+        alt={fallbackName}
         className={`rounded-full object-cover ${className}`}
         style={{ width: size, height: size }}
       />

@@ -4,13 +4,16 @@ from pydantic import BaseModel, Field
 
 
 class RenewPlanItem(BaseModel):
-    """Single plan for renewal."""
+    """Single plan for renewal (raw fields only -- the webapp frontend builds its
+    own bilingual plan label from storage/ip_limit rather than a server-formatted
+    Persian plan_name)."""
 
     id: int
     storage: float
     duration: int
     price: int
-    plan_name: str
+    plan_type: str = "volume"
+    data_limit_reset_strategy: str = "no_reset"
     ip_limit: int = 0
 
 
@@ -30,7 +33,6 @@ class WebAppRenewOptionsResponse(BaseModel):
     panel_name: str | None = None
     is_fair_usage: bool = False
     durations: list[int] | None = None
-    duration_groups: dict[str, list[int]] | None = None
     plans: list[RenewPlanItem] | None = None
     error: str | None = None
 
@@ -51,7 +53,7 @@ class WebAppRenewConfirmResponse(BaseModel):
     ok: bool
     message: str | None = None
     new_balance: int | None = None
-    new_volume: str | None = None
+    new_volume_bytes: int | None = None
     amount_paid: int | None = None
     config_name: str | None = None
     error: str | None = None

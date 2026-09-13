@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, Card, Input, SkeletonCard } from "../../components/ui";
 import { ErrorState } from "../../components/ui/EmptyState";
 import { useTelegram } from "../../hooks/useTelegram";
-import { formatNumber, formatToman } from "../../lib/format";
+import { formatBytes, formatToman } from "../../lib/format";
+import { formatPlanLabel } from "../../lib/serviceHelpers";
 import { useRenewConfirmMutation, useRenewOptionsQuery } from "../../queries/useServices";
 import type { RenewPlanItem } from "../../types/webapp";
 
 type RenewStep = "duration" | "plan" | "confirm" | "success";
 
 export default function RenewFlow() {
+  const { t } = useTranslation();
   const { code: codeParam } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const { haptic } = useTelegram();
@@ -26,10 +29,12 @@ export default function RenewFlow() {
   const [discountCode, setDiscountCode] = useState("");
   const [submitError, setSubmitError] = useState("");
 
-  const hasDurationStep = useMemo(() => {
-    const groups = data?.duration_groups;
-    return groups != null && Object.keys(groups).length > 0;
-  }, [data?.duration_groups]);
+  const durationOptions = useMemo(() => {
+    const durations = data?.durations ?? [];
+    return [...durations].sort((a, b) => a - b);
+  }, [data?.durations]);
+
+  const hasDurationStep = durationOptions.length > 0;
 
   useEffect(() => {
     if (!data?.plans?.length) return;
@@ -53,8 +58,8 @@ export default function RenewFlow() {
   if (code == null || Number.isNaN(code)) {
     return (
       <div>
-        <PageHeader title="تمدید سرویس" back="/services" />
-        <ErrorState message="کد سرویس نامعتبر است" />
+        <PageHeader title={t("renewFlow.title")} back="/services" />
+        <ErrorState message={t("renewFlow.invalidCode")} />
       </div>
     );
   }
@@ -62,7 +67,7 @@ export default function RenewFlow() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader title="تمدید سرویس" back={backTo} />
+        <PageHeader title={t("renewFlow.title")} back={backTo} />
         <SkeletonCard />
       </div>
     );
@@ -71,8 +76,11 @@ export default function RenewFlow() {
   if (error || !data?.plans?.length) {
     return (
       <div>
-        <PageHeader title="تمدید سرویس" back={backTo} />
-        <ErrorState message={(error as Error)?.message || data?.error || "پلنی یافت نشد"} onRetry={() => void refetch()} />
+        <PageHeader title={t("renewFlow.title")} back={backTo} />
+        <ErrorState
+          message={(error as Error)?.message || data?.error || t("renewFlow.noPlans")}
+          onRetry={() => void refetch()}
+        />
       </div>
     );
   }
@@ -95,25 +103,25 @@ export default function RenewFlow() {
 
   return (
     <div>
-      <PageHeader title="تمدید سرویس" subtitle={data.panel_name ?? undefined} back={backTo} />
+      <PageHeader title={t("renewFlow.title")} subtitle={data.panel_name ?? undefined} back={backTo} />
 
       <AnimatePresence mode="wait">
-        {step === "duration" && data.duration_groups && (
+        {step === "duration" && hasDurationStep && (
           <motion.div key="duration" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-3">
-            <p className="text-sm text-muted">مدت زمان را انتخاب کنید:</p>
+            <p className="text-sm text-muted">{t("renewFlow.selectDuration")}</p>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(data.duration_groups).map(([label, durs]) => (
+              {durationOptions.map((duration) => (
                 <Button
-                  key={label}
+                  key={duration}
                   type="button"
                   variant="secondary"
                   onClick={() => {
                     haptic.select();
-                    setSelectedDuration(durs[0] ?? null);
+                    setSelectedDuration(duration);
                     setStep("plan");
                   }}
                 >
-                  {label}
+                  {t("renewFlow.days", { count: duration })}
                 </Button>
               ))}
             </div>
@@ -124,7 +132,7 @@ export default function RenewFlow() {
           <motion.div key="plan" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-3">
             {hasDurationStep && (
               <Button type="button" variant="ghost" size="sm" onClick={() => setStep("duration")}>
-                ← بازگشت
+                {t("buy.back")}
               </Button>
             )}
             <div className="max-h-[50vh] space-y-2 overflow-y-auto">
@@ -140,7 +148,9 @@ export default function RenewFlow() {
                   className="w-full rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-text">{plan.plan_name}</p>
+                    <p className="font-semibold text-text">
+                      {formatPlanLabel(plan.storage, plan.plan_type, plan.data_limit_reset_strategy, true)}
+                    </p>
                     <span className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary ring-1 ring-primary/20">
                       {formatToman(plan.price)}
                     </span>
@@ -154,25 +164,27 @@ export default function RenewFlow() {
         {step === "confirm" && selectedPlan && (
           <motion.div key="confirm" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-4">
             <Button type="button" variant="ghost" size="sm" onClick={() => setStep("plan")}>
-              ← بازگشت
+              {t("buy.back")}
             </Button>
             <Card className="space-y-2 p-4">
-              <p className="font-semibold text-text">{selectedPlan.plan_name}</p>
+              <p className="font-semibold text-text">
+                {formatPlanLabel(selectedPlan.storage, selectedPlan.plan_type, selectedPlan.data_limit_reset_strategy, true)}
+              </p>
               <p className="text-xs text-muted">
-                {selectedPlan.duration} روز · {formatToman(selectedPlan.price)}
+                {t("renewFlow.days", { count: selectedPlan.duration })} · {formatToman(selectedPlan.price)}
               </p>
             </Card>
             <Input
-              label="کد تخفیف (اختیاری)"
+              label={t("renewFlow.discountCode")}
               value={discountCode}
               onChange={(e) => setDiscountCode(e.target.value)}
-              placeholder="کد تخفیف"
+              placeholder={t("renewFlow.discountCodePlaceholder")}
               ltr
               disabled={confirmRenew.isPending}
             />
             {submitError && <p className="text-sm text-danger">{submitError}</p>}
             <Button type="button" fullWidth loading={confirmRenew.isPending} onClick={handleConfirm}>
-              تأیید و تمدید
+              {t("renewFlow.confirmAndRenew")}
             </Button>
           </motion.div>
         )}
@@ -180,25 +192,25 @@ export default function RenewFlow() {
         {step === "success" && (
           <motion.div key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
             <Card className="space-y-2 border-success/30 bg-success/5 p-4">
-              <p className="font-semibold text-success">{confirmRenew.data?.message ?? "تمدید با موفقیت انجام شد"}</p>
-              {confirmRenew.data?.new_volume && (
+              <p className="font-semibold text-success">{confirmRenew.data?.message ?? t("renewFlow.renewSuccess")}</p>
+              {confirmRenew.data?.new_volume_bytes != null && (
                 <p className="text-sm text-text">
-                  حجم جدید: <span className="font-semibold">{confirmRenew.data.new_volume}</span>
+                  {t("renewFlow.newVolume")}: <span className="font-semibold">{formatBytes(confirmRenew.data.new_volume_bytes)}</span>
                 </p>
               )}
               {confirmRenew.data?.amount_paid != null && (
                 <p className="text-sm text-text">
-                  مبلغ پرداختی: <span className="font-semibold">{formatToman(confirmRenew.data.amount_paid)}</span>
+                  {t("renewFlow.amountPaid")}: <span className="font-semibold">{formatToman(confirmRenew.data.amount_paid)}</span>
                 </p>
               )}
               {confirmRenew.data?.new_balance != null && (
                 <p className="text-sm text-text">
-                  موجودی جدید: <span className="font-semibold">{formatNumber(confirmRenew.data.new_balance)} تومان</span>
+                  {t("renewFlow.newBalance")}: <span className="font-semibold">{formatToman(confirmRenew.data.new_balance)}</span>
                 </p>
               )}
             </Card>
             <Button type="button" fullWidth onClick={() => navigate(backTo)}>
-              بازگشت به سرویس
+              {t("renewFlow.backToService")}
             </Button>
           </motion.div>
         )}

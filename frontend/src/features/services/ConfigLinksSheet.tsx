@@ -1,5 +1,6 @@
 import { Link2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Sheet } from "../../components/ui/Sheet";
 import { Spinner } from "../../components/ui/Spinner";
 import { configLinksFromUrls } from "../../lib/serviceHelpers";
@@ -16,6 +17,7 @@ export interface ConfigLinksSheetProps {
 }
 
 export function ConfigLinksSheet({ open, onClose, code, username, fallbackLinks }: ConfigLinksSheetProps) {
+  const { t } = useTranslation();
   const { data, isLoading, error } = useConfigLinksQuery(code, open);
   const [copied, setCopied] = useState<number | null>(null);
   const [links, setLinks] = useState<WebAppConfigLinkItem[]>([]);
@@ -31,9 +33,9 @@ export function ConfigLinksSheet({ open, onClose, code, username, fallbackLinks 
   }, [open, data?.links, fallbackLinks]);
 
   return (
-    <Sheet open={open} onClose={onClose} title="لینک‌های کانفیگ">
+    <Sheet open={open} onClose={onClose} title={t("configLinks.title")}>
       <p className="mb-3 text-xs text-muted">
-        {username} · روی هر کانفیگ بزن تا لینک کپی شود
+        {username} · {t("configLinks.hint")}
       </p>
       {error && <p className="mb-3 text-sm text-danger">{(error as Error).message}</p>}
       {isLoading ? (
@@ -41,7 +43,7 @@ export function ConfigLinksSheet({ open, onClose, code, username, fallbackLinks 
           <Spinner />
         </div>
       ) : links.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted">لینکی یافت نشد</p>
+        <p className="py-8 text-center text-sm text-muted">{t("configLinks.noLinks")}</p>
       ) : (
         <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-0.5">
           {links.map((item) => (
@@ -66,7 +68,7 @@ export function ConfigLinksSheet({ open, onClose, code, username, fallbackLinks 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-text">{item.name}</p>
                 <p className="mt-0.5 text-[11px] text-muted">
-                  {copied === item.index ? "کپی شد ✓" : "کلیک = کپی لینک"}
+                  {copied === item.index ? t("configLinks.copied") : t("configLinks.clickToCopy")}
                 </p>
               </div>
             </button>

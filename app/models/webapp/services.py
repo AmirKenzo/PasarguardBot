@@ -100,10 +100,8 @@ class WebAppConfigLinksResponse(BaseModel):
 
 class WebAppClientItem(BaseModel):
     created_at: int
-    created_at_text: str
-    time_ago: str | None = None
-    user_agent: str
-    app_name: str = "نامشخص"
+    user_agent: str | None = None
+    app_name: str | None = None
     version: str | None = None
     platform: str | None = None
     ip_address: str | None = None

@@ -1,8 +1,9 @@
 import { Copy, Fingerprint, Network, Smartphone } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Sheet } from "../../components/ui/Sheet";
 import { Spinner } from "../../components/ui/Spinner";
-import { copyToClipboard } from "../../lib/format";
+import { copyToClipboard, formatRelativeTime } from "../../lib/format";
 import { useServiceClientsQuery } from "../../queries/useServices";
 import type { WebAppClientItem } from "../../types/webapp";
 
@@ -52,13 +53,14 @@ export interface ClientsSheetProps {
 }
 
 export function ClientsSheet({ open, onClose, code, username }: ClientsSheetProps) {
+  const { t } = useTranslation();
   const { data, isLoading, error } = useServiceClientsQuery(code, open);
   const clients: WebAppClientItem[] = data?.clients ?? [];
 
   return (
-    <Sheet open={open} onClose={onClose} title="کلاینت‌های اشتراک">
+    <Sheet open={open} onClose={onClose} title={t("clients.title")}>
       <p className="mb-3 text-xs text-muted">
-        {username} · {clients.length} دستگاه متصل
+        {username} · {t("clients.connectedDevices", { count: clients.length })}
       </p>
       {error && <p className="mb-3 text-sm text-danger">{(error as Error).message}</p>}
       {isLoading ? (
@@ -66,7 +68,7 @@ export function ClientsSheet({ open, onClose, code, username }: ClientsSheetProp
           <Spinner />
         </div>
       ) : clients.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted">کلاینتی یافت نشد</p>
+        <p className="py-8 text-center text-sm text-muted">{t("clients.noClients")}</p>
       ) : (
         <div className="max-h-[55vh] space-y-3 overflow-y-auto pr-0.5">
           {clients.map((client, idx) => (
@@ -76,8 +78,8 @@ export function ClientsSheet({ open, onClose, code, username }: ClientsSheetProp
                   <Smartphone size={17} />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-text">{client.app_name}</p>
-                  <p className="text-[11px] text-muted">{client.time_ago || client.created_at_text}</p>
+                  <p className="truncate text-sm font-bold text-text">{client.app_name || t("common.unknown")}</p>
+                  <p className="text-[11px] text-muted">{formatRelativeTime(client.created_at)}</p>
                 </div>
               </div>
               <div className="mb-3 flex flex-wrap gap-1.5">
@@ -93,8 +95,8 @@ export function ClientsSheet({ open, onClose, code, username }: ClientsSheetProp
                 )}
               </div>
               <div className="space-y-2">
-                <CopyRow label="IP Address" value={client.ip_address} icon={<Network size={15} />} />
-                <CopyRow label="HWID" value={client.hwid} icon={<Fingerprint size={15} />} />
+                <CopyRow label={t("clients.ipAddress")} value={client.ip_address} icon={<Network size={15} />} />
+                <CopyRow label={t("clients.hwid")} value={client.hwid} icon={<Fingerprint size={15} />} />
               </div>
             </div>
           ))}

@@ -32,7 +32,8 @@ async def get_webapp_transactions(request: WebAppTransactionsRequest) -> WebAppT
             transactions.append(
                 {
                     "id": f"tx_{tx.id}",
-                    "type": "کارت به کارت دستی",
+                    "type_key": "manual_card",
+                    "currency": None,
                     "amount": int(getattr(tx, "amount", 0) or 0),
                     "status": getattr(tx, "status", "pending") or "pending",
                     "created_at": int(getattr(tx, "created_at", 0) or 0),
@@ -45,7 +46,8 @@ async def get_webapp_transactions(request: WebAppTransactionsRequest) -> WebAppT
             transactions.append(
                 {
                     "id": f"crypto_{tx.order_id}",
-                    "type": f"تراکنش ارزی ({tx.arz})",
+                    "type_key": "crypto",
+                    "currency": str(tx.arz).upper() if tx.arz else None,
                     "amount": int(getattr(tx, "amount_irt", 0) or 0),
                     "status": crypto_status,
                     "created_at": int(getattr(tx, "createtime", 0) or 0),

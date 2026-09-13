@@ -3,9 +3,7 @@ import type { WebAppAuthRequest } from "./common";
 
 export interface WebAppUsageChartDayItem {
   date: string;
-  label: string;
   bytes: number;
-  size_text: string;
 }
 
 export interface WebAppUsageChartSeriesItem {
@@ -17,7 +15,6 @@ export interface WebAppUsageChartSeriesItem {
 export interface WebAppUsageChartNodeItem {
   name: string;
   bytes: number;
-  size_text: string;
   percent: number;
 }
 
@@ -38,15 +35,12 @@ export interface WebAppUsageChartResponse {
   series: WebAppUsageChartSeriesItem[];
   available_nodes: string[];
   trend_percent?: number | null;
-  trend_label?: string | null;
-  period_total_text?: string | null;
-  avg_daily_text?: string | null;
-  peak_label?: string | null;
-  peak_value_text?: string | null;
-  page_total_text?: string | null;
-  day_label?: string | null;
-  day_jalali?: string | null;
-  day_total_text?: string | null;
+  trend_direction?: "up" | "down" | "stable" | null;
+  period_total_bytes?: number | null;
+  avg_daily_bytes?: number | null;
+  peak_date?: string | null;
+  peak_value_bytes?: number | null;
+  day_total_bytes?: number | null;
   nodes: WebAppUsageChartNodeItem[];
   error?: string | null;
 }

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useTelegram } from "../../hooks/useTelegram";
 
 export interface PageHeaderProps {
@@ -12,8 +13,10 @@ export interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, back, action }: PageHeaderProps) {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { showBackButton } = useTelegram();
+  const BackIcon = i18n.dir() === "rtl" ? ChevronRight : ChevronLeft;
 
   const goBack = () => {
     if (typeof back === "function") back();
@@ -33,9 +36,9 @@ export function PageHeader({ title, subtitle, back, action }: PageHeaderProps) {
         <button
           onClick={goBack}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-text"
-          aria-label="بازگشت"
+          aria-label={t("ui.back")}
         >
-          <ChevronRight size={19} />
+          <BackIcon size={19} />
         </button>
       )}
       <div className="min-w-0 flex-1">

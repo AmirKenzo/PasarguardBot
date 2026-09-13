@@ -20,29 +20,31 @@ class WebAppAuthRequest(BaseModel):
 
 
 class ServiceStatus(BaseModel):
-    """Service status information."""
+    """Service status information.
+
+    Webapp-only model (the Telegram bot has its own separate message formatting),
+    so every value here is raw (bytes, unix timestamps, plain numbers) rather than
+    pre-formatted text -- the frontend formats everything itself so it can render
+    either Persian or English depending on the user's selected language.
+    """
 
     code: str
     username: str
     panel_name: str | None = None
     status: str | None = None
-    status_text: str
-    used_traffic: str = "0 B"
-    remaining_traffic: str = "0 B"
-    total_traffic: str = "0 B"
     used_traffic_bytes: int = 0
     remaining_traffic_bytes: int = 0
     total_traffic_bytes: int = 0
-    expiration_time: str = "نامشخص"
-    subscription_url: str = "نامشخص"
-    ip_limit_text: str | None = None
+    expiration_timestamp: int | None = None
+    subscription_url: str | None = None
+    ip_limit: int | None = None
     helper_subscription_url: str | None = None
-    config_value: str | None = None
-    lifetime_used_traffic: str | None = None
-    last_connection: str | None = None
-    last_edit: str | None = None
-    reset_strategy_text: str | None = None
-    total_possible_traffic: str | None = None
+    config_value: int | None = None
+    lifetime_used_traffic: int | None = None
+    last_connection: int | None = None
+    last_edit: int | None = None
+    reset_strategy: str | None = None
+    total_possible_traffic: int | None = None
     single_config_links: list[str] = Field(default_factory=list)
 
 
@@ -77,13 +79,15 @@ class TransactionStatsSummary(BaseModel):
 
 
 class DiscountInfo(BaseModel):
-    """Discount code information."""
+    """Discount code information (raw fields -- the webapp frontend formats
+    usage/type/expiration itself for bilingual display)."""
 
     code: str
     percent: int
-    usage: str
-    type: str
-    expiration: str
+    times_used: int
+    usage_limit: int
+    is_public: bool
+    expiration_timestamp: int | None = None
 
 
 class UserProfile(BaseModel):
@@ -97,6 +101,6 @@ class UserProfile(BaseModel):
     amount: int
     safe: bool
     number: str | None = None
-    join_date: str | None = None
+    join_date: int | None = None
     discount: DiscountInfo | None = None
     transactions: TransactionStatsSummary

@@ -24,11 +24,14 @@ class WebAppBuyOptionsResponse(BaseModel):
 
 
 class WebAppBuyPlanItem(BaseModel):
+    """Raw plan fields only -- the webapp frontend builds its own bilingual plan
+    label from storage/plan_type/data_limit_reset_strategy rather than a
+    server-formatted Persian plan_name."""
+
     id: int
     storage: float
     duration: int
     price: int
-    plan_name: str
     plan_type: str = "volume"
     data_limit_reset_strategy: str = "no_reset"
     ip_limit: int = 0
@@ -43,7 +46,6 @@ class WebAppBuyPlansResponse(BaseModel):
     ok: bool
     panel: WebAppBuyPanelItem | None = None
     durations: list[int] = Field(default_factory=list)
-    duration_groups: dict[str, list[int]] = Field(default_factory=dict)
     plans: list[WebAppBuyPlanItem] = Field(default_factory=list)
     error: str | None = None
 
@@ -90,9 +92,9 @@ class WebAppBuyConfirmResponse(BaseModel):
     service_code: int | None = None
     username: str | None = None
     panel_name: str | None = None
-    volume: str | None = None
+    volume_bytes: int | None = None
     duration: int | None = None
-    ip_limit_text: str | None = None
+    ip_limit: int | None = None
     subscription_url: str | None = None
     subscription_links_text: str | None = None
     single_config_links_text: str | None = None

@@ -8,7 +8,8 @@ import { EmptyState, Input, Pagination, SegmentedControl, SkeletonCard } from ".
 import { ErrorState } from "../../components/ui/EmptyState";
 import { Badge } from "../../components/ui/Badge";
 import { useTelegram } from "../../hooks/useTelegram";
-import { expiryParts, statusTone } from "../../lib/serviceHelpers";
+import { statusLabel, statusTone } from "../../lib/serviceHelpers";
+import { formatBytes, formatExpiry } from "../../lib/format";
 import { useServicesQuery } from "../../queries/useServices";
 import type { PanelGroupItem, ServiceStatus } from "../../types/webapp";
 
@@ -35,7 +36,7 @@ const itemVariants = {
 
 function ServiceCard({ service }: { service: ServiceStatus }) {
   const { haptic } = useTelegram();
-  const expiry = expiryParts(service.expiration_time);
+  const expiry = formatExpiry(service.expiration_timestamp);
   const tone = statusTone(service.status);
 
   return (
@@ -81,7 +82,7 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
                 <h2 className="truncate text-sm font-bold tracking-tight text-text">
                   {service.username}
                 </h2>
-                <Badge tone={tone.badge}>{service.status_text}</Badge>
+                <Badge tone={tone.badge}>{statusLabel(service.status)}</Badge>
               </div>
               <div className="mt-1 flex items-center gap-2.5 text-[11px] text-muted">
                 <span className="flex items-center gap-1">
@@ -90,7 +91,7 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
                 </span>
                 <span className="flex items-center gap-1">
                   <Database size={11} />
-                  {service.total_traffic}
+                  {formatBytes(service.total_traffic_bytes)}
                 </span>
               </div>
             </div>

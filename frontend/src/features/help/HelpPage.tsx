@@ -1,41 +1,25 @@
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { AccordionItem, Card } from "../../components/ui";
 
-const FAQ_ITEMS = [
-  {
-    title: "سرویس‌های من چیست؟",
-    body: "در بخش سرویس‌ها لیست کانفیگ‌های فعال شما نمایش داده می‌شود. می‌توانید وضعیت مصرف، تاریخ انقضا، لینک اشتراک و جزئیات هر سرویس را ببینید.",
-  },
-  {
-    title: "چطور سرویس را تمدید کنم؟",
-    body: "از صفحه جزئیات هر سرویس گزینه تمدید را انتخاب کنید. موجودی کیف پول باید کافی باشد. در صورت فعال بودن، تمدید خودکار نیز از همان صفحه قابل تنظیم است.",
-  },
-  {
-    title: "روش‌های شارژ کیف پول",
-    body: "کارت به کارت دستی (با ارسال رسید)، کارت به کارت خودکار (تایید SMS)، پرداخت ارزی (TRX/USDT/TON) و درگاه تتراپی در بخش کیف پول در دسترس است. روش‌های فعال بسته به تنظیمات ربات متفاوت است.",
-  },
-  {
-    title: "خرید سرویس جدید",
-    body: "از منوی خرید، پنل و پلن مورد نظر را انتخاب کنید. تخفیف فعال شما (در صورت وجود) در فرآیند خرید اعمال می‌شود. پس از پرداخت، سرویس به لیست سرویس‌های شما اضافه می‌شود.",
-  },
-  {
-    title: "تراکنش‌ها کجا دیده می‌شوند؟",
-    body: "تاریخچه کامل واریزها و پرداخت‌ها در بخش تراکنش‌های کیف پول قابل مشاهده است. وضعیت هر تراکنش (در انتظار، تایید شده، رد شده) نیز نمایش داده می‌شود.",
-  },
-  {
-    title: "ورود با اکانت وب یا OTP",
-    body: "اگر از خارج تلگرام وارد می‌شوید، با نام کاربری/رمز یا شماره تلفن و کد OTP وارد شوید. داخل مینی‌اپ تلگرام معمولاً نیازی به ورود جداگانه نیست.",
-  },
+const FAQ_KEYS = [
+  { title: "help.faq1Title", body: "help.faq1Body" },
+  { title: "help.faq2Title", body: "help.faq2Body" },
+  { title: "help.faq3Title", body: "help.faq3Body" },
+  { title: "help.faq4Title", body: "help.faq4Body" },
+  { title: "help.faq5Title", body: "help.faq5Body" },
+  { title: "help.faq6Title", body: "help.faq6Body" },
 ];
 
 export default function HelpPage() {
+  const { t } = useTranslation();
   return (
     <div>
-      <PageHeader title="راهنما" subtitle="سوالات متداول" back="/profile" />
+      <PageHeader title={t("help.title")} subtitle={t("help.subtitle")} back="/profile" />
       <Card className="px-4">
-        {FAQ_ITEMS.map((item, index) => (
-          <AccordionItem key={item.title} title={item.title} defaultOpen={index === 0}>
-            {item.body}
+        {FAQ_KEYS.map((item, index) => (
+          <AccordionItem key={item.title} title={t(item.title)} defaultOpen={index === 0}>
+            {t(item.body)}
           </AccordionItem>
         ))}
       </Card>

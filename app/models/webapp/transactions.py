@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 
 class WebAppTransactionItem(BaseModel):
     id: str
-    type: str
+    type_key: str
+    currency: str | None = None
     amount: int
     status: str
     created_at: int

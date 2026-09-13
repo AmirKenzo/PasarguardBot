@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, Card, Input } from "../../components/ui";
 import { useToast } from "../../components/ui/Toast";
@@ -14,6 +15,7 @@ function parseAmount(value: string): number {
 }
 
 export default function CryptoDeposit() {
+  const { t } = useTranslation();
   const { data: methods } = useBalanceMethodsQuery();
   const deposit = useDepositCryptoMutation();
   const { show } = useToast();
@@ -37,31 +39,31 @@ export default function CryptoDeposit() {
   async function handleSubmit() {
     const value = parseAmount(amount);
     if (value < min || value > max) {
-      show(`مبلغ بین ${formatNumber(min)} تا ${formatNumber(max)} تومان وارد کنید.`, "error");
+      show(t("cryptoDeposit.amountRangeError", { min: formatNumber(min), max: formatNumber(max) }), "error");
       return;
     }
     try {
       await deposit.mutateAsync({ amount: value, currency });
     } catch (err) {
-      show(err instanceof Error ? err.message : "خطا", "error");
+      show(err instanceof Error ? err.message : t("cryptoDeposit.genericError"), "error");
     }
   }
 
   return (
     <div>
-      <PageHeader title="پرداخت ارزی" back="/balance" />
+      <PageHeader title={t("cryptoDeposit.title")} back="/balance" />
 
       {result?.ok ? (
         <Card className="space-y-4 p-5">
-          <p className="font-medium text-success">فاکتور ایجاد شد. مبلغ را واریز کنید.</p>
+          <p className="font-medium text-success">{t("cryptoDeposit.invoiceCreated")}</p>
           {result.order_id != null && (
             <p className="text-sm text-muted">
-              شماره فاکتور: <span className="font-mono text-text">{result.order_id}</span>
+              {t("cryptoDeposit.invoiceNumber")}: <span className="font-mono text-text">{result.order_id}</span>
             </p>
           )}
           {result.wallet_address && (
             <div>
-              <p className="text-sm text-muted">آدرس کیف پول</p>
+              <p className="text-sm text-muted">{t("cryptoDeposit.walletAddress")}</p>
               <p className="break-all font-mono text-sm text-text">{result.wallet_address}</p>
               <Button
                 variant="secondary"
@@ -69,13 +71,13 @@ export default function CryptoDeposit() {
                 className="mt-2"
                 onClick={() => void copyToClipboard(result.wallet_address!)}
               >
-                کپی آدرس
+                {t("cryptoDeposit.copyAddress")}
               </Button>
             </div>
           )}
           {result.amount_crypto && (
             <div>
-              <p className="text-sm text-muted">مبلغ ({result.currency})</p>
+              <p className="text-sm text-muted">{t("cryptoDeposit.amountFor", { currency: result.currency })}</p>
               <p className="font-mono text-lg text-text">{result.amount_crypto}</p>
               <Button
                 variant="secondary"
@@ -83,7 +85,7 @@ export default function CryptoDeposit() {
                 className="mt-2"
                 onClick={() => void copyToClipboard(result.amount_crypto!)}
               >
-                کپی مبلغ
+                {t("cryptoDeposit.copyAmount")}
               </Button>
             </div>
           )}
@@ -92,14 +94,12 @@ export default function CryptoDeposit() {
               <img src={qrDataUrl} alt="QR" className="h-44 w-44 rounded-lg" />
             </div>
           )}
-          <p className="text-xs text-muted">
-            مهلت پرداخت حدود ۳۰ دقیقه است. پس از واریز، موجودی به‌صورت خودکار شارژ می‌شود.
-          </p>
+          <p className="text-xs text-muted">{t("cryptoDeposit.paymentDeadline")}</p>
         </Card>
       ) : (
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-sm text-muted">نوع ارز</p>
+            <p className="mb-2 text-sm text-muted">{t("cryptoDeposit.currencyType")}</p>
             <div className="flex gap-2">
               {CRYPTO_OPTIONS.map((c) => (
                 <Button
@@ -115,17 +115,17 @@ export default function CryptoDeposit() {
             </div>
           </div>
           <p className="text-sm text-muted">
-            مبلغ (تومان) بین {formatNumber(min)} تا {formatNumber(max)}
-            {methods?.crypto_bonus_percent ? ` — بونوس ${methods.crypto_bonus_percent}%` : ""}
+            {t("cryptoDeposit.amountRange", { min: formatNumber(min), max: formatNumber(max) })}
+            {methods?.crypto_bonus_percent ? t("cryptoDeposit.bonus", { percent: methods.crypto_bonus_percent }) : ""}
           </p>
           <Input
             inputMode="numeric"
-            placeholder="مثال: 50000"
+            placeholder={t("cryptoDeposit.amountPlaceholder")}
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
           />
           <Button fullWidth loading={deposit.isPending} onClick={() => void handleSubmit()}>
-            ایجاد فاکتور
+            {t("cryptoDeposit.createInvoice")}
           </Button>
         </div>
       )}

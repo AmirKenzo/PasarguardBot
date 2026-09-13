@@ -1,18 +1,7 @@
-type BadgeTone = "success" | "warning" | "danger" | "muted";
+import i18n from "../i18n";
+import { formatBytes } from "./format";
 
-export function expiryParts(expirationTime: string): { remaining: string; date: string } {
-  if (!expirationTime || expirationTime === "نامشخص") {
-    return { remaining: "نامشخص", date: "نامشخص" };
-  }
-  const parenIdx = expirationTime.indexOf("(");
-  if (parenIdx === -1) {
-    return { date: expirationTime.trim(), remaining: "—" };
-  }
-  return {
-    date: expirationTime.slice(0, parenIdx).trim(),
-    remaining: expirationTime.slice(parenIdx + 1).replace(/\)\s*$/, "").trim(),
-  };
-}
+type BadgeTone = "success" | "warning" | "danger" | "muted";
 
 export function statusTone(status: string | null): { icon: string; chip: string; badge: BadgeTone } {
   const key = (status || "").toLowerCase();
@@ -42,6 +31,45 @@ export function statusTone(status: string | null): { icon: string; chip: string;
     chip: "bg-surface-2 text-muted",
     badge: "muted",
   };
+}
+
+export function transactionTypeLabel(typeKey: string, currency?: string | null): string {
+  if (typeKey === "crypto") return i18n.t("transaction.crypto", { currency: currency || "" });
+  return i18n.t(`transaction.${typeKey}`, i18n.t("transaction.manual_card"));
+}
+
+export function statusLabel(status: string | null): string {
+  const key = (status || "").toLowerCase();
+  const known = ["active", "expired", "limited", "disabled", "on_hold"];
+  if (known.includes(key)) return i18n.t(`serviceStatus.${key}`);
+  return status || i18n.t("common.unknown");
+}
+
+/** Bilingual plan/volume label, replacing the backend's Persian-only convert_storage(). */
+export function formatPlanLabel(
+  storageGb: number,
+  planType?: string | null,
+  resetStrategy?: string | null,
+  forButton = false
+): string {
+  const t = i18n.t.bind(i18n);
+  const volumeText = formatBytes(storageGb * 1024 ** 3, storageGb < 1 ? 0 : 2);
+
+  if (planType === "unlimited_volume") {
+    return forButton ? t("planLabel.unlimited") : t("planLabel.fairUsage", { volume: volumeText });
+  }
+
+  if (resetStrategy && resetStrategy !== "no_reset") {
+    const knownStrategies = ["day", "week", "month", "year"];
+    const period = knownStrategies.includes(resetStrategy) ? t(`resetStrategy.${resetStrategy}`) : t("planLabel.unlimited");
+    return `${period} ${volumeText}`;
+  }
+
+  if (planType === "fair_usage" || planType === "fair") {
+    return t("planLabel.fairUsage", { volume: volumeText });
+  }
+
+  return volumeText;
 }
 
 export function configLinksFromUrls(urls: string[]): { index: number; name: string; url: string }[] {

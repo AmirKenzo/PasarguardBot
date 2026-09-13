@@ -5,6 +5,7 @@ import type {
   WebAppChangeResponse,
   WebAppInfoResponse,
 } from "../../types/webapp";
+import i18n from "../../i18n";
 import { apiGet, apiPost, authHeaders, ApiError } from "./client";
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || "/api/webapp";
@@ -17,10 +18,10 @@ export async function getInfoWithInitData(rawInitData: string): Promise<WebAppIn
       headers: authHeaders({ init_data: rawInitData }),
     });
   } catch {
-    throw new ApiError("ارتباط با سرور برقرار نشد");
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
   const payload = (await res.json()) as WebAppInfoResponse;
-  if (!payload.ok) throw new ApiError(payload.error || "خطای احراز هویت");
+  if (!payload.ok) throw new ApiError(payload.error || i18n.t("apiErrors.authError"));
   return payload;
 }
 

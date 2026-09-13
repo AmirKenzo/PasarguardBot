@@ -76,10 +76,8 @@ export interface WebAppConfigLinksResponse {
 
 export interface WebAppClientItem {
   created_at: number;
-  created_at_text: string;
-  time_ago?: string | null;
-  user_agent: string;
-  app_name: string;
+  user_agent?: string | null;
+  app_name?: string | null;
   version?: string | null;
   platform?: string | null;
   ip_address?: string | null;

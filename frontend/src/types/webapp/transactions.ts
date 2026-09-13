@@ -3,7 +3,8 @@ import type { WebAppAuthRequest } from "./common";
 
 export interface WebAppTransactionItem {
   id: string;
-  type: string;
+  type_key: string;
+  currency?: string | null;
   amount: number;
   status: string;
   created_at: number;

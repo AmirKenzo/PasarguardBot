@@ -22,7 +22,6 @@ export interface WebAppBuyPlanItem {
   storage: number;
   duration: number;
   price: number;
-  plan_name: string;
   plan_type: string;
   data_limit_reset_strategy: string;
   ip_limit: number;
@@ -37,7 +36,6 @@ export interface WebAppBuyPlansResponse {
   ok: boolean;
   panel?: WebAppBuyPanelItem | null;
   durations: number[];
-  duration_groups: Record<string, number[]>;
   plans: WebAppBuyPlanItem[];
   error?: string | null;
 }
@@ -82,9 +80,9 @@ export interface WebAppBuyConfirmResponse {
   service_code?: number | null;
   username?: string | null;
   panel_name?: string | null;
-  volume?: string | null;
+  volume_bytes?: number | null;
   duration?: number | null;
-  ip_limit_text?: string | null;
+  ip_limit?: number | null;
   subscription_url?: string | null;
   subscription_links_text?: string | null;
   single_config_links_text?: string | null;

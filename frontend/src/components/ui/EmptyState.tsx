@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Inbox } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { IconBadge } from "./IconBadge";
 
 export interface EmptyStateProps {
@@ -24,12 +25,13 @@ export function EmptyState({ icon: Icon = Inbox, title, description, action }: E
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-danger/25 bg-danger/5 px-6 py-10 text-center">
       <p className="text-sm text-danger">{message}</p>
       {onRetry && (
         <button onClick={onRetry} className="text-sm font-medium text-primary hover:underline">
-          تلاش دوباره
+          {t("ui.retry")}
         </button>
       )}
     </div>

@@ -25,13 +25,14 @@ import {
   Wifi,
   type LucideIcon,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, Button, Card, Modal, Skeleton, SkeletonCard } from "../../components/ui";
 import { ErrorState } from "../../components/ui/EmptyState";
 import { useTelegram } from "../../hooks/useTelegram";
 import { useWebAppAuth } from "../../hooks/useWebAppAuth";
-import { copyToClipboard } from "../../lib/format";
-import { expiryParts, statusTone } from "../../lib/serviceHelpers";
+import { copyToClipboard, formatBytes, formatExpiry, formatRelativeTime, formatToman } from "../../lib/format";
+import { statusLabel, statusTone } from "../../lib/serviceHelpers";
 import {
   useChangeLinkMutation,
   useChangeSubscriptionMutation,
@@ -147,6 +148,7 @@ function CopyButton({
   activeKey: string | null;
   onCopied: (key: string) => void;
 }) {
+  const { t } = useTranslation();
   const copied = activeKey === copiedKey;
   return (
     <motion.button
@@ -173,7 +175,7 @@ function CopyButton({
             </motion.span>
           )}
         </AnimatePresence>
-        {copied ? "کپی شد" : label}
+        {copied ? t("serviceDetail.copied") : label}
       </span>
       <span className="max-w-[42%] truncate text-xs text-muted ltr-field" dir="ltr">
         {value}
@@ -193,12 +195,13 @@ function QrModal({
   subscriptionUrl: string;
   username: string;
 }) {
+  const { t } = useTranslation();
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!open || subscriptionUrl === "نامشخص") {
+    if (!open || !subscriptionUrl) {
       setQrDataUrl("");
       return;
     }
@@ -227,7 +230,7 @@ function QrModal({
   }, [open, subscriptionUrl]);
 
   return (
-    <Modal open={open} onClose={onClose} title="QR اشتراک">
+    <Modal open={open} onClose={onClose} title={t("serviceDetail.qrTitle")}>
       <p className="mb-4 text-xs text-muted">{username}</p>
       <div className="flex flex-col items-center py-2">
         <motion.div
@@ -242,12 +245,12 @@ function QrModal({
               <img src={qrDataUrl} alt="QR Code" className="h-[280px] w-[280px]" />
             ) : (
               <div className="flex h-[280px] w-[280px] items-center justify-center text-sm text-muted">
-                خطا در ساخت QR
+                {t("serviceDetail.qrError")}
               </div>
             )}
           </div>
         </motion.div>
-        <p className="mt-4 text-center text-xs text-muted">این کد فقط برای اشتراک همین کانفیگ است</p>
+        <p className="mt-4 text-center text-xs text-muted">{t("serviceDetail.qrSubtitle")}</p>
         <Button
           type="button"
           variant="secondary"
@@ -260,7 +263,7 @@ function QrModal({
           }}
         >
           {copied ? <Check size={16} /> : <Copy size={16} />}
-          {copied ? "لینک کپی شد" : "کپی لینک اشتراک"}
+          {copied ? t("serviceDetail.linkCopied") : t("serviceDetail.copyLink")}
         </Button>
       </div>
     </Modal>
@@ -277,6 +280,7 @@ function Section({ title, index, children }: { title: string; index: number; chi
 }
 
 export default function ServiceDetailPage() {
+  const { t } = useTranslation();
   const { code: codeParam } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const { ready } = useWebAppAuth();
@@ -336,7 +340,7 @@ export default function ServiceDetailPage() {
   if (!ready || code == null || Number.isNaN(code)) {
     return (
       <div>
-        <PageHeader title="مدیریت سرویس" back="/services" />
+        <PageHeader title={t("serviceDetail.manageService")} back="/services" />
         <SkeletonCard />
       </div>
     );
@@ -345,7 +349,7 @@ export default function ServiceDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader title="مدیریت سرویس" back="/services" />
+        <PageHeader title={t("serviceDetail.manageService")} back="/services" />
         <SkeletonCard />
       </div>
     );
@@ -354,32 +358,76 @@ export default function ServiceDetailPage() {
   if (error || !service || !buttons) {
     return (
       <div>
-        <PageHeader title="مدیریت سرویس" back="/services" />
-        <ErrorState message={(error as Error)?.message || "سرویس یافت نشد"} onRetry={() => void refetch()} />
+        <PageHeader title={t("serviceDetail.manageService")} back="/services" />
+        <ErrorState message={(error as Error)?.message || t("serviceDetail.serviceNotFound")} onRetry={() => void refetch()} />
       </div>
     );
   }
 
-  const expiry = expiryParts(service.expiration_time);
+  const expiry = formatExpiry(service.expiration_timestamp);
   const tone = statusTone(service.status);
-  const totalVolumeDisplay = service.reset_strategy_text
-    ? `${service.total_traffic} (${service.reset_strategy_text})`
-    : service.total_traffic;
+  const knownResetStrategies = ["day", "week", "month", "year"];
+  const resetPeriodLabel =
+    service.reset_strategy && knownResetStrategies.includes(service.reset_strategy)
+      ? t(`resetStrategy.${service.reset_strategy}`)
+      : null;
+  const totalVolumeDisplay = resetPeriodLabel
+    ? `${formatBytes(service.total_traffic_bytes)} (${resetPeriodLabel})`
+    : formatBytes(service.total_traffic_bytes);
 
   const infoRows: Array<{ key: string; icon: LucideIcon; label: string; value: string }> = [
-    { key: "used", icon: ArrowDownToLine, label: "مصرف‌شده", value: service.used_traffic },
-    { key: "remaining", icon: HardDrive, label: "باقی‌مانده", value: service.remaining_traffic },
-    { key: "lifetime", icon: Activity, label: "کل مصرف از فعال‌سازی", value: service.lifetime_used_traffic || "—" },
-    ...(service.reset_strategy_text
-      ? [{ key: "reset", icon: Repeat, label: "نحوه ریست", value: `هر ${service.reset_strategy_text} ریست می‌شود` }]
+    { key: "used", icon: ArrowDownToLine, label: t("serviceDetail.used"), value: formatBytes(service.used_traffic_bytes, 2) },
+    {
+      key: "remaining",
+      icon: HardDrive,
+      label: t("serviceDetail.remaining"),
+      value: formatBytes(service.remaining_traffic_bytes, 2),
+    },
+    {
+      key: "lifetime",
+      icon: Activity,
+      label: t("serviceDetail.lifetimeUsage"),
+      value: service.lifetime_used_traffic != null ? formatBytes(service.lifetime_used_traffic, 2) : "—",
+    },
+    ...(resetPeriodLabel
+      ? [
+          {
+            key: "reset",
+            icon: Repeat,
+            label: t("serviceDetail.resetMode"),
+            value: t("serviceDetail.resetsEvery", { period: resetPeriodLabel }),
+          },
+        ]
       : []),
-    ...(service.total_possible_traffic
-      ? [{ key: "possible", icon: Layers, label: "قابل مصرف تا پایان اشتراک", value: service.total_possible_traffic }]
+    ...(service.total_possible_traffic != null
+      ? [
+          {
+            key: "possible",
+            icon: Layers,
+            label: t("serviceDetail.possibleUsage"),
+            value: formatBytes(service.total_possible_traffic, 1),
+          },
+        ]
       : []),
-    { key: "expiry", icon: CalendarDays, label: "تاریخ انقضا", value: expiry.date },
-    { key: "value", icon: Coins, label: "ارزش تقریبی", value: service.config_value || "—" },
-    { key: "lastConn", icon: Wifi, label: "آخرین اتصال", value: service.last_connection || "—" },
-    { key: "lastEdit", icon: Pencil, label: "آخرین ویرایش", value: service.last_edit || "—" },
+    { key: "expiry", icon: CalendarDays, label: t("serviceDetail.expiryDate"), value: expiry.date },
+    {
+      key: "value",
+      icon: Coins,
+      label: t("serviceDetail.approxValue"),
+      value: service.config_value != null ? formatToman(service.config_value) : "—",
+    },
+    {
+      key: "lastConn",
+      icon: Wifi,
+      label: t("serviceDetail.lastConnection"),
+      value: service.last_connection ? formatRelativeTime(service.last_connection) : "—",
+    },
+    {
+      key: "lastEdit",
+      icon: Pencil,
+      label: t("serviceDetail.lastEdit"),
+      value: service.last_edit ? formatRelativeTime(service.last_edit) : "—",
+    },
   ];
 
   const manageActions: Array<{
@@ -393,8 +441,8 @@ export default function ServiceDetailPage() {
     {
       key: "qr",
       icon: QrCode,
-      label: "QR کد",
-      hint: "اسکن سریع اشتراک",
+      label: t("serviceDetail.qr"),
+      hint: t("serviceDetail.qrHint"),
       show: buttons.qr,
       onClick: () => {
         haptic.select();
@@ -404,8 +452,8 @@ export default function ServiceDetailPage() {
     {
       key: "links",
       icon: Globe2,
-      label: "لینک‌ها",
-      hint: "کانفیگ‌های تکی",
+      label: t("serviceDetail.links"),
+      hint: t("serviceDetail.linksHint"),
       show: buttons.other_links,
       onClick: () => {
         haptic.select();
@@ -415,8 +463,8 @@ export default function ServiceDetailPage() {
     {
       key: "clients",
       icon: Users,
-      label: "کلاینت‌ها",
-      hint: "دستگاه‌های متصل",
+      label: t("serviceDetail.clients"),
+      hint: t("serviceDetail.clientsHint"),
       show: buttons.client_list,
       onClick: () => {
         haptic.select();
@@ -426,8 +474,8 @@ export default function ServiceDetailPage() {
     {
       key: "chart",
       icon: BarChart3,
-      label: "نمودار مصرف",
-      hint: "مصرف روزانه",
+      label: t("serviceDetail.usageChart"),
+      hint: t("serviceDetail.usageChartHint"),
       show: !!buttons.usage_chart,
       onClick: () => {
         haptic.select();
@@ -437,8 +485,8 @@ export default function ServiceDetailPage() {
     {
       key: "renew",
       icon: TimerReset,
-      label: "تمدید",
-      hint: "افزایش حجم/زمان",
+      label: t("serviceDetail.renew"),
+      hint: t("serviceDetail.renewHint"),
       show: buttons.tamdid,
       onClick: () => {
         haptic.select();
@@ -451,7 +499,7 @@ export default function ServiceDetailPage() {
     <div className="space-y-6 pb-2">
       <PageHeader
         title={service.username}
-        subtitle={`${service.panel_name || "پنل"} · کد ${service.code}`}
+        subtitle={`${service.panel_name || t("serviceDetail.panel")} · ${t("serviceDetail.code")} ${service.code}`}
         back="/services"
       />
 
@@ -500,18 +548,18 @@ export default function ServiceDetailPage() {
                 }`}
               />
             </span>
-            <Badge tone={tone.badge}>{service.status_text}</Badge>
+            <Badge tone={tone.badge}>{statusLabel(service.status)}</Badge>
           </div>
-          <span className="text-xs text-muted">کد {service.code}</span>
+          <span className="text-xs text-muted">{t("serviceDetail.code")} {service.code}</span>
         </div>
 
         <div className="relative mt-4 grid grid-cols-2 gap-2.5">
-          <StatCell icon={Clock} label="زمان باقی‌مانده" value={expiry.remaining} />
-          <StatCell icon={Database} label="حجم کل سرویس" value={totalVolumeDisplay} />
+          <StatCell icon={Clock} label={t("serviceDetail.remainingTime")} value={expiry.remaining} />
+          <StatCell icon={Database} label={t("serviceDetail.totalVolume")} value={totalVolumeDisplay} />
         </div>
       </motion.div>
 
-      <Section title="اطلاعات سرویس" index={1}>
+      <Section title={t("serviceDetail.serviceInfo")} index={1}>
         <Card className="divide-y divide-border overflow-hidden">
           {infoRows.map((row) => (
             <InfoRow key={row.key} icon={row.icon} label={row.label} value={row.value} />
@@ -520,11 +568,11 @@ export default function ServiceDetailPage() {
       </Section>
 
       {(buttons.copy_link || service.helper_subscription_url) && (
-        <Section title="لینک اشتراک" index={2}>
+        <Section title={t("serviceDetail.subscriptionLink")} index={2}>
           <div className="space-y-2">
-            {buttons.copy_link && service.subscription_url !== "نامشخص" && (
+            {buttons.copy_link && service.subscription_url && (
               <CopyButton
-                label="کپی لینک اصلی"
+                label={t("serviceDetail.copyMainLink")}
                 value={service.subscription_url}
                 copiedKey="main"
                 activeKey={copied}
@@ -537,7 +585,7 @@ export default function ServiceDetailPage() {
             )}
             {service.helper_subscription_url && (
               <CopyButton
-                label="کپی لینک کمکی"
+                label={t("serviceDetail.copyHelperLink")}
                 value={service.helper_subscription_url}
                 copiedKey="helper"
                 activeKey={copied}
@@ -552,7 +600,7 @@ export default function ServiceDetailPage() {
         </Section>
       )}
 
-      <Section title="عملیات" index={3}>
+      <Section title={t("serviceDetail.actions")} index={3}>
         <motion.div
           variants={tileGridVariants}
           initial="hidden"
@@ -574,7 +622,7 @@ export default function ServiceDetailPage() {
       </Section>
 
       {(buttons.change_link || buttons.change_sub) && !service.is_test && (
-        <Section title="امنیت دسترسی" index={4}>
+        <Section title={t("serviceDetail.accessSecurity")} index={4}>
           <motion.div
             variants={tileGridVariants}
             initial="hidden"
@@ -584,8 +632,8 @@ export default function ServiceDetailPage() {
             {buttons.change_link && (
               <ActionTile
                 icon={RefreshCw}
-                label="تغییر لینک"
-                hint="لینک جدید بساز"
+                label={t("serviceDetail.changeLink")}
+                hint={t("serviceDetail.changeLinkHint")}
                 danger
                 loading={changeLink.isPending}
                 onClick={handleChangeLink}
@@ -594,17 +642,15 @@ export default function ServiceDetailPage() {
             {buttons.change_sub && (
               <ActionTile
                 icon={Link2}
-                label="تغییر ساب"
-                hint="قطع دسترسی دیگران"
+                label={t("serviceDetail.changeSub")}
+                hint={t("serviceDetail.changeSubHint")}
                 danger
                 loading={changeSub.isPending}
                 onClick={handleChangeSub}
               />
             )}
           </motion.div>
-          <p className="text-[11px] leading-5 text-muted">
-            با «تغییر ساب» لینک قبلی باطل می‌شود و فقط لینک جدید کار می‌کند.
-          </p>
+          <p className="text-[11px] leading-5 text-muted">{t("serviceDetail.changeSubWarning")}</p>
         </Section>
       )}
 
@@ -620,7 +666,7 @@ export default function ServiceDetailPage() {
       <QrModal
         open={qrOpen}
         onClose={() => setQrOpen(false)}
-        subscriptionUrl={service.subscription_url}
+        subscriptionUrl={service.subscription_url ?? ""}
         username={service.username}
       />
     </div>

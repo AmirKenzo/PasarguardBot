@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { EmojiIcon } from "../../components/EmojiIcon";
 import { Button, Card, EmptyState, Input, Stepper } from "../../components/ui";
 import { ErrorState } from "../../components/ui/EmptyState";
 import { useTelegram } from "../../hooks/useTelegram";
-import { copyToClipboard, formatNumber, formatToman } from "../../lib/format";
+import { copyToClipboard, formatBytes, formatIpLimit, formatNumber, formatToman } from "../../lib/format";
+import { formatPlanLabel } from "../../lib/serviceHelpers";
 import {
   useBuyConfirmMutation,
   useBuyOptionsQuery,
@@ -18,8 +20,6 @@ import { useWebAppAuth } from "../../hooks/useWebAppAuth";
 import type { WebAppBuyPanelItem, WebAppBuyPlanItem, WebAppBuyPreviewResponse } from "../../types/webapp";
 
 type BuyStep = "panel" | "duration" | "plan" | "username" | "confirm" | "success";
-
-const STEP_LABELS = ["پنل", "زمان", "پلن", "نام", "تأیید", "تحویل"];
 
 function randomConfigName() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -36,12 +36,13 @@ function InfoRow({ label, value, strong = false }: { label: string; value: strin
 }
 
 function PanelSummary({ panel, duration }: { panel: WebAppBuyPanelItem | null; duration?: number | null }) {
+  const { t } = useTranslation();
   if (!panel) return null;
   return (
     <Card className="p-4">
-      <p className="text-xs text-muted">پنل انتخابی</p>
+      <p className="text-xs text-muted">{t("buy.selectedPanel")}</p>
       <p className="mt-1 text-lg font-black text-text">{panel.name}</p>
-      {duration != null && <p className="mt-1 text-sm text-muted">{duration} روزه</p>}
+      {duration != null && <p className="mt-1 text-sm text-muted">{t("renewFlow.days", { count: duration })}</p>}
     </Card>
   );
 }
@@ -51,9 +52,11 @@ function PlanSummary({ plan }: { plan: WebAppBuyPlanItem }) {
     <Card className="p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-lg font-black text-text">{plan.plan_name}</p>
+          <p className="text-lg font-black text-text">
+            {formatPlanLabel(plan.storage, plan.plan_type, plan.data_limit_reset_strategy, true)}
+          </p>
           <p className="mt-1 text-sm text-muted">
-            {plan.duration} روزه • {plan.ip_limit > 0 ? `${plan.ip_limit} کاربر` : "نامحدود کاربر"}
+            {plan.duration} · {formatIpLimit(plan.ip_limit)}
           </p>
         </div>
         <span className="rounded-md bg-primary/10 px-3 py-2 text-sm font-bold text-primary ring-1 ring-primary/20">
@@ -65,9 +68,19 @@ function PlanSummary({ plan }: { plan: WebAppBuyPlanItem }) {
 }
 
 export default function BuyWizardPage() {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const { auth } = useWebAppAuth();
   const queryClient = useQueryClient();
+
+  const stepLabels = [
+    t("buy.stepPanel"),
+    t("buy.stepDuration"),
+    t("buy.stepPlan"),
+    t("buy.stepUsername"),
+    t("buy.stepConfirm"),
+    t("buy.stepDelivery"),
+  ];
 
   const [step, setStep] = useState<BuyStep>("panel");
   const [selectedPanel, setSelectedPanel] = useState<WebAppBuyPanelItem | null>(null);
@@ -209,7 +222,7 @@ export default function BuyWizardPage() {
     return (
       <div className="space-y-5">
         <BuyHeader />
-        <ErrorState message={(optionsError as Error)?.message || options?.error || "خطا در بارگذاری خرید"} />
+        <ErrorState message={(optionsError as Error)?.message || options?.error || t("buy.loadError")} />
       </div>
     );
   }
@@ -223,10 +236,10 @@ export default function BuyWizardPage() {
 
       <Card className="p-4">
         <div className="mb-3 flex items-center justify-between text-sm">
-          <span className="text-muted">مرحله خرید</span>
-          <span className="font-bold text-primary">{STEP_LABELS[stepIndex]}</span>
+          <span className="text-muted">{t("buy.step")}</span>
+          <span className="font-bold text-primary">{stepLabels[stepIndex]}</span>
         </div>
-        <Stepper steps={STEP_LABELS} current={stepIndex} />
+        <Stepper steps={stepLabels} current={stepIndex} />
       </Card>
 
       {flowError && <ErrorState message={flowError} />}
@@ -235,7 +248,7 @@ export default function BuyWizardPage() {
         {step === "panel" && (
           <motion.section key="panel" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
             {panels.length === 0 ? (
-              <EmptyState title="پنل فعالی برای خرید وجود ندارد." description="بعداً دوباره امتحان کنید." />
+              <EmptyState title={t("buy.noPanels")} description={t("buy.noPanelsRetry")} />
             ) : (
               panels.map((panel) => (
                 <button
@@ -251,11 +264,11 @@ export default function BuyWizardPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-text">{panel.name}</p>
                       <p className="mt-1 text-xs text-muted">
-                        {panel.display_mode === "duration_first" ? "اول زمان را انتخاب می‌کنی، بعد حجم" : "انتخاب سریع پلن و حجم"}
+                        {panel.display_mode === "duration_first" ? t("buy.durationFirstDesc") : t("buy.quickSelectDesc")}
                       </p>
                     </div>
                     <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-primary ring-1 ring-border transition group-hover:bg-primary/15">
-                      انتخاب
+                      {t("buy.select")}
                     </span>
                   </div>
                 </button>
@@ -267,10 +280,10 @@ export default function BuyWizardPage() {
         {step === "duration" && (
           <motion.section key="duration" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <Button type="button" variant="ghost" size="sm" onClick={() => setStep("panel")}>
-              ← بازگشت
+              {t("buy.back")}
             </Button>
             <PanelSummary panel={selectedPanel} />
-            <p className="text-sm text-muted">مدت زمان سرویس را انتخاب کنید:</p>
+            <p className="text-sm text-muted">{t("buy.selectDuration")}</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {(plansResponse?.durations ?? selectedPanel?.durations ?? []).map((duration) => (
                 <button
@@ -280,7 +293,7 @@ export default function BuyWizardPage() {
                   className="rounded-lg border border-border bg-surface p-4 text-center shadow-sm transition hover:border-primary/50 hover:bg-primary/10"
                 >
                   <span className="block text-2xl font-black text-primary">{duration}</span>
-                  <span className="text-xs text-muted">روز اشتراک</span>
+                  <span className="text-xs text-muted">{t("buy.subscriptionDays")}</span>
                 </button>
               ))}
             </div>
@@ -297,7 +310,7 @@ export default function BuyWizardPage() {
                 setStep(selectedPanel?.display_mode === "duration_first" ? "duration" : "panel")
               }
             >
-              ← بازگشت
+              {t("buy.back")}
             </Button>
             <PanelSummary panel={selectedPanel} duration={selectedDuration} />
             {plansLoading ? (
@@ -317,9 +330,11 @@ export default function BuyWizardPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-lg font-black text-text">{plan.plan_name}</p>
+                        <p className="text-lg font-black text-text">
+                          {formatPlanLabel(plan.storage, plan.plan_type, plan.data_limit_reset_strategy, true)}
+                        </p>
                         <p className="mt-1 text-xs text-muted">
-                          {plan.duration} روزه {plan.ip_limit > 0 ? `• ${plan.ip_limit} کاربر` : "• نامحدود کاربر"}
+                          {t("renewFlow.days", { count: plan.duration })} • {formatIpLimit(plan.ip_limit)}
                         </p>
                       </div>
                       <span className="rounded-md bg-primary/10 px-3 py-2 text-sm font-bold text-primary ring-1 ring-primary/20">
@@ -339,30 +354,30 @@ export default function BuyWizardPage() {
         {step === "username" && selectedPlan && (
           <motion.section key="username" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <Button type="button" variant="ghost" size="sm" onClick={() => setStep("plan")}>
-              ← بازگشت
+              {t("buy.back")}
             </Button>
             <PlanSummary plan={selectedPlan} />
             <Input
-              label="نام کانفیگ"
+              label={t("buy.configName")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="مثال: Amir_123"
+              placeholder={t("buy.configNamePlaceholder")}
               ltr
             />
-            <p className="text-xs text-muted">فقط حروف انگلیسی، عدد و زیرخط مجاز است.</p>
+            <p className="text-xs text-muted">{t("buy.configNameHint")}</p>
             <Button type="button" variant="secondary" loading={generateUsername.isPending} onClick={() => void handleGenerateUsername()}>
               <EmojiIcon id="sparkles" size={16} />
-              ساخت نام تصادفی
+              {t("buy.generateRandomName")}
             </Button>
             <Input
-              label="کد تخفیف (اختیاری)"
+              label={t("buy.discountCode")}
               value={discountCode}
               onChange={(e) => setDiscountCode(e.target.value)}
-              placeholder="کد تخفیف"
+              placeholder={t("buy.discountCodePlaceholder")}
               ltr
             />
             <Button type="button" fullWidth loading={previewBuy.isPending} disabled={username.trim().length < 3} onClick={() => void handlePreview()}>
-              بررسی و ادامه
+              {t("buy.reviewAndContinue")}
             </Button>
           </motion.section>
         )}
@@ -370,32 +385,32 @@ export default function BuyWizardPage() {
         {step === "confirm" && selectedPlan && preview && (
           <motion.section key="confirm" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <Button type="button" variant="ghost" size="sm" onClick={() => setStep("username")}>
-              ← بازگشت
+              {t("buy.back")}
             </Button>
             <Card className="space-y-3 border-primary/20 p-4">
               <PlanSummary plan={selectedPlan} />
-              <InfoRow label="نام کانفیگ" value={preview.username ?? username} />
-              <InfoRow label="موجودی فعلی" value={formatToman(preview.balance ?? 0)} />
-              <InfoRow label="قیمت اصلی" value={formatToman(preview.base_price ?? 0)} />
-              {preview.discount_percent ? <InfoRow label="تخفیف" value={`${preview.discount_percent}%`} /> : null}
+              <InfoRow label={t("buy.configName")} value={preview.username ?? username} />
+              <InfoRow label={t("buy.currentBalance")} value={formatToman(preview.balance ?? 0)} />
+              <InfoRow label={t("buy.basePrice")} value={formatToman(preview.base_price ?? 0)} />
+              {preview.discount_percent ? <InfoRow label={t("buy.discount")} value={`${preview.discount_percent}%`} /> : null}
               <Card className="bg-primary/10 p-3 ring-1 ring-primary/20">
-                <InfoRow label="مبلغ نهایی" value={formatToman(preview.final_price ?? 0)} strong />
+                <InfoRow label={t("buy.finalPrice")} value={formatToman(preview.final_price ?? 0)} strong />
               </Card>
-              <InfoRow label="موجودی بعد از خرید" value={formatToman(preview.balance_after ?? 0)} />
+              <InfoRow label={t("buy.balanceAfter")} value={formatToman(preview.balance_after ?? 0)} />
             </Card>
             {(preview.locations?.length ?? 0) > 0 && (
               <Card className="p-4">
-                <p className="mb-2 text-sm text-muted">لوکیشن‌های این پلن</p>
+                <p className="mb-2 text-sm text-muted">{t("buy.planLocations")}</p>
                 <p className="text-sm leading-7 text-text">{preview.locations.join(" ⌁ ")}</p>
               </Card>
             )}
             {!preview.can_pay && (
               <p className="rounded-md border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger">
-                موجودی برای این خرید کافی نیست. ابتدا کیف پول را شارژ کنید.
+                {t("buy.insufficientBalance")}
               </p>
             )}
             <Button type="button" fullWidth loading={confirmBuy.isPending} disabled={!preview.can_pay} onClick={() => void handleConfirm()}>
-              تأیید و خرید
+              {t("buy.confirmAndBuy")}
             </Button>
           </motion.section>
         )}
@@ -405,39 +420,39 @@ export default function BuyWizardPage() {
             <Card className="border-success/30 bg-success/5 p-4">
               <p className="flex items-center gap-2 font-semibold text-success">
                 <EmojiIcon id="white_check_mark" size={24} />
-                {result.message ?? "خرید با موفقیت انجام شد"}
+                {result.message ?? t("buy.purchaseSuccess")}
               </p>
             </Card>
             <Card className="space-y-3 p-4">
-              <InfoRow label="کد سرویس" value={String(result.service_code ?? "-")} />
-              <InfoRow label="نام کانفیگ" value={result.username ?? "-"} />
-              <InfoRow label="پنل" value={result.panel_name ?? "-"} />
-              <InfoRow label="حجم" value={result.volume ?? "-"} />
-              <InfoRow label="مدت" value={`${result.duration ?? "-"} روز`} />
-              <InfoRow label="مبلغ پرداختی" value={formatToman(result.amount_paid ?? 0)} strong />
-              <InfoRow label="موجودی جدید" value={formatToman(result.new_balance ?? 0)} />
+              <InfoRow label={t("buy.serviceCode")} value={String(result.service_code ?? "-")} />
+              <InfoRow label={t("buy.configName")} value={result.username ?? "-"} />
+              <InfoRow label={t("buy.panel")} value={result.panel_name ?? "-"} />
+              <InfoRow label={t("buy.volume")} value={result.volume_bytes != null ? formatBytes(result.volume_bytes) : "-"} />
+              <InfoRow label={t("buy.duration")} value={t("renewFlow.days", { count: result.duration ?? 0 })} />
+              <InfoRow label={t("buy.amountPaid")} value={formatToman(result.amount_paid ?? 0)} strong />
+              <InfoRow label={t("buy.newBalance")} value={formatToman(result.new_balance ?? 0)} />
             </Card>
             {result.subscription_url && (
               <Card className="space-y-3 p-4">
-                <p className="text-sm text-muted">لینک سابسکریپشن</p>
+                <p className="text-sm text-muted">{t("buy.subscriptionLink")}</p>
                 <p className="break-all font-mono text-xs text-text" dir="ltr">
                   {result.subscription_url}
                 </p>
                 <Button type="button" variant="secondary" onClick={() => void copyToClipboard(result.subscription_url!)}>
-                  کپی لینک
+                  {t("buy.copyLink")}
                 </Button>
               </Card>
             )}
             {result.single_config_links_text && (
               <Card className="p-4">
-                <p className="mb-2 text-sm text-muted">لینک‌های تکی</p>
+                <p className="mb-2 text-sm text-muted">{t("buy.singleLinks")}</p>
                 <p className="whitespace-pre-wrap break-all text-xs text-text" dir="ltr">
                   {result.single_config_links_text}
                 </p>
               </Card>
             )}
             <Button type="button" fullWidth onClick={resetFlow}>
-              خرید سرویس دیگر
+              {t("buy.buyAnother")}
             </Button>
           </motion.section>
         )}
@@ -447,16 +462,15 @@ export default function BuyWizardPage() {
 }
 
 function BuyHeader() {
+  const { t } = useTranslation();
   return (
     <header className="relative overflow-hidden rounded-lg border border-accent/20 bg-surface p-5 shadow-md">
       <div className="absolute -left-14 -top-14 h-36 w-36 rounded-full bg-accent/15 blur-3xl" />
       <div className="relative flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-accent/70">Premium Config</p>
-          <h1 className="mt-2 text-2xl font-black text-text">خرید سرویس اختصاصی</h1>
-          <p className="mt-2 max-w-lg text-sm leading-7 text-muted">
-            پلن، مدت، نام کانفیگ و کد تخفیف را همین‌جا انتخاب کن؛ قبل از خرید قیمت نهایی و موجودی بعد از پرداخت را می‌بینی.
-          </p>
+          <h1 className="mt-2 text-2xl font-black text-text">{t("buy.title")}</h1>
+          <p className="mt-2 max-w-lg text-sm leading-7 text-muted">{t("buy.subtitle")}</p>
         </div>
         <div className="rounded-md border border-border bg-surface-2 p-3 text-accent">
           <EmojiIcon id="shopping_cart" size={30} />

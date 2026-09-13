@@ -33,6 +33,7 @@ from app.routers.webapp.state import (
     revoked_tokens,
 )
 from app.services.send_queue import enqueue
+from app.utils.formatting.conversions import to_unix_timestamp
 from app.utils.formatting.dates import Time_Date
 from app.utils.security.webapp_auth import (
     create_session_token,
@@ -91,18 +92,15 @@ async def _get_discount_info(user_id: int) -> dict[str, Any] | None:
     if not discount_code:
         return None
 
-    expiration_text = (
-        f"{Time_Date(discount_code.expiration_date)['jf']} ({Time_Date(discount_code.expiration_date)['remaining_days']})"
-        if discount_code.expiration_date
-        else "نامشخص"
-    )
+    expiration_ts = to_unix_timestamp(discount_code.expiration_date) if discount_code.expiration_date else None
 
     return {
         "code": discount_code.code,
         "percent": int(discount_code.discount_percentage) if discount_code.discount_percentage else 0,
-        "usage": f"{int(discount_code.times_used) if discount_code.times_used else 0}/{int(discount_code.usage_limit) if discount_code.usage_limit else 0}",
-        "type": "عمومی" if discount_code.is_public else "💎 پرایوت 💎",
-        "expiration": expiration_text,
+        "times_used": int(discount_code.times_used) if discount_code.times_used else 0,
+        "usage_limit": int(discount_code.usage_limit) if discount_code.usage_limit else 0,
+        "is_public": bool(discount_code.is_public),
+        "expiration_timestamp": expiration_ts,
     }
 
 
@@ -153,9 +151,7 @@ async def _build_user_profile(
     is_safe_mode = bool(user_record.safe_mode) if user_record else False
     phone_number = user_record.number if user_record else None
 
-    join_date = None
-    if user_record and user_record.time_s:
-        join_date = Time_Date(user_record.time_s).get("jf")
+    join_date = to_unix_timestamp(user_record.time_s) if user_record and user_record.time_s else None
 
     discount_info = await _get_discount_info(user_id)
     transaction_stats = await _get_transaction_stats(user_id)

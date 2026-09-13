@@ -1,15 +1,17 @@
 import { motion } from "framer-motion";
 import { Moon, Sun, SunMoon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "../../design/ThemeProvider";
 import type { ThemeMode } from "../../design/ThemeProvider";
 
-const OPTIONS: { value: ThemeMode; icon: typeof Sun; label: string }[] = [
-  { value: "light", icon: Sun, label: "روشن" },
-  { value: "auto", icon: SunMoon, label: "خودکار" },
-  { value: "dark", icon: Moon, label: "تیره" },
+const OPTIONS: { value: ThemeMode; icon: typeof Sun; labelKey: string }[] = [
+  { value: "light", icon: Sun, labelKey: "ui.themeLight" },
+  { value: "auto", icon: SunMoon, labelKey: "ui.themeAuto" },
+  { value: "dark", icon: Moon, labelKey: "ui.themeDark" },
 ];
 
 export function ThemeToggle() {
+  const { t } = useTranslation();
   const { mode, setMode } = useTheme();
 
   return (
@@ -21,7 +23,7 @@ export function ThemeToggle() {
             key={opt.value}
             type="button"
             onClick={() => setMode(opt.value)}
-            aria-label={opt.label}
+            aria-label={t(opt.labelKey)}
             aria-pressed={active}
             className="relative flex h-8 w-8 items-center justify-center rounded-full"
           >

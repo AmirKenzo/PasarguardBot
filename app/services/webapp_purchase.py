@@ -135,7 +135,6 @@ class WebAppPurchaseService:
                 "display_mode": panel_display_mode(panel),
             },
             "durations": [int(d) for d in durations],
-            "duration_groups": {f"{int(d)} روزه": [int(d)] for d in durations},
             "plans": [self._plan_item(plan) for plan in plans],
         }
 
@@ -327,13 +326,12 @@ class WebAppPurchaseService:
 
         return {
             "ok": True,
-            "message": "سرویس با موفقیت ساخته شد.",
             "service_code": code,
             "username": username,
             "panel_name": panel.name,
-            "volume": volume_text,
+            "volume_bytes": gigabytes_to_bytes(float(plan.storage)),
             "duration": int(plan.duration),
-            "ip_limit_text": format_ip_limit(getattr(plan, "ip_limit", 0)),
+            "ip_limit": int(getattr(plan, "ip_limit", 0) or 0),
             "subscription_url": primary_url,
             "subscription_links_text": links_text,
             "single_config_links_text": single_links_text or None,
@@ -348,12 +346,6 @@ class WebAppPurchaseService:
             "storage": float(plan.storage),
             "duration": int(plan.duration),
             "price": int(plan.price),
-            "plan_name": convert_storage(
-                float(plan.storage),
-                getattr(plan, "plan_type", None),
-                getattr(plan, "data_limit_reset_strategy", None),
-                for_button=True,
-            ),
             "plan_type": getattr(plan, "plan_type", "volume"),
             "data_limit_reset_strategy": getattr(plan, "data_limit_reset_strategy", "no_reset"),
             "ip_limit": int(getattr(plan, "ip_limit", 0) or 0),

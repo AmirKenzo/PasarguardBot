@@ -19,16 +19,9 @@ from app.models.webapp import (
 from app.routers.webapp.auth import authenticate_user
 from app.routers.webapp.state import renew_confirm_locks
 from app.services.billing.renewal import PaidRenewalError, execute_paid_service_renewal, require_panel_userid
-from app.utils.formatting.conversions import convert_storage
-from app.utils.formatting.traffic import format_size
 
 logger = get_logger(__name__)
 router = APIRouter()
-
-
-def _group_durations(durations: list[int]) -> dict[str, list[int]]:
-    """Return duration groups for display: e.g. {'7 روزه': [7], '30 روزه': [30]}."""
-    return {f"{d} روزه": [d] for d in sorted(durations)}
 
 
 @router.post("/webapp/renew/options", response_model=WebAppRenewOptionsResponse)
@@ -53,7 +46,6 @@ async def get_renew_options(request: WebAppRenewOptionsRequest) -> WebAppRenewOp
 
         panel_name = getattr(panel, "name", None) or "پنل"
         durations = await PlanManager().get_unique_durations(service.in_panel)
-        duration_groups = _group_durations(durations) if durations else {}
 
         plans = await PlanManager().get_all_plans(panel_code=service.in_panel)
         is_fair_usage = False
@@ -75,24 +67,18 @@ async def get_renew_options(request: WebAppRenewOptionsRequest) -> WebAppRenewOp
             return WebAppRenewOptionsResponse(ok=False, error="هیچ پلنی برای تمدید یافت نشد")
 
         sorted_plans = sorted(filtered_plans, key=lambda p: p.storage)
-        plan_items = []
-        for p in sorted_plans:
-            plan_name = convert_storage(
-                float(p.storage),
-                getattr(p, "plan_type", None),
-                getattr(p, "data_limit_reset_strategy", None),
-                for_button=True,
+        plan_items = [
+            RenewPlanItem(
+                id=p.id,
+                storage=float(p.storage),
+                duration=int(p.duration),
+                price=int(p.price),
+                plan_type=getattr(p, "plan_type", None) or "volume",
+                data_limit_reset_strategy=getattr(p, "data_limit_reset_strategy", None) or "no_reset",
+                ip_limit=int(getattr(p, "ip_limit", 0) or 0),
             )
-            plan_items.append(
-                RenewPlanItem(
-                    id=p.id,
-                    storage=float(p.storage),
-                    duration=int(p.duration),
-                    price=int(p.price),
-                    plan_name=plan_name,
-                    ip_limit=int(getattr(p, "ip_limit", 0) or 0),
-                )
-            )
+            for p in sorted_plans
+        ]
 
         return WebAppRenewOptionsResponse(
             ok=True,
@@ -100,7 +86,6 @@ async def get_renew_options(request: WebAppRenewOptionsRequest) -> WebAppRenewOp
             panel_name=panel_name,
             is_fair_usage=is_fair_usage,
             durations=durations,
-            duration_groups=duration_groups,
             plans=plan_items,
         )
     except ValueError as e:
@@ -184,12 +169,10 @@ async def _confirm_renew_locked(request: WebAppRenewConfirmRequest) -> WebAppRen
         if request.discount_code and request.discount_code.strip():
             await DiscountCodeManager().update_discount_usage(request.discount_code.strip())
 
-        new_volume_str = format_size(new_hajm, decimal_places=0)
         return WebAppRenewConfirmResponse(
             ok=True,
-            message="تمدید با موفقیت انجام شد.",
             new_balance=new_balance,
-            new_volume=new_volume_str,
+            new_volume_bytes=int(new_hajm),
             amount_paid=price,
             config_name=serv_msg.username,
         )

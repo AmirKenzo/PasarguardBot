@@ -37,41 +37,32 @@ from app.services.panels.config_links import (
     fetch_user_config_links,
 )
 from app.services.panels.settings import panel_button_enabled
-from app.utils.formatting.dates import Time_Date, relative_time, timestamp_to_persian_expiry
-from app.utils.formatting.traffic import format_ip_limit, format_size
+from app.utils.formatting.conversions import to_unix_timestamp
 
 logger = get_logger(__name__)
 router = APIRouter()
 
-# Status texts with clean emojis
-STATUS_TEXTS = {
-    "active": "فعال",
-    "expired": "منقضی شده",
-    "limited": "محدود (حجم تمام شده)",
-    "disabled": "غیرفعال",
-    "on_hold": "در انتظار",
-}
-STATUS_EMOJI = {"active": "✅", "expired": "🕔", "limited": "🪫", "disabled": "❌", "on_hold": "🔋"}
-
-RESET_STRATEGY_LABELS = {"day": "روزانه", "week": "هفتگی", "month": "ماهانه", "year": "سالانه"}
 RESET_STRATEGY_DIVISORS = {"day": 1, "week": 7, "month": 30, "year": 365}
 
 
-def _compute_reset_info(service: Any, user: Any, total_traffic_bytes: int) -> tuple[str | None, str | None]:
+def _compute_reset_info(service: Any, user: Any, total_traffic_bytes: int) -> tuple[str | None, int | None]:
     """Mirrors the reset-cycle math in app/telegram/user/services/helpers.py so the
-    webapp shows the same numbers as the bot's service info message."""
+    webapp shows the same numbers as the bot's service info message.
+
+    Returns (strategy_key, total_possible_bytes) -- raw values only; the webapp
+    frontend renders its own bilingual label from these.
+    """
 
     strategy = getattr(service, "data_limit_reset_strategy", None) or "no_reset"
-    label = RESET_STRATEGY_LABELS.get(strategy)
     expire = getattr(user, "expire", None)
-    if not label or not expire or total_traffic_bytes <= 0:
+    if strategy not in RESET_STRATEGY_DIVISORS or not expire or total_traffic_bytes <= 0:
         return None, None
 
     now = datetime.now(UTC) if expire.tzinfo is not None else datetime.now()
     remaining_days = max((expire - now).days, 0)
     periods = remaining_days // RESET_STRATEGY_DIVISORS[strategy]
     total_possible_bytes = total_traffic_bytes * periods
-    return label, format_size(total_possible_bytes, decimal_places=1)
+    return strategy, total_possible_bytes
 
 
 async def _process_services_from_db(user_services: list[Any], hide_panel_name: bool = False) -> list[dict[str, Any]]:
@@ -87,29 +78,19 @@ async def _process_services_from_db(user_services: list[Any], hide_panel_name: b
 
         exp_ts = getattr(service, "expiration_time", None)
         status = "expired" if exp_ts is not None and exp_ts < now else "active"
-
         pkg = getattr(service, "package_size", None) or 0
-        total_traffic_str = format_size(pkg, decimal_places=0) if pkg else "0 B"
 
-        exp_str = timestamp_to_persian_expiry(exp_ts) if exp_ts else "نامشخص"
-
-        txt = STATUS_TEXTS.get(status, "نامشخص")
-        emoji = STATUS_EMOJI.get(status, "")
         result.append(
             {
                 "code": str(service.code),
                 "username": service.username,
                 "panel_name": panel_name,
                 "status": status,
-                "status_text": f"{emoji} {txt}".strip() if emoji else txt,
-                "used_traffic": "—",
-                "remaining_traffic": "—",
-                "total_traffic": total_traffic_str,
                 "used_traffic_bytes": 0,
                 "remaining_traffic_bytes": 0,
                 "total_traffic_bytes": int(pkg) if pkg else 0,
-                "expiration_time": exp_str,
-                "subscription_url": "",
+                "expiration_timestamp": int(exp_ts) if exp_ts else None,
+                "subscription_url": None,
                 "is_test": bool(getattr(service, "is_test", False)),
             }
         )
@@ -173,25 +154,19 @@ async def build_services_payload(
 
 
 async def _build_service_detail(service: Any, panel: Any) -> dict[str, Any]:
-    """Build full service detail from Marzban (called when user clicks on service)."""
+    """Build full service detail from Marzban (called when user clicks on service).
 
-    status_messages = {
-        "active": "فعال",
-        "expired": "منقضی شده (تاریخ اکانت تمام شده)",
-        "limited": "محدود (حجم تمام شده)",
-        "disabled": "غیرفعال",
-        "on_hold": "در انتظار (زمان کانفیگ بعد از اتصال شروع میشود)",
-    }
+    Returns raw values only (bytes, unix timestamps, plain numbers) -- the webapp
+    frontend formats everything itself for bilingual display.
+    """
+
     fallback = {
-        "used_traffic": "0 B",
-        "remaining_traffic": "0 B",
-        "total_traffic": "0 B",
         "used_traffic_bytes": 0,
         "remaining_traffic_bytes": 0,
         "total_traffic_bytes": 0,
-        "expiration_time": "نامشخص",
-        "subscription_url": "نامشخص",
-        "ip_limit_text": format_ip_limit(getattr(service, "ip_limit", 0)),
+        "expiration_timestamp": None,
+        "subscription_url": None,
+        "ip_limit": int(getattr(service, "ip_limit", 0) or 0),
         "helper_subscription_url": None,
         "is_test": bool(getattr(service, "is_test", False)),
         "config_value": None,
@@ -212,10 +187,10 @@ async def _build_service_detail(service: Any, panel: Any) -> dict[str, Any]:
             base = (panel.base_url or "").rstrip("/")
             path = subscription_url if subscription_url.startswith("/") else f"/{subscription_url}"
             subscription_url = f"{base}{path}"
-        subscription_url = subscription_url or "نامشخص"
+        subscription_url = subscription_url or None
 
         helper_url = None
-        if getattr(panel, "tunnel_url", None) and subscription_url != "نامشخص":
+        if getattr(panel, "tunnel_url", None) and subscription_url:
             if subscription_url.startswith("http"):
                 parsed = urlparse(subscription_url)
                 helper_url = f"{panel.tunnel_url.rstrip('/')}{parsed.path or '/'}"
@@ -226,54 +201,46 @@ async def _build_service_detail(service: Any, panel: Any) -> dict[str, Any]:
         used_traffic = getattr(user, "used_traffic", None) or 0
         total_traffic = getattr(user, "data_limit", None) or 0
         remaining_traffic = total_traffic - used_traffic
-        status = (user.status or "").lower() if isinstance(getattr(user, "status", None), str) else ""
+        status = (user.status or "").lower() if isinstance(getattr(user, "status", None), str) else None
         lifetime_used = int(getattr(user, "lifetime_used_traffic", 0) or 0)
-        reset_strategy_text, total_possible_traffic = _compute_reset_info(service, user, int(total_traffic))
-        config_value = 0
+        reset_strategy, total_possible_traffic = _compute_reset_info(service, user, int(total_traffic))
+        ip_limit = getattr(service, "ip_limit", 0) or 0
+        expire_dt = getattr(user, "expire", None)
+        online_at = getattr(user, "online_at", None)
+        edit_at = getattr(user, "edit_at", None)
         try:
             single_links = await fetch_service_config_links(service, panel)
         except ValueError:
             single_links = await fetch_user_config_links(panel, getattr(user, "id", None))
 
-        txt = status_messages.get(status, "نامشخص")
-        emoji = STATUS_EMOJI.get(status, "")
-        status_text = f"{emoji} {txt}".strip() if emoji else txt
         return {
             "code": str(service.code),
             "username": service.username,
             "panel_name": panel.name,
             "status": status or None,
-            "status_text": status_text,
-            "used_traffic": format_size(used_traffic, decimal_places=2),
-            "remaining_traffic": format_size(remaining_traffic, decimal_places=2),
-            "total_traffic": format_size(total_traffic, decimal_places=0),
             "used_traffic_bytes": int(used_traffic),
             "remaining_traffic_bytes": int(remaining_traffic),
             "total_traffic_bytes": int(total_traffic),
-            "expiration_time": timestamp_to_persian_expiry(user.expire.timestamp())
-            if getattr(user, "expire", None)
-            else "نامشخص",
-            "subscription_url": subscription_url or "نامشخص",
-            "ip_limit_text": format_ip_limit(getattr(service, "ip_limit", 0)),
+            "expiration_timestamp": to_unix_timestamp(expire_dt),
+            "subscription_url": subscription_url,
+            "ip_limit": int(ip_limit),
             "helper_subscription_url": helper_url,
             "is_test": bool(getattr(service, "is_test", False)),
-            "config_value": f"{config_value:,} تومان",
-            "lifetime_used_traffic": format_size(lifetime_used, decimal_places=2),
-            "reset_strategy_text": reset_strategy_text,
+            "config_value": 0,
+            "lifetime_used_traffic": lifetime_used,
+            "reset_strategy": reset_strategy,
             "total_possible_traffic": total_possible_traffic,
-            "last_connection": relative_time(getattr(user, "online_at", None))
-            if getattr(user, "online_at", None)
-            else None,
-            "last_edit": relative_time(getattr(user, "edit_at", None)) if getattr(user, "edit_at", None) else None,
+            "last_connection": to_unix_timestamp(online_at),
+            "last_edit": to_unix_timestamp(edit_at),
             "single_config_links": single_links,
         }
     except Exception as e:
+        logger.warning("service detail fetch failed for service=%s: %s", service.code, e)
         return {
             "code": str(service.code),
             "username": service.username,
             "panel_name": panel.name,
             "status": None,
-            "status_text": str(e)[:80],
             **fallback,
         }
 
@@ -341,7 +308,7 @@ async def _get_service_buttons(service: Any, panel: Any, user_id: int) -> dict[s
 
 
 def _parse_client_update(update: Any) -> dict[str, Any]:
-    ua = (getattr(update, "user_agent", None) or "").strip() or "نامشخص"
+    ua = (getattr(update, "user_agent", None) or "").strip()
     ip_address = (
         getattr(update, "ip", None)
         or getattr(update, "client_ip", None)
@@ -350,7 +317,7 @@ def _parse_client_update(update: Any) -> dict[str, Any]:
     )
     hwid = getattr(update, "hwid", None) or getattr(update, "device_id", None) or getattr(update, "device_hwid", None)
 
-    app_name = "نامشخص"
+    app_name = None
     version = None
     platform = None
     parts = [part.strip() for part in ua.split("/") if part.strip()]
@@ -363,10 +330,8 @@ def _parse_client_update(update: Any) -> dict[str, Any]:
 
     created_at = getattr(update, "created_at", None)
     return {
-        "created_at": int(created_at.timestamp()) if created_at else 0,
-        "created_at_text": Time_Date(created_at)["mf"] if created_at else "نامشخص",
-        "time_ago": relative_time(created_at) if created_at else None,
-        "user_agent": ua,
+        "created_at": to_unix_timestamp(created_at) or 0,
+        "user_agent": ua or None,
         "app_name": app_name,
         "version": version,
         "platform": platform,

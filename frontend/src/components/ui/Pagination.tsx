@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { formatNumber } from "../../lib/format";
 
 export interface PaginationProps {
   page: number;
@@ -54,14 +56,15 @@ function NavButton({
 }
 
 export function Pagination({ page, totalPages, onChange }: PaginationProps) {
+  const { t } = useTranslation();
   if (totalPages <= 1) return null;
   const pages = getPageList(page, totalPages);
 
   return (
     <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-      <NavButton onClick={() => onChange(page - 1)} disabled={page <= 1} label="صفحه قبل">
+      <NavButton onClick={() => onChange(page - 1)} disabled={page <= 1} label={t("ui.prevPage")}>
         <ChevronRight size={15} strokeWidth={2.2} />
-        <span className="hidden sm:inline">قبلی</span>
+        <span className="hidden sm:inline">{t("ui.prev")}</span>
       </NavButton>
 
       <div className="flex items-center gap-1">
@@ -75,7 +78,7 @@ export function Pagination({ page, totalPages, onChange }: PaginationProps) {
                 p === page ? "text-primary-text" : "text-muted hover:text-text"
               }`}
               aria-current={p === page ? "page" : undefined}
-              aria-label={`صفحه ${p}`}
+              aria-label={t("ui.page", { page: p })}
             >
               {p === page && (
                 <motion.span
@@ -84,7 +87,7 @@ export function Pagination({ page, totalPages, onChange }: PaginationProps) {
                   transition={{ type: "spring", stiffness: 500, damping: 32 }}
                 />
               )}
-              <span className="relative z-10">{p.toLocaleString("fa-IR")}</span>
+              <span className="relative z-10">{formatNumber(p)}</span>
             </motion.button>
           ) : (
             <span key={`${p}-${i}`} className="flex h-9 w-5 shrink-0 items-center justify-center text-muted/60 sm:w-6">
@@ -94,8 +97,8 @@ export function Pagination({ page, totalPages, onChange }: PaginationProps) {
         )}
       </div>
 
-      <NavButton onClick={() => onChange(page + 1)} disabled={page >= totalPages} label="صفحه بعد">
-        <span className="hidden sm:inline">بعدی</span>
+      <NavButton onClick={() => onChange(page + 1)} disabled={page >= totalPages} label={t("ui.nextPage")}>
+        <span className="hidden sm:inline">{t("ui.next")}</span>
         <ChevronLeft size={15} strokeWidth={2.2} />
       </NavButton>
     </div>

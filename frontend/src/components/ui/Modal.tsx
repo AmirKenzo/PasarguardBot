@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export interface ModalProps {
   open: boolean;
@@ -10,6 +11,7 @@ export interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children }: ModalProps) {
+  const { t } = useTranslation();
   return (
     <AnimatePresence>
       {open && (
@@ -36,7 +38,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
               {title && (
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-base font-semibold text-text">{title}</h2>
-                  <button onClick={onClose} className="rounded-full p-1.5 text-muted hover:bg-surface-2" aria-label="بستن">
+                  <button onClick={onClose} className="rounded-full p-1.5 text-muted hover:bg-surface-2" aria-label={t("ui.close")}>
                     <X size={18} />
                   </button>
                 </div>

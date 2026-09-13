@@ -12,28 +12,27 @@ export interface WebAppAuthRequest {
   init_data?: string | null;
 }
 
+/** Raw fields only (bytes, unix timestamps, plain numbers) -- this is a webapp-only
+ * model (the Telegram bot has its own separate formatting), so the frontend formats
+ * everything itself for bilingual (fa/en) display. See src/lib/format.ts. */
 export interface ServiceStatus {
   code: string;
   username: string;
   panel_name: string | null;
   status: string | null;
-  status_text: string;
-  used_traffic: string;
-  remaining_traffic: string;
-  total_traffic: string;
   used_traffic_bytes: number;
   remaining_traffic_bytes: number;
   total_traffic_bytes: number;
-  expiration_time: string;
-  subscription_url: string;
-  ip_limit_text?: string | null;
+  expiration_timestamp?: number | null;
+  subscription_url: string | null;
+  ip_limit?: number | null;
   helper_subscription_url?: string | null;
-  config_value?: string | null;
-  lifetime_used_traffic?: string | null;
-  last_connection?: string | null;
-  last_edit?: string | null;
-  reset_strategy_text?: string | null;
-  total_possible_traffic?: string | null;
+  config_value?: number | null;
+  lifetime_used_traffic?: number | null;
+  last_connection?: number | null;
+  last_edit?: number | null;
+  reset_strategy?: string | null;
+  total_possible_traffic?: number | null;
   single_config_links: string[];
   is_test?: boolean;
 }
@@ -65,9 +64,10 @@ export interface TransactionStatsSummary {
 export interface DiscountInfo {
   code: string;
   percent: number;
-  usage: string;
-  type: string;
-  expiration: string;
+  times_used: number;
+  usage_limit: number;
+  is_public: boolean;
+  expiration_timestamp?: number | null;
 }
 
 export interface UserProfile {
@@ -79,7 +79,7 @@ export interface UserProfile {
   amount: number;
   safe: boolean;
   number: string | null;
-  join_date: string | null;
+  join_date?: number | null;
   discount: DiscountInfo | null;
   transactions: TransactionStatsSummary;
 }

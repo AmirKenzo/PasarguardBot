@@ -111,7 +111,6 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
         card_name = getattr(active, "name", None) if active else None
         return BalanceDepositManualResponse(
             ok=True,
-            message="درخواست ثبت شد. مبلغ را به کارت واریز کنید و رسید را در همین وب‌اپ ارسال کنید؛ سپس در کانال لاگ تایید یا رد می‌شود.",
             tx_id=getattr(tx, "id", None),
             card_number=card_number,
             card_name=card_name,

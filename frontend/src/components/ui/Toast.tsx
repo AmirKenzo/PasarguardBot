@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type ToastKind = "success" | "error" | "info";
 interface ToastItem {
@@ -31,6 +32,7 @@ const ACCENTS: Record<ToastKind, string> = {
 let nextId = 1;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<ToastItem[]>([]);
 
   const dismiss = useCallback((id: number) => {
@@ -67,7 +69,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <button
                   onClick={() => dismiss(item.id)}
                   className="text-muted hover:text-text"
-                  aria-label="بستن"
+                  aria-label={t("ui.close")}
                 >
                   <X size={16} />
                 </button>

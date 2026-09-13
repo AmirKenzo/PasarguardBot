@@ -6,7 +6,8 @@ export interface RenewPlanItem {
   storage: number;
   duration: number;
   price: number;
-  plan_name: string;
+  plan_type: string;
+  data_limit_reset_strategy: string;
   ip_limit: number;
 }
 
@@ -20,7 +21,6 @@ export interface WebAppRenewOptionsResponse {
   panel_name?: string | null;
   is_fair_usage: boolean;
   durations?: number[] | null;
-  duration_groups?: Record<string, number[]> | null;
   plans?: RenewPlanItem[] | null;
   error?: string | null;
 }
@@ -35,7 +35,7 @@ export interface WebAppRenewConfirmResponse {
   ok: boolean;
   message?: string | null;
   new_balance?: number | null;
-  new_volume?: string | null;
+  new_volume_bytes?: number | null;
   amount_paid?: number | null;
   config_name?: string | null;
   error?: string | null;

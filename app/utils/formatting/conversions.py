@@ -51,6 +51,19 @@ def day_to_timestamp_utc(days: int) -> int:
     return int(expiry_time.timestamp())
 
 
+def to_unix_timestamp(value: object) -> int | None:
+    """Best-effort conversion of a datetime/int/float value to a unix timestamp."""
+
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    try:
+        return int(value.timestamp())  # type: ignore[union-attr]
+    except AttributeError:
+        return None
+
+
 def convert_storage(
     volume: float,
     plan_type: str | None = None,

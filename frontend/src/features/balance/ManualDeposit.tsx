@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, Card, Input } from "../../components/ui";
 import { useToast } from "../../components/ui/Toast";
@@ -14,6 +15,7 @@ function parseAmount(value: string): number {
 }
 
 export default function ManualDeposit() {
+  const { t } = useTranslation();
   const { data: methods } = useBalanceMethodsQuery();
   const deposit = useDepositManualMutation();
   const receipt = useDepositManualReceiptMutation();
@@ -29,13 +31,13 @@ export default function ManualDeposit() {
   async function handleSubmit() {
     const value = parseAmount(amount);
     if (value < min || value > max) {
-      show(`مبلغ بین ${formatNumber(min)} تا ${formatNumber(max)} تومان وارد کنید.`, "error");
+      show(t("manualDeposit.amountRangeError", { min: formatNumber(min), max: formatNumber(max) }), "error");
       return;
     }
     try {
       await deposit.mutateAsync(value);
     } catch (err) {
-      show(err instanceof Error ? err.message : "خطا", "error");
+      show(err instanceof Error ? err.message : t("manualDeposit.genericError"), "error");
     }
   }
 
@@ -44,46 +46,46 @@ export default function ManualDeposit() {
     try {
       await receipt.mutateAsync({ txId: result.tx_id, file });
       setReceiptSent(true);
-      show("رسید ارسال شد", "success");
+      show(t("manualDeposit.receiptSuccess"), "success");
     } catch (err) {
-      show(err instanceof Error ? err.message : "خطا در ارسال رسید", "error");
+      show(err instanceof Error ? err.message : t("manualDeposit.receiptError"), "error");
     }
   }
 
   return (
     <div>
-      <PageHeader title="کارت به کارت" back="/balance" />
+      <PageHeader title={t("manualDeposit.title")} back="/balance" />
 
       {receiptSent ? (
         <Card className="space-y-2 p-5">
-          <p className="font-medium text-success">رسید ارسال شد</p>
-          <p className="text-sm text-muted">
-            رسید شما برای بررسی ادمین ارسال شد. پس از تایید، موجودی به کیف پول اضافه می‌شود.
-          </p>
+          <p className="font-medium text-success">{t("manualDeposit.receiptSent")}</p>
+          <p className="text-sm text-muted">{t("manualDeposit.receiptSentDesc")}</p>
         </Card>
       ) : result?.tx_id != null ? (
         <Card className="space-y-4 p-5">
-          <p className="font-medium text-success">{result.message ?? "درخواست ثبت شد."}</p>
+          <p className="font-medium text-success">{result.message ?? t("manualDeposit.requestRegistered")}</p>
           {result.card_number && (
             <div>
-              <p className="text-sm text-muted">شماره کارت</p>
+              <p className="text-sm text-muted">{t("manualDeposit.cardNumber")}</p>
               <p className="break-all font-mono text-text">{result.card_number}</p>
-              {result.card_name && <p className="text-sm text-muted">دارنده: {result.card_name}</p>}
+              {result.card_name && (
+                <p className="text-sm text-muted">
+                  {t("manualDeposit.cardHolder")}: {result.card_name}
+                </p>
+              )}
               <Button
                 variant="secondary"
                 size="sm"
                 className="mt-2"
                 onClick={() => void copyToClipboard(result.card_number!)}
               >
-                کپی شماره کارت
+                {t("manualDeposit.copyCardNumber")}
               </Button>
             </div>
           )}
-          <p className="border-t border-border pt-3 text-xs text-muted">
-            پس از واریز، تصویر رسید را انتخاب و ارسال کنید.
-          </p>
+          <p className="border-t border-border pt-3 text-xs text-muted">{t("manualDeposit.afterDeposit")}</p>
           <label className="block text-sm">
-            <span className="mb-2 block text-muted">ارسال رسید (تصویر)</span>
+            <span className="mb-2 block text-muted">{t("manualDeposit.sendReceipt")}</span>
             <input
               type="file"
               accept="image/*"
@@ -92,30 +94,32 @@ export default function ManualDeposit() {
             />
           </label>
           <Button fullWidth loading={receipt.isPending} disabled={!file} onClick={() => void handleReceiptSubmit()}>
-            ارسال رسید
+            {t("manualDeposit.submitReceipt")}
           </Button>
         </Card>
       ) : (
         <div className="space-y-4">
           {methods?.card_number && methods.card_name && (
             <Card className="p-4">
-              <p className="text-sm text-muted">شماره کارت</p>
+              <p className="text-sm text-muted">{t("manualDeposit.cardNumber")}</p>
               <p className="break-all font-mono text-text">{methods.card_number}</p>
-              <p className="mt-2 text-sm text-muted">دارنده: {methods.card_name}</p>
+              <p className="mt-2 text-sm text-muted">
+                {t("manualDeposit.cardHolder")}: {methods.card_name}
+              </p>
             </Card>
           )}
           <p className="text-sm text-muted">
-            مبلغ (تومان) بین {formatNumber(min)} تا {formatNumber(max)}
-            {methods?.manual_bonus_percent ? ` — بونوس ${methods.manual_bonus_percent}%` : ""}
+            {t("manualDeposit.amountRange", { min: formatNumber(min), max: formatNumber(max) })}
+            {methods?.manual_bonus_percent ? t("manualDeposit.bonus", { percent: methods.manual_bonus_percent }) : ""}
           </p>
           <Input
             inputMode="numeric"
-            placeholder="مثال: 100000"
+            placeholder={t("manualDeposit.amountPlaceholder")}
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
           />
           <Button fullWidth loading={deposit.isPending} onClick={() => void handleSubmit()}>
-            ثبت درخواست واریز
+            {t("manualDeposit.submitDeposit")}
           </Button>
         </div>
       )}

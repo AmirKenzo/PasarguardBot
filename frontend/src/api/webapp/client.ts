@@ -1,3 +1,5 @@
+import i18n from "../../i18n";
+
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || "/api/webapp";
 
 export interface AuthPayload {
@@ -18,14 +20,14 @@ async function parseJson(res: Response): Promise<unknown> {
   try {
     return JSON.parse(text);
   } catch {
-    throw new ApiError("پاسخ سرور نامعتبر بود");
+    throw new ApiError(i18n.t("apiErrors.invalidResponse"));
   }
 }
 
 /** Every response envelope from the backend carries `ok` + optional `error`. */
 function unwrap<T extends { ok: boolean; error?: string | null }>(payload: T): T {
   if (!payload.ok) {
-    throw new ApiError(payload.error || "خطای ناشناخته");
+    throw new ApiError(payload.error || i18n.t("apiErrors.unknownError"));
   }
   return payload;
 }
@@ -76,7 +78,7 @@ export async function apiPost<TRes extends { ok: boolean; error?: string | null 
       body: JSON.stringify(safeBody),
     });
   } catch {
-    throw new ApiError("ارتباط با سرور برقرار نشد");
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
   const payload = (await parseJson(res)) as TRes;
   return unwrap(payload);
@@ -107,7 +109,7 @@ export async function apiGet<TRes extends { ok: boolean; error?: string | null }
       headers: { ...authHeaders(resolvedAuth) },
     });
   } catch {
-    throw new ApiError("ارتباط با سرور برقرار نشد");
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
   const payload = (await parseJson(res)) as TRes;
   return unwrap(payload);
@@ -135,7 +137,7 @@ export async function apiPostForm<TRes extends { ok: boolean; error?: string | n
       body: formData,
     });
   } catch {
-    throw new ApiError("ارتباط با سرور برقرار نشد");
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
   const payload = (await parseJson(res)) as TRes;
   return unwrap(payload);
