@@ -5,16 +5,25 @@
 @tailwind utilities;
 
 html {
+  width: 100%;
   font-family: "Estedad", "Inter", system-ui, sans-serif;
   scroll-behavior: smooth;
   background-color: rgb(var(--c-bg-rgb));
 }
 
 body {
+  width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: rgb(var(--c-bg-rgb));
   color: rgb(var(--c-text-rgb));
   transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .safe-area-pb {

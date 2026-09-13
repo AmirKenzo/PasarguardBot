@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { Spinner } from "./components/ui/Spinner";
 import { useAuth } from "./context/AuthContext";
+import { useTelegramViewportFix } from "./hooks/useTelegramViewportFix";
 
 const LoginPage = lazy(() => import("./features/auth/LoginPage"));
 const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage"));
@@ -35,6 +36,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { isAuthenticated, loading } = useAuth();
+  useTelegramViewportFix();
 
   if (loading) return <Loader />;
 

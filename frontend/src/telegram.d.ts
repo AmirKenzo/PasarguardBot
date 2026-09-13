@@ -58,6 +58,8 @@ interface TelegramHapticFeedback {
 type TelegramEventType =
   | "themeChanged"
   | "viewportChanged"
+  | "fullscreenChanged"
+  | "fullscreenFailed"
   | "mainButtonClicked"
   | "backButtonClicked"
   | "settingsButtonClicked"
@@ -72,6 +74,7 @@ interface TelegramWebApp {
   colorScheme: "light" | "dark";
   themeParams: TelegramThemeParams;
   isExpanded: boolean;
+  isFullscreen?: boolean;
   viewportHeight: number;
   viewportStableHeight: number;
   headerColor?: string;
@@ -82,6 +85,8 @@ interface TelegramWebApp {
   close: () => void;
   expand: () => void;
   ready: () => void;
+  requestFullscreen?: () => void;
+  exitFullscreen?: () => void;
   onEvent: (event: TelegramEventType, cb: () => void) => void;
   offEvent: (event: TelegramEventType, cb: () => void) => void;
   setHeaderColor: (color: string) => void;
