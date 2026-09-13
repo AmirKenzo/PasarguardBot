@@ -14,7 +14,7 @@ from app import Kenzo
 from app.db.crud.cryptopayments import get_user_crypto_stats
 from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.transactions import TransactionCRUD
-from app.db.crud.user import UserCRUD
+from app.db.crud.user import UserCRUD, add_user
 from app.logger import LogType, get_logger
 from app.models.webapp import (
     LogoutRequest,
@@ -174,10 +174,17 @@ async def _build_user_profile(
 async def build_user_payload_no_services(
     user_id: int, telegram_user: WebAppUserData | None = None, user_record: Any | None = None
 ) -> dict[str, Any]:
-    """Build user payload without services (fast login/info)."""
+    """Build user payload without services (fast login/info).
+
+    Opening the WebApp is a valid first contact with the bot, same as /start,
+    so a user with no DB row yet (never messaged the bot) gets registered here.
+    """
 
     if user_record is None:
         user_record = await UserCRUD().read_user(user_id)
+        if user_record is None:
+            await add_user(user_id=user_id, step="start", time_s=Time_Date()["stamp"])
+            user_record = await UserCRUD().read_user(user_id)
 
     user_profile = await _build_user_profile(user_id, user_record, telegram_user)
     return {"ok": True, "user": user_profile}
