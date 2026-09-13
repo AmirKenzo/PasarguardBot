@@ -100,6 +100,74 @@ class KeyboardButtonCRUD:
         cache = await _ensure_keyboard_button_cache()
         return list(cache.values())
 
+    async def get_home_layout(self) -> dict[str, tuple[int, int]]:
+        """Return ``{button_key: (row, order)}`` for buttons placed by the admin."""
+        cache = await _ensure_keyboard_button_cache()
+        return {
+            key: (int(button.sort_row), int(button.sort_order or 0))
+            for key, button in cache.items()
+            if button.sort_row is not None
+        }
+
+    async def get_hidden_keys(self) -> set[str]:
+        """Return the keys the admin switched off."""
+        cache = await _ensure_keyboard_button_cache()
+        return {key for key, button in cache.items() if getattr(button, "hidden", False)}
+
+    async def set_home_layout(
+        self,
+        layout: dict[str, tuple[int, int]],
+        hidden: set[str] | None = None,
+    ) -> bool:
+        """Replace the home menu layout. An empty mapping restores the default.
+
+        ``hidden`` is applied only to the keys in ``layout``, so buttons this
+        editor does not know about keep whatever the admin set elsewhere.
+        """
+        hidden = hidden or set()
+        try:
+            async with Session() as session:
+                result = await session.execute(select(KeyboardButton))
+                rows = {row.button_key: row for row in result.scalars().all()}
+                for key, row in rows.items():
+                    placement = layout.get(key)
+                    row.sort_row = placement[0] if placement else None
+                    row.sort_order = placement[1] if placement else None
+                    if key in layout:
+                        row.hidden = key in hidden
+                for key, (row_index, order) in layout.items():
+                    if key in rows:
+                        continue
+                    session.add(
+                        KeyboardButton(
+                            button_key=key,
+                            button_text="",
+                            sort_row=row_index,
+                            sort_order=order,
+                            hidden=key in hidden,
+                        )
+                    )
+                await session.commit()
+                invalidate_keyboard_button_cache()
+                return True
+        except SQLAlchemyError:
+            return False
+
+    async def reset_home_layout(self) -> bool:
+        """Drop the stored layout and unhide every button."""
+        try:
+            async with Session() as session:
+                result = await session.execute(select(KeyboardButton))
+                for row in result.scalars().all():
+                    row.sort_row = None
+                    row.sort_order = None
+                    row.hidden = False
+                await session.commit()
+                invalidate_keyboard_button_cache()
+                return True
+        except SQLAlchemyError:
+            return False
+
     async def get_buttons_by_key_prefix(self, prefix: str) -> list[KeyboardButton]:
         cache = await _ensure_keyboard_button_cache()
         return [button for key, button in cache.items() if key.startswith(prefix)]

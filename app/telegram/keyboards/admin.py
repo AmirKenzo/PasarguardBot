@@ -3,10 +3,17 @@
 from telethon import Button
 
 from app.db.crud.user import UserCRUD
+from config import WEBAPP_URL
 
 from .common import create_button, glass_inline_button, glass_text_button, styled_simple_webview_button
 
 DOCS_URL = "https://amirkenzo.github.io/PasarguardBot/"
+
+# The admin panel is a route inside the WebApp (which uses a hash router),
+# so it needs no URL of its own. Telegram rejects a non-https WebApp button and
+# fails the whole message, so an http URL drops the button instead of taking the
+# admin keyboard down with it; the panel is still reachable in a browser.
+WEB_PANEL_URL = f"{WEBAPP_URL.rstrip('/')}#/panel" if WEBAPP_URL.startswith("https://") else ""
 
 Lock_Channels_Menu_Buttons = [
     [glass_text_button("افزودن کانال"), glass_text_button("حذف کانال")],
@@ -110,6 +117,7 @@ Panel_Admin_Buttons = [
     [create_button("📝 متن‌های ربات"), create_button("⌨️ مدیریت دکمه‌های کیبورد")],
     [create_button("🎁 سیستم دعوت دوستان"), create_button("🔗 لینک های آماده")],
     [styled_simple_webview_button("📚 مستندات ربات", DOCS_URL)],
+    *([[styled_simple_webview_button("🖥 پنل تحت وب", WEB_PANEL_URL)]] if WEB_PANEL_URL else []),
     [create_button("🈸 آپدیت برنامه ها")],
     [create_button("🏠")],
 ]
