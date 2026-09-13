@@ -7,6 +7,7 @@ import {
   LogOut,
   Percent,
   Phone,
+  ShieldCheck,
   Users,
   Wallet,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import { ErrorState } from "../../components/ui/EmptyState";
 import { useToast } from "../../components/ui/Toast";
 import { authApi } from "../../api/webapp";
 import { useAuth } from "../../context/AuthContext";
+import { useIsAdmin } from "../../hooks/useIsAdmin";
 import { formatExpiry, formatToman, formatUnixDate } from "../../lib/format";
 
 type Tone = "primary" | "success" | "warning" | "danger" | "muted" | "accent";
@@ -27,6 +29,7 @@ export default function ProfilePage() {
   const { user, sessionToken, loading, refreshUser, clearSession } = useAuth();
   const navigate = useNavigate();
   const { show } = useToast();
+  const isAdmin = useIsAdmin();
 
   async function handleLogout() {
     try {
@@ -127,6 +130,7 @@ export default function ProfilePage() {
           </Card>
 
           <Card className="divide-y divide-border overflow-hidden">
+            {isAdmin && <ProfileLink to="/panel" icon={ShieldCheck} label={t("profile.adminPanel")} />}
             <ProfileLink to="/help" icon={HelpCircle} label={t("profile.help")} />
           </Card>
 

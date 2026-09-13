@@ -160,6 +160,7 @@
     "crypto": "ارزی",
     "transactionsCount": "{{count}} تراکنش",
     "help": "راهنما",
+    "adminPanel": "پنل مدیریت",
     "logout": "خروج از حساب",
     "loggedOut": "از حساب خارج شدید"
   },

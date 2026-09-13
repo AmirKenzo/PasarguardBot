@@ -160,6 +160,7 @@
     "crypto": "Crypto",
     "transactionsCount": "{{count}} transactions",
     "help": "Help",
+    "adminPanel": "Admin Panel",
     "logout": "Log Out",
     "loggedOut": "You have been logged out"
   },
