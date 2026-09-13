@@ -1,0 +1,53 @@
+{
+  "nav": {
+    "services": "Services",
+    "buy": "Buy",
+    "wallet": "Wallet",
+    "profile": "Profile",
+    "help": "Help"
+  },
+  "auth": {
+    "secureAccess": "Secure Access",
+    "accountPortal": "Your Account Portal",
+    "accountDescription": "Manage services, renew subscriptions, purchase configurations, and charge your wallet—all in one secure platform.",
+    "services": "Services",
+    "servicesDesc": "Status, links & usage",
+    "quickPurchase": "Quick Purchase",
+    "quickPurchaseDesc": "Plans, discounts & instant delivery",
+    "wallet": "Wallet",
+    "walletDesc": "Manual, auto & crypto payments",
+    "secure": "Secure",
+    "secureDesc": "Telegram OTP verification",
+    "welcome": "Welcome Back",
+    "phoneSignIn": "Sign in with your Telegram phone number",
+    "codeVerify": "Enter the verification code sent to your Telegram account",
+    "phoneLabel": "Phone Number",
+    "phonePlaceholder": "+1234567890",
+    "codeLabel": "Verification Code",
+    "codePlaceholder": "000000",
+    "codeHint": "Enter the 6-digit code from Telegram",
+    "sendCode": "Send Code",
+    "verifySignIn": "Verify & Sign In",
+    "processing": "Processing...",
+    "changePhone": "Change Phone Number",
+    "security": "🔒 Your data is encrypted and secure. We never store your Telegram credentials.",
+    "invalidCode": "Invalid code",
+    "networkError": "Network error"
+  },
+  "dashboard": {
+    "welcome": "Welcome",
+    "services": "Services",
+    "balance": "Wallet Balance",
+    "actions": "Actions"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit"
+  }
+}

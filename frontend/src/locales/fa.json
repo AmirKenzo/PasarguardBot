@@ -1,0 +1,53 @@
+{
+  "nav": {
+    "services": "سرویس‌ها",
+    "buy": "خرید",
+    "wallet": "کیف پول",
+    "profile": "پروفایل",
+    "help": "کمک"
+  },
+  "auth": {
+    "secureAccess": "دسترسی ایمن",
+    "accountPortal": "پنل حساب کاربری",
+    "accountDescription": "مدیریت سرویس‌ها، تمدید اشتراک، خرید کانفیگ و شارژ کیف پول—همه در یک پلتفرم ایمن.",
+    "services": "سرویس‌ها",
+    "servicesDesc": "وضعیت، لینک و مصرف",
+    "quickPurchase": "خرید سریع",
+    "quickPurchaseDesc": "پلن‌ها، تخفیف‌ها و تحویل فوری",
+    "wallet": "کیف پول",
+    "walletDesc": "شارژ دستی، خودکار و کریپتو",
+    "secure": "ایمن",
+    "secureDesc": "تایید هویت از طریق تلگرام",
+    "welcome": "خوش برگشتی",
+    "phoneSignIn": "برای ورود از شماره تلفن تلگرام خود استفاده کنید",
+    "codeVerify": "کد تایید ارسال شده به حساب تلگرام خود را وارد کنید",
+    "phoneLabel": "شماره تلفن",
+    "phonePlaceholder": "+989123456789",
+    "codeLabel": "کد تایید",
+    "codePlaceholder": "۰۰۰۰۰۰",
+    "codeHint": "کد ۶ رقمی از تلگرام را وارد کنید",
+    "sendCode": "ارسال کد",
+    "verifySignIn": "تایید و ورود",
+    "processing": "در حال پردازش...",
+    "changePhone": "تغییر شماره تلفن",
+    "security": "🔒 اطلاعات شما رمزگذاری شده و ایمن هستند. ما هرگز اطلاعات تلگرام شما را ذخیره نمی‌کنیم.",
+    "invalidCode": "کد نامعتبر",
+    "networkError": "خطای شبکه"
+  },
+  "dashboard": {
+    "welcome": "خوش برگشتی",
+    "services": "سرویس‌ها",
+    "balance": "موجودی کیف پول",
+    "actions": "اقدامات"
+  },
+  "common": {
+    "loading": "در حال بارگذاری...",
+    "error": "خطا",
+    "success": "موفق",
+    "close": "بستن",
+    "save": "ذخیره",
+    "cancel": "لغو",
+    "delete": "حذف",
+    "edit": "ویرایش"
+  }
+}
