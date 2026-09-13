@@ -111,8 +111,10 @@ Panel_Admin_Buttons = [
     [create_button("🧬 مایگریشن از ربات دیگر")],
     [create_button("📝 متن‌های ربات"), create_button("⌨️ مدیریت دکمه‌های کیبورد")],
     [create_button("🎁 سیستم دعوت دوستان"), create_button("🔗 لینک های آماده")],
-    [styled_simple_webview_button("📚 مستندات ربات", DOCS_URL)],
-    *([[styled_simple_webview_button("🖥 پنل تحت وب", WEB_PANEL_URL)]] if WEB_PANEL_URL else []),
+    [
+        styled_simple_webview_button("📚 مستندات ربات", DOCS_URL),
+        *([styled_simple_webview_button("🖥 پنل تحت وب", WEB_PANEL_URL)] if WEB_PANEL_URL else []),
+    ],
     [create_button("🈸 آپدیت برنامه ها")],
     [create_button("🏠")],
 ]
