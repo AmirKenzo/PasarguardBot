@@ -9,7 +9,8 @@ from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
 from app.db.models.settings import DEFAULT_HOME_MENU_SETTINGS
 from app.services.panels.settings import panel_reseller_sale_enabled, panel_shop_sale_enabled
-from config import ADMIN_ID, DISABLE_UPTIME_BUTTONS, LINK_UPTIME_BUTTONS
+from app.services.panels.trials import trial_offered
+from config import ADMIN_ID, DISABLE_UPTIME_BUTTONS, LINK_UPTIME_BUTTONS, WEBAPP_URL
 
 from .common import _get_keyboard_button_config, styled_reply_button, styled_simple_webview_button
 
@@ -31,6 +32,8 @@ DEFAULT_HOME_LAYOUT: tuple[tuple[str, ...], ...] = (
     ("bt.menu_admin_panel",),
 )
 
+HOME_BUTTON_KEYS: tuple[str, ...] = tuple(key for row in DEFAULT_HOME_LAYOUT for key in row)
+
 
 def _home_menu_enabled(setting, attr: str) -> bool:
     """Return home-menu toggle value; missing settings default to ON."""
@@ -44,6 +47,15 @@ def _home_menu_enabled(setting, attr: str) -> bool:
 # visibility switch says. The web panel shows these so a button held back by
 # configuration is not mistaken for a broken switch.
 CONDITION_OK = ""
+
+# Telegram refuses a web-view button on a plain-http address and fails the whole
+# message, so the mode can only take effect once the WebApp has a real URL.
+MINIAPP_READY = WEBAPP_URL.startswith("https://")
+
+
+def miniapp_only_active(setting) -> bool:
+    """Whether the bot should answer with the mini app instead of its own menu."""
+    return MINIAPP_READY and bool(setting and getattr(setting, "miniapp_only_mode", False))
 
 
 async def home_button_conditions() -> dict[str, str]:
@@ -59,10 +71,15 @@ async def home_button_conditions() -> dict[str, str]:
     reseller_sale = bool(setting and setting.reseller_sale_mode) and any(
         panel_reseller_sale_enabled(panel) for panel in panels
     )
-    trial_ready = bool(setting and setting.test_mode == 1 and setting.test_panel_id != 0)
+    trial_ready = await trial_offered(setting)
 
     def gate(ok: bool, reason: str) -> str:
         return CONDITION_OK if ok else reason
+
+    if miniapp_only_active(setting):
+        # Every menu button is held back by the mode, not by its own switch; the
+        # keyboard editor shows that rather than leaving the admin guessing.
+        return dict.fromkeys(HOME_BUTTON_KEYS, "miniapp_only") | {"bt.menu_admin_panel": CONDITION_OK}
 
     return {
         "bt.menu_get_trial": gate(trial_ready, "trial_off"),
@@ -140,6 +157,16 @@ async def bhome_buttons(user_id, lang):
         "📋 نمایندگی‌های من",
         default_style="primary",
     )
+
+    setting = await SettingsManager().get_settings()
+    if miniapp_only_active(setting):
+        menu_miniapp, menu_miniapp_style = await _get_keyboard_button_config(
+            keyboard_crud, "bt.menu_miniapp", "🚀 ورود به اپلیکیشن", default_style="primary"
+        )
+        rows = [[styled_simple_webview_button(menu_miniapp, WEBAPP_URL, menu_miniapp_style)]]
+        if user_id in ADMIN_ID:
+            rows.append([styled_reply_button(menu_admin_panel, menu_admin_panel_style)])
+        return ReplyKeyboardMarkup([KeyboardButtonRow(row) for row in rows], resize=True)
 
     user_data = await UserCRUD().read_user(user_id=user_id)
     conditions = await home_button_conditions()

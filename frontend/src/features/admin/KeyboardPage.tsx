@@ -23,6 +23,7 @@ const blockedLabels = (t: TFunction): Record<string, string> => ({
   no_shop_panel: t("panel.keyboard.blockedNoShopPanel"),
   reseller_sale_off: t("panel.keyboard.blockedResellerOff"),
   trial_off: t("panel.keyboard.blockedTrialOff"),
+  miniapp_only: t("panel.keyboard.blockedMiniappOnly"),
   setting_off: t("panel.keyboard.blockedBySetting"),
   uptime_disabled: t("panel.keyboard.blockedUptime"),
 });
@@ -32,6 +33,7 @@ const styleLabels = (t: TFunction): Record<string, string> => ({
   primary: t("panel.common.blue"),
   success: t("panel.common.green"),
   danger: t("panel.common.red"),
+  glass: t("panel.keyboard.glass"),
   none: t("panel.keyboard.noColour"),
 });
 

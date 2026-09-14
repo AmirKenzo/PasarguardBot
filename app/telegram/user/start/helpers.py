@@ -6,7 +6,9 @@ from telethon import functions, types
 from telethon.tl.custom import Message
 
 from app import Kenzo
+from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, add_user, get_user_status
+from app.db.models.settings import DEFAULT_CORE_SETTINGS
 from app.db.redis import get_redis
 from app.logger import get_logger
 from app.services.billing.sticky_discount import (
@@ -15,7 +17,7 @@ from app.services.billing.sticky_discount import (
     get_sticky_discount,
     parse_discount_start_param,
 )
-from app.telegram.keyboards.home import bhome_buttons
+from app.telegram.keyboards.home import bhome_buttons, miniapp_only_active
 from app.telegram.shared.guards.channel_gate import (
     CHANNEL_JOIN_MESSAGE,
     build_channel_join_buttons,
@@ -44,13 +46,32 @@ DEFAULT_START_MESSAGE = (
 )
 
 
+DEFAULT_MINIAPP_ONLY_MESSAGE = (
+    "**🚀 برای استفاده از سرویس، وارد اپلیکیشن شوید.**\nخرید، تمدید و مدیریت سرویس‌ها همه از همان‌جا انجام می‌شود."
+)
+
+
+def _core_setting(setting, key: str):
+    """Read one core setting, falling back to its packaged default."""
+    default = DEFAULT_CORE_SETTINGS.get(key)
+    return default if setting is None else getattr(setting, key, default)
+
+
 async def get_user_lang(user_id: int) -> str:
     info = await UserCRUD().read_user(user_id)
     return info.language if info and info.language else BOT_LANGUAGE
 
 
-async def fetch_welcome_text() -> str:
-    return await get_bot_text(key="start_message", default=DEFAULT_START_MESSAGE, lang="fa")
+async def fetch_welcome_text(lang: str = BOT_LANGUAGE) -> str:
+    """The text that accompanies the home keyboard.
+
+    In mini-app-only mode the bot's menu is gone, so the usual "pick an option
+    below" wording would point at nothing; that mode gets its own text.
+    """
+    setting = await SettingsManager().get_settings()
+    if miniapp_only_active(setting):
+        return await get_bot_text(key="miniapp_only_message", default=DEFAULT_MINIAPP_ONLY_MESSAGE, lang=lang)
+    return await get_bot_text(key="start_message", default=DEFAULT_START_MESSAGE, lang=lang)
 
 
 def _start_reaction_redis_key() -> str:
@@ -92,14 +113,20 @@ def resolve_app_download_param(param: str | None) -> str | None:
 
 async def send_welcome_menu(event: Message, welcome_text: str, lang: str) -> None:
     reaction_on = await is_start_reaction_enabled()
-    if reaction_on:
+    setting = await SettingsManager().get_settings()
+    # Both are admin-editable: clearing the emoji or zeroing the effect turns
+    # that half off without touching the other.
+    emoji = str(_core_setting(setting, "start_reaction_emoji") or "").strip()
+    effect_id = int(_core_setting(setting, "start_effect_id") or 0)
+
+    if reaction_on and emoji:
         try:
             await Kenzo(
                 functions.messages.SendReactionRequest(
                     peer=event.chat_id,
                     msg_id=event.id,
                     big=True,
-                    reaction=[types.ReactionEmoji(emoticon="🔥")],
+                    reaction=[types.ReactionEmoji(emoticon=emoji)],
                     add_to_recent=False,
                 )
             )
@@ -111,8 +138,8 @@ async def send_welcome_menu(event: Message, welcome_text: str, lang: str) -> Non
         "message": welcome_text,
         "buttons": await bhome_buttons(event.sender_id, lang),
     }
-    if reaction_on:
-        send_kwargs["message_effect_id"] = 5046509860389126442  # 🎉
+    if reaction_on and effect_id:
+        send_kwargs["message_effect_id"] = effect_id
     await Kenzo.send_message(**send_kwargs)
 
 

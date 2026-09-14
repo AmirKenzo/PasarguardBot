@@ -29,6 +29,7 @@ from app.telegram.keyboards.registry import (
     KEYBOARD_BUTTON_DEFAULTS,
     KEYBOARD_BUTTON_TITLES,
 )
+from app.utils.text.glass import GLASS_STYLE, glass_text, unglass_text
 
 router = APIRouter()
 
@@ -93,7 +94,7 @@ async def keyboard_overview(payload: PanelRequest, request: Request) -> PanelKey
                     section=_section_of(key),
                     title=KEYBOARD_BUTTON_TITLES.get(key, key),
                     default_text=_default_text(key),
-                    text=(row.button_text if row else None) or None,
+                    text=unglass_text(row.button_text) if row and row.button_text else None,
                     style=row.button_style if row is not None else None,
                     default_icon=default_icon,
                     icon=row.button_icon if row else None,
@@ -169,6 +170,13 @@ async def save_button(payload: PanelKeyboardButtonSaveRequest, request: Request)
         # "none" clears the built-in default colour, "" leaves it in place.
         style_value = None if style == "" else ("" if style == "none" else style)
 
+        # The glassy look is brackets around the label, not a Telegram style, so
+        # it is baked into the stored text. Handlers match a press against that
+        # same stored text, which is how the button keeps working either way.
+        label = unglass_text(payload.text.strip())
+        if style == GLASS_STYLE:
+            label = glass_text(label)
+
         icon_raw = payload.icon.strip()
         try:
             icon_value = parse_icon(icon_raw)
@@ -177,7 +185,7 @@ async def save_button(payload: PanelKeyboardButtonSaveRequest, request: Request)
 
         ok = await KeyboardButtonCRUD().set_button(
             key,
-            button_text=payload.text.strip(),
+            button_text=label,
             button_style=style_value,
             button_icon=icon_value,
             clear_icon=not icon_raw,

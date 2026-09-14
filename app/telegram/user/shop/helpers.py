@@ -38,6 +38,7 @@ from app.services.panels.settings import (
     panel_shop_sale_enabled,
     panel_user_limit,
 )
+from app.services.purchase_report import send_purchase_report
 from app.services.subscriptions.links import format_subscription_links_for_message
 from app.telegram.keyboards.buy import (
     build_buy_confirm_button_rows,
@@ -596,6 +597,13 @@ async def create_vpn_purchase_for_user(
     )
     await clear_user(user_id)
     await send_log_message(LogType.OTHER, message=log_text)
+    await send_purchase_report(
+        user_id=user_id,
+        panel_name=panel.name,
+        plan_label=f"{int(plan.duration)} روزه",
+        service_label=volume_text,
+        price=int(amount),
+    )
     await set_step(user_id, "home")
     purchase_buttons = ReplyInlineMarkup(
         [

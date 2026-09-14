@@ -31,10 +31,19 @@ def _current(setting: Any, section: str, key: str, default: Any) -> Any:
     return default
 
 
+def _field_type(default: Any) -> str:
+    if isinstance(default, bool):
+        return "bool"
+    return "text" if isinstance(default, str) else "number"
+
+
 def _coerce(raw: Any, default: Any) -> Any:
     """Cast one submitted value to the shape the stored default implies."""
     if isinstance(default, bool):
         return bool(raw)
+    if isinstance(default, str):
+        # A cleared text field means "off", not "restore the default".
+        return "" if raw is None else str(raw).strip()
     if raw is None or (isinstance(raw, str) and not raw.strip()):
         return None if default is None else default
     number = float(str(raw).replace(",", "").strip())
@@ -53,7 +62,7 @@ async def read_settings(payload: PanelRequest, request: Request) -> PanelSetting
                     fields=[
                         PanelSettingField(
                             key=key,
-                            type="bool" if isinstance(default, bool) else "number",
+                            type=_field_type(default),
                             default=default,
                             value=_current(setting, section, key, default),
                         )

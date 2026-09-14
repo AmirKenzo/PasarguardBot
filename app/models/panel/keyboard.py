@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from app.models.panel.common import PanelRequest, PanelResponse
 
 # ``none`` clears the built-in default colour; an empty value keeps it.
-STYLE_OPTIONS = ("", "primary", "success", "danger", "none")
+STYLE_OPTIONS = ("", "primary", "success", "danger", "glass", "none")
 
 # Key prefix -> stable section slug, so the client can group and label buttons.
 SECTION_PREFIXES: tuple[tuple[str, str], ...] = (

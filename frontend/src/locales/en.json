@@ -660,7 +660,10 @@
       "paymentEnabled": "Payments enabled",
       "paymentsAndWallet": "Payments and wallet",
       "trialPanelCode": "Trial service panel code",
-      "copyLink": "Copy link"
+      "copyLink": "Copy link",
+      "miniappOnly": "Mini app only (bot menu off)",
+      "startReactionEmoji": "Start reaction emoji (empty for none)",
+      "startEffectId": "Start message effect ID (0 for none)"
     },
     "audit": {
       "broadcastResume": "Broadcast resumed",
@@ -754,7 +757,9 @@
       "hideFromUser": "Hide from users",
       "resetConfirm": "Clear the custom layout and restore the default?",
       "mainMenuLayout": "Main menu layout",
-      "key": "Key"
+      "key": "Key",
+      "glass": "Glassy",
+      "blockedMiniappOnly": "Mini-app-only mode is on, so the bot's menu is hidden"
     },
     "channels": {
       "topicId": "Topic ID (optional)",
@@ -787,7 +792,8 @@
       "channel": "Channel",
       "channelsEmpty": "No channels set",
       "lockChannels": "Membership-lock channels",
-      "group": "Group / supergroup"
+      "group": "Group / supergroup",
+      "reportPurchase": "Purchase report (public channel)"
     },
     "tools": {
       "runsInBackground": "This runs in the background; the final result is written to the audit log.",
@@ -930,7 +936,9 @@
       "enabled": "Panel enabled",
       "title": "Connected panels",
       "subtitle": "The panels the bot sells services from",
-      "editTitle": "Edit panel {{name}}"
+      "editTitle": "Edit panel {{name}}",
+      "trialEnabled": "Offer a trial from this panel",
+      "trialHint": "Every panel with this on offers its own trial; when more than one does, the user picks."
     },
     "referral": {
       "date": "Date",
