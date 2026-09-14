@@ -69,6 +69,17 @@ class PanelUserBlockRequest(PanelRequest):
     notify: bool = True
 
 
+class PanelUserPhoneRequest(PanelRequest):
+    user_id: int
+    phone: str = Field(..., max_length=32)
+
+
+class PanelUserPhoneResponse(ActionResponse):
+    """Echoes the stored form, so the page shows what was actually saved."""
+
+    number: str | None = None
+
+
 class PanelUserMessageRequest(PanelRequest):
     user_id: int
     text: str = Field(..., min_length=1, max_length=4000)

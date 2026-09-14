@@ -711,7 +711,9 @@
       "discountUpdate": "Discount code edited",
       "bulkIncreaseDone": "Bulk increase finished",
       "balanceDeduct": "Balance deducted",
-      "countLabel": "{{count}} events"
+      "countLabel": "{{count}} events",
+      "phoneSet": "User phone set",
+      "phoneClear": "User phone cleared"
     },
     "keyboard": {
       "emojiId": "Emoji ID",
@@ -1067,7 +1069,10 @@
       "unblockConfirm": "Unblock user {{id}}?",
       "balanceTitle": "Balance for user {{id}}",
       "title": "User {{id}}",
-      "blockConfirm": "Block user {{id}}? They will no longer be able to use the bot."
+      "blockConfirm": "Block user {{id}}? They will no longer be able to use the bot.",
+      "phoneTitle": "Phone number for user {{id}}",
+      "phonePlaceholder": "09123456789",
+      "phoneHint": "The number is what the browser login checks. Leave it empty to clear it."
     }
   }
 }

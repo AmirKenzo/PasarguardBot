@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { MessageSquare, Wallet } from "lucide-react";
+import { MessageSquare, Phone, Wallet } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, Button, ErrorState, Input, Skeleton } from "../../components/ui";
 import { formatNumber, formatToman, formatUnixDate } from "../../lib/format";
@@ -24,6 +24,7 @@ export default function AdminUserDetailPage() {
 
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
 
   const query = usePanelQuery(
     ["user", userId],
@@ -120,6 +121,10 @@ export default function AdminUserDetailPage() {
               <Wallet size={15} />
               {t("panel.users.balance")}
             </Button>
+            <Button size="sm" variant="secondary" onClick={() => setPhoneOpen(true)}>
+              <Phone size={15} />
+              {t("panel.userDetail.phoneNumber")}
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => setMessageOpen(true)}>
               <MessageSquare size={15} />
               {t("panel.userDetail.message")}
@@ -186,8 +191,69 @@ export default function AdminUserDetailPage() {
         balance={user.balance}
         invalidate={invalidate}
       />
+      <PhoneDialog
+        open={phoneOpen}
+        onClose={() => setPhoneOpen(false)}
+        userId={user.id}
+        number={user.number}
+        invalidate={invalidate}
+      />
       <MessageDialog open={messageOpen} onClose={() => setMessageOpen(false)} userId={user.id} />
     </>
+  );
+}
+
+/** Records the phone number the browser login checks against.
+ *
+ *  Telegram never hands the bot a phone number on its own, so on a fresh
+ *  install nobody has one — including the admin, who then cannot sign in to
+ *  the panel outside Telegram. This is the bot's own confirm-phone action,
+ *  reachable from the panel and normalising the number the same way. */
+function PhoneDialog({
+  open,
+  onClose,
+  userId,
+  number,
+  invalidate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  userId: number;
+  number?: string | null;
+  invalidate: (string | number)[][];
+}) {
+  const { t } = useTranslation();
+  const [phone, setPhone] = useState(number || "");
+  const save = usePanelAction(panelUsersApi.setPhone, { invalidate });
+
+  return (
+    <FormModal open={open} onClose={onClose} title={t("panel.userDetail.phoneTitle", { id: userId })}>
+      <div className="space-y-4">
+        <Input
+          label={t("panel.userDetail.phoneNumber")}
+          inputMode="tel"
+          dir="ltr"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          placeholder={t("panel.userDetail.phonePlaceholder")}
+        />
+        <p className="text-xs text-muted">{t("panel.userDetail.phoneHint")}</p>
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            {t("panel.common.dismiss")}
+          </Button>
+          <Button
+            size="sm"
+            loading={save.isPending}
+            onClick={() =>
+              save.mutate({ user_id: userId, phone: phone.trim() }, { onSuccess: onClose })
+            }
+          >
+            {t("common.save")}
+          </Button>
+        </div>
+      </div>
+    </FormModal>
   );
 }
 

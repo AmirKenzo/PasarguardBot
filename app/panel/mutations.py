@@ -93,6 +93,26 @@ async def set_user_block(ctx: PanelActor, user_id: int, blocked: bool, *, notify
     return True
 
 
+async def set_user_phone(ctx: PanelActor, user_id: int, phone: str | None) -> bool:
+    """Store a normalised phone number, or clear it when ``phone`` is None.
+
+    The number is what the browser login checks against, so an admin who has
+    only ever reached the bot through Telegram needs a way to record one.
+    """
+    async with Session() as session:
+        result = await session.execute(update(User).where(User.id == user_id).values(number=phone))
+        await session.commit()
+        if not result.rowcount:
+            return False
+    await _audit(
+        ctx,
+        "user_phone_set" if phone else "user_phone_clear",
+        target_type="user",
+        target_id=user_id,
+    )
+    return True
+
+
 async def send_user_message(ctx: PanelActor, user_id: int, text: str) -> None:
     await notify_user(user_id, f"📥 پیام از مدیریت:\n\n{text}")
     await _audit(ctx, "user_message", target_type="user", target_id=user_id, detail={"length": len(text)})

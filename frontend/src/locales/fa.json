@@ -711,7 +711,9 @@
       "discountUpdate": "ویرایش کد تخفیف",
       "bulkIncreaseDone": "پایان افزایش گروهی",
       "balanceDeduct": "کسر موجودی",
-      "countLabel": "{{count}} رویداد"
+      "countLabel": "{{count}} رویداد",
+      "phoneSet": "ثبت شمارهٔ کاربر",
+      "phoneClear": "حذف شمارهٔ کاربر"
     },
     "keyboard": {
       "emojiId": "آیدی ایموجی",
@@ -1067,7 +1069,10 @@
       "unblockConfirm": "مسدودی کاربر {{id}} برداشته شود؟",
       "balanceTitle": "موجودی کاربر {{id}}",
       "title": "کاربر {{id}}",
-      "blockConfirm": "کاربر {{id}} مسدود شود؟ دیگر نمی‌تواند از ربات استفاده کند."
+      "blockConfirm": "کاربر {{id}} مسدود شود؟ دیگر نمی‌تواند از ربات استفاده کند.",
+      "phoneTitle": "شمارهٔ کاربر {{id}}",
+      "phonePlaceholder": "۰۹۱۲۳۴۵۶۷۸۹",
+      "phoneHint": "شماره برای ورود از مرورگر استفاده می‌شود. خالی بگذار تا حذف شود."
     }
   }
 }

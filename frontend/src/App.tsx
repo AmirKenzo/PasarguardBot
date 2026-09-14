@@ -59,10 +59,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 /** Like ProtectedRoute, but remembers the panel page the admin was opening so
- *  the login lands back there instead of on the user dashboard. */
+ *  the login lands back there instead of on the user dashboard.
+ *
+ *  Arriving here authenticated means the journey finished, so the note is
+ *  dropped at that point rather than when the redirect is issued. */
 function PanelRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
+  useEffect(() => {
+    if (isAuthenticated) clearPanelRedirect();
+  }, [isAuthenticated]);
   if (!isAuthenticated) {
     rememberPanelRedirect(location.pathname + location.search);
     return <Navigate to="/login" replace />;
@@ -70,20 +76,23 @@ function PanelRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** Send a freshly authenticated user to the page they were reaching for.
+/** Send a freshly authenticated admin to the panel page they were opening.
  *
- *  LoginPage navigates to "/" itself once the session is set, so this rides
- *  along with the authenticated shell rather than sitting on the login route:
- *  by the time it mounts the redirect has already happened, and it carries on
- *  to the panel page the admin actually opened. */
+ *  LoginPage sends everyone to "/" once the session is set, so without this an
+ *  admin who opened #/panel lands on the user dashboard instead. It sits above
+ *  the routes and watches the session rather than riding on one route's
+ *  element, so it does not depend on which page the login happens to land on;
+ *  and because PanelRoute is what clears the note, a redirect lost partway
+ *  through the login is simply reissued on the next navigation. */
 function PanelReturn() {
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   useEffect(() => {
+    if (!isAuthenticated || location.pathname.startsWith("/panel")) return;
     const target = peekPanelRedirect();
-    if (!target) return;
-    clearPanelRedirect();
-    navigate(target, { replace: true });
-  }, [navigate]);
+    if (target) navigate(target, { replace: true });
+  }, [isAuthenticated, location.pathname, navigate]);
   return null;
 }
 
@@ -95,6 +104,7 @@ export default function App() {
 
   return (
     <Suspense fallback={<Loader />}>
+      <PanelReturn />
       <Routes>
         <Route
           path="/login"
@@ -104,10 +114,7 @@ export default function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <>
-                <PanelReturn />
-                <AppShell />
-              </>
+              <AppShell />
             </ProtectedRoute>
           }
         >
