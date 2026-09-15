@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import BigInteger, String, case, cast, func, literal, or_, select, union_all
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.cryptopayments import CryptoPayments
@@ -95,7 +95,9 @@ async def dashboard_stats() -> dict[str, Any]:
         pending_tx = int(
             (
                 await session.execute(
-                    select(func.count()).select_from(Transaction).where(Transaction.status == "pending")
+                    select(func.count())
+                    .select_from(Transaction)
+                    .where(Transaction.status == "pending", Transaction.method == "manual")
                 )
             ).scalar()
             or 0
@@ -132,7 +134,9 @@ async def sidebar_badges() -> dict[str, int]:
         pending = int(
             (
                 await session.execute(
-                    select(func.count()).select_from(Transaction).where(Transaction.status == "pending")
+                    select(func.count())
+                    .select_from(Transaction)
+                    .where(Transaction.status == "pending", Transaction.method == "manual")
                 )
             ).scalar()
             or 0
@@ -281,23 +285,143 @@ async def get_service(code: int) -> Service | None:
 # --------------------------------------------------------------------------- #
 
 
-async def list_transactions(*, status: str = "", method: str = "", page: int = 1, per_page: int = 25):
+def _tx_branch():
+    normalized_status = case(
+        (Transaction.status == "approved", "approved"),
+        (Transaction.status == "rejected", "rejected"),
+        (Transaction.status == "needs_fix", "needs_fix"),
+        else_="pending",
+    )
+    normalized_method = case(
+        (Transaction.method == "manual", "manual_card"),
+        else_=Transaction.method,
+    )
+    return select(
+        cast(Transaction.id, String).label("raw_id"),
+        literal("tx").label("source"),
+        normalized_method.label("method"),
+        Transaction.user_id.label("user_id"),
+        cast(Transaction.amount, BigInteger).label("amount"),
+        normalized_status.label("status"),
+        Transaction.created_at.label("created_at"),
+    )
+
+
+def _crypto_branch():
+    normalized_status = case(
+        (CryptoPayments.status == "Paid", "approved"),
+        (CryptoPayments.status == "Pending", "pending"),
+        else_="expired",
+    )
+    return select(
+        cast(CryptoPayments.order_id, String).label("raw_id"),
+        literal("crypto").label("source"),
+        literal("crypto").label("method"),
+        CryptoPayments.user_id.label("user_id"),
+        cast(CryptoPayments.amount_irt, BigInteger).label("amount"),
+        normalized_status.label("status"),
+        CryptoPayments.createtime.label("created_at"),
+    )
+
+
+async def list_unified_transactions(
+    *,
+    tx_id: str = "",
+    user_id: str = "",
+    amount: str = "",
+    method: str = "",
+    status: str = "",
+    days: int = 0,
+    page: int = 1,
+    per_page: int = 25,
+) -> tuple[list[Any], int]:
+    """Every payment method in one feed: manual card-to-card + crypto.
+
+    Only manual-card rows are ever actionable (crypto confirms itself) — that
+    distinction is made by the caller from ``method``/``status``, not here.
+    """
     offset, limit = _page_bounds(page, per_page)
-    filters = []
-    if status:
-        filters.append(Transaction.status == status)
+    combined = union_all(_tx_branch(), _crypto_branch()).subquery("unified_tx")
+
+    conditions = []
+    if tx_id.strip():
+        conditions.append(combined.c.raw_id == tx_id.strip())
+    if user_id.strip():
+        conditions.append(cast(combined.c.user_id, String) == user_id.strip())
+    if amount.strip().isdigit():
+        conditions.append(combined.c.amount == int(amount.strip()))
     if method:
-        filters.append(Transaction.method == method)
+        conditions.append(combined.c.method == method)
+    if status:
+        conditions.append(combined.c.status == status)
+    if days > 0:
+        conditions.append(combined.c.created_at >= int(time.time()) - days * DAY)
+
+    stmt = select(combined)
+    counter = select(func.count()).select_from(combined)
+    for condition in conditions:
+        stmt = stmt.where(condition)
+        counter = counter.where(condition)
 
     async with Session() as session:
-        base = select(Transaction)
-        counter = select(func.count()).select_from(Transaction)
-        for condition in filters:
-            base = base.where(condition)
-            counter = counter.where(condition)
         total = int((await session.execute(counter)).scalar() or 0)
-        rows = (await session.execute(base.order_by(Transaction.id.desc()).limit(limit).offset(offset))).scalars().all()
+        rows = (await session.execute(stmt.order_by(combined.c.created_at.desc()).limit(limit).offset(offset))).all()
     return list(rows), total
+
+
+async def transaction_stats() -> dict[str, int]:
+    """Numbers for the transactions page's stat tiles."""
+    combined = union_all(_tx_branch(), _crypto_branch()).subquery("unified_tx_stats")
+    week_ago = int(time.time()) - 7 * DAY
+
+    async with Session() as session:
+        pending = int(
+            (
+                await session.execute(
+                    select(func.count())
+                    .select_from(Transaction)
+                    .where(Transaction.status == "pending", Transaction.method == "manual")
+                )
+            ).scalar()
+            or 0
+        )
+        approved_7d = int(
+            (
+                await session.execute(
+                    select(func.count())
+                    .select_from(combined)
+                    .where(combined.c.status == "approved", combined.c.created_at >= week_ago)
+                )
+            ).scalar()
+            or 0
+        )
+        rejected_7d = int(
+            (
+                await session.execute(
+                    select(func.count())
+                    .select_from(combined)
+                    .where(combined.c.status == "rejected", combined.c.created_at >= week_ago)
+                )
+            ).scalar()
+            or 0
+        )
+        approved_volume_7d = int(
+            (
+                await session.execute(
+                    select(func.coalesce(func.sum(combined.c.amount), 0)).where(
+                        combined.c.status == "approved", combined.c.created_at >= week_ago
+                    )
+                )
+            ).scalar()
+            or 0
+        )
+
+    return {
+        "pending": pending,
+        "approved_7d": approved_7d,
+        "rejected_7d": rejected_7d,
+        "approved_volume_7d": approved_volume_7d,
+    }
 
 
 async def get_transaction(tx_id: int) -> Transaction | None:

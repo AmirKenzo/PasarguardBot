@@ -45,25 +45,55 @@ class PanelServiceDeleteRequest(PanelRequest):
 
 
 class PanelTransactionRow(BaseModel):
-    id: int
+    """One row from any payment method, normalized to a common shape.
+
+    ``id`` is the raw per-table primary key as a string — unique *within*
+    ``source`` but not necessarily across sources, so the frontend keys rows
+    on ``f"{source}-{id}"``. Only ``source == "tx"`` rows with
+    ``method == "manual_card"`` are ever actionable; everything else confirms
+    itself with no admin step.
+    """
+
+    id: str
+    source: str
+    method: str
     user_id: int | None = None
     amount: int = 0
-    status: str | None = None
-    method: str | None = None
+    status: str
     created_at: int | None = None
-    receipt: str | None = None
+    has_receipt: bool = False
+
+
+class PanelTransactionStats(BaseModel):
+    pending: int = 0
+    approved_7d: int = 0
+    rejected_7d: int = 0
+    approved_volume_7d: int = 0
 
 
 class PanelTransactionsRequest(PagedRequest):
-    status: str = Field("", description="empty | pending | approved | rejected")
-    method: str = Field("", description="empty | card | crypto")
+    tx_id: str = Field("", description="Filter by the raw per-source id")
+    user_id: str = Field("")
+    amount: str = Field("")
+    method: str = Field("", description="empty | manual_card | crypto")
+    status: str = Field("", description="empty | pending | approved | rejected | needs_fix | expired")
+    days: int = Field(0, description="0 = all time, else last N days")
 
 
 class PanelTransactionsResponse(PanelResponse):
     transactions: list[PanelTransactionRow] = Field(default_factory=list)
     meta: PageMeta = Field(default_factory=PageMeta)
     pending_total: int = 0
+    stats: PanelTransactionStats = Field(default_factory=PanelTransactionStats)
 
 
 class PanelTransactionActionRequest(PanelRequest):
     tx_id: int
+
+
+class PanelReceiptLinkRequest(PanelRequest):
+    tx_id: int
+
+
+class PanelReceiptLinkResponse(PanelResponse):
+    url: str | None = None

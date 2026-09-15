@@ -3,14 +3,20 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+const SIZE_CLASSES = {
+  sm: "max-w-sm",
+  lg: "max-w-2xl",
+};
+
 export interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
+  size?: keyof typeof SIZE_CLASSES;
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, children, size = "sm" }: ModalProps) {
   const { t } = useTranslation();
   return (
     <AnimatePresence>
@@ -29,7 +35,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
               key="panel"
               role="dialog"
               aria-modal="true"
-              className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 shadow-lg"
+              className={`w-full ${SIZE_CLASSES[size]} rounded-lg border border-border bg-surface p-5 shadow-lg`}
               initial={{ opacity: 0, scale: 0.94, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
