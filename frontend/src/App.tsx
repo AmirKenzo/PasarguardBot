@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { AppShell } from "./components/layout/AppShell";
 import { Spinner } from "./components/ui/Spinner";
 import { useAuth } from "./context/AuthContext";
-import { useTelegramViewportFix } from "./hooks/useTelegramViewportFix";
+import { useTelegramSafeArea, useTelegramViewportFix } from "./hooks/useTelegramViewportFix";
 import { AdminGuard } from "./features/admin/AdminGuard";
 import { clearPanelRedirect, peekPanelRedirect, rememberPanelRedirect } from "./features/admin/redirect";
 
@@ -99,6 +99,7 @@ function PanelReturn() {
 export default function App() {
   const { isAuthenticated, loading } = useAuth();
   useTelegramViewportFix();
+  useTelegramSafeArea();
 
   if (loading) return <Loader />;
 

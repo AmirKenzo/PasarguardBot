@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageTransition } from "../../components/layout/PageTransition";
-import { AppVersion, LanguageToggle, ThemeToggle } from "../../components/ui";
+import { AppVersion, FullscreenToggle, LanguageToggle, ThemeToggle } from "../../components/ui";
 import { panelDashboardApi } from "../../api/panel";
 import { usePanelQuery } from "../../queries/usePanelApi";
 import { useTranslation } from "react-i18next";
@@ -199,7 +199,7 @@ export default function AdminShell() {
 
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-l border-border bg-surface p-4 md:flex">
+      <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-l border-border bg-surface p-4 md:flex">
         <div className="mb-5 flex items-center justify-between px-1">
           <BrandMark />
         </div>
@@ -216,12 +216,16 @@ export default function AdminShell() {
             <span className="text-xs text-muted">🌐 {t("nav.language")}</span>
             <LanguageToggle />
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">{t("nav.fullscreen")}</span>
+            <FullscreenToggle />
+          </div>
           <AppVersion className="text-center" />
         </div>
       </aside>
 
       <div className="flex min-h-screen w-full flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur md:hidden">
+        <header className="safe-area-pt sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur md:hidden">
           <button
             onClick={() => setDrawerOpen(true)}
             className="rounded-md p-1.5 text-text transition-colors hover:bg-surface-2"
@@ -233,6 +237,7 @@ export default function AdminShell() {
           <div className="flex items-center gap-2">
             <LanguageToggle />
             <ThemeToggle />
+            <FullscreenToggle />
           </div>
         </header>
 

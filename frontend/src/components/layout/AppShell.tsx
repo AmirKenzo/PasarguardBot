@@ -6,6 +6,7 @@ import { PageTransition } from "./PageTransition";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { LanguageToggle } from "../ui/LanguageToggle";
 import { AppVersion } from "../ui/AppVersion";
+import { FullscreenToggle } from "../ui/FullscreenToggle";
 
 function NAV_ITEMS() {
   return [
@@ -95,7 +96,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-l border-border bg-surface p-4 md:flex">
+      <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-l border-border bg-surface p-4 md:flex">
         <div className="mb-5 flex items-center justify-between px-1">
           <span className="bg-gradient-to-l from-primary to-accent bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
             {t("nav.panelTitle")}
@@ -111,18 +112,23 @@ export function AppShell() {
             <span className="text-xs text-muted">🌐 {t("nav.language", "Language")}</span>
             <LanguageToggle />
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">{t("nav.fullscreen", "Fullscreen")}</span>
+            <FullscreenToggle />
+          </div>
           <AppVersion className="text-center" />
         </div>
       </aside>
 
       <div className="flex min-h-screen w-full flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur md:hidden">
+        <header className="safe-area-pt sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur md:hidden">
           <span className="bg-gradient-to-l from-primary to-accent bg-clip-text text-base font-extrabold tracking-tight text-transparent">
             {t("nav.panelTitle")}
           </span>
           <div className="flex items-center gap-2">
             <LanguageToggle />
             <ThemeToggle />
+            <FullscreenToggle />
           </div>
         </header>
 

@@ -60,11 +60,20 @@ type TelegramEventType =
   | "viewportChanged"
   | "fullscreenChanged"
   | "fullscreenFailed"
+  | "safeAreaChanged"
+  | "contentSafeAreaChanged"
   | "mainButtonClicked"
   | "backButtonClicked"
   | "settingsButtonClicked"
   | "invoiceClosed"
   | "popupClosed";
+
+interface TelegramSafeAreaInset {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
 
 interface TelegramWebApp {
   initData: string;
@@ -77,6 +86,11 @@ interface TelegramWebApp {
   isFullscreen?: boolean;
   viewportHeight: number;
   viewportStableHeight: number;
+  /** Device-level inset (notch, OS status bar). */
+  safeAreaInset?: TelegramSafeAreaInset;
+  /** Additional inset from Telegram's own floating UI (close/minimize
+   * controls in Fullscreen mode) drawn on top of the page content. */
+  contentSafeAreaInset?: TelegramSafeAreaInset;
   headerColor?: string;
   backgroundColor?: string;
   BackButton: TelegramBackButton;
