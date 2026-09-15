@@ -36,6 +36,17 @@ export default defineConfig(({ mode }) => {
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) {
+              return "react-vendor";
+            }
+          },
+        },
+      },
+    },
     server: {
       port: 5174,
       proxy: {
