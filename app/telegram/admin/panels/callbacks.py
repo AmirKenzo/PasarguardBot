@@ -59,6 +59,7 @@ from app.services.panels.settings import (
     panel_shop_sale_flag,
     panel_show_prefixes_in_locations,
     panel_single_config_link_indexes,
+    panel_test_enabled,
     panel_user_limit,
     panel_webhook_notifications_enabled,
     subscription_settings,
@@ -1748,8 +1749,11 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             await event.answer("❌ پنل یافت نشد!", alert=True)
             return
         setting = await SettingsManager().get_settings()
+        # The panel carries its own switch now, so several panels can offer a
+        # trial; the old single code is kept in step for anything still reading it.
+        await PanelsManager().update_panel(code=panel_code, test_enabled=True)
         await SettingsManager().update_setting(setting.id, test_panel_id=panel_code)
-        await event.answer(f"✅ پنل «{panel.name}» به عنوان سرور تست تنظیم شد.", alert=True)
+        await event.answer(f"✅ سرویس تست از پنل «{panel.name}» ارائه می‌شود.", alert=True)
         panel = await PanelsManager().get_panel_by_code(panel_code)
         text, buttons = await build_panel_test_settings_content(panel)
         await event.edit(text, parse_mode="html", buttons=buttons)
@@ -1757,11 +1761,14 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
     elif data.startswith("panel_disable_test_server:"):
         panel_code = int(data.split(":")[1])
         setting = await SettingsManager().get_settings()
-        if setting.test_panel_id != panel_code:
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel_test_enabled(panel) and setting.test_panel_id != panel_code:
             await event.answer("این پنل سرور تست فعال نیست.", alert=True)
             return
-        await SettingsManager().update_setting(setting.id, test_panel_id=0)
-        await event.answer("✅ سرور تست غیرفعال شد.", alert=True)
+        await PanelsManager().update_panel(code=panel_code, test_enabled=False)
+        if setting.test_panel_id == panel_code:
+            await SettingsManager().update_setting(setting.id, test_panel_id=0)
+        await event.answer("✅ تست این پنل خاموش شد.", alert=True)
         panel = await PanelsManager().get_panel_by_code(panel_code)
         if panel:
             text, buttons = await build_panel_test_settings_content(panel)

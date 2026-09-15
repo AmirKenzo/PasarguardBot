@@ -34,10 +34,17 @@ ADMIN_ID: list = config("ADMIN_ID", cast=lambda v: [int(i) for i in v.split(",")
 LOG_CHANNEL = config("LOG_CHANNEL", cast=optional_int, default=None)
 SQLALCHEMY_DATABASE_URL = config("SQLALCHEMY_DATABASE_URL")
 FAST_API_PORT = config("FASTAPI_PORT", cast=optional_int, default=None)
+# Optional native TLS for the FastAPI server (uvicorn). Set both to serve HTTPS
+# directly — no reverse proxy needed. Paths are read from inside the container,
+# so mount your certificate/key into the same path (see docker-compose.yml).
+SSL_CERTFILE = config("SSL_CERTFILE", default="")
+SSL_KEYFILE = config("SSL_KEYFILE", default="")
 BOT_TAG = config("BOT_TAG", default="")
 ADMIN_ID_TAG = config("ADMIN_ID_TAG", default="")
 CHANNEL_ID_TAG = config("CHANNEL_ID_TAG", default="")
 TUTORIAL_HELP_LINKS = config("TUTORIAL_HELP_LINKS", default="https://t.me/")
+# HTTPS URL of the deployed frontend WebApp (used by the admin /webapp test command)
+WEBAPP_URL = config("WEBAPP_URL", default="")
 DISABLE_UPTIME_BUTTONS = config("DISABLE_UPTIME_BUTTONS", cast=bool, default=True)
 LINK_UPTIME_BUTTONS = config("LINK_UPTIME_BUTTONS", default="https://t.me/")
 # TRON network: empty = mainnet; "nile" or "shasta" for testnets
@@ -49,6 +56,11 @@ GITHUB_TOKEN = config("GITHUB_TOKEN", default="")
 
 # Enable or disable FastAPI based on port configuration
 ENABLE_FASTAPI = FAST_API_PORT is not None
+
+# --- Outbound message send-queue (rate-limited delivery via app/services/send_queue.py) ---
+SEND_QUEUE_ENABLED = config("SEND_QUEUE_ENABLED", cast=bool, default=False)
+SEND_QUEUE_DELAY_SEC = config("SEND_QUEUE_DELAY_SEC", cast=float, default=1.0)
+SEND_QUEUE_MAX_LEN = config("SEND_QUEUE_MAX_LEN", cast=int, default=10_000)
 
 # --- Redis (conversation state, locks, callback payloads, optional cache) ---
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6161")

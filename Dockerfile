@@ -1,3 +1,14 @@
+FROM oven/bun:1-slim AS frontend-build
+
+WORKDIR /app/frontend
+
+COPY frontend/package.json frontend/bun.lock ./
+RUN --mount=type=cache,id=pasarguardbot-bun,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
+
+COPY frontend/ ./
+RUN bun run build
+
 FROM python:3.14-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
@@ -30,6 +41,8 @@ RUN --mount=type=cache,id=pasarguardbot-uv,target=/root/.cache/uv \
 COPY . .
 RUN --mount=type=cache,id=pasarguardbot-uv,target=/root/.cache/uv \
     uv sync --frozen --no-dev
+
+COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh \

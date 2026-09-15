@@ -35,6 +35,7 @@ TEXT_SECTIONS = {
 TEXT_KEYS_CONFIG = {
     "start": [
         {"key": "start_message", "title": "پیام استارت", "placeholders": {}},
+        {"key": "miniapp_only_message", "title": "پیام حالت فقط مینی‌اپ", "placeholders": {}},
     ],
     "my_services": [
         {"key": "my_services_intro", "title": "متن معرفی سرویس‌های من", "placeholders": {}},
@@ -348,6 +349,19 @@ TEXT_KEYS_CONFIG = {
         {"key": "help_message", "title": "متن راهنما", "placeholders": {}},
         {"key": "support_message", "title": "متن پشتیبانی", "placeholders": {}},
         {"key": "advanced_settings_intro", "title": "متن تنظیمات پیشرفته", "placeholders": {}},
+        {
+            "key": "purchase_report_message",
+            "title": "متن گزارش خرید در کانال",
+            "placeholders": {
+                "user": "آیدی کاربر (ارقام پایانی پنهان)",
+                "panel": "نام پنل",
+                "plan": "دسته‌بندی (مثلاً ۳۰ روزه)",
+                "service": "حجم یا نوع سرویس",
+                "price": "مبلغ پرداختی",
+                "date": "تاریخ شمسی",
+                "time": "ساعت",
+            },
+        },
     ],
     "reserved_1": [],
     "reserved_2": [],

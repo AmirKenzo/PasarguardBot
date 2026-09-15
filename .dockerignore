@@ -24,3 +24,5 @@ README.md
 Kenzo.code-workspace
 docs
 Makefile
+frontend/node_modules
+frontend/dist

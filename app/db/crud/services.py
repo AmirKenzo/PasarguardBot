@@ -736,14 +736,32 @@ async def _paginate_services(*, filters: list, page: int, limit: int) -> tuple[l
 
 
 async def get_user_services_paginated(
-    user_id: int, page: int = 1, limit: int = 10, search: str | None = None
+    user_id: int, page: int = 1, limit: int = 10, search: str | None = None, panel_code: int | None = None
 ) -> tuple[list, int]:
     """Get user services with pagination. Search: prefix on code or username."""
     filters = [Service.id == user_id]
+    if panel_code is not None:
+        filters.append(Service.in_panel == panel_code)
     search_filter = _inline_service_search_filter(search) if search else None
     if search_filter is not None:
         filters.append(search_filter)
     return await _paginate_services(filters=filters, page=page, limit=limit)
+
+
+async def get_user_service_panel_counts(user_id: int) -> list[tuple[int, int]]:
+    """Get (panel_code, service_count) pairs for a user's services, grouped by panel."""
+    try:
+        async with Session() as session:
+            stmt = (
+                select(Service.in_panel, func.count())
+                .where(Service.id == user_id, Service.in_panel.is_not(None))
+                .group_by(Service.in_panel)
+            )
+            result = await session.execute(stmt)
+            return [(int(panel_code), int(count)) for panel_code, count in result.all()]
+    except SQLAlchemyError as e:
+        logger.error(f"Error grouping services by panel: {e}")
+        return []
 
 
 async def search_services_paginated(

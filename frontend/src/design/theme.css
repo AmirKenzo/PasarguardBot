@@ -1,0 +1,59 @@
+/* Design tokens, stored as "R G B" channel triplets so Tailwind's opacity
+   modifiers (bg-primary/12, text-danger/70, ...) work against CSS variables.
+   Overridden at runtime by ThemeProvider when running inside Telegram
+   (theme params synced live); these are the fallback palettes used in a
+   plain browser (login page, dev preview). */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --c-bg-rgb: 244 245 249;
+  --c-surface-rgb: 255 255 255;
+  --c-surface-2-rgb: 238 240 246;
+  --c-text-rgb: 16 19 28;
+  --c-text-muted-rgb: 107 114 128;
+  --c-primary-rgb: 59 130 246;
+  --c-primary-strong-rgb: 37 99 235;
+  --c-primary-text-rgb: 255 255 255;
+  --c-accent-rgb: 6 182 212;
+  --c-success-rgb: 22 163 74;
+  --c-warning-rgb: 217 119 6;
+  --c-danger-rgb: 220 38 38;
+  --c-border-rgb: 15 23 42;
+  --c-border-alpha: 0.11;
+  --c-overlay-rgb: 15 23 42;
+  --c-overlay-alpha: 0.45;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 12px -4px rgb(15 23 42 / 0.10);
+  --shadow-md: 0 4px 10px -4px rgb(15 23 42 / 0.10), 0 14px 32px -10px rgb(59 130 246 / 0.22);
+  --shadow-lg: 0 8px 20px -6px rgb(15 23 42 / 0.14), 0 26px 52px -14px rgb(59 130 246 / 0.30);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --c-bg-rgb: 10 12 20;
+  --c-surface-rgb: 19 21 34;
+  --c-surface-2-rgb: 27 30 47;
+  --c-text-rgb: 241 242 247;
+  --c-text-muted-rgb: 139 143 163;
+  --c-primary-rgb: 96 165 250;
+  --c-primary-strong-rgb: 147 197 253;
+  --c-primary-text-rgb: 255 255 255;
+  --c-accent-rgb: 34 211 238;
+  --c-success-rgb: 74 222 128;
+  --c-warning-rgb: 251 191 36;
+  --c-danger-rgb: 248 113 113;
+  --c-border-rgb: 255 255 255;
+  --c-border-alpha: 0.12;
+  --c-overlay-rgb: 2 4 10;
+  --c-overlay-alpha: 0.6;
+  --shadow-sm: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 3px 10px rgb(0 0 0 / 0.35);
+  --shadow-md: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 16px 36px -10px rgb(0 0 0 / 0.55);
+  --shadow-lg: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 28px 58px -14px rgb(0 0 0 / 0.65);
+}
+
+:root {
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+}

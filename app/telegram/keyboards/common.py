@@ -17,6 +17,7 @@ from telethon.tl.types import (
 )
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
+from app.utils.text.glass import glass_text
 
 
 def create_button(text):
@@ -27,19 +28,8 @@ def create_button(text):
 # --------------------------
 # "Glass" button styling
 # --------------------------
-# Telegram buttons don't support real translucency; we emulate a "glassy" look
-# using consistent brackets + an ice icon.
-_GLASS_L = "「"
-_GLASS_R = "」"
-_GLASS_ICON = ""
-
-
-def glass_text(label: str, *, icon: str = _GLASS_ICON) -> str:
-    """Return a consistent 'glassy' label for buttons."""
-    label = (label or "").strip()
-    if not label:
-        return f"{_GLASS_L}{_GLASS_ICON}{_GLASS_R}"
-    return f"{_GLASS_L}{icon} {label}{_GLASS_R}"
+# The label decoration itself lives in app.utils.text.glass, because matching an
+# incoming press needs the same rule as drawing the button.
 
 
 def glass_text_button(label: str, *, resize: bool = True):

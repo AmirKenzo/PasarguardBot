@@ -2,7 +2,25 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
+
+
+def normalise_phone_number(raw: str | None) -> str | None:
+    """Return an Iranian mobile number as +98XXXXXXXXXX, or None if unusable.
+
+    Accepts what people actually type — 0912…, 98912…, +98 912…, or the bare
+    ten digits — so the bot and the web panel agree on what ends up in the
+    database no matter which one recorded it.
+    """
+    digits = re.sub(r"\D+", "", raw or "")
+    if digits.startswith("0") and len(digits) == 11:
+        return "+98" + digits[1:]
+    if digits.startswith("98") and len(digits) >= 12:
+        return "+" + digits
+    if len(digits) >= 10:
+        return "+98" + digits[-10:]
+    return None
 
 
 def as_int(value: int | str | None) -> int | None:
@@ -49,6 +67,19 @@ def day_to_timestamp_utc(days: int) -> int:
     """Unix timestamp for now + days in UTC."""
     expiry_time = datetime.now(UTC) + timedelta(days=int(days))
     return int(expiry_time.timestamp())
+
+
+def to_unix_timestamp(value: object) -> int | None:
+    """Best-effort conversion of a datetime/int/float value to a unix timestamp."""
+
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    try:
+        return int(value.timestamp())  # type: ignore[union-attr]
+    except AttributeError:
+        return None
 
 
 def convert_storage(

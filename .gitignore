@@ -17,3 +17,7 @@ business_connections.json
 /tests
 /todo
 *.sql
+/frontend/node_modules
+/frontend/dist
+/frontend/package-lock.json
+/frontend/tsconfig.tsbuildinfo

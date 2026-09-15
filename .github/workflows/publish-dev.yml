@@ -19,8 +19,11 @@ jobs:
   python:
     uses: ./.github/workflows/python-quality.yml
 
+  frontend:
+    uses: ./.github/workflows/frontend-quality.yml
+
   container:
-    needs: python
+    needs: [python, frontend]
     if: ${{ github.actor != 'renovate[bot]' && github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     steps:

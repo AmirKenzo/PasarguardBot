@@ -10,6 +10,7 @@ from app.db.crud.help_buttons import HelpButtonCRUD
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
+from app.services.keyboard_glass import apply_glass_mode
 from app.services.telegram.rich_message import edit_native_rich_message
 from app.telegram.admin.settings import keyboards, states, texts
 from app.telegram.keyboards.customization import (
@@ -39,6 +40,7 @@ from app.telegram.keyboards.texts import (
     create_text_sections_buttons,
     render_stored_text_html,
 )
+from app.telegram.shared.utils.miniapp import miniapp_ready
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from app.telegram.user.start.helpers import toggle_start_reaction
 from config import ADMIN_ID
@@ -54,6 +56,17 @@ async def _edit_settings_menu(event: events.CallbackQuery.Event, settings, secti
         logger.warning("settings menu rich edit failed, falling back: %s", rich_exc)
         buttons = await create_buttons_settings(settings, section_key=section_key)
         await event.edit(get_settings_menu_text(section_key), buttons=buttons)
+
+
+async def _after_settings_toggle(setting_name: str, enabled: bool, toast: str) -> str:
+    """Side effects a toggle needs beyond writing the flag, plus what to say about them."""
+    if setting_name == "glass_buttons_mode":
+        # The look lives in the stored button labels, so the switch rewrites them.
+        changed = await apply_glass_mode(enabled)
+        return f"{toast} ({changed} دکمه)"
+    if setting_name == "miniapp_only_mode" and enabled and not miniapp_ready():
+        return f"{toast}\n⚠️ تا وقتی WEBAPP_URL با https نباشد، منوی عادی سر جایش می‌ماند."
+    return toast
 
 
 def settings_callback_filter(event: events.CallbackQuery.Event) -> bool:
@@ -106,6 +119,7 @@ async def callback_settings_toggle(event: events.CallbackQuery.Event):
                 update_kwargs["manual_card_visibility"] = None
             await SettingsManager().update_setting(settings.id, **update_kwargs)
             toast = f"{item.label}: {'❌ غیرفعال شد' if current_value else '✅ فعال شد'}"
+            toast = await _after_settings_toggle(setting_name, not current_value, toast)
     except Exception as e:
         await event.answer(f"خطا در به‌روزرسانی تنظیمات: {e!s}", alert=True)
         return

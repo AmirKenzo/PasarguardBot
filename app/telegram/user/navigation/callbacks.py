@@ -11,15 +11,14 @@ from app.telegram.shared.guards.callback_guards import SESSION_RESTART_CALLBACK
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.rate_limit import debounce_callback
 from app.telegram.state import clear_user, set_step
-from app.telegram.user.start.helpers import DEFAULT_START_MESSAGE, get_user_lang
-from app.utils.text.bot_texts import get_bot_text
+from app.telegram.user.start.helpers import fetch_welcome_text, get_user_lang
 
 
 @bot_is_offline
 @debounce_callback()
 async def data_cancel_callback(event: events.CallbackQuery.Event):
     lang = await get_user_lang(event.sender_id)
-    txt = await get_bot_text(key="start_message", default=DEFAULT_START_MESSAGE, lang=lang)
+    txt = await fetch_welcome_text(lang)
     await event.delete()
     await event.respond(txt, buttons=await bhome_buttons(event.sender_id, lang))
     await set_step(event.sender_id, step="home")
@@ -31,7 +30,7 @@ async def data_cancel_callback(event: events.CallbackQuery.Event):
 async def session_restart_callback(event: events.CallbackQuery.Event):
     await clear_user(event.sender_id)
     lang = await get_user_lang(event.sender_id)
-    txt = await get_bot_text(key="start_message", default=DEFAULT_START_MESSAGE, lang=lang)
+    txt = await fetch_welcome_text(lang)
     with contextlib.suppress(Exception):
         await event.delete()
     await event.respond(txt, buttons=await bhome_buttons(event.sender_id, lang))
