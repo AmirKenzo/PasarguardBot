@@ -11,9 +11,10 @@ class PanelSettingField(BaseModel):
     """One setting, described well enough for the client to render it."""
 
     key: str
-    type: str = Field("number", description="bool | number | text")
+    type: str = Field("number", description="bool | number | text | select")
     default: Any = None
     value: Any = None
+    options: list[str] | None = None
 
 
 class PanelSettingSection(BaseModel):

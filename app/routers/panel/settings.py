@@ -19,8 +19,17 @@ from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
 from app.services.keyboard_glass import apply_glass_mode, glass_mode_active
+from app.telegram.admin.settings_payment.texts import (
+    MANUAL_CARD_VISIBILITY_ALL,
+    MANUAL_CARD_VISIBILITY_SAFE_MODE,
+)
 
 router = APIRouter()
+
+# Fields whose value is a fixed set of strings rather than free text or a number.
+SELECT_FIELD_OPTIONS: dict[str, list[str]] = {
+    "manual_card_visibility": [MANUAL_CARD_VISIBILITY_ALL, MANUAL_CARD_VISIBILITY_SAFE_MODE],
+}
 
 
 def _current(setting: Any, section: str, key: str, default: Any) -> Any:
@@ -32,10 +41,20 @@ def _current(setting: Any, section: str, key: str, default: Any) -> Any:
     return default
 
 
-def _field_type(default: Any) -> str:
+def _field_type(key: str, default: Any) -> str:
+    if key in SELECT_FIELD_OPTIONS:
+        return "select"
     if isinstance(default, bool):
         return "bool"
     return "text" if isinstance(default, str) else "number"
+
+
+def _build_field(setting: Any, section: str, key: str, default: Any) -> PanelSettingField:
+    value = _current(setting, section, key, default)
+    options = SELECT_FIELD_OPTIONS.get(key)
+    if options and not value:
+        value = options[0]
+    return PanelSettingField(key=key, type=_field_type(key, default), default=default, value=value, options=options)
 
 
 def _coerce(raw: Any, default: Any) -> Any:
@@ -60,15 +79,7 @@ async def read_settings(payload: PanelRequest, request: Request) -> PanelSetting
             sections=[
                 PanelSettingSection(
                     key=section,
-                    fields=[
-                        PanelSettingField(
-                            key=key,
-                            type=_field_type(default),
-                            default=default,
-                            value=_current(setting, section, key, default),
-                        )
-                        for key, default in defaults.items()
-                    ],
+                    fields=[_build_field(setting, section, key, default) for key, default in defaults.items()],
                 )
                 for section, defaults in SETTINGS_SECTION_DEFAULTS.items()
             ],
@@ -90,6 +101,12 @@ async def save_settings(payload: PanelSettingsSaveRequest, request: Request) -> 
                     updates[key] = bool(payload.values.get(key, False))
                     continue
                 if key not in payload.values:
+                    continue
+                if key in SELECT_FIELD_OPTIONS:
+                    raw = payload.values[key]
+                    if raw not in SELECT_FIELD_OPTIONS[key]:
+                        return ActionResponse(ok=False, error=f"مقدار «{key}» نامعتبر است.")
+                    updates[key] = raw
                     continue
                 try:
                     updates[key] = _coerce(payload.values[key], default)

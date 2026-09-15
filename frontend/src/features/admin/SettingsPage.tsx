@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Button, ErrorState, Input, Skeleton } from "../../components/ui";
+import { Button, ErrorState, Input, SegmentedControl, Skeleton } from "../../components/ui";
 import { panelSettingsApi } from "../../api/panel";
 import type { PanelSettingValue } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
 import { SectionCard, Toggle } from "./components";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+
+const selectOptionLabels = (t: TFunction): Record<string, Record<string, string>> => ({
+  manual_card_visibility: {
+    all: t("panel.settings.manualCardVisibilityAll"),
+    safe_mode: t("panel.settings.manualCardVisibilitySafeMode"),
+  },
+});
 
 const sectionTitles = (t: TFunction): Record<string, string> => ({
   core_settings: t("panel.settings.core"),
@@ -107,6 +114,7 @@ export default function AdminSettingsPage() {
 
       {query.data.sections.map((section) => {
         const toggles = section.fields.filter((field) => field.type === "bool");
+        const selects = section.fields.filter((field) => field.type === "select");
         const numbers = section.fields.filter((field) => field.type === "number");
         const texts = section.fields.filter((field) => field.type === "text");
         return (
@@ -123,8 +131,29 @@ export default function AdminSettingsPage() {
                 ))}
               </div>
             )}
-            {numbers.length > 0 && (
+            {selects.length > 0 && (
               <div className={`grid gap-3 sm:grid-cols-2 ${toggles.length ? "mt-4 border-t border-border pt-4" : ""}`}>
+                {selects.map((field) => (
+                  <div key={field.key}>
+                    <span className="mb-1.5 block text-sm text-muted">{labels(t)[field.key] || field.key}</span>
+                    <SegmentedControl
+                      value={String(values[field.key] ?? field.options?.[0] ?? "")}
+                      onChange={(value) => setValues({ ...values, [field.key]: value })}
+                      options={(field.options || []).map((option) => ({
+                        value: option,
+                        label: selectOptionLabels(t)[field.key]?.[option] || option,
+                      }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            {numbers.length > 0 && (
+              <div
+                className={`grid gap-3 sm:grid-cols-2 ${
+                  toggles.length || selects.length ? "mt-4 border-t border-border pt-4" : ""
+                }`}
+              >
                 {numbers.map((field) => (
                   <Input
                     key={field.key}
@@ -144,7 +173,7 @@ export default function AdminSettingsPage() {
             {texts.length > 0 && (
               <div
                 className={`grid gap-3 sm:grid-cols-2 ${
-                  toggles.length || numbers.length ? "mt-4 border-t border-border pt-4" : ""
+                  toggles.length || selects.length || numbers.length ? "mt-4 border-t border-border pt-4" : ""
                 }`}
               >
                 {texts.map((field) => (

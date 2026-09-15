@@ -656,6 +656,8 @@
       "showProfile": "Show profile",
       "showSupport": "Show support",
       "showManualCard": "Show manual card",
+      "manualCardVisibilityAll": "All users",
+      "manualCardVisibilitySafeMode": "Safe mode only",
       "usageChart": "Usage chart",
       "paymentEnabled": "Payments enabled",
       "paymentsAndWallet": "Payments and wallet",

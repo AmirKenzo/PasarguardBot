@@ -6,10 +6,11 @@ export type PanelSettingValue = boolean | number | string | null;
 /** One setting, described well enough for the client to render it. */
 export interface PanelSettingField {
   key: string;
-  /** bool | number | text */
+  /** bool | number | text | select */
   type: string;
   default: PanelSettingValue;
   value: PanelSettingValue;
+  options?: string[] | null;
 }
 
 export interface PanelSettingSection {

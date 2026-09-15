@@ -656,6 +656,8 @@
       "showProfile": "نمایش پروفایل",
       "showSupport": "نمایش پشتیبانی",
       "showManualCard": "نمایش کارت دستی",
+      "manualCardVisibilityAll": "همه کاربران",
+      "manualCardVisibilitySafeMode": "فقط سیف‌مود",
       "usageChart": "نمودار مصرف",
       "paymentEnabled": "پرداخت فعال",
       "paymentsAndWallet": "پرداخت و کیف پول",
