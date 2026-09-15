@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # ── Paths & constants ──────────────────────────────────────────────────────────
-readonly SCRIPT_VERSION="1.2.15"
+readonly SCRIPT_VERSION="1.2.16"
 readonly CONFIG_DIR="/opt/pasarguardbot"
 readonly COMPOSE_FILE="${CONFIG_DIR}/docker-compose.yml"
 readonly ENV_FILE="${CONFIG_DIR}/.env"
@@ -802,6 +802,14 @@ ensure_config_dirs() {
     if [[ -f "$ENV_FILE" ]]; then
         chmod 600 "$ENV_FILE" || true
     fi
+
+    # Fixed host path docker-compose.yml bind-mounts read-only for the bot's own
+    # TLS cert (SSL_CERTFILE/SSL_KEYFILE) — independent of $CONFIG_DIR so it stays
+    # put across installs. Created here (not left to Docker's implicit auto-create
+    # on first "up") so it exists with predictable ownership before that happens.
+    mkdir -p /var/lib/pasarguardbot/certs
+    chmod 755 /var/lib/pasarguardbot /var/lib/pasarguardbot/certs 2>/dev/null || true
+
     return 0
 }
 
