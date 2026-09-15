@@ -802,6 +802,7 @@
       "runsInBackground": "This runs in the background; the final result is written to the audit log.",
       "bulkConfirm": "Start the bulk increase? This cannot be undone.",
       "nextRun": "Next run",
+      "lastRun": "Last run",
       "sendToMe": "Send to my chat",
       "sendToLogChannel": "Send to the log channel",
       "bulkTitle": "Bulk volume and time increase",

@@ -30,6 +30,7 @@ class PanelVersions(BaseModel):
 
 class PanelScheduledJob(BaseModel):
     id: str
+    last_run: str | None = None
     next_run: str | None = None
 
 

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Activity,
   ArrowLeft,
@@ -193,6 +193,14 @@ export default function AdminShell() {
   });
   const badges = data?.badges || {};
 
+  // React Router's plain <Routes> tree doesn't reset scroll on navigation
+  // (that's only built into its data-router APIs), so without this,
+  // navigating away from a page scrolled down leaves the new page's content
+  // below the fold until the user scrolls back up manually.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   useEffect(() => {
     setDrawerOpen(false);
   }, [location.key]);
@@ -241,14 +249,12 @@ export default function AdminShell() {
           </div>
         </header>
 
-        <main className="relative mx-auto w-full max-w-7xl flex-1 space-y-4 px-4 pb-10 pt-4 md:px-6 lg:px-8">
-          <AnimatePresence mode="popLayout" initial={false}>
-            <PageTransition key={location.pathname}>
-              <div className="space-y-4">
-                <Outlet />
-              </div>
-            </PageTransition>
-          </AnimatePresence>
+        <main className="mx-auto w-full max-w-7xl flex-1 space-y-4 px-4 pb-10 pt-4 md:px-6 lg:px-8">
+          <PageTransition key={location.pathname}>
+            <div className="space-y-4">
+              <Outlet />
+            </div>
+          </PageTransition>
         </main>
       </div>
 

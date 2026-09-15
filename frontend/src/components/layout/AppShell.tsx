@@ -1,4 +1,5 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { useLayoutEffect } from "react";
+import { motion } from "framer-motion";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Home, ListVideo, ShoppingBag, User, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -94,6 +95,14 @@ export function AppShell() {
   const location = useLocation();
   const { t } = useTranslation();
 
+  // React Router's plain <Routes> tree doesn't reset scroll on navigation
+  // (that's only built into its data-router APIs), so without this,
+  // navigating away from a page scrolled down leaves the new page's content
+  // below the fold until the user scrolls back up manually.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen w-full">
       <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-l border-border bg-surface p-4 md:flex">
@@ -132,12 +141,10 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="relative mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-4 md:px-6 md:pb-8 lg:px-8">
-          <AnimatePresence mode="popLayout" initial={false}>
-            <PageTransition key={location.pathname}>
-              <Outlet />
-            </PageTransition>
-          </AnimatePresence>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-4 md:px-6 md:pb-8 lg:px-8">
+          <PageTransition key={location.pathname}>
+            <Outlet />
+          </PageTransition>
         </main>
 
         <nav className="safe-area-pb fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-surface/95 backdrop-blur md:hidden">
