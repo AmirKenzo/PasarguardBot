@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { Cpu, HardDrive, MemoryStick, Timer } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { ErrorState, Input, Skeleton } from "../../components/ui";
+import { Card, EmptyState, ErrorState, IconBadge, Input, ProgressRing, Skeleton } from "../../components/ui";
 import { panelToolsApi } from "../../api/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
-import { ConfirmButton, DataTable, SectionCard, SelectField, Toggle } from "./components";
-import type { Column } from "./components";
+import { ConfirmButton, SectionCard, SelectField, Toggle } from "./components";
 import { useTranslation } from "react-i18next";
+import { formatJobTime } from "../../lib/format";
 
 const GB = 1024 ** 3;
 
@@ -13,21 +15,40 @@ function gigabytes(bytes: number): string {
   return `${(bytes / GB).toFixed(1)} GB`;
 }
 
-function Meter({ label, percent, hint }: { label: string; percent: number; hint?: string }) {
-  const { t } = useTranslation();
+function ringTone(percent: number): "primary" | "warning" | "danger" {
+  if (percent >= 90) return "danger";
+  if (percent >= 70) return "warning";
+  return "primary";
+}
+
+/** Job ids are internal snake_case identifiers (e.g. "check_low_volume") —
+ * this is purely a display nicety, not a translation, so it stays client-side
+ * rather than needing an i18n key per job. */
+function humanizeJobId(id: string): string {
+  return id.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function ResourceGauge({
+  icon: Icon,
+  label,
+  percent,
+  hint,
+}: {
+  icon: LucideIcon;
+  label: string;
+  percent: number;
+  hint?: string;
+}) {
   const value = Math.max(0, Math.min(100, percent || 0));
-  const tone = value >= 90 ? "bg-danger" : value >= 70 ? "bg-warning" : "bg-success";
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-muted">{label}</span>
-        <span className="font-medium text-text">{value.toFixed(1)}{t("panel.tools.percent")}</span>
+    <Card className="flex flex-col items-center gap-2 p-3 text-center sm:gap-3 sm:p-5">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted sm:text-xs">
+        <Icon size={14} strokeWidth={2} />
+        {label}
       </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2">
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${value}%` }} />
-      </div>
-      {hint && <p className="mt-1.5 text-xs text-muted">{hint}</p>}
-    </div>
+      <ProgressRing percent={Math.round(value)} tone={ringTone(value)} size={84} strokeWidth={7} />
+      {hint && <p className="text-[10px] leading-tight text-muted sm:text-xs">{hint}</p>}
+    </Card>
   );
 }
 
@@ -49,11 +70,6 @@ export default function AdminToolsPage() {
 
   const { metrics, versions, jobs, panels, backup_supported: backupSupported } = query.data;
 
-  const jobColumns: Column<{ id: string; next_run?: string | null }>[] = [
-    { key: "id", header: t("panel.tools.job"), cell: (row) => <code className="ltr-field text-xs">{row.id}</code> },
-    { key: "next", header: t("panel.tools.nextRun"), cell: (row) => <span className="ltr-field text-xs">{row.next_run || "—"}</span> },
-  ];
-
   const panelOptions = [
     { value: "all", label: t("panel.common.allPanels") },
     ...panels.map((panel) => ({ value: String(panel.code), label: panel.name })),
@@ -73,14 +89,21 @@ export default function AdminToolsPage() {
     <>
       <PageHeader title={t("panel.common.tools")} subtitle={t("panel.tools.subtitle")} />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Meter label={t("panel.tools.cpu")} percent={metrics.cpu_percent} hint={t("panel.tools.cpuCores", { count: metrics.cpu_cores })} />
-        <Meter
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <ResourceGauge
+          icon={Cpu}
+          label={t("panel.tools.cpu")}
+          percent={metrics.cpu_percent}
+          hint={t("panel.tools.cpuCores", { count: metrics.cpu_cores })}
+        />
+        <ResourceGauge
+          icon={MemoryStick}
           label={t("panel.tools.memory")}
           percent={metrics.ram_percent}
           hint={t("panel.tools.ramUsage", { used: gigabytes(metrics.ram_used), total: gigabytes(metrics.ram_total) })}
         />
-        <Meter
+        <ResourceGauge
+          icon={HardDrive}
           label={t("panel.tools.disk")}
           percent={metrics.disk_percent}
           hint={t("panel.tools.diskUsage", { used: gigabytes(metrics.disk_used), total: gigabytes(metrics.disk_total) })}
@@ -100,12 +123,30 @@ export default function AdminToolsPage() {
         </SectionCard>
 
         <SectionCard title={t("panel.tools.schedulers", { count: jobs.length })}>
-          <DataTable
-            columns={jobColumns}
-            rows={jobs}
-            rowKey={(row) => row.id}
-            emptyTitle={t("panel.tools.noSchedule")}
-          />
+          {jobs.length ? (
+            <div className="divide-y divide-border/60">
+              {jobs.map((job) => (
+                <div key={job.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2.5 first:pt-0 last:pb-0">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <IconBadge icon={Timer} tone="muted" size="sm" />
+                    <span className="truncate text-sm text-text">{humanizeJobId(job.id)}</span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-4 text-[11px]">
+                    <div className="text-end">
+                      <p className="text-muted">{t("panel.tools.lastRun")}</p>
+                      <p className="ltr-field text-text">{formatJobTime(job.last_run)}</p>
+                    </div>
+                    <div className="text-end">
+                      <p className="text-muted">{t("panel.tools.nextRun")}</p>
+                      <p className="ltr-field text-text">{formatJobTime(job.next_run)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={Timer} title={t("panel.tools.noSchedule")} />
+          )}
         </SectionCard>
       </div>
 

@@ -8,7 +8,6 @@ from fastapi import APIRouter, Request
 
 from app.db.crud.channels import ChannelManager
 from app.db.crud.log_channels import LogChannelManager
-from app.logger import LogType
 from app.models.panel.channels import (
     DESTINATION_TYPES,
     PanelChannelCreateRequest,
@@ -23,8 +22,11 @@ from app.models.panel.common import ActionResponse, PanelRequest
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.telegram.admin.logs.states import ALL_LOG_TYPES
 
 router = APIRouter()
+
+_ROUTABLE_LOG_TYPES = {key for key, _ in ALL_LOG_TYPES}
 
 
 async def _log(actor: PanelActor, action: str, **kwargs) -> None:
@@ -60,7 +62,7 @@ async def channels_overview(payload: PanelRequest, request: Request) -> PanelCha
                 )
                 for item in log_channels
             ],
-            log_types=[item.value for item in LogType],
+            log_types=[key for key, _ in ALL_LOG_TYPES],
         )
 
     return await guard.run(payload, request, PanelChannelsResponse, handle)
@@ -97,7 +99,7 @@ async def channel_delete(payload: PanelChannelDeleteRequest, request: Request) -
 @router.post("/panel/channels/logs/save", response_model=ActionResponse)
 async def log_channel_save(payload: PanelLogChannelSaveRequest, request: Request) -> ActionResponse:
     async def handle(actor: PanelActor) -> ActionResponse:
-        if payload.log_type not in {item.value for item in LogType}:
+        if payload.log_type not in _ROUTABLE_LOG_TYPES:
             return ActionResponse(ok=False, error="نوع گزارش معتبر نیست.")
         destination = payload.destination_type if payload.destination_type in DESTINATION_TYPES else "channel"
 

@@ -115,6 +115,8 @@ from app.models.panel.resellers import (
 )
 from app.models.panel.services import (
     PanelPanelOption,
+    PanelReceiptLinkRequest,
+    PanelReceiptLinkResponse,
     PanelServiceDeleteRequest,
     PanelServiceRow,
     PanelServicesRequest,
@@ -124,6 +126,7 @@ from app.models.panel.services import (
     PanelTransactionRow,
     PanelTransactionsRequest,
     PanelTransactionsResponse,
+    PanelTransactionStats,
 )
 from app.models.panel.settings import (
     PanelSettingField,
@@ -222,6 +225,8 @@ __all__ = [
     "PanelPlansRequest",
     "PanelPlansResponse",
     "PanelRankRow",
+    "PanelReceiptLinkRequest",
+    "PanelReceiptLinkResponse",
     "PanelReferralRequest",
     "PanelReferralResponse",
     "PanelReferralRewardRow",
@@ -270,6 +275,7 @@ __all__ = [
     "PanelToolsResponse",
     "PanelTransactionActionRequest",
     "PanelTransactionRow",
+    "PanelTransactionStats",
     "PanelTransactionsRequest",
     "PanelTransactionsResponse",
     "PanelUserBalanceRequest",

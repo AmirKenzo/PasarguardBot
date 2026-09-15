@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 
 from app.db.base import DATABASE_DIALECT
-from app.jobs.scheduler import scheduler
+from app.jobs.scheduler import get_last_run, scheduler
 from app.logger import get_logger
 from app.models.panel.common import ActionResponse, PanelRequest
 from app.models.panel.services import PanelPanelOption
@@ -59,7 +59,11 @@ async def tools_overview(payload: PanelRequest, request: Request) -> PanelToolsR
         jobs: list[PanelScheduledJob] = []
         try:
             jobs = [
-                PanelScheduledJob(id=str(job.id), next_run=str(job.next_run_time) if job.next_run_time else None)
+                PanelScheduledJob(
+                    id=str(job.id),
+                    last_run=(last_run.isoformat() if (last_run := get_last_run(job.id)) else None),
+                    next_run=job.next_run_time.isoformat() if job.next_run_time else None,
+                )
                 for job in scheduler.get_jobs()
             ]
         except Exception as exc:

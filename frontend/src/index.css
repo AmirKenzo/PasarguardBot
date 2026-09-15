@@ -28,6 +28,18 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+/* Telegram's own floating chrome in Fullscreen launch mode (close/minimize
+ * controls, the Android status bar it draws under) sits on top of our
+ * content but isn't part of the OS notch, so env(safe-area-inset-top) alone
+ * doesn't account for it. --tg-safe-area-top / --tg-content-safe-area-top
+ * are set from Telegram.WebApp.safeAreaInset / contentSafeAreaInset by
+ * useTelegramSafeArea (see hooks/useTelegramViewportFix.ts). */
+.safe-area-pt {
+  padding-top: calc(
+    env(safe-area-inset-top, 0px) + var(--tg-safe-area-top, 0px) + var(--tg-content-safe-area-top, 0px)
+  );
+}
+
 .ltr-field {
   direction: ltr;
   text-align: left;

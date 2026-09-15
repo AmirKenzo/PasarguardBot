@@ -25,6 +25,7 @@ export interface PanelVersions {
 
 export interface PanelScheduledJob {
   id: string;
+  last_run?: string | null;
   next_run?: string | null;
 }
 

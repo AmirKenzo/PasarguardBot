@@ -289,6 +289,44 @@ TEXT_KEYS_CONFIG = {
             "title": "خطای ورودی غیرعددی",
             "placeholders": {},
         },
+        {
+            "key": "manual_card_approved_message",
+            "title": "پیام تایید تراکنش",
+            "placeholders": {
+                "user_id": "شناسه کاربر",
+                "amount": "مبلغ (تومان)",
+                "bonus_line": "خط بونوس (خودکار خالی می‌ماند اگر بونوسی نباشد)",
+            },
+        },
+        {
+            "key": "manual_card_rejected_message",
+            "title": "پیام رد تراکنش",
+            "placeholders": {
+                "amount": "مبلغ (تومان)",
+            },
+        },
+        {
+            "key": "manual_card_receipt_fix_message",
+            "title": "پیام درخواست اصلاح مبلغ رسید",
+            "placeholders": {
+                "amount": "مبلغ (تومان)",
+                "amount_toman": "مبلغ (تومان)",
+                "amount_rial": "مبلغ (ریال)",
+                "current_card_name": "نام صاحب کارت فعال",
+                "current_card_number": "شماره کارت فعال",
+            },
+        },
+        {
+            "key": "manual_card_card_mismatch_message",
+            "title": "پیام عدم تطابق شماره کارت",
+            "placeholders": {
+                "current_card_name": "نام دارنده کارت فعلی",
+                "current_card_number": "شماره کارت فعلی",
+                "amount": "مبلغ (تومان)",
+                "amount_toman": "مبلغ (تومان)",
+                "amount_rial": "مبلغ (ریال)",
+            },
+        },
     ],
     "crypto_payment": [
         {

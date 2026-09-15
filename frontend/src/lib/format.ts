@@ -122,6 +122,20 @@ export function formatDayLabel(isoDate: string): string {
   return formatter.format(day);
 }
 
+/** Bilingual "Today 14:30" / "2 days ago 09:15" / "Sep 12 14:30" label for an
+ * ISO datetime string (e.g. a scheduled job's last/next run time). */
+export function formatJobTime(isoDateTime: string | null | undefined): string {
+  const t = i18n.t.bind(i18n);
+  if (!isoDateTime) return t("common.unknown");
+  const date = new Date(isoDateTime);
+  if (Number.isNaN(date.getTime())) return t("common.unknown");
+
+  const time = new Intl.DateTimeFormat(isFa() ? "fa-IR" : "en-US", { hour: "2-digit", minute: "2-digit" }).format(
+    date
+  );
+  return `${formatDayLabel(isoDateTime.slice(0, 10))} ${time}`;
+}
+
 /** Bilingual device/IP limit label from the raw limit count (0 = unlimited). */
 export function formatIpLimit(ipLimit: number | null | undefined): string {
   const t = i18n.t.bind(i18n);

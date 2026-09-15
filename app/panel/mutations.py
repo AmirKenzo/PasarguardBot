@@ -8,6 +8,10 @@ from typing import Any
 from sqlalchemy import delete, select, update
 
 from app.db.base import AsyncSessionLocal as Session
+from app.db.crud.cards import ManualCardManager
+from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
+from app.db.crud.receipt_hash import ReceiptHashCRUD
+from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.models.discount_codes import DiscountCode
 from app.db.models.panels import Panels
@@ -21,6 +25,14 @@ from app.logger import get_logger
 from app.panel import audit
 from app.routers.panel.auth import PanelActor
 from app.services.panels.settings import resolve_panel_update_kwargs
+from app.telegram.admin.settings_payment.texts import (
+    CARD_HOLDER_NOT_SET,
+    TX_APPROVED_USER_MESSAGE,
+    TX_CARD_MISMATCH_USER_MESSAGE,
+    TX_RECEIPT_FIX_USER_MESSAGE,
+    TX_REJECTED_USER_MESSAGE,
+)
+from app.utils.text.bot_texts import get_bot_text
 
 log = get_logger(__name__)
 
@@ -158,12 +170,13 @@ async def approve_transaction(ctx: PanelActor, tx_id: int) -> bool:
         user_id = int(tx.user_id)
         amount = int(tx.amount or 0)
 
+    settings = await SettingsManager().get_settings()
     result = await TransactionCRUD().approve_manual(tx)
     if result is None:
         return False
 
     bonus = int(result.get("bonus") or 0)
-    new_balance = int(result.get("new_balance") or 0)
+    total = int(result.get("total") or 0)
     await _audit(
         ctx,
         "tx_approve",
@@ -171,11 +184,12 @@ async def approve_transaction(ctx: PanelActor, tx_id: int) -> bool:
         target_id=tx_id,
         detail={"amount": amount, "bonus": bonus},
     )
-    lines = ["✅ پرداخت شما تأیید شد.", f"مبلغ: {amount:,} تومان"]
-    if bonus:
-        lines.append(f"هدیه: {bonus:,} تومان")
-    lines.append(f"موجودی جدید: {new_balance:,} تومان")
-    await notify_user(user_id, "\n".join(lines))
+    bonus_line = (
+        f"🎁 بونوس: +{bonus:,} ({settings.manual_bonus_percent}%)\n💰 مجموع: {total:,} تومان\n" if bonus > 0 else ""
+    )
+    template = await get_bot_text(key="manual_card_approved_message", default=TX_APPROVED_USER_MESSAGE, lang="fa")
+    message = template.format(user_id=user_id, amount=f"{amount:,}", bonus_line=bonus_line)
+    await notify_user(user_id, message)
     return True
 
 
@@ -190,8 +204,69 @@ async def reject_transaction(ctx: PanelActor, tx_id: int) -> bool:
         amount = int(tx.amount or 0)
         await session.commit()
 
+    await ManualAutoApproveRuleCRUD.cancel_schedule(tx_id)
     await _audit(ctx, "tx_reject", target_type="transaction", target_id=tx_id, detail={"amount": amount})
-    await notify_user(user_id, f"❌ پرداخت {amount:,} تومانی شما تأیید نشد. در صورت نیاز با پشتیبانی تماس بگیرید.")
+    template = await get_bot_text(key="manual_card_rejected_message", default=TX_REJECTED_USER_MESSAGE, lang="fa")
+    await notify_user(user_id, template.format(amount=f"{amount:,}"))
+    return True
+
+
+async def request_receipt_fix_transaction(ctx: PanelActor, tx_id: int) -> bool:
+    """Ask the user to re-enter the amount and resend the receipt (bot's ♻️ button)."""
+    async with Session() as session:
+        tx = (await session.execute(select(Transaction).where(Transaction.id == tx_id))).scalars().first()
+        if tx is None or tx.status != "pending":
+            return False
+        tx.status = "needs_fix"
+        tx.completed_at = int(time.time())
+        tx.auto_approve_at = None
+        tx.auto_approve_rule_id = None
+        user_id = int(tx.user_id)
+        amount = int(tx.amount or 0)
+        await session.commit()
+
+    await ManualAutoApproveRuleCRUD.cancel_schedule(tx_id)
+    await ReceiptHashCRUD().delete_by_transaction_id(tx_id)
+    await _audit(ctx, "tx_request_fix", target_type="transaction", target_id=tx_id, detail={"amount": amount})
+
+    current_cards = await ManualCardManager().get_all_cards()
+    current_card = next((card for card in current_cards if card.active), None)
+    template = await get_bot_text(key="manual_card_receipt_fix_message", default=TX_RECEIPT_FIX_USER_MESSAGE, lang="fa")
+    message = template.format(
+        amount=f"{amount:,}",
+        amount_toman=f"{amount:,}",
+        amount_rial=f"{amount * 10:,}",
+        current_card_name=getattr(current_card, "name", "") or CARD_HOLDER_NOT_SET,
+        current_card_number=getattr(current_card, "number", "") or CARD_HOLDER_NOT_SET,
+    )
+    await notify_user(user_id, message)
+    return True
+
+
+async def report_card_mismatch_transaction(ctx: PanelActor, tx_id: int) -> bool:
+    """Tell the user their deposit card doesn't match (bot's 💳 button). Status stays pending."""
+    async with Session() as session:
+        tx = (await session.execute(select(Transaction).where(Transaction.id == tx_id))).scalars().first()
+        if tx is None or tx.status != "pending":
+            return False
+        user_id = int(tx.user_id)
+        amount = int(tx.amount or 0)
+
+    await _audit(ctx, "tx_card_mismatch", target_type="transaction", target_id=tx_id, detail={"amount": amount})
+
+    current_cards = await ManualCardManager().get_all_cards()
+    current_card = next((card for card in current_cards if card.active), None)
+    template = await get_bot_text(
+        key="manual_card_card_mismatch_message", default=TX_CARD_MISMATCH_USER_MESSAGE, lang="fa"
+    )
+    message = template.format(
+        current_card_name=getattr(current_card, "name", "") or CARD_HOLDER_NOT_SET,
+        current_card_number=getattr(current_card, "number", "") or CARD_HOLDER_NOT_SET,
+        amount=f"{amount:,}",
+        amount_toman=f"{amount:,}",
+        amount_rial=f"{amount * 10:,}",
+    )
+    await notify_user(user_id, message)
     return True
 
 

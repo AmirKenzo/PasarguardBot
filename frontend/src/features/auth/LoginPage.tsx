@@ -57,7 +57,7 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
       <div className="pointer-events-none absolute -left-24 bottom-0 h-72 w-72 rounded-full bg-accent/15 blur-3xl" />
 
-      <div className="absolute end-4 top-4">
+      <div className="absolute end-4 top-[calc(1rem+var(--tg-safe-area-top,0px)+var(--tg-content-safe-area-top,0px))]">
         <LanguageToggle />
       </div>
 

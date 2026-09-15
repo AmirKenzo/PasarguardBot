@@ -3,7 +3,7 @@ import io
 import time
 
 from PIL import Image
-from sqlalchemy import update
+from sqlalchemy import delete, update
 from sqlalchemy.exc import IntegrityError
 
 from app.db.base import AsyncSessionLocal as Session
@@ -50,3 +50,10 @@ class ReceiptHashCRUD:
             )
             await session.commit()
             return result.rowcount is not None and result.rowcount > 0
+
+    async def delete_by_transaction_id(self, transaction_id: int) -> int:
+        """Delete receipt hash rows linked to a transaction. Returns deleted row count."""
+        async with Session() as session:
+            result = await session.execute(delete(ReceiptHash).where(ReceiptHash.transaction_id == transaction_id))
+            await session.commit()
+            return int(result.rowcount or 0)

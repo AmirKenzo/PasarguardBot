@@ -12,6 +12,8 @@ from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD
 from app.services.billing.direct_pay_fulfillment import try_fulfill_after_manual_credit
+from app.telegram.admin.settings_payment.texts import TX_APPROVED_USER_MESSAGE
+from app.utils.text.bot_texts import get_bot_text
 
 from .base import BasePaymentProcessor
 
@@ -38,15 +40,19 @@ class ManualCardProcessor(BasePaymentProcessor):
             try:
                 fulfilled = await try_fulfill_after_manual_credit(int(tx.id))
                 if not fulfilled:
-                    mesg = (
-                        "**✅ تراکنش کارت به کارت (دستی) شما تایید شد**\n\n"
-                        f"👤 **شناسه شما:** `{tx.user_id}`\n"
-                        f"💰 مبلغ `{int(tx.amount):,}` تومان به حساب شما اضافه شد.\n"
+                    bonus_line = (
+                        f"🎁 بونوس: +{bonus:,} ({settings.manual_bonus_percent}%)\n💰 مجموع: {result['total']:,} تومان\n"
+                        if bonus > 0
+                        else ""
                     )
-                    if bonus > 0:
-                        mesg += f"🎁 بونوس: +{bonus:,} تومان ({settings.manual_bonus_percent}%)\n"
-                        mesg += f"💰 مجموع: {result['total']:,} تومان\n"
-                    mesg += "👜 موجودی شما به کیف پولتون در بات اضافه شده\n💡 اکنون می‌توانید از ربات خرید کنید."
+                    template = await get_bot_text(
+                        key="manual_card_approved_message", default=TX_APPROVED_USER_MESSAGE, lang="fa"
+                    )
+                    mesg = template.format(
+                        user_id=tx.user_id,
+                        amount=f"{int(tx.amount):,}",
+                        bonus_line=bonus_line,
+                    )
                     await Kenzo.send_message(
                         tx.user_id,
                         mesg,

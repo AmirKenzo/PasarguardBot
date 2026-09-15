@@ -17,6 +17,7 @@ export * from "./Avatar";
 export * from "./Select";
 export * from "./Toast";
 export * from "./ThemeToggle";
+export * from "./FullscreenToggle";
 export * from "./AppVersion";
 export * from "./ShimmerButton";
 export * from "./MagicCard";

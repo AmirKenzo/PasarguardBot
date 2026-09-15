@@ -16,6 +16,7 @@ from app.services.billing.direct_pay_fulfillment import (
 )
 from app.telegram.admin.settings_payment import keyboards, texts
 from app.telegram.state import set_data, set_step
+from app.utils.text.bot_texts import get_bot_text
 from config import ADMIN_ID
 
 _maar_crud = ManualAutoApproveRuleCRUD()
@@ -91,6 +92,11 @@ async def _maar_show_rule(event, rule_id: int):
         texts.maar_rule_detail(rule_id, rule),
         buttons=keyboards.maar_show_rule_buttons(rule_id, rules),
     )
+
+
+async def _get_manual_card_custom_text(key: str, default: str, **placeholders) -> str:
+    template = await get_bot_text(key=key, default=default, lang="fa")
+    return template.format(**placeholders)
 
 
 def _settings_payment_callback_filter(event: events.CallbackQuery.Event) -> bool:
@@ -290,15 +296,22 @@ async def callback_transaction_review(event: events.CallbackQuery.Event):
         await event.edit(admin_message, buttons=keyboards.tx_review_result_button(approved=True))
         fulfilled = await try_fulfill_after_manual_credit(tx_id)
         if not fulfilled:
+            bonus = result["bonus"]
+            bonus_line = (
+                f"🎁 بونوس: +{bonus:,} ({settings.manual_bonus_percent}%)\n💰 مجموع: {result['total']:,} تومان\n"
+                if bonus > 0
+                else ""
+            )
+            user_message = await _get_manual_card_custom_text(
+                "manual_card_approved_message",
+                texts.TX_APPROVED_USER_MESSAGE,
+                user_id=tx.user_id,
+                amount=f"{int(tx.amount):,}",
+                bonus_line=bonus_line,
+            )
             await Kenzo.send_message(
                 entity=int(tx.user_id),
-                message=texts.tx_approved_user_message(
-                    tx.user_id,
-                    int(tx.amount),
-                    result["bonus"],
-                    settings.manual_bonus_percent,
-                    result["total"],
-                ),
+                message=user_message,
                 buttons=keyboards.no_action_balance_button(result["new_balance"]),
             )
 
@@ -322,9 +335,14 @@ async def callback_transaction_review(event: events.CallbackQuery.Event):
             completed_at=completed_at,
         )
         await event.edit(admin_message, buttons=keyboards.tx_review_result_button(approved=False))
+        user_message = await _get_manual_card_custom_text(
+            "manual_card_rejected_message",
+            texts.TX_REJECTED_USER_MESSAGE,
+            amount=f"{int(tx.amount):,}",
+        )
         await Kenzo.send_message(
             entity=int(tx.user_id),
-            message=f"{texts.TX_REJECT_USER_MESSAGE}\nمبلغ: `{int(tx.amount):,}` تومان",
+            message=user_message,
             buttons=keyboards.tx_reject_user_balance_button(await get_Money(tx.user_id)),
         )
 
