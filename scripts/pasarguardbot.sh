@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # ── Paths & constants ──────────────────────────────────────────────────────────
-readonly SCRIPT_VERSION="1.2.16"
+readonly SCRIPT_VERSION="1.3.0"
 readonly CONFIG_DIR="/opt/pasarguardbot"
 readonly COMPOSE_FILE="${CONFIG_DIR}/docker-compose.yml"
 readonly ENV_FILE="${CONFIG_DIR}/.env"
@@ -928,9 +928,12 @@ get_installed_bot_version() {
         return 0
     fi
 
+    # Only trust this label when it looks like an actual version (e.g. "1.6.2"
+    # or "v1.6.2") — a branch build's image is tagged with the branch name
+    # (e.g. "dev"), which isn't a version and would show as the misleading "vdev".
     version="$(docker image inspect "${BOT_IMAGE}:$(get_bot_image_tag)" \
         --format '{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || true)"
-    if [[ -n "$version" && "$version" != "<no value>" && "$version" != "null" ]]; then
+    if [[ "$version" =~ ^[vV]?[0-9] ]]; then
         format_version "$version"
         return 0
     fi
@@ -1066,6 +1069,27 @@ draw_banner() {
     show_install_info || true
 }
 
+# Box width is computed from content, not hand-counted, so the border can
+# never drift out of alignment when a label changes.
+readonly MENU_BOX_WIDTH=45
+
+menu_border() {
+    local corner_left="$1" corner_right="$2" dashes
+    printf -v dashes '%*s' "$MENU_BOX_WIDTH" ''
+    echo -e "${C_BOLD}  ${corner_left}${dashes// /─}${corner_right}${C_RESET}"
+}
+
+# menu_row <text> [dim]
+menu_row() {
+    local text="  $1" padded
+    padded="$(printf '%-*s' "$MENU_BOX_WIDTH" "$text")"
+    if [[ "${2:-}" == "dim" ]]; then
+        echo -e "${C_BOLD}  │${C_RESET}${C_DIM}${padded}${C_RESET}${C_BOLD}│${C_RESET}"
+    else
+        echo -e "${C_BOLD}  │${C_RESET}${padded}${C_BOLD}│${C_RESET}"
+    fi
+}
+
 draw_menu() {
     local mode
     mode="$(get_install_mode)"
@@ -1076,23 +1100,24 @@ draw_menu() {
         echo -e "  ${C_RED}●${C_RESET} Status: ${C_RED}Not installed${C_RESET}"
     fi
     echo
-    echo -e "${C_BOLD}  ┌─────────────────────────────────────────┐${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  1) Install bot                           ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  2) Uninstall bot                         ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  3) Update bot                            ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  4) View logs                             ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  5) Edit .env file                        ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  6) Full restart                          ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  7) Service status                        ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  8) Show webhook & URLs                   ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  │${C_RESET}  9) Update manager script                 ${C_BOLD}│${C_RESET}"
+    menu_border "┌" "┐"
+    menu_row " 1) Install bot"
+    menu_row " 2) Uninstall bot"
+    menu_row " 3) Update bot"
+    menu_row " 4) View logs"
+    menu_row " 5) Edit .env file"
+    menu_row " 6) Edit docker-compose.yml"
+    menu_row " 7) Full restart"
+    menu_row " 8) Service status"
+    menu_row " 9) Show webhook & URLs"
+    menu_row "10) Update manager script"
     if [[ "$mode" == "native" ]]; then
-        echo -e "${C_BOLD}  │${C_RESET} ${C_DIM}10) Fix Docker network (Docker only)      ${C_RESET}${C_BOLD}│${C_RESET}"
+        menu_row "11) Fix Docker network (Docker only)" dim
     else
-        echo -e "${C_BOLD}  │${C_RESET} 10) Fix Docker network                     ${C_BOLD}│${C_RESET}"
+        menu_row "11) Fix Docker network"
     fi
-    echo -e "${C_BOLD}  │${C_RESET}  0) Exit                                   ${C_BOLD}│${C_RESET}"
-    echo -e "${C_BOLD}  └─────────────────────────────────────────┘${C_RESET}"
+    menu_row " 0) Exit"
+    menu_border "└" "┘"
     echo
 }
 
@@ -2398,19 +2423,34 @@ action_install_native() {
 }
 
 # ── Actions ───────────────────────────────────────────────────────────────────
+# Native install is temporarily disabled (Docker is the only supported path
+# for now) — flip this back to 0 to re-enable option 2 below.
+readonly NATIVE_INSTALL_DISABLED=1
+
 action_install() {
     local branch
     draw_banner
     echo -e "${C_BOLD}  Install mode${C_RESET}"
     echo
     echo "  1) Docker (full stack — Redis/MariaDB/phpMyAdmin/bot in containers)"
-    echo "  2) Native (no Docker — services on host, isolated ports ${REDIS_PORT}/${MARIADB_PORT}/${PHPMYADMIN_PORT})"
+    if [[ "$NATIVE_INSTALL_DISABLED" -eq 1 ]]; then
+        echo -e "  ${C_DIM}2) Native — temporarily disabled, use Docker for now${C_RESET}"
+    else
+        echo "  2) Native (no Docker — services on host, isolated ports ${REDIS_PORT}/${MARIADB_PORT}/${PHPMYADMIN_PORT})"
+    fi
     echo "  0) Cancel"
     echo
     read -r -p "Choice: " choice || return 0
 
     case "$choice" in
-        1|2) ;;
+        1) ;;
+        2)
+            if [[ "$NATIVE_INSTALL_DISABLED" -eq 1 ]]; then
+                warn "Native install is temporarily disabled — please use Docker (option 1)."
+                sleep 1
+                return 0
+            fi
+            ;;
         0)
             info "Cancelled."
             return 0
@@ -2613,6 +2653,47 @@ action_update_native() {
     ok "Update complete (${old_ver} → ${new_ver}) [branch=${branch}]."
 }
 
+# Download+install the manager script for $1 if it differs from what is
+# running. Returns 0 when it installed a different script (caller should
+# re-exec into it), 1 when already current or the download failed.
+refresh_manager_script_for_branch() {
+    local branch="$1" tmp new_ver script_url
+    script_url="https://raw.githubusercontent.com/AmirKenzo/PasarguardBot/${branch}/scripts/pasarguardbot.sh"
+    tmp="$(mktemp)"
+    if ! curl_download "$script_url" "$tmp" || ! head -1 "$tmp" | grep -q '#!/usr/bin/env bash'; then
+        rm -f "$tmp"
+        return 1
+    fi
+    new_ver="$(grep -m1 '^readonly SCRIPT_VERSION=' "$tmp" | sed -E 's/^readonly SCRIPT_VERSION="(.*)"/\1/')"
+    if [[ -z "$new_ver" || "$new_ver" == "$SCRIPT_VERSION" ]]; then
+        rm -f "$tmp"
+        return 1
+    fi
+    install_manager_from_file "$tmp"
+    rm -f "$tmp"
+    return 0
+}
+
+show_live_logs_after() {
+    echo
+    info "Tailing live logs so you can confirm it came up healthy — press Ctrl+C to stop."
+    action_logs_live || true
+}
+
+# The part of "update" that actually updates the bot, once we're already
+# running the latest manager script. Split out so both the normal path and
+# the post-self-update re-exec (__continue-update) can call it.
+run_update_for_branch() {
+    local branch="$1"
+    case "$(get_install_mode)" in
+        native) action_update_native "$branch" ;;
+        docker) action_update_docker "$branch" ;;
+        *) die "Unknown install mode. Reinstall or set ${INSTALL_MODE_FILE}." ;;
+    esac
+    show_live_logs_after
+    pause
+}
+
 action_update() {
     local branch
     draw_banner
@@ -2628,12 +2709,15 @@ action_update() {
     info "Selected branch: ${branch}"
     echo
 
-    case "$(get_install_mode)" in
-        native) action_update_native "$branch" ;;
-        docker) action_update_docker "$branch" ;;
-        *) die "Unknown install mode. Reinstall or set ${INSTALL_MODE_FILE}." ;;
-    esac
-    pause
+    # Update the manager script itself first, so the rest of this update runs
+    # with the latest fixes instead of whatever is already loaded in memory.
+    info "Checking for a newer manager script..."
+    if refresh_manager_script_for_branch "$branch"; then
+        ok "Manager script updated — continuing with the latest version..."
+        exec bash "$MANAGER_SCRIPT" __continue-update "$branch"
+    fi
+
+    run_update_for_branch "$branch"
 }
 
 action_update_script() {
@@ -2763,12 +2847,18 @@ action_logs() {
     pause
 }
 
+pick_editor() {
+    local editor="${EDITOR:-nano}"
+    command -v "$editor" &>/dev/null || editor="nano"
+    printf '%s' "$editor"
+}
+
 action_edit_env() {
     draw_banner
     is_installed || die "Install the bot first (option 1)."
 
-    local editor="${EDITOR:-nano}"
-    command -v "$editor" &>/dev/null || editor="nano"
+    local editor
+    editor="$(pick_editor)"
 
     info "Editing ${ENV_FILE} with ${editor}"
     echo
@@ -2778,6 +2868,37 @@ action_edit_env() {
     read -r -p "Restart the bot? (Y/n): " restart || true
     if [[ "${restart,,}" != "n" ]]; then
         action_restart_quiet
+    fi
+    pause
+}
+
+action_edit_compose() {
+    draw_banner
+    is_installed || die "Install the bot first (option 1)."
+    is_docker_mode || die "docker-compose.yml only applies to Docker installs."
+
+    local editor
+    editor="$(pick_editor)"
+
+    info "Editing ${COMPOSE_FILE} with ${editor}"
+    warn "This is a local edit — the next 'Update bot' will overwrite it with the upstream Compose file."
+    echo
+    "$editor" "$COMPOSE_FILE"
+
+    if ! validate_compose_file "$COMPOSE_FILE"; then
+        warn "The edited file failed validation — fix it before applying, or it may break the stack."
+        pause
+        return 0
+    fi
+
+    echo
+    read -r -p "Apply the changes now (docker compose up -d)? (Y/n): " apply || true
+    if [[ "${apply,,}" != "n" ]]; then
+        if docker_compose up -d --remove-orphans; then
+            ok "Compose changes applied."
+        else
+            err "Failed to apply — check the file and try again."
+        fi
     fi
     pause
 }
@@ -2803,6 +2924,7 @@ action_restart() {
 
     info "Performing a full restart of all services..."
     action_restart_quiet
+    show_live_logs_after
     pause
 }
 
@@ -2855,11 +2977,12 @@ main_menu() {
             3) action_update ;;
             4) action_logs ;;
             5) action_edit_env ;;
-            6) action_restart ;;
-            7) action_status ;;
-            8) action_urls ;;
-            9) action_update_script ;;
-            10) action_docker_network ;;
+            6) action_edit_compose ;;
+            7) action_restart ;;
+            8) action_status ;;
+            9) action_urls ;;
+            10) action_update_script ;;
+            11) action_docker_network ;;
             0|q|Q) draw_banner; ok "Goodbye!"; exit 0 ;;
             *) warn "Invalid option."; sleep 1 ;;
         esac
@@ -2881,9 +3004,13 @@ case "${1:-}" in
     restart)        action_restart ;;
     status)         action_status ;;
     urls)           action_urls ;;
+    edit)           action_edit_compose ;;
+    edit-env)       action_edit_env ;;
+    # Internal: re-exec target after `update` refreshes the manager script.
+    __continue-update) draw_banner; run_update_for_branch "${2:-main}" ;;
     ""|menu)        main_menu ;;
     *)
-        echo "Usage: pasarguardbot [install|uninstall|purge|update|update-script|logs|restart|status|urls|menu]"
+        echo "Usage: pasarguardbot [install|uninstall|purge|update|update-script|logs|restart|status|urls|edit|edit-env|menu]"
         exit 1
         ;;
 esac
