@@ -655,8 +655,6 @@
       "showProfile": "نمایش پروفایل",
       "showSupport": "نمایش پشتیبانی",
       "showManualCard": "نمایش کارت دستی",
-      "manualCardVisibilityAll": "همه کاربران",
-      "manualCardVisibilitySafeMode": "فقط سیف‌مود",
       "usageChart": "نمودار مصرف",
       "paymentEnabled": "پرداخت فعال",
       "paymentsAndWallet": "پرداخت و کیف پول",
@@ -665,8 +663,6 @@
       "miniappOnly": "فقط مینی‌اپ (منوی ربات خاموش)",
       "startReactionEmoji": "ری‌اکشن پیام استارت",
       "startEffectId": "افکت پیام استارت",
-      "reactionOff": "خاموش (بدون ری‌اکشن)",
-      "effectOff": "خاموش (بدون افکت)",
       "readOnlyHint": "به‌صورت خودکار بروزرسانی می‌شود — قابل ویرایش نیست",
       "glassButtons": "دکمه‌های شیشه‌ای"
     },

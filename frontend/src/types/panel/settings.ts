@@ -3,6 +3,12 @@ import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
 export type PanelSettingValue = boolean | number | string | null;
 
+/** One choice for a ``select`` field: the stored value and its display label. */
+export interface PanelSelectOption {
+  value: string;
+  label: string;
+}
+
 /** One setting, described well enough for the client to render it. */
 export interface PanelSettingField {
   key: string;
@@ -10,7 +16,7 @@ export interface PanelSettingField {
   type: string;
   default: PanelSettingValue;
   value: PanelSettingValue;
-  options?: string[] | null;
+  options?: PanelSelectOption[] | null;
   read_only?: boolean;
 }
 

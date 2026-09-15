@@ -1,6 +1,7 @@
 export * from "./ConfirmButton";
 export * from "./DataTable";
 export * from "./FormModal";
+export * from "./IconPickerField";
 export * from "./SectionCard";
 export * from "./SelectField";
 export * from "./StatTile";

@@ -4,25 +4,13 @@ import { Button, ErrorState, Input, SegmentedControl, Skeleton, Tabs } from "../
 import { panelSettingsApi } from "../../api/panel";
 import type { PanelSettingValue } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
-import { SectionCard, SelectField, Toggle } from "./components";
+import { IconPickerField, SectionCard, Toggle } from "./components";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
-// Beyond this many choices, a row of pill buttons stops being usable — fall back to a dropdown.
-const SEGMENTED_OPTION_LIMIT = 8;
-
-const selectOptionLabels = (t: TFunction): Record<string, Record<string, string>> => ({
-  manual_card_visibility: {
-    all: t("panel.settings.manualCardVisibilityAll"),
-    safe_mode: t("panel.settings.manualCardVisibilitySafeMode"),
-  },
-  start_reaction_emoji: {
-    "": t("panel.settings.reactionOff"),
-  },
-  start_effect_id: {
-    "0": t("panel.settings.effectOff"),
-  },
-});
+// These pick from a fixed set of emoji, so they get an icon-grid picker instead
+// of a text pill row or a dropdown — see IconPickerField.
+const ICON_PICKER_FIELDS = new Set(["start_reaction_emoji", "start_effect_id"]);
 
 const sectionTitles = (t: TFunction): Record<string, string> => ({
   core_settings: t("panel.settings.core"),
@@ -173,16 +161,15 @@ export default function AdminSettingsPage() {
           <div className={`grid gap-3 sm:grid-cols-2 ${toggles.length ? "mt-4 border-t border-border pt-4" : ""}`}>
             {selects.map((field) => {
               const options = field.options || [];
-              const optionLabel = (option: string) => selectOptionLabels(t)[field.key]?.[option] || option;
-              const current = String(values[field.key] ?? options[0] ?? "");
+              const current = String(values[field.key] ?? options[0]?.value ?? "");
               return (
                 <div key={field.key}>
-                  {options.length > SEGMENTED_OPTION_LIMIT ? (
-                    <SelectField
+                  {ICON_PICKER_FIELDS.has(field.key) ? (
+                    <IconPickerField
                       label={labels(t)[field.key] || field.key}
                       value={current}
-                      onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
-                      options={options.map((option) => ({ value: option, label: optionLabel(option) }))}
+                      onChange={(value) => setValues({ ...values, [field.key]: value })}
+                      options={options}
                     />
                   ) : (
                     <>
@@ -190,7 +177,7 @@ export default function AdminSettingsPage() {
                       <SegmentedControl
                         value={current}
                         onChange={(value) => setValues({ ...values, [field.key]: value })}
-                        options={options.map((option) => ({ value: option, label: optionLabel(option) }))}
+                        options={options}
                       />
                     </>
                   )}

@@ -11,6 +11,7 @@ from app.db.crud.settings import SettingsManager
 from app.db.models.settings import SETTINGS_SECTION_DEFAULTS
 from app.models.panel.common import ActionResponse, PanelRequest
 from app.models.panel.settings import (
+    PanelSelectOption,
     PanelSettingField,
     PanelSettingSection,
     PanelSettingsResponse,
@@ -48,12 +49,17 @@ START_MESSAGE_EFFECTS: tuple[tuple[str, str], ...] = (
     ("5046589136895476101", "💩"),
 )
 
-# Fields whose value is a fixed set of strings rather than free text or a number.
-# The first option in each list is the "off" value.
-SELECT_FIELD_OPTIONS: dict[str, list[str]] = {
-    "manual_card_visibility": [MANUAL_CARD_VISIBILITY_ALL, MANUAL_CARD_VISIBILITY_SAFE_MODE],
-    "start_reaction_emoji": ["", *START_REACTION_EMOJIS],
-    "start_effect_id": ["0", *(effect_id for effect_id, _ in START_MESSAGE_EFFECTS)],
+# Fields whose value is a fixed set of options rather than free text or a number:
+# (value, label) pairs, the value's what gets stored, the label's what the picker
+# shows for it — kept together here so the two can never drift apart. The first
+# option in each list is the "off" value.
+SELECT_FIELD_OPTIONS: dict[str, list[tuple[str, str]]] = {
+    "manual_card_visibility": [
+        (MANUAL_CARD_VISIBILITY_ALL, "همه کاربران"),
+        (MANUAL_CARD_VISIBILITY_SAFE_MODE, "فقط سیف‌مود"),
+    ],
+    "start_reaction_emoji": [("", "خاموش"), *((emoji, emoji) for emoji in START_REACTION_EMOJIS)],
+    "start_effect_id": [("0", "خاموش"), *((effect_id, emoji) for effect_id, emoji in START_MESSAGE_EFFECTS)],
 }
 
 # Select values that must be cast back to a non-string type before storage.
@@ -85,17 +91,20 @@ def _field_type(key: str, default: Any) -> str:
 def _build_field(setting: Any, section: str, key: str, default: Any) -> PanelSettingField:
     value = _current(setting, section, key, default)
     options = SELECT_FIELD_OPTIONS.get(key)
+    select_options = None
     if options is not None:
         # Options are always strings client-side — some (like a message effect id)
         # would lose precision as a JSON number once a browser parses them.
         text_value = "" if value is None else str(value)
-        value = text_value if text_value in options else options[0]
+        valid_values = {item_value for item_value, _ in options}
+        value = text_value if text_value in valid_values else options[0][0]
+        select_options = [PanelSelectOption(value=item_value, label=label) for item_value, label in options]
     return PanelSettingField(
         key=key,
         type=_field_type(key, default),
         default=default,
         value=value,
-        options=options,
+        options=select_options,
         read_only=key in READONLY_FIELDS,
     )
 
@@ -149,7 +158,7 @@ async def save_settings(payload: PanelSettingsSaveRequest, request: Request) -> 
                     continue
                 if key in SELECT_FIELD_OPTIONS:
                     raw = payload.values[key]
-                    if raw not in SELECT_FIELD_OPTIONS[key]:
+                    if raw not in {item_value for item_value, _ in SELECT_FIELD_OPTIONS[key]}:
                         return ActionResponse(ok=False, error=f"مقدار «{key}» نامعتبر است.")
                     caster = SELECT_FIELD_CASTERS.get(key)
                     updates[key] = caster(raw) if caster else raw

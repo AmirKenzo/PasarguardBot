@@ -655,8 +655,6 @@
       "showProfile": "Show profile",
       "showSupport": "Show support",
       "showManualCard": "Show manual card",
-      "manualCardVisibilityAll": "All users",
-      "manualCardVisibilitySafeMode": "Safe mode only",
       "usageChart": "Usage chart",
       "paymentEnabled": "Payments enabled",
       "paymentsAndWallet": "Payments and wallet",
@@ -665,8 +663,6 @@
       "miniappOnly": "Mini app only (bot menu off)",
       "startReactionEmoji": "Start reaction emoji",
       "startEffectId": "Start message effect",
-      "reactionOff": "Off (no reaction)",
-      "effectOff": "Off (no effect)",
       "readOnlyHint": "Updated automatically — not editable here",
       "glassButtons": "Glassy buttons"
     },
