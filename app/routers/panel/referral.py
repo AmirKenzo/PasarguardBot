@@ -70,8 +70,8 @@ async def save_referral(payload: PanelReferralSaveRequest, request: Request) -> 
             return ActionResponse(ok=False, error="تنظیمات ذخیره نشد.")
 
         await audit.record(
-            admin_id=actor.user_id,
-            admin_username=actor.username,
+            actor_id=actor.user_id,
+            actor_username=actor.username,
             action="referral_settings_update",
             target_type="referral",
             detail={

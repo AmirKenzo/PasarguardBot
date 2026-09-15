@@ -26,6 +26,9 @@ const EMPTY_DRAFT: Draft = {
   username: "",
   secret: "",
   enable: true,
+  test_enabled: false,
+  test_volume_gb: 2,
+  test_duration_days: 3,
 };
 
 export default function AdminPanelsPage() {
@@ -84,6 +87,9 @@ export default function AdminPanelsPage() {
                 username: row.username || "",
                 secret: "",
                 enable: row.enable,
+                test_enabled: row.test_enabled,
+                test_volume_gb: row.test_volume_gb,
+                test_duration_days: row.test_duration_days,
               })
             }
           >
@@ -181,6 +187,30 @@ export default function AdminPanelsPage() {
               value={draft.secret || ""}
               onChange={(event) => setDraft({ ...draft, secret: event.target.value })}
             />
+            <div className="space-y-3 rounded-md border border-border p-3">
+              <Toggle
+                checked={draft.test_enabled ?? false}
+                onChange={(test_enabled) => setDraft({ ...draft, test_enabled })}
+                label={t("panel.panels.trialEnabled")}
+              />
+              <p className="text-xs text-muted">{t("panel.panels.trialHint")}</p>
+              {draft.test_enabled && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    label={t("panel.plans.volumeGb")}
+                    inputMode="decimal"
+                    value={String(draft.test_volume_gb ?? "")}
+                    onChange={(event) => setDraft({ ...draft, test_volume_gb: Number(event.target.value) })}
+                  />
+                  <Input
+                    label={t("panel.common.periodDays")}
+                    inputMode="numeric"
+                    value={String(draft.test_duration_days ?? "")}
+                    onChange={(event) => setDraft({ ...draft, test_duration_days: Number(event.target.value) })}
+                  />
+                </div>
+              )}
+            </div>
             <Toggle
               checked={draft.enable ?? true}
               onChange={(enable) => setDraft({ ...draft, enable })}

@@ -1,4 +1,4 @@
-"""Audit trail for changes made through the web panel."""
+"""Audit trail for actions performed through the web panel."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 
 from app.db.base import AsyncSessionLocal as Session
-from app.db.models.panel_audit import PanelAuditLog
+from app.db.models.audit import AuditLog
 from app.logger import get_logger
 
 log = get_logger(__name__)
@@ -17,8 +17,8 @@ log = get_logger(__name__)
 
 async def record(
     *,
-    admin_id: int | None,
-    admin_username: str | None,
+    actor_id: int | None,
+    actor_username: str | None,
     action: str,
     target_type: str | None = None,
     target_id: Any = None,
@@ -29,9 +29,9 @@ async def record(
     try:
         async with Session() as session:
             session.add(
-                PanelAuditLog(
-                    admin_id=admin_id,
-                    admin_username=(admin_username or "")[:64] or None,
+                AuditLog(
+                    actor_id=actor_id,
+                    actor_username=(actor_username or "")[:64] or None,
                     action=action[:64],
                     target_type=(target_type or "")[:40] or None,
                     target_id=(str(target_id) if target_id is not None else "")[:64] or None,
@@ -50,19 +50,19 @@ async def list_entries(
     page: int = 1,
     limit: int = 25,
     action: str = "",
-    admin_id: int | None = None,
-) -> tuple[list[PanelAuditLog], int]:
+    actor_id: int | None = None,
+) -> tuple[list[AuditLog], int]:
     """Return one page of audit entries, newest first, plus the total count."""
     offset = (max(1, page) - 1) * limit
     filters = []
     if action:
-        filters.append(PanelAuditLog.action == action[:64])
-    if admin_id is not None:
-        filters.append(PanelAuditLog.admin_id == admin_id)
+        filters.append(AuditLog.action == action[:64])
+    if actor_id is not None:
+        filters.append(AuditLog.actor_id == actor_id)
 
     async with Session() as session:
-        count_stmt = select(func.count()).select_from(PanelAuditLog)
-        rows_stmt = select(PanelAuditLog).order_by(PanelAuditLog.id.desc()).limit(limit).offset(offset)
+        count_stmt = select(func.count()).select_from(AuditLog)
+        rows_stmt = select(AuditLog).order_by(AuditLog.id.desc()).limit(limit).offset(offset)
         for condition in filters:
             count_stmt = count_stmt.where(condition)
             rows_stmt = rows_stmt.where(condition)
@@ -75,13 +75,13 @@ async def list_entries(
 async def known_actions() -> list[str]:
     """Distinct action names, for the filter dropdown."""
     async with Session() as session:
-        rows = (await session.execute(select(PanelAuditLog.action).distinct())).scalars().all()
+        rows = (await session.execute(select(AuditLog.action).distinct())).scalars().all()
     return sorted(str(row) for row in rows)
 
 
 async def purge_older_than(days: int) -> int:
     cutoff = int(time.time()) - max(1, days) * 86400
     async with Session() as session:
-        result = await session.execute(delete(PanelAuditLog).where(PanelAuditLog.created_at < cutoff))
+        result = await session.execute(delete(AuditLog).where(AuditLog.created_at < cutoff))
         await session.commit()
         return int(result.rowcount or 0)

@@ -67,6 +67,16 @@ export interface PanelUserBlockRequest extends PanelAuthRequest {
   notify?: boolean;
 }
 
+export interface PanelUserPhoneRequest extends PanelAuthRequest {
+  user_id: number;
+  /** Empty clears the stored number. */
+  phone: string;
+}
+
+export interface PanelUserPhoneResponse extends ActionResponse {
+  number?: string | null;
+}
+
 export interface PanelUserMessageRequest extends PanelAuthRequest {
   user_id: number;
   text: string;

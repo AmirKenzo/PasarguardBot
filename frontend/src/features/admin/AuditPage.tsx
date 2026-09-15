@@ -16,6 +16,8 @@ const actionLabels = (t: TFunction): Record<string, string> => ({
   user_block: t("panel.audit.userBlock"),
   user_unblock: t("panel.common.unblock"),
   user_message: t("panel.audit.messageSent"),
+  user_phone_set: t("panel.audit.phoneSet"),
+  user_phone_clear: t("panel.audit.phoneClear"),
   service_enable: t("panel.audit.serviceEnable"),
   service_disable: t("panel.audit.serviceDisable"),
   service_delete: t("panel.common.deleteService"),
@@ -92,9 +94,9 @@ export default function AdminAuditPage() {
       ),
     },
     {
-      key: "admin",
+      key: "actor",
       header: t("panel.audit.admin"),
-      cell: (row) => <code className="ltr-field text-xs">{row.admin_username || row.admin_id || "—"}</code>,
+      cell: (row) => <code className="ltr-field text-xs">{row.actor_username || row.actor_id || "—"}</code>,
     },
     {
       key: "action",

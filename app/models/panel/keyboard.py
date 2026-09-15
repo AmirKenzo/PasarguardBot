@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from app.models.panel.common import PanelRequest, PanelResponse
 
 # ``none`` clears the built-in default colour; an empty value keeps it.
-STYLE_OPTIONS = ("", "primary", "success", "danger", "none")
+STYLE_OPTIONS = ("", "primary", "success", "danger", "glass", "none")
 
 # Key prefix -> stable section slug, so the client can group and label buttons.
 SECTION_PREFIXES: tuple[tuple[str, str], ...] = (
@@ -40,6 +40,9 @@ class PanelKeyboardResponse(PanelResponse):
     sections: list[str] = Field(default_factory=list)
     style_options: list[str] = Field(default_factory=lambda: list(STYLE_OPTIONS))
     premium_emoji_enabled: bool = False
+    # The global switch in settings; when on, every home button is drawn glassy
+    # whatever its own style says.
+    glass_mode: bool = False
 
 
 class PanelKeyboardLayoutRequest(PanelRequest):

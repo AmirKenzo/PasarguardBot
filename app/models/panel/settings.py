@@ -7,13 +7,22 @@ from pydantic import BaseModel, Field
 from app.models.panel.common import PanelRequest, PanelResponse
 
 
+class PanelSelectOption(BaseModel):
+    """One choice for a ``select`` field: the stored value and its display label."""
+
+    value: str
+    label: str
+
+
 class PanelSettingField(BaseModel):
     """One setting, described well enough for the client to render it."""
 
     key: str
-    type: str = Field("number", description="bool | number")
+    type: str = Field("number", description="bool | number | text | select")
     default: Any = None
     value: Any = None
+    options: list[PanelSelectOption] | None = None
+    read_only: bool = False
 
 
 class PanelSettingSection(BaseModel):

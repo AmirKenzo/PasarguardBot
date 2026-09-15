@@ -1,5 +1,6 @@
 from . import (
     app_files,
+    audit,
     bot_text,
     broadcast,
     channels,
@@ -10,7 +11,6 @@ from . import (
     log_channels,
     manual_auto_approve_rule,
     manual_card,
-    panel_audit,
     panels,
     plans,
     receipt_hash,
@@ -28,6 +28,7 @@ from . import (
 
 __all__ = [
     "app_files",
+    "audit",
     "bot_text",
     "broadcast",
     "channels",
@@ -38,7 +39,6 @@ __all__ = [
     "log_channels",
     "manual_auto_approve_rule",
     "manual_card",
-    "panel_audit",
     "panels",
     "plans",
     "receipt_hash",

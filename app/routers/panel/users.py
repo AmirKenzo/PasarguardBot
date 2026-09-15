@@ -14,6 +14,8 @@ from app.models.panel.users import (
     PanelUserDetailRequest,
     PanelUserDetailResponse,
     PanelUserMessageRequest,
+    PanelUserPhoneRequest,
+    PanelUserPhoneResponse,
     PanelUserRow,
     PanelUserServiceRow,
     PanelUsersRequest,
@@ -23,6 +25,7 @@ from app.models.panel.users import (
 from app.panel import mutations, queries
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.utils.formatting import normalise_phone_number
 
 router = APIRouter()
 
@@ -124,6 +127,24 @@ async def set_block(payload: PanelUserBlockRequest, request: Request) -> ActionR
         return ActionResponse(message="کاربر مسدود شد." if payload.blocked else "مسدودی کاربر برداشته شد.")
 
     return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/users/phone", response_model=PanelUserPhoneResponse)
+async def set_phone(payload: PanelUserPhoneRequest, request: Request) -> PanelUserPhoneResponse:
+    async def handle(actor: PanelActor) -> PanelUserPhoneResponse:
+        raw = payload.phone.strip()
+        # An empty field clears the number rather than failing validation.
+        phone = normalise_phone_number(raw) if raw else None
+        if raw and not phone:
+            return PanelUserPhoneResponse(ok=False, error="فرمت شمارهٔ تلفن معتبر نیست.")
+        if not await mutations.set_user_phone(actor, payload.user_id, phone):
+            return PanelUserPhoneResponse(ok=False, error="کاربری با این آیدی پیدا نشد.")
+        return PanelUserPhoneResponse(
+            number=phone,
+            message="شماره ثبت شد." if phone else "شماره حذف شد.",
+        )
+
+    return await guard.run(payload, request, PanelUserPhoneResponse, handle)
 
 
 @router.post("/panel/users/message", response_model=ActionResponse)

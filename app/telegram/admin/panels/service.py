@@ -25,6 +25,7 @@ from app.services.panels.settings import (
     panel_test_duration_days,
     panel_test_volume_gb,
 )
+from app.services.panels.trials import trial_panels
 from app.telegram.shared.keyboards.panel_buttons import (
     build_panel_admin_settings_buttons,
     build_panel_list_rows,
@@ -81,17 +82,21 @@ async def show_panel_ms_buttons_menu(event, panel) -> None:
 
 async def build_panel_test_settings_content(panel) -> tuple[str, list]:
     setting = await SettingsManager().get_settings()
-    is_test_panel = setting.test_panel_id == panel.code
+    # Trials are per panel now, so this answers "does this one give a trial",
+    # not "is this the one panel that does".
+    offering = await trial_panels(setting)
+    is_test_panel = any(int(item.code) == int(panel.code) for item in offering)
+    others = [item.name for item in offering if int(item.code) != int(panel.code)]
     test_volume = panel_test_volume_gb(panel)
     test_duration = panel_test_duration_days(panel)
     test_volume_text = convert_storage(test_volume, for_button=True)
 
     if is_test_panel:
-        test_server_line = "🆓 <b>سرور تست:</b> ✅ این پنل فعال است"
-    elif setting.test_panel_id:
-        test_server_line = f"🆓 <b>سرور تست:</b> پنل دیگر (کد `{setting.test_panel_id}`)"
+        test_server_line = "🆓 <b>سرویس تست:</b> ✅ از این پنل ارائه می‌شود"
     else:
-        test_server_line = "🆓 <b>سرور تست:</b> غیرفعال"
+        test_server_line = "🆓 <b>سرویس تست:</b> از این پنل ارائه نمی‌شود"
+    if others:
+        test_server_line += f"\n🧩 <b>پنل‌های دیگر با تست:</b> {'، '.join(others)}"
 
     text = (
         f"<b>🧪 تنظیمات کانفیگ تست</b>\n\n"
@@ -107,9 +112,9 @@ async def build_panel_test_settings_content(panel) -> tuple[str, list]:
         [Button.inline(f"⏰ زمان تست: {test_duration} روز", data=f"panel_test_duration:{panel_code}")],
     ]
     if is_test_panel:
-        buttons.append([Button.inline("❌ غیرفعال کردن سرور تست", data=f"panel_disable_test_server:{panel_code}")])
+        buttons.append([Button.inline("❌ خاموش کردن تست این پنل", data=f"panel_disable_test_server:{panel_code}")])
     else:
-        buttons.append([Button.inline("🆓 تنظیم به عنوان سرور تست", data=f"panel_set_test_server:{panel_code}")])
+        buttons.append([Button.inline("🆓 ارائهٔ تست از این پنل", data=f"panel_set_test_server:{panel_code}")])
     buttons.append([Button.inline("🔙 برگشت", data=f"panel_info:{panel_code}")])
     return text, buttons
 

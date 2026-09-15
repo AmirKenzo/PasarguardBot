@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import random
 import time
 
@@ -13,7 +14,6 @@ from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app import Kenzo
 from app.db.crud.keyboards import get_button_text
-from app.db.crud.panels import PanelsManager
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
@@ -21,8 +21,14 @@ from app.logger import LogType, get_logger
 from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.settings import panel_test_duration_days, panel_test_volume_gb
+from app.services.panels.trials import trial_panels
 from app.services.subscriptions.links import format_subscription_links_for_message
-from app.telegram.keyboards.common import is_keyboard_config_step, styled_copy_button, styled_webview_button
+from app.telegram.keyboards.common import (
+    is_keyboard_config_step,
+    styled_callback_button,
+    styled_copy_button,
+    styled_webview_button,
+)
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.guards.channel_gate import ensure_channel_membership, extract_start_param
 from app.telegram.shared.utils.logging import send_log_message
@@ -36,6 +42,62 @@ from app.utils.media.qrcode import create_qr_code
 from app.utils.text.bot_texts import get_bot_text
 
 logger = get_logger(__name__)
+
+TRIAL_PICKER_PROMPT = "🎁 کدام سرویس تست را می‌خواهی؟"
+TRIAL_PICK_PREFIX = "TrialPanel_"
+
+
+def _trial_picker_buttons(panels) -> ReplyInlineMarkup:
+    """One button per panel offering a trial, labelled with what it gives."""
+    rows = []
+    for panel in panels:
+        volume = convert_storage(panel_test_volume_gb(panel))
+        days = panel_test_duration_days(panel)
+        rows.append(
+            KeyboardInlineButtonRow(
+                [
+                    styled_callback_button(
+                        f"{panel.name} — {volume} / {days} روز",
+                        f"{TRIAL_PICK_PREFIX}{int(panel.code)}",
+                    )
+                ]
+            )
+        )
+    return ReplyInlineMarkup(rows)
+
+
+@bot_is_offline
+async def trial_panel_pick_callback(event: events.CallbackQuery.Event):
+    """Deliver the trial from the panel the user picked."""
+    user_id = event.sender_id
+    lang = await _user_lang(user_id)
+    try:
+        code = int(event.data.decode().removeprefix(TRIAL_PICK_PREFIX))
+    except TypeError, ValueError:
+        await event.answer("انتخاب نامعتبر است.", alert=True)
+        raise events.StopPropagation from None
+
+    setting = await SettingsManager().get_settings()
+    # Re-checked rather than trusted: the button may be minutes old, and the
+    # trial could have been taken or switched off in between.
+    if not setting or setting.test_mode == 0:
+        await event.answer("دریافت تست غیرفعال شده است.", alert=True)
+        raise events.StopPropagation
+
+    user = await UserCRUD().read_user(user_id=user_id)
+    if user and user.tested != 0:
+        await event.answer("شما قبلاً تست خود را گرفته‌اید.", alert=True)
+        raise events.StopPropagation
+
+    panel = next((item for item in await trial_panels(setting) if int(item.code) == code), None)
+    if panel is None:
+        await event.answer("این سرویس تست دیگر در دسترس نیست.", alert=True)
+        raise events.StopPropagation
+
+    with contextlib.suppress(Exception):
+        await event.delete()
+    await deliver_trial(event, user_id, lang, panel)
+    raise events.StopPropagation
 
 
 async def free_trial_filter(event: Message) -> bool:
@@ -68,10 +130,9 @@ async def free_trial_handler(event: Message):
     if paneltest.test_mode == 0:
         await event.respond("😢 دریافت تست از سمت ادمین غیرفعال شده", buttons=await bhome_buttons(user_id, lang))
         raise events.StopPropagation
-    if paneltest.test_panel_id == 0:
+    panels = await trial_panels(paneltest)
+    if not panels:
         await event.respond("پنل برای دریافت تست موجود نیست", buttons=await bhome_buttons(user_id, lang))
-        raise events.StopPropagation
-    if paneltest.test_panel_id is None:
         raise events.StopPropagation
 
     try:
@@ -97,8 +158,121 @@ async def free_trial_handler(event: Message):
             )
             raise events.StopPropagation
 
-        paneltest = await SettingsManager().get_settings()
-        panel = await PanelsManager().get_panel_by_code(code=paneltest.test_panel_id)
+        if len(panels) > 1:
+            await event.respond(TRIAL_PICKER_PROMPT, buttons=_trial_picker_buttons(panels))
+            raise events.StopPropagation
+
+        await deliver_trial(event, user_id, lang, panels[0])
+
+    except events.StopPropagation:
+        raise
+    except Exception as exc:
+        logger.error("%s", exc)
+
+    raise events.StopPropagation
+
+
+async def trial_phone_verify_filter(event: Message) -> bool:
+    if event.is_channel or not event.is_private:
+        return False
+    if not event.message.contact:
+        return False
+    return await get_step(event.sender_id) == "test_phone_verify"
+
+
+@bot_is_offline
+async def trial_phone_verify_handler(event: Message):
+    contact = event.message.contact
+    user_id = event.sender_id
+    lang = await _user_lang(user_id)
+    user = await event.get_sender()
+    username = user.username if user.username else "یوزرنیم موجود نیست"
+    full_name = f"{user.first_name} {user.last_name or ''}".strip()
+    phone_number = contact.phone_number
+
+    if contact.user_id != user_id:
+        await event.respond(
+            "🚫 فقط می‌توانید شماره تلفن متعلق به خودتان را ارسال کنید.\n❌ ارسال شماره‌های دیگر مجاز نیست."
+        )
+        log_message = (
+            f"❌ شماره تایید نشد\n\n"
+            f"▪️ آیدی عددی : {user_id}\n"
+            f"❕ نام پروفایل : {full_name}\n"
+            f"☎️ یوزرنیم : @{username}\n"
+            f"☎️ شماره تلفن : {phone_number}"
+        )
+        await send_log_message(LogType.OTHER, message=log_message)
+        raise events.StopPropagation
+
+    if phone_number.startswith("+98") or phone_number.startswith("98"):
+        log_message = (
+            f"🔐 احراز هویت جدیدی انجام شد.\n\n"
+            f"▪️ آیدی عددی : {user_id}\n"
+            f"❕ نام پروفایل : {full_name}\n"
+            f"☎️ یوزرنیم : @{username}\n"
+            f"☎️ شماره تلفن : {phone_number}"
+        )
+        await send_log_message(LogType.OTHER, message=log_message)
+
+        success = await UserCRUD().update_user(user_id=user_id, number=phone_number)
+        if success:
+            txt = (
+                "✅ شماره تلفن شما با موفقیت ثبت شد.\n"
+                "🌟 از اعتماد شما به مجموعه ما سپاسگزاریم! ما متعهد به حفظ حریم خصوصی و ارائه بهترین خدمات به شما هستیم.\n"
+                "📌 در صورت نیاز به پشتیبانی، همواره می‌توانید با ما در تماس باشید. 🙏\n"
+            )
+            await event.respond(txt, buttons=await bhome_buttons(user_id, lang))
+            await set_step(user_id=user_id, step="start")
+        else:
+            await event.respond(
+                "⛔ متأسفیم! خطایی در به‌روزرسانی شماره تلفن شما رخ داد.\n"
+                "لطفاً دوباره تلاش کنید یا در صورت ادامه مشکل، با پشتیبانی تماس بگیرید. 🙏"
+            )
+            log_message = (
+                f"⛔ خطا\n\n"
+                f"▪️ آیدی عددی : {user_id}\n"
+                f"❕ نام پروفایل : {full_name}\n"
+                f"☎️ یوزرنیم : @{username}\n"
+                f"☎️ شماره تلفن : {phone_number}\n\n"
+                "⛔ متأسفیم! خطایی در به‌روزرسانی شماره تلفن شما رخ داد.\n"
+                "لطفاً دوباره تلاش کنید یا در صورت ادامه مشکل، با پشتیبانی تماس بگیرید. 🙏"
+            )
+            await send_log_message(LogType.OTHER, message=log_message)
+    else:
+        await event.respond(
+            "🚫 فقط شماره‌هایی که با پیش‌شماره +98 شروع می‌شوند قابل پذیرش هستند.\n"
+            "👈 لطفاً یک شماره معتبر ایرانی وارد کنید."
+        )
+        log_message = (
+            f"❌ شماره تایید نشد\n\n"
+            f"▪️ آیدی عددی : {user_id}\n"
+            f"❕ نام پروفایل : {full_name}\n"
+            f"☎️ یوزرنیم : @{username}\n"
+            f"☎️ شماره تلفن : {phone_number}"
+        )
+        await send_log_message(LogType.OTHER, message=log_message)
+
+    raise events.StopPropagation
+
+
+def register(client):
+    client.add_event_handler(
+        free_trial_handler,
+        events.NewMessage(incoming=True, func=free_trial_filter),
+    )
+    client.add_event_handler(
+        trial_phone_verify_handler,
+        events.NewMessage(incoming=True, func=trial_phone_verify_filter),
+    )
+    client.add_event_handler(
+        trial_panel_pick_callback,
+        events.CallbackQuery(pattern=rf"^{TRIAL_PICK_PREFIX}\d+$"),
+    )
+
+
+async def deliver_trial(event, user_id: int, lang: str, panel) -> None:
+    """Create the trial account on ``panel`` and hand it to the user."""
+    try:
         test_volume_gb = panel_test_volume_gb(panel)
         test_duration_days = panel_test_duration_days(panel)
 
@@ -241,104 +415,6 @@ async def free_trial_handler(event: Message):
         )
 
         await send_log_message(LogType.OTHER, message=log_text)
-
-    except events.StopPropagation:
-        raise
     except Exception as exc:
         logger.error("%s", exc)
-
-    raise events.StopPropagation
-
-
-async def trial_phone_verify_filter(event: Message) -> bool:
-    if event.is_channel or not event.is_private:
-        return False
-    if not event.message.contact:
-        return False
-    return await get_step(event.sender_id) == "test_phone_verify"
-
-
-@bot_is_offline
-async def trial_phone_verify_handler(event: Message):
-    contact = event.message.contact
-    user_id = event.sender_id
-    lang = await _user_lang(user_id)
-    user = await event.get_sender()
-    username = user.username if user.username else "یوزرنیم موجود نیست"
-    full_name = f"{user.first_name} {user.last_name or ''}".strip()
-    phone_number = contact.phone_number
-
-    if contact.user_id != user_id:
-        await event.respond(
-            "🚫 فقط می‌توانید شماره تلفن متعلق به خودتان را ارسال کنید.\n❌ ارسال شماره‌های دیگر مجاز نیست."
-        )
-        log_message = (
-            f"❌ شماره تایید نشد\n\n"
-            f"▪️ آیدی عددی : {user_id}\n"
-            f"❕ نام پروفایل : {full_name}\n"
-            f"☎️ یوزرنیم : @{username}\n"
-            f"☎️ شماره تلفن : {phone_number}"
-        )
-        await send_log_message(LogType.OTHER, message=log_message)
-        raise events.StopPropagation
-
-    if phone_number.startswith("+98") or phone_number.startswith("98"):
-        log_message = (
-            f"🔐 احراز هویت جدیدی انجام شد.\n\n"
-            f"▪️ آیدی عددی : {user_id}\n"
-            f"❕ نام پروفایل : {full_name}\n"
-            f"☎️ یوزرنیم : @{username}\n"
-            f"☎️ شماره تلفن : {phone_number}"
-        )
-        await send_log_message(LogType.OTHER, message=log_message)
-
-        success = await UserCRUD().update_user(user_id=user_id, number=phone_number)
-        if success:
-            txt = (
-                "✅ شماره تلفن شما با موفقیت ثبت شد.\n"
-                "🌟 از اعتماد شما به مجموعه ما سپاسگزاریم! ما متعهد به حفظ حریم خصوصی و ارائه بهترین خدمات به شما هستیم.\n"
-                "📌 در صورت نیاز به پشتیبانی، همواره می‌توانید با ما در تماس باشید. 🙏\n"
-            )
-            await event.respond(txt, buttons=await bhome_buttons(user_id, lang))
-            await set_step(user_id=user_id, step="start")
-        else:
-            await event.respond(
-                "⛔ متأسفیم! خطایی در به‌روزرسانی شماره تلفن شما رخ داد.\n"
-                "لطفاً دوباره تلاش کنید یا در صورت ادامه مشکل، با پشتیبانی تماس بگیرید. 🙏"
-            )
-            log_message = (
-                f"⛔ خطا\n\n"
-                f"▪️ آیدی عددی : {user_id}\n"
-                f"❕ نام پروفایل : {full_name}\n"
-                f"☎️ یوزرنیم : @{username}\n"
-                f"☎️ شماره تلفن : {phone_number}\n\n"
-                "⛔ متأسفیم! خطایی در به‌روزرسانی شماره تلفن شما رخ داد.\n"
-                "لطفاً دوباره تلاش کنید یا در صورت ادامه مشکل، با پشتیبانی تماس بگیرید. 🙏"
-            )
-            await send_log_message(LogType.OTHER, message=log_message)
-    else:
-        await event.respond(
-            "🚫 فقط شماره‌هایی که با پیش‌شماره +98 شروع می‌شوند قابل پذیرش هستند.\n"
-            "👈 لطفاً یک شماره معتبر ایرانی وارد کنید."
-        )
-        log_message = (
-            f"❌ شماره تایید نشد\n\n"
-            f"▪️ آیدی عددی : {user_id}\n"
-            f"❕ نام پروفایل : {full_name}\n"
-            f"☎️ یوزرنیم : @{username}\n"
-            f"☎️ شماره تلفن : {phone_number}"
-        )
-        await send_log_message(LogType.OTHER, message=log_message)
-
-    raise events.StopPropagation
-
-
-def register(client):
-    client.add_event_handler(
-        free_trial_handler,
-        events.NewMessage(incoming=True, func=free_trial_filter),
-    )
-    client.add_event_handler(
-        trial_phone_verify_handler,
-        events.NewMessage(incoming=True, func=trial_phone_verify_filter),
-    )
+        await event.respond("ساخت سرویس تست انجام نشد. بعداً دوباره تلاش کن.")

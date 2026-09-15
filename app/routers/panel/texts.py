@@ -103,8 +103,8 @@ async def save_text(payload: PanelTextSaveRequest, request: Request) -> ActionRe
             return ActionResponse(ok=False, error="ذخیرهٔ متن انجام نشد.")
 
         await audit.record(
-            admin_id=actor.user_id,
-            admin_username=actor.username,
+            actor_id=actor.user_id,
+            actor_username=actor.username,
             action="bot_text_update",
             target_type="bot_text",
             target_id=key,
@@ -124,8 +124,8 @@ async def delete_text(payload: PanelTextDeleteRequest, request: Request) -> Acti
             return ActionResponse(ok=False, error="کلید متن الزامی است.")
         ok = await BotTextCRUD().delete_text(key, payload.lang.strip()[:10] or None)
         await audit.record(
-            admin_id=actor.user_id,
-            admin_username=actor.username,
+            actor_id=actor.user_id,
+            actor_username=actor.username,
             action="bot_text_delete",
             target_type="bot_text",
             target_id=key,

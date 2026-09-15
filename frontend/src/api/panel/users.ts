@@ -6,6 +6,8 @@ import type {
   PanelUserDetailRequest,
   PanelUserDetailResponse,
   PanelUserMessageRequest,
+  PanelUserPhoneRequest,
+  PanelUserPhoneResponse,
   PanelUsersRequest,
   PanelUsersResponse,
 } from "../../types/panel";
@@ -25,6 +27,10 @@ export function adjustBalance(body: PanelUserBalanceRequest) {
 
 export function setBlocked(body: PanelUserBlockRequest) {
   return panelPost<ActionResponse>("/users/block", body);
+}
+
+export function setPhone(body: PanelUserPhoneRequest) {
+  return panelPost<PanelUserPhoneResponse>("/users/phone", body);
 }
 
 export function sendMessage(body: PanelUserMessageRequest) {

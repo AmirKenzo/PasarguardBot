@@ -34,7 +34,7 @@ async def list_audit(payload: PanelAuditRequest, request: Request) -> PanelAudit
                 page=payload.page,
                 limit=payload.limit,
                 action=payload.action.strip(),
-                admin_id=payload.admin_id,
+                actor_id=payload.actor_id,
             ),
             audit.known_actions(),
         )
@@ -42,8 +42,8 @@ async def list_audit(payload: PanelAuditRequest, request: Request) -> PanelAudit
             entries=[
                 PanelAuditRow(
                     id=int(entry.id),
-                    admin_id=entry.admin_id,
-                    admin_username=entry.admin_username,
+                    actor_id=entry.actor_id,
+                    actor_username=entry.actor_username,
                     action=entry.action,
                     target_type=entry.target_type,
                     target_id=entry.target_id,

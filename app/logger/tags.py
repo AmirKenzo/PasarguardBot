@@ -38,6 +38,9 @@ class LogType(Enum):
     USER_REGISTRATION = "user_registration"
     SYSTEM_ERROR = "system_error"
 
+    # Public sales card, separate from the detailed admin purchase log
+    PURCHASE = "purchase"
+
     # Transaction related logs
     TRANSACTION_APPROVED = "transaction_approved"
     TRANSACTION_REJECTED = "transaction_rejected"

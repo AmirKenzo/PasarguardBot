@@ -20,14 +20,15 @@ from app.db.models.user import User
 from app.logger import get_logger
 from app.panel import audit
 from app.routers.panel.auth import PanelActor
+from app.services.panels.settings import resolve_panel_update_kwargs
 
 log = get_logger(__name__)
 
 
 async def _audit(ctx: PanelActor, action: str, **kwargs: Any) -> None:
     await audit.record(
-        admin_id=ctx.user_id,
-        admin_username=ctx.username,
+        actor_id=ctx.user_id,
+        actor_username=ctx.username,
         action=action,
         ip=ctx.ip,
         **kwargs,
@@ -90,6 +91,26 @@ async def set_user_block(ctx: PanelActor, user_id: int, blocked: bool, *, notify
             user_id,
             "⛔️ دسترسی شما به ربات مسدود شد." if blocked else "✅ حساب شما از حالت مسدود خارج شد.",
         )
+    return True
+
+
+async def set_user_phone(ctx: PanelActor, user_id: int, phone: str | None) -> bool:
+    """Store a normalised phone number, or clear it when ``phone`` is None.
+
+    The number is what the browser login checks against, so an admin who has
+    only ever reached the bot through Telegram needs a way to record one.
+    """
+    async with Session() as session:
+        result = await session.execute(update(User).where(User.id == user_id).values(number=phone))
+        await session.commit()
+        if not result.rowcount:
+            return False
+    await _audit(
+        ctx,
+        "user_phone_set" if phone else "user_phone_clear",
+        target_type="user",
+        target_id=user_id,
+    )
     return True
 
 
@@ -180,18 +201,25 @@ async def reject_transaction(ctx: PanelActor, tx_id: int) -> bool:
 
 
 async def upsert_panel(ctx: PanelActor, code: int | None, values: dict[str, Any]) -> int:
-    """Create or update a panel row. Returns the panel code."""
+    """Create or update a panel row. Returns the panel code.
+
+    ``values`` may include legacy flat fields (e.g. ``test_enabled``) that live
+    inside a JSON column; ``resolve_panel_update_kwargs`` maps those onto the
+    real columns the same way the bot's own panel editors do.
+    """
     async with Session() as session:
         if code is None:
             highest = (await session.execute(select(Panels.code).order_by(Panels.code.desc()).limit(1))).scalar()
             new_code = int(highest or 0) + 1
-            session.add(Panels(code=new_code, **values))
+            session.add(Panels(code=new_code, **resolve_panel_update_kwargs(None, **values)))
             await session.commit()
             await _audit(
                 ctx, "panel_create", target_type="panel", target_id=new_code, detail={"name": values.get("name")}
             )
             return new_code
-        await session.execute(update(Panels).where(Panels.code == code).values(**values))
+        panel = (await session.execute(select(Panels).where(Panels.code == code))).scalars().first()
+        resolved = resolve_panel_update_kwargs(panel, **values)
+        await session.execute(update(Panels).where(Panels.code == code).values(**resolved))
         await session.commit()
     await _audit(ctx, "panel_update", target_type="panel", target_id=code, detail={"fields": sorted(values)})
     return code

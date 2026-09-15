@@ -20,6 +20,7 @@ from app.logger import LogType, get_logger
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.nodes import filter_nodes_by_plan_type, format_node_name_for_display
 from app.services.panels.settings import panel_default_group_ids, panel_display_mode
+from app.services.purchase_report import send_purchase_report
 from app.services.send_queue import enqueue
 from app.services.subscriptions.links import format_subscription_links_for_message
 from app.services.users.identifiers import generate_username
@@ -323,6 +324,14 @@ class WebAppPurchaseService:
         if price.discount_code:
             log_text += f"\n🎫 کد تخفیف: `{price.discount_code}`"
         await enqueue(message=log_text, log_type=LogType.OTHER)
+
+        await send_purchase_report(
+            user_id=user_id,
+            panel_name=panel.name,
+            plan_label=f"{int(plan.duration)} روزه",
+            service_label=volume_text,
+            price=price.final_price,
+        )
 
         return {
             "ok": True,

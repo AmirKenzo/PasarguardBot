@@ -11,6 +11,9 @@ export interface PanelRow {
   username?: string | null;
   auth_type: string;
   enable: boolean;
+  test_enabled: boolean;
+  test_volume_gb: number;
+  test_duration_days: number;
 }
 
 export interface PanelListResponse extends PanelEnvelope {
@@ -29,6 +32,9 @@ export interface PanelSaveRequest extends PanelAuthRequest {
   username?: string;
   secret?: string;
   enable?: boolean;
+  test_enabled?: boolean;
+  test_volume_gb?: number;
+  test_duration_days?: number;
 }
 
 export interface PanelCodeRequest extends PanelAuthRequest {

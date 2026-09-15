@@ -1,7 +1,6 @@
 """Message handlers for admin manage_user."""
 
 import json
-import re
 from datetime import UTC, datetime, timedelta
 
 from httpx import HTTPStatusError
@@ -21,6 +20,7 @@ from app.telegram.keyboards.admin import build_admin_reseller_account_buttons, c
 from app.telegram.shared.utils.username import is_valid_username
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from app.telegram.user.reseller.helpers import build_reseller_account_detail_text
+from app.utils.formatting import normalise_phone_number
 from app.utils.formatting.conversions import gigabytes_to_bytes
 from app.utils.formatting.dates import timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
@@ -430,16 +430,8 @@ async def msg_manage_user_admin(event: Message):
             await set_step(event.sender_id, "panel")
             return
 
-        phone_number = msg.strip()
-        digits_only = re.sub(r"\D+", "", phone_number)
-
-        if digits_only.startswith("0") and len(digits_only) == 11:
-            phone_number = "+98" + digits_only[1:]
-        elif digits_only.startswith("98") and len(digits_only) >= 12:
-            phone_number = "+" + digits_only
-        elif len(digits_only) >= 10:
-            phone_number = "+98" + digits_only if len(digits_only) == 10 else "+98" + digits_only[-10:]
-        else:
+        phone_number = normalise_phone_number(msg)
+        if not phone_number:
             await event.respond("⚠️ فرمت شماره تلفن نامعتبر است. لطفا شماره را به درستی وارد کنید.")
             return
 
