@@ -254,8 +254,11 @@ async def enqueue(
 
     redis = await get_redis()
     if not redis or not SEND_QUEUE_ENABLED:
-        logger.warning("send_queue unavailable — job dropped")
-        return False
+        # Queueing (throttling/FloodWait backoff) is only available with Redis;
+        # without it, send right away instead of silently dropping the message.
+        logger.debug("send_queue unavailable — sending directly: %s", job.get("log_type") or "entity")
+        await _deliver(job)
+        return True
     try:
         key = queue_key()
         await redis.lpush(key, json.dumps(job, ensure_ascii=False, default=str))
