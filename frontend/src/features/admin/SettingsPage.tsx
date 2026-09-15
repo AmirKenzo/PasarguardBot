@@ -112,11 +112,14 @@ export default function AdminSettingsPage() {
   }
 
   const section = query.data.sections.find((item) => item.key === activeSection) || query.data.sections[0];
+  if (!section) {
+    return <Skeleton className="h-64 w-full" />;
+  }
 
   const saveSection = () => {
     const sectionValues: Record<string, PanelSettingValue> = {};
     for (const field of section.fields) {
-      if (!field.read_only) sectionValues[field.key] = values[field.key];
+      if (!field.read_only) sectionValues[field.key] = values[field.key] ?? null;
     }
     save.mutate({ values: sectionValues });
   };
