@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # ── Paths & constants ──────────────────────────────────────────────────────────
-readonly SCRIPT_VERSION="1.3.0"
+readonly SCRIPT_VERSION="1.3.1"
 readonly CONFIG_DIR="/opt/pasarguardbot"
 readonly COMPOSE_FILE="${CONFIG_DIR}/docker-compose.yml"
 readonly ENV_FILE="${CONFIG_DIR}/.env"
@@ -1116,6 +1116,7 @@ draw_menu() {
     else
         menu_row "11) Fix Docker network"
     fi
+    menu_row "12) Get SSL certificate (AutoSSL)"
     menu_row " 0) Exit"
     menu_border "└" "┘"
     echo
@@ -2959,6 +2960,36 @@ action_status() {
     pause
 }
 
+AUTOSSL_INSTALL_URL="https://raw.githubusercontent.com/AmirKenzo/Auto-SSL-Domain/main/scripts/install.sh"
+
+action_ssl() {
+    draw_banner
+    echo -e "${C_BOLD}  SSL certificate (AutoSSL)${C_RESET}"
+    echo
+    info "Running AmirKenzo/Auto-SSL-Domain to issue/renew a Let's Encrypt certificate."
+    echo
+
+    if ! command -v autossl &>/dev/null; then
+        info "AutoSSL is not installed — installing it first..."
+        if ! bash <(curl -fsSL "$AUTOSSL_INSTALL_URL"); then
+            err "AutoSSL install failed."
+            warn "Run it yourself with:"
+            echo "  bash <(curl -fsSL ${AUTOSSL_INSTALL_URL})"
+            pause
+            return 1
+        fi
+        hash -r 2>/dev/null || true
+    fi
+
+    if command -v autossl &>/dev/null; then
+        autossl issue || true
+    else
+        warn "AutoSSL command still not found after install. Run it manually with:"
+        echo "  sudo autossl issue"
+    fi
+    pause
+}
+
 action_urls() {
     draw_banner
     is_installed || die "Install the bot first (option 1)."
@@ -2983,6 +3014,7 @@ main_menu() {
             9) action_urls ;;
             10) action_update_script ;;
             11) action_docker_network ;;
+            12) action_ssl ;;
             0|q|Q) draw_banner; ok "Goodbye!"; exit 0 ;;
             *) warn "Invalid option."; sleep 1 ;;
         esac
@@ -3006,11 +3038,12 @@ case "${1:-}" in
     urls)           action_urls ;;
     edit)           action_edit_compose ;;
     edit-env)       action_edit_env ;;
+    ssl)            action_ssl ;;
     # Internal: re-exec target after `update` refreshes the manager script.
     __continue-update) draw_banner; run_update_for_branch "${2:-main}" ;;
     ""|menu)        main_menu ;;
     *)
-        echo "Usage: pasarguardbot [install|uninstall|purge|update|update-script|logs|restart|status|urls|edit|edit-env|menu]"
+        echo "Usage: pasarguardbot [install|uninstall|purge|update|update-script|logs|restart|status|urls|edit|edit-env|ssl|menu]"
         exit 1
         ;;
 esac
