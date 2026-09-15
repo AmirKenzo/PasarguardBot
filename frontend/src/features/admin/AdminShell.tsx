@@ -237,7 +237,7 @@ export default function AdminShell() {
         </header>
 
         <main className="mx-auto w-full max-w-7xl flex-1 space-y-4 px-4 pb-10 pt-4 md:px-6 lg:px-8">
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             <PageTransition key={location.pathname}>
               <div className="space-y-4">
                 <Outlet />
