@@ -10,14 +10,13 @@ keyboard back and none of this runs.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from telethon import events
 
 from app.db.crud.keyboards import get_button_text
 from app.logger import get_logger
 from app.telegram.keyboards.home import HOME_CALLBACK_PREFIX
 from app.telegram.keyboards.registry import KEYBOARD_BUTTON_DEFAULTS
+from app.telegram.shared.utils.menu_router import MenuPress
 
 logger = get_logger(__name__)
 
@@ -34,22 +33,6 @@ MENU_HANDLERS: dict[str, tuple[str, str]] = {
     "bt.menu_my_resellers": ("app.telegram.user.reseller.messages", "reseller_menu_message"),
     "bt.menu_buy_reseller": ("app.telegram.user.reseller.messages", "reseller_menu_message"),
 }
-
-
-class MenuPress:
-    """A callback press wearing the shape of the text message handlers read.
-
-    Everything except ``message`` is the real event, so replying, editing and
-    identifying the sender all behave exactly as they would for a press on the
-    reply keyboard.
-    """
-
-    def __init__(self, event, text: str):
-        self._event = event
-        self.message = SimpleNamespace(text=text, message=text, contact=None, action=None)
-
-    def __getattr__(self, name):
-        return getattr(self._event, name)
 
 
 def _menu_callback_filter(event: events.CallbackQuery.Event) -> bool:
