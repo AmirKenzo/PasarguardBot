@@ -11,7 +11,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
     "clsx": "^2.1.1",
-    "framer-motion": "^13.0.0",
+    "framer-motion": "^13.2.0",
     "i18next": "^26.4.2",
     "lucide-react": "^0.563.0",
     "qrcode": "^1.5.4",
