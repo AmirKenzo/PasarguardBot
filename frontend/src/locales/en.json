@@ -636,8 +636,7 @@
       "directBuy": "Buy by direct payment",
       "cryptoBonusPercent": "Crypto bonus percentage",
       "manualBonusPercent": "Manual bonus percentage",
-      "saveAll": "Save all",
-      "saveAllSettings": "Save every setting",
+      "saveSection": "Save section",
       "botEnabled": "Bot enabled",
       "noRowYet": "The settings row does not exist yet; the first save creates it.",
       "trialService": "Trial service",
@@ -664,8 +663,11 @@
       "trialPanelCode": "Trial service panel code",
       "copyLink": "Copy link",
       "miniappOnly": "Mini app only (bot menu off)",
-      "startReactionEmoji": "Start reaction emoji (empty for none)",
-      "startEffectId": "Start message effect ID (0 for none)",
+      "startReactionEmoji": "Start reaction emoji",
+      "startEffectId": "Start message effect",
+      "reactionOff": "Off (no reaction)",
+      "effectOff": "Off (no effect)",
+      "readOnlyHint": "Updated automatically — not editable here",
       "glassButtons": "Glassy buttons"
     },
     "audit": {

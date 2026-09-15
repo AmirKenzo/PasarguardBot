@@ -1,17 +1,26 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Button, ErrorState, Input, SegmentedControl, Skeleton } from "../../components/ui";
+import { Button, ErrorState, Input, SegmentedControl, Skeleton, Tabs } from "../../components/ui";
 import { panelSettingsApi } from "../../api/panel";
 import type { PanelSettingValue } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
-import { SectionCard, Toggle } from "./components";
+import { SectionCard, SelectField, Toggle } from "./components";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+
+// Beyond this many choices, a row of pill buttons stops being usable — fall back to a dropdown.
+const SEGMENTED_OPTION_LIMIT = 8;
 
 const selectOptionLabels = (t: TFunction): Record<string, Record<string, string>> => ({
   manual_card_visibility: {
     all: t("panel.settings.manualCardVisibilityAll"),
     safe_mode: t("panel.settings.manualCardVisibilitySafeMode"),
+  },
+  start_reaction_emoji: {
+    "": t("panel.settings.reactionOff"),
+  },
+  start_effect_id: {
+    "0": t("panel.settings.effectOff"),
   },
 });
 
@@ -80,6 +89,7 @@ const labels = (t: TFunction): Record<string, string> => ({
 export default function AdminSettingsPage() {
   const { t } = useTranslation();
   const [values, setValues] = useState<Record<string, PanelSettingValue> | null>(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
   const query = usePanelQuery(["settings"], (auth) => panelSettingsApi.getSettings(auth));
   const save = usePanelAction(panelSettingsApi.saveSettings, { invalidate: [["settings"], ["keyboard"]] });
@@ -91,110 +101,160 @@ export default function AdminSettingsPage() {
       for (const field of section.fields) next[field.key] = field.value;
     }
     setValues(next);
+    setActiveSection(query.data.sections[0]?.key ?? null);
   }, [query.data, values]);
 
   if (query.isError) {
     return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
   }
-  if (query.isLoading || !query.data || !values) {
+  if (query.isLoading || !query.data || !values || !activeSection) {
     return <Skeleton className="h-64 w-full" />;
   }
+
+  const section = query.data.sections.find((item) => item.key === activeSection) || query.data.sections[0];
+
+  const saveSection = () => {
+    const sectionValues: Record<string, PanelSettingValue> = {};
+    for (const field of section.fields) {
+      if (!field.read_only) sectionValues[field.key] = values[field.key];
+    }
+    save.mutate({ values: sectionValues });
+  };
+
+  const toggles = section.fields.filter((field) => field.type === "bool");
+  const selects = section.fields.filter((field) => field.type === "select");
+  const numbers = section.fields.filter((field) => field.type === "number" && !field.read_only);
+  const texts = section.fields.filter((field) => field.type === "text");
+  const readOnlyFields = section.fields.filter((field) => field.read_only);
 
   return (
     <>
       <PageHeader
         title={t("panel.common.botSettings")}
         subtitle={query.data.initialized ? undefined : t("panel.settings.noRowYet")}
-        action={
-          <Button size="sm" loading={save.isPending} onClick={() => save.mutate({ values })}>
-            {t("panel.settings.saveAll")}
-          </Button>
-        }
       />
 
-      {query.data.sections.map((section) => {
-        const toggles = section.fields.filter((field) => field.type === "bool");
-        const selects = section.fields.filter((field) => field.type === "select");
-        const numbers = section.fields.filter((field) => field.type === "number");
-        const texts = section.fields.filter((field) => field.type === "text");
-        return (
-          <SectionCard key={section.key} title={sectionTitles(t)[section.key] || section.key}>
-            {toggles.length > 0 && (
-              <div className="grid gap-1 sm:grid-cols-2">
-                {toggles.map((field) => (
-                  <Toggle
-                    key={field.key}
-                    checked={Boolean(values[field.key])}
-                    onChange={(checked) => setValues({ ...values, [field.key]: checked })}
-                    label={labels(t)[field.key] || field.key}
-                  />
-                ))}
-              </div>
-            )}
-            {selects.length > 0 && (
-              <div className={`grid gap-3 sm:grid-cols-2 ${toggles.length ? "mt-4 border-t border-border pt-4" : ""}`}>
-                {selects.map((field) => (
-                  <div key={field.key}>
-                    <span className="mb-1.5 block text-sm text-muted">{labels(t)[field.key] || field.key}</span>
-                    <SegmentedControl
-                      value={String(values[field.key] ?? field.options?.[0] ?? "")}
-                      onChange={(value) => setValues({ ...values, [field.key]: value })}
-                      options={(field.options || []).map((option) => ({
-                        value: option,
-                        label: selectOptionLabels(t)[field.key]?.[option] || option,
-                      }))}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-            {numbers.length > 0 && (
-              <div
-                className={`grid gap-3 sm:grid-cols-2 ${
-                  toggles.length || selects.length ? "mt-4 border-t border-border pt-4" : ""
-                }`}
-              >
-                {numbers.map((field) => (
-                  <Input
-                    key={field.key}
-                    label={labels(t)[field.key] || field.key}
-                    inputMode="numeric"
-                    value={values[field.key] === null || values[field.key] === undefined ? "" : String(values[field.key])}
-                    onChange={(event) =>
-                      setValues({
-                        ...values,
-                        [field.key]: event.target.value.trim() === "" ? null : Number(event.target.value),
-                      })
-                    }
-                  />
-                ))}
-              </div>
-            )}
-            {texts.length > 0 && (
-              <div
-                className={`grid gap-3 sm:grid-cols-2 ${
-                  toggles.length || selects.length || numbers.length ? "mt-4 border-t border-border pt-4" : ""
-                }`}
-              >
-                {texts.map((field) => (
-                  <Input
-                    key={field.key}
-                    label={labels(t)[field.key] || field.key}
-                    value={values[field.key] === null || values[field.key] === undefined ? "" : String(values[field.key])}
-                    onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
-                  />
-                ))}
-              </div>
-            )}
-          </SectionCard>
-        );
-      })}
-
-      <div className="flex justify-end">
-        <Button loading={save.isPending} onClick={() => save.mutate({ values })}>
-          {t("panel.settings.saveAllSettings")}
-        </Button>
+      <div className="mb-4">
+        <Tabs
+          items={query.data.sections.map((item) => ({
+            value: item.key,
+            label: sectionTitles(t)[item.key] || item.key,
+          }))}
+          value={section.key}
+          onChange={(value) => setActiveSection(value)}
+        />
       </div>
+
+      <SectionCard
+        title={sectionTitles(t)[section.key] || section.key}
+        actions={
+          <Button size="sm" loading={save.isPending} onClick={saveSection}>
+            {t("panel.settings.saveSection")}
+          </Button>
+        }
+      >
+        {toggles.length > 0 && (
+          <div className="grid gap-1 sm:grid-cols-2">
+            {toggles.map((field) => (
+              <Toggle
+                key={field.key}
+                checked={Boolean(values[field.key])}
+                onChange={(checked) => setValues({ ...values, [field.key]: checked })}
+                label={labels(t)[field.key] || field.key}
+              />
+            ))}
+          </div>
+        )}
+
+        {selects.length > 0 && (
+          <div className={`grid gap-3 sm:grid-cols-2 ${toggles.length ? "mt-4 border-t border-border pt-4" : ""}`}>
+            {selects.map((field) => {
+              const options = field.options || [];
+              const optionLabel = (option: string) => selectOptionLabels(t)[field.key]?.[option] || option;
+              const current = String(values[field.key] ?? options[0] ?? "");
+              return (
+                <div key={field.key}>
+                  {options.length > SEGMENTED_OPTION_LIMIT ? (
+                    <SelectField
+                      label={labels(t)[field.key] || field.key}
+                      value={current}
+                      onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
+                      options={options.map((option) => ({ value: option, label: optionLabel(option) }))}
+                    />
+                  ) : (
+                    <>
+                      <span className="mb-1.5 block text-sm text-muted">{labels(t)[field.key] || field.key}</span>
+                      <SegmentedControl
+                        value={current}
+                        onChange={(value) => setValues({ ...values, [field.key]: value })}
+                        options={options.map((option) => ({ value: option, label: optionLabel(option) }))}
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {numbers.length > 0 && (
+          <div
+            className={`grid gap-3 sm:grid-cols-2 ${
+              toggles.length || selects.length ? "mt-4 border-t border-border pt-4" : ""
+            }`}
+          >
+            {numbers.map((field) => (
+              <Input
+                key={field.key}
+                label={labels(t)[field.key] || field.key}
+                inputMode="numeric"
+                value={values[field.key] === null || values[field.key] === undefined ? "" : String(values[field.key])}
+                onChange={(event) =>
+                  setValues({
+                    ...values,
+                    [field.key]: event.target.value.trim() === "" ? null : Number(event.target.value),
+                  })
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        {texts.length > 0 && (
+          <div
+            className={`grid gap-3 sm:grid-cols-2 ${
+              toggles.length || selects.length || numbers.length ? "mt-4 border-t border-border pt-4" : ""
+            }`}
+          >
+            {texts.map((field) => (
+              <Input
+                key={field.key}
+                label={labels(t)[field.key] || field.key}
+                value={values[field.key] === null || values[field.key] === undefined ? "" : String(values[field.key])}
+                onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
+              />
+            ))}
+          </div>
+        )}
+
+        {readOnlyFields.length > 0 && (
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="mb-2 text-xs text-muted">{t("panel.settings.readOnlyHint")}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {readOnlyFields.map((field) => (
+                <Input
+                  key={field.key}
+                  label={labels(t)[field.key] || field.key}
+                  value={values[field.key] === null || values[field.key] === undefined ? "" : String(values[field.key])}
+                  disabled
+                  readOnly
+                  className="cursor-not-allowed opacity-60"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </SectionCard>
     </>
   );
 }

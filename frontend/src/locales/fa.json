@@ -636,8 +636,7 @@
       "directBuy": "خرید پرداخت مستقیم",
       "cryptoBonusPercent": "درصد بونوس ارزی",
       "manualBonusPercent": "درصد بونوس دستی",
-      "saveAll": "ذخیرهٔ همه",
-      "saveAllSettings": "ذخیرهٔ همهٔ تنظیمات",
+      "saveSection": "ذخیره این بخش",
       "botEnabled": "ربات روشن باشد",
       "noRowYet": "ردیف تنظیمات هنوز ساخته نشده؛ با اولین ذخیره ساخته می‌شود.",
       "trialService": "سرویس تست",
@@ -664,8 +663,11 @@
       "trialPanelCode": "کد پنل سرویس تست",
       "copyLink": "کپی لینک",
       "miniappOnly": "فقط مینی‌اپ (منوی ربات خاموش)",
-      "startReactionEmoji": "ایموجی ری‌اکشن استارت (خالی = بدون ری‌اکشن)",
-      "startEffectId": "افکت پیام استارت (۰ = بدون افکت)",
+      "startReactionEmoji": "ری‌اکشن پیام استارت",
+      "startEffectId": "افکت پیام استارت",
+      "reactionOff": "خاموش (بدون ری‌اکشن)",
+      "effectOff": "خاموش (بدون افکت)",
+      "readOnlyHint": "به‌صورت خودکار بروزرسانی می‌شود — قابل ویرایش نیست",
       "glassButtons": "دکمه‌های شیشه‌ای"
     },
     "audit": {

@@ -15,6 +15,7 @@ class PanelSettingField(BaseModel):
     default: Any = None
     value: Any = None
     options: list[str] | None = None
+    read_only: bool = False
 
 
 class PanelSettingSection(BaseModel):

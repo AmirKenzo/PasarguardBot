@@ -11,6 +11,7 @@ export interface PanelSettingField {
   default: PanelSettingValue;
   value: PanelSettingValue;
   options?: string[] | null;
+  read_only?: boolean;
 }
 
 export interface PanelSettingSection {
