@@ -33,7 +33,6 @@ const styleLabels = (t: TFunction): Record<string, string> => ({
   primary: t("panel.common.blue"),
   success: t("panel.common.green"),
   danger: t("panel.common.red"),
-  glass: t("panel.keyboard.glass"),
   none: t("panel.keyboard.noColour"),
 });
 

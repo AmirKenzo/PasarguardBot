@@ -17,7 +17,8 @@ from telethon.tl.types import (
 )
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
-from app.utils.text.glass import glass_text
+from app.services.keyboard_glass import GLASS_FALLBACK_STYLE
+from app.utils.text.glass import glass_text, unglass_text
 
 
 def create_button(text):
@@ -164,11 +165,16 @@ async def _get_keyboard_button_config(
     *,
     default_style: str | None = None,
     default_icon: int | None = None,
+    glass: bool = False,
 ) -> tuple[str, KeyboardButtonStyle | None]:
     button = await keyboard_crud.get_button(key)
-    text = button.button_text if button and button.button_text else default
+    text = unglass_text(button.button_text) if button and button.button_text else default
     clear_default_style = button is not None and button.button_style == ""
     style = None if clear_default_style else button.button_style if button and button.button_style else default_style
+    if glass and not style:
+        # The glassy keyboard is meant to look like one piece, so a button that
+        # has no colour of its own borrows the neutral one instead of staying grey.
+        style = GLASS_FALLBACK_STYLE
     if button and button.button_icon is not None:
         icon = button.button_icon
     elif clear_default_style:
