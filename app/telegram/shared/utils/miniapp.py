@@ -53,9 +53,12 @@ async def send_miniapp_launcher(event, *, label: str, intro: str, panel: bool = 
         await event.reply(MINIAPP_NEEDS_HTTPS)
         return False
 
-    buttons = ReplyInlineMarkup([KeyboardInlineButtonRow([styled_webview_button(label, miniapp_url(panel=panel))])])
+    url = miniapp_url(panel=panel)
+    buttons = ReplyInlineMarkup([KeyboardInlineButtonRow([styled_webview_button(label, url)])])
     try:
-        await event.reply(intro, buttons=buttons)
+        # The address goes in the text too: the button only works inside Telegram,
+        # and an admin often wants the panel open on a desktop browser instead.
+        await event.reply(f"{intro}\n\n`{url}`", buttons=buttons, parse_mode="md")
     except ButtonUrlInvalidError:
         await event.reply(MINIAPP_REJECTED)
         return False

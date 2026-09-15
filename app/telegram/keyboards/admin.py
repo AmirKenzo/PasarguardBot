@@ -1,16 +1,35 @@
 """Admin reply/inline keyboard builders."""
 
+from dataclasses import dataclass
+
 from telethon import Button
 
 from app.db.crud.user import UserCRUD
 from config import WEBAPP_URL
 
-from .common import create_button, glass_inline_button, glass_text_button, styled_simple_webview_button
+from .common import (
+    build_telegram_button_style,
+    create_button,
+    glass_inline_button,
+    glass_text_button,
+    styled_callback_button,
+    styled_simple_webview_button,
+    styled_webview_button,
+)
 
 DOCS_URL = "https://amirkenzo.github.io/PasarguardBot/"
 # Telegram refuses a web-view button on plain http, so the entry only exists
 # once the WebApp has a real address; the URL itself is built when pressed.
 WEB_PANEL_READY = WEBAPP_URL.startswith("https://")
+
+# Callback prefixes for the in-chat version of this menu.
+ADMIN_MENU_PREFIX = "adminmenu:"
+ADMIN_LEAF_PREFIX = "adminleaf:"
+
+
+def _admin_style(name: str):
+    return build_telegram_button_style(name, None)
+
 
 Lock_Channels_Menu_Buttons = [
     [glass_text_button("افزودن کانال"), glass_text_button("حذف کانال")],
@@ -99,30 +118,136 @@ def build_admin_reseller_chpwd_confirm_buttons(user_id: int, account_code: int) 
     ]
 
 
-Panel_Admin_Buttons = [
-    [create_button("💳 تنظیمات درگاه"), create_button("👥 آمار گیری")],
-    [create_button("📚 منوی پنل ها"), create_button("⚙️ تنظیمات ربات")],
-    [create_button("🎟 کدتخفیف"), create_button("🗞 ساخت پلن")],
-    [create_button("🏢 پلن نمایندگی")],
-    [create_button("👤 مدیریت کاربر"), create_button("📮 ارسال همگانی")],
-    [create_button("📥 فوروارد همگانی")],
-    [create_button("➖ کسر موجودی"), create_button("➕ افزودن موجودی")],
-    [create_button("💰 شارژ گروهی"), create_button("🔄 ریست دریافت تست")],
-    [create_button("📈 افزایش حجم و زمان همگانی"), create_button("🔐 قفل چنل ها")],
-    [create_button("📝 مدیریت لاگ‌ها"), create_button("📦 بکاپ ربات")],
-    [create_button("🧬 مایگریشن از ربات دیگر")],
-    [create_button("📝 متن‌های ربات"), create_button("⌨️ مدیریت دکمه‌های کیبورد")],
-    [create_button("🎁 سیستم دعوت دوستان"), create_button("🔗 لینک های آماده")],
-    [
-        styled_simple_webview_button("📚 مستندات ربات", DOCS_URL),
-        # Plain, not a web-view button: a web app opened from the reply keyboard
-        # gets no Telegram sign-in, so the panel would ask the admin to log in by
-        # phone. Pressing it brings an inline web-view button instead.
-        *([create_button("🖥 پنل تحت وب")] if WEB_PANEL_READY else []),
-    ],
-    [create_button("🈸 آپدیت برنامه ها")],
-    [create_button("🏠")],
-]
+@dataclass(frozen=True)
+class AdminSection:
+    """One drawer of the admin menu.
+
+    ``items`` are the labels the leaf handlers already match on, so grouping
+    them changes where a button lives and nothing about what it does.
+    """
+
+    key: str
+    label: str
+    items: tuple[str, ...] = ()
+    links: tuple[tuple[str, str], ...] = ()
+    columns: int = 2
+
+
+ADMIN_SECTIONS: tuple[AdminSection, ...] = (
+    AdminSection(
+        "users",
+        "👥 کاربران",
+        ("👤 مدیریت کاربر", "🔄 ریست دریافت تست", "📈 افزایش حجم و زمان همگانی"),
+    ),
+    AdminSection(
+        "finance",
+        "💳 مالی و پرداخت",
+        ("💳 تنظیمات درگاه", "➕ افزودن موجودی", "➖ کسر موجودی", "💰 شارژ گروهی"),
+    ),
+    AdminSection(
+        "shop",
+        "🏬 فروشگاه",
+        ("🗞 ساخت پلن", "🏢 پلن نمایندگی", "🎟 کدتخفیف", "🎁 سیستم دعوت دوستان"),
+    ),
+    AdminSection("panels", "🖥 پنل‌ها و سرورها", ("📚 منوی پنل ها",), columns=1),
+    AdminSection(
+        "outreach",
+        "📢 کانال‌ها و پیام‌ها",
+        ("📮 ارسال همگانی", "📥 فوروارد همگانی", "🔐 قفل چنل ها", "📝 مدیریت لاگ‌ها"),
+    ),
+    AdminSection(
+        "appearance",
+        "⚙️ تنظیمات و ظاهر",
+        ("⚙️ تنظیمات ربات", "📝 متن‌های ربات", "⌨️ مدیریت دکمه‌های کیبورد", "🔗 لینک های آماده"),
+    ),
+    AdminSection(
+        "tools",
+        "🧰 ابزارها",
+        ("📦 بکاپ ربات", "🧬 مایگریشن از ربات دیگر", "🈸 آپدیت برنامه ها"),
+        links=(("📚 مستندات ربات", DOCS_URL),),
+    ),
+)
+
+# Reached every day, so they stay one press away instead of inside a drawer.
+ADMIN_HOME_ACTIONS: tuple[str, ...] = ("👥 آمار گیری",) + (("🖥 پنل تحت وب",) if WEB_PANEL_READY else ())
+
+ADMIN_BACK_LABEL = "🔙 بازگشت به پنل"
+ADMIN_HOME_LABEL = "🏠"
+
+ADMIN_SECTION_BY_LABEL: dict[str, AdminSection] = {section.label: section for section in ADMIN_SECTIONS}
+ADMIN_SECTION_BY_KEY: dict[str, AdminSection] = {section.key: section for section in ADMIN_SECTIONS}
+
+
+def _rows(values: list, columns: int) -> list[list]:
+    return [values[index : index + columns] for index in range(0, len(values), columns)]
+
+
+def admin_home_rows() -> list[list[str]]:
+    """Labels of the admin home keyboard, two per row."""
+    rows = _rows([section.label for section in ADMIN_SECTIONS], 2)
+    rows.extend(_rows(list(ADMIN_HOME_ACTIONS), 2))
+    rows.append([ADMIN_HOME_LABEL])
+    return rows
+
+
+def admin_section_rows(section: AdminSection) -> list[list[str]]:
+    rows = _rows(list(section.items), max(1, section.columns))
+    rows.extend([[label] for label, _url in section.links])
+    rows.append([ADMIN_BACK_LABEL])
+    return rows
+
+
+# Kept under its historical name: plenty of modules send this keyboard.
+Panel_Admin_Buttons = [[create_button(label) for label in row] for row in admin_home_rows()]
+
+
+def admin_section_keyboard(section: AdminSection) -> list:
+    rows: list = [
+        [create_button(label) for label in row] for row in _rows(list(section.items), max(1, section.columns))
+    ]
+    rows.extend([[styled_simple_webview_button(label, url)] for label, url in section.links])
+    rows.append([create_button(ADMIN_BACK_LABEL)])
+    return rows
+
+
+def admin_home_inline() -> list:
+    """The same menu drawn inside the chat, for the glassy keyboard."""
+    rows = [
+        [styled_callback_button(section.label, f"{ADMIN_MENU_PREFIX}{section.key}", _admin_style("primary"))]
+        for section in ADMIN_SECTIONS
+    ]
+    paired = _rows(rows, 2)
+    inline_rows = [row[0] + row[1] if len(row) == 2 else row[0] for row in paired]
+    actions = [
+        styled_callback_button(label, f"{ADMIN_LEAF_PREFIX}home:{index}")
+        for index, label in enumerate(ADMIN_HOME_ACTIONS)
+    ]
+    if actions:
+        inline_rows.append(actions)
+    inline_rows.append([styled_callback_button(ADMIN_HOME_LABEL, f"{ADMIN_LEAF_PREFIX}home:{len(ADMIN_HOME_ACTIONS)}")])
+    return inline_rows
+
+
+def admin_section_inline(section: AdminSection) -> list:
+    buttons = [
+        styled_callback_button(label, f"{ADMIN_LEAF_PREFIX}{section.key}:{index}")
+        for index, label in enumerate(section.items)
+    ]
+    rows = _rows(buttons, max(1, section.columns))
+    rows.extend([[styled_webview_button(label, url)] for label, url in section.links])
+    rows.append([styled_callback_button(ADMIN_BACK_LABEL, b"back_to_admin_panel")])
+    return rows
+
+
+def admin_leaf_label(key: str, index: int) -> str | None:
+    """The text a press on an in-chat admin button stands for."""
+    if key == "home":
+        pool = (*ADMIN_HOME_ACTIONS, ADMIN_HOME_LABEL)
+    else:
+        section = ADMIN_SECTION_BY_KEY.get(key)
+        pool = section.items if section else ()
+    return pool[index] if 0 <= index < len(pool) else None
+
 
 BT_takhfifList = [
     [create_button("🎛 لیست کدتخفیف"), create_button("🪄 ساخت کدتخفیف")],
