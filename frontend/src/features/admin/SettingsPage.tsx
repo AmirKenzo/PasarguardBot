@@ -21,6 +21,10 @@ const labels = (t: TFunction): Record<string, string> => ({
   sale_mode: t("panel.settings.salesEnabled"),
   single_panel_buy_mode: t("panel.settings.singlePanelPurchase"),
   channel_lock: t("panel.settings.channelLock"),
+  miniapp_only_mode: t("panel.settings.miniappOnly"),
+  glass_buttons_mode: t("panel.settings.glassButtons"),
+  start_reaction_emoji: t("panel.settings.startReactionEmoji"),
+  start_effect_id: t("panel.settings.startEffectId"),
   backup_interval_hours: t("panel.settings.backupInterval"),
   profile_mode: t("panel.settings.showProfile"),
   help_mode: t("panel.settings.showHelp"),
@@ -103,7 +107,8 @@ export default function AdminSettingsPage() {
 
       {query.data.sections.map((section) => {
         const toggles = section.fields.filter((field) => field.type === "bool");
-        const numbers = section.fields.filter((field) => field.type !== "bool");
+        const numbers = section.fields.filter((field) => field.type === "number");
+        const texts = section.fields.filter((field) => field.type === "text");
         return (
           <SectionCard key={section.key} title={sectionTitles(t)[section.key] || section.key}>
             {toggles.length > 0 && (
@@ -132,6 +137,22 @@ export default function AdminSettingsPage() {
                         [field.key]: event.target.value.trim() === "" ? null : Number(event.target.value),
                       })
                     }
+                  />
+                ))}
+              </div>
+            )}
+            {texts.length > 0 && (
+              <div
+                className={`grid gap-3 sm:grid-cols-2 ${
+                  toggles.length || numbers.length ? "mt-4 border-t border-border pt-4" : ""
+                }`}
+              >
+                {texts.map((field) => (
+                  <Input
+                    key={field.key}
+                    label={labels(t)[field.key] || field.key}
+                    value={values[field.key] === null || values[field.key] === undefined ? "" : String(values[field.key])}
+                    onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
                   />
                 ))}
               </div>

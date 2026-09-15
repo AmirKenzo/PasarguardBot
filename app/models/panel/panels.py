@@ -15,6 +15,9 @@ class PanelRow(BaseModel):
     username: str | None = None
     auth_type: str = "password"
     enable: bool = True
+    test_enabled: bool = False
+    test_volume_gb: float = 2.0
+    test_duration_days: int = 3
 
 
 class PanelListResponse(PanelResponse):
@@ -37,6 +40,9 @@ class PanelSaveRequest(PanelRequest):
     username: str = Field("", max_length=50)
     secret: str = Field("", max_length=512)
     enable: bool = True
+    test_enabled: bool = False
+    test_volume_gb: float = Field(2.0, ge=0)
+    test_duration_days: int = Field(3, ge=0)
 
 
 class PanelCodeRequest(PanelRequest):

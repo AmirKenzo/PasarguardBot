@@ -1,12 +1,12 @@
 /** Mirrors app/models/panel/settings.py */
 import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
-export type PanelSettingValue = boolean | number | null;
+export type PanelSettingValue = boolean | number | string | null;
 
 /** One setting, described well enough for the client to render it. */
 export interface PanelSettingField {
   key: string;
-  /** bool | number */
+  /** bool | number | text */
   type: string;
   default: PanelSettingValue;
   value: PanelSettingValue;

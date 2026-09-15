@@ -26,6 +26,8 @@ export interface PanelKeyboardResponse extends PanelEnvelope {
   sections: string[];
   style_options: string[];
   premium_emoji_enabled: boolean;
+  /** Global switch: every home button is drawn glassy whatever its own style says. */
+  glass_mode: boolean;
 }
 
 /** Rows of button keys, top to bottom. Empty rows are dropped. */

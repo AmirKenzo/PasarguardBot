@@ -113,7 +113,10 @@ Panel_Admin_Buttons = [
     [create_button("🎁 سیستم دعوت دوستان"), create_button("🔗 لینک های آماده")],
     [
         styled_simple_webview_button("📚 مستندات ربات", DOCS_URL),
-        *([styled_simple_webview_button("🖥 پنل تحت وب", WEB_PANEL_URL)] if WEB_PANEL_URL else []),
+        # Plain, not a web-view button: a web app opened from the reply keyboard
+        # gets no Telegram sign-in, so the panel would ask the admin to log in by
+        # phone. Pressing it brings an inline web-view button instead.
+        *([create_button("🖥 پنل تحت وب")] if WEB_PANEL_URL else []),
     ],
     [create_button("🈸 آپدیت برنامه ها")],
     [create_button("🏠")],

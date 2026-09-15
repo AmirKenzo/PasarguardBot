@@ -11,7 +11,7 @@ class PanelSettingField(BaseModel):
     """One setting, described well enough for the client to render it."""
 
     key: str
-    type: str = Field("number", description="bool | number")
+    type: str = Field("number", description="bool | number | text")
     default: Any = None
     value: Any = None
 

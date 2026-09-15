@@ -28,6 +28,7 @@ from app.services.panels.auth import (
     verify_panel_api_key,
     verify_panel_password,
 )
+from app.services.panels.settings import panel_test_duration_days, panel_test_flag, panel_test_volume_gb
 from app.utils.security.crypto import encrypt_data
 
 log = get_logger(__name__)
@@ -61,6 +62,9 @@ async def list_panels(payload: PanelRequest, request: Request) -> PanelListRespo
                     username=panel.username,
                     auth_type=getattr(panel, "auth_type", "password"),
                     enable=bool(panel.enable),
+                    test_enabled=panel_test_flag(panel),
+                    test_volume_gb=panel_test_volume_gb(panel),
+                    test_duration_days=panel_test_duration_days(panel),
                 )
                 for panel in panels
             ]
@@ -99,6 +103,12 @@ async def save_panel(payload: PanelSaveRequest, request: Request) -> ActionRespo
                 tunnel_url=(payload.tunnel_url.strip() or None),
                 auth_type=auth_type,
             )
+            await PanelsManager().update_panel(
+                code=new_code,
+                test_enabled=payload.test_enabled,
+                test_volume_gb=payload.test_volume_gb,
+                test_duration_days=payload.test_duration_days,
+            )
             await audit.record(
                 admin_id=actor.user_id,
                 admin_username=actor.username,
@@ -121,6 +131,9 @@ async def save_panel(payload: PanelSaveRequest, request: Request) -> ActionRespo
             "enable": payload.enable,
             "auth_type": auth_type,
             "username": (username or panel.username or PANEL_AUTH_PLACEHOLDER_USERNAME)[:50],
+            "test_enabled": payload.test_enabled,
+            "test_volume_gb": payload.test_volume_gb,
+            "test_duration_days": payload.test_duration_days,
         }
         if secret:
             cookie = await _verify(base_url, auth_type, values["username"], secret)

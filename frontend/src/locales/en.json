@@ -660,7 +660,11 @@
       "paymentEnabled": "Payments enabled",
       "paymentsAndWallet": "Payments and wallet",
       "trialPanelCode": "Trial service panel code",
-      "copyLink": "Copy link"
+      "copyLink": "Copy link",
+      "miniappOnly": "Mini app only (bot menu off)",
+      "startReactionEmoji": "Start reaction emoji (empty for none)",
+      "startEffectId": "Start message effect ID (0 for none)",
+      "glassButtons": "Glassy buttons"
     },
     "audit": {
       "broadcastResume": "Broadcast resumed",
@@ -711,7 +715,9 @@
       "discountUpdate": "Discount code edited",
       "bulkIncreaseDone": "Bulk increase finished",
       "balanceDeduct": "Balance deducted",
-      "countLabel": "{{count}} events"
+      "countLabel": "{{count}} events",
+      "phoneSet": "User phone set",
+      "phoneClear": "User phone cleared"
     },
     "keyboard": {
       "emojiId": "Emoji ID",
@@ -752,7 +758,10 @@
       "hideFromUser": "Hide from users",
       "resetConfirm": "Clear the custom layout and restore the default?",
       "mainMenuLayout": "Main menu layout",
-      "key": "Key"
+      "key": "Key",
+      "glass": "Glassy",
+      "blockedMiniappOnly": "Mini-app-only mode is on, so the bot's menu is hidden",
+      "glassModeOn": "Glassy mode is on: every main-menu button is drawn with brackets. Turn it off in settings."
     },
     "channels": {
       "topicId": "Topic ID (optional)",
@@ -785,7 +794,8 @@
       "channel": "Channel",
       "channelsEmpty": "No channels set",
       "lockChannels": "Membership-lock channels",
-      "group": "Group / supergroup"
+      "group": "Group / supergroup",
+      "reportPurchase": "Purchase report (public channel)"
     },
     "tools": {
       "runsInBackground": "This runs in the background; the final result is written to the audit log.",
@@ -928,7 +938,9 @@
       "enabled": "Panel enabled",
       "title": "Connected panels",
       "subtitle": "The panels the bot sells services from",
-      "editTitle": "Edit panel {{name}}"
+      "editTitle": "Edit panel {{name}}",
+      "trialEnabled": "Offer a trial from this panel",
+      "trialHint": "Every panel with this on offers its own trial; when more than one does, the user picks."
     },
     "referral": {
       "date": "Date",
@@ -1067,7 +1079,10 @@
       "unblockConfirm": "Unblock user {{id}}?",
       "balanceTitle": "Balance for user {{id}}",
       "title": "User {{id}}",
-      "blockConfirm": "Block user {{id}}? They will no longer be able to use the bot."
+      "blockConfirm": "Block user {{id}}? They will no longer be able to use the bot.",
+      "phoneTitle": "Phone number for user {{id}}",
+      "phonePlaceholder": "09123456789",
+      "phoneHint": "The number is what the browser login checks. Leave it empty to clear it."
     }
   }
 }

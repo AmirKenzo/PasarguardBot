@@ -23,12 +23,14 @@ from app.panel import audit
 from app.panel.forms import parse_icon
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.keyboard_glass import GLASS_KEY_PREFIX, glass_mode_active
 from app.telegram.keyboards.home import DEFAULT_HOME_LAYOUT, home_button_conditions
 from app.telegram.keyboards.registry import (
     KEYBOARD_BUTTON_DEFAULT_STYLES,
     KEYBOARD_BUTTON_DEFAULTS,
     KEYBOARD_BUTTON_TITLES,
 )
+from app.utils.text.glass import GLASS_STYLE, glass_text, unglass_text
 
 router = APIRouter()
 
@@ -93,7 +95,7 @@ async def keyboard_overview(payload: PanelRequest, request: Request) -> PanelKey
                     section=_section_of(key),
                     title=KEYBOARD_BUTTON_TITLES.get(key, key),
                     default_text=_default_text(key),
-                    text=(row.button_text if row else None) or None,
+                    text=unglass_text(row.button_text) if row and row.button_text else None,
                     style=row.button_style if row is not None else None,
                     default_icon=default_icon,
                     icon=row.button_icon if row else None,
@@ -109,6 +111,7 @@ async def keyboard_overview(payload: PanelRequest, request: Request) -> PanelKey
             home_keys=list(HOME_KEYS),
             sections=SECTION_SLUGS,
             premium_emoji_enabled=bool(getattr(setting, "premium_emoji_status", False)) if setting else False,
+            glass_mode=glass_mode_active(setting),
         )
 
     return await guard.run(payload, request, PanelKeyboardResponse, handle)
@@ -169,6 +172,14 @@ async def save_button(payload: PanelKeyboardButtonSaveRequest, request: Request)
         # "none" clears the built-in default colour, "" leaves it in place.
         style_value = None if style == "" else ("" if style == "none" else style)
 
+        # The glassy look is brackets around the label, not a Telegram style, so
+        # it is baked into the stored text. Handlers match a press against that
+        # same stored text, which is how the button keeps working either way.
+        label = unglass_text(payload.text.strip())
+        setting = await SettingsManager().get_settings()
+        if style == GLASS_STYLE or (glass_mode_active(setting) and key.startswith(GLASS_KEY_PREFIX)):
+            label = glass_text(label)
+
         icon_raw = payload.icon.strip()
         try:
             icon_value = parse_icon(icon_raw)
@@ -177,7 +188,7 @@ async def save_button(payload: PanelKeyboardButtonSaveRequest, request: Request)
 
         ok = await KeyboardButtonCRUD().set_button(
             key,
-            button_text=payload.text.strip(),
+            button_text=label,
             button_style=style_value,
             button_icon=icon_value,
             clear_icon=not icon_raw,

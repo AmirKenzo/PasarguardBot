@@ -52,6 +52,9 @@ DEFAULT_SUBSCRIPTION_SETTINGS: dict[str, Any] = {
 }
 
 DEFAULT_TEST_SETTINGS: dict[str, Any] = {
+    # Each panel decides for itself whether it hands out trials, so a shop with
+    # a normal panel and a premium one can offer a trial of each.
+    "enabled": False,
     "volume_gb": 2.0,
     "duration_days": 3,
 }
@@ -117,6 +120,7 @@ LEGACY_FIELD_TO_JSON: dict[str, tuple[str, str]] = {
     "subscription_link_mode": ("subscription_settings", "link_mode"),
     "single_config_link_indexes": ("subscription_settings", "single_config_link_indexes"),
     "admin_login_path": ("subscription_settings", "admin_login_path"),
+    "test_enabled": ("test_settings", "enabled"),
     "test_volume_gb": ("test_settings", "volume_gb"),
     "test_duration_days": ("test_settings", "duration_days"),
     "webhook_notifications_enabled": ("renewal_settings", "webhook_notifications_enabled"),
@@ -840,6 +844,14 @@ def panel_single_config_link_indexes(panel) -> str:
 
 def panel_show_prefixes_in_locations(panel) -> bool:
     return bool(subscription_settings(panel).get("show_prefixes_in_locations", True))
+
+
+def panel_test_flag(panel) -> bool:
+    return bool(test_settings(panel).get("enabled", False))
+
+
+def panel_test_enabled(panel) -> bool:
+    return bool(panel and panel.enable and panel_test_flag(panel))
 
 
 def panel_test_volume_gb(panel) -> float:

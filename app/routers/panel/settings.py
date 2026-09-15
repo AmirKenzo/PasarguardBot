@@ -18,6 +18,7 @@ from app.models.panel.settings import (
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.keyboard_glass import apply_glass_mode, glass_mode_active
 
 router = APIRouter()
 
@@ -31,10 +32,19 @@ def _current(setting: Any, section: str, key: str, default: Any) -> Any:
     return default
 
 
+def _field_type(default: Any) -> str:
+    if isinstance(default, bool):
+        return "bool"
+    return "text" if isinstance(default, str) else "number"
+
+
 def _coerce(raw: Any, default: Any) -> Any:
     """Cast one submitted value to the shape the stored default implies."""
     if isinstance(default, bool):
         return bool(raw)
+    if isinstance(default, str):
+        # A cleared text field means "off", not "restore the default".
+        return "" if raw is None else str(raw).strip()
     if raw is None or (isinstance(raw, str) and not raw.strip()):
         return None if default is None else default
     number = float(str(raw).replace(",", "").strip())
@@ -53,7 +63,7 @@ async def read_settings(payload: PanelRequest, request: Request) -> PanelSetting
                     fields=[
                         PanelSettingField(
                             key=key,
-                            type="bool" if isinstance(default, bool) else "number",
+                            type=_field_type(default),
                             default=default,
                             value=_current(setting, section, key, default),
                         )
@@ -86,10 +96,17 @@ async def save_settings(payload: PanelSettingsSaveRequest, request: Request) -> 
                 except ValueError:
                     return ActionResponse(ok=False, error=f"مقدار «{key}» عددی نیست.")
 
+        glass_before = glass_mode_active(setting)
         if setting is None:
             await manager.add_setting(**updates)
         else:
             await manager.update_setting(setting.id, **updates)
+
+        # The glassy look is baked into the stored button labels, so flipping the
+        # switch has to rewrite them; nothing else here has work to do after the save.
+        glass_after = bool(updates.get("glass_buttons_mode", glass_before))
+        if glass_after != glass_before:
+            await apply_glass_mode(glass_after)
 
         await audit.record(
             admin_id=actor.user_id,

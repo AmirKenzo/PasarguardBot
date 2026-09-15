@@ -81,9 +81,8 @@ from app.telegram.user.reseller.keyboards import (
     build_usage_cap_menu_buttons,
 )
 from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
-from app.telegram.user.start.helpers import DEFAULT_START_MESSAGE
+from app.telegram.user.start.helpers import fetch_welcome_text
 from app.utils.security.crypto import encrypt_data
-from app.utils.text.bot_texts import get_bot_text
 
 logger = get_logger(__name__)
 
@@ -222,7 +221,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         await _clear_reseller_discount(user_id)
         await clear_user(user_id)
         lang = await _user_lang(user_id)
-        txt = await get_bot_text(key="start_message", default=DEFAULT_START_MESSAGE, lang=lang)
+        txt = await fetch_welcome_text(lang)
         await set_step(user_id, "home")
         await event.delete()
         await event.respond(txt, buttons=await bhome_buttons(user_id, lang))
