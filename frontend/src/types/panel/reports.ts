@@ -37,8 +37,8 @@ export interface PanelReportsResponse extends PanelEnvelope {
 
 export interface PanelAuditRow {
   id: number;
-  admin_id?: number | null;
-  admin_username?: string | null;
+  actor_id?: number | null;
+  actor_username?: string | null;
   action: string;
   target_type?: string | null;
   target_id?: string | null;
@@ -49,7 +49,7 @@ export interface PanelAuditRow {
 
 export interface PanelAuditRequest extends PagedRequest {
   action?: string;
-  admin_id?: number | null;
+  actor_id?: number | null;
 }
 
 export interface PanelAuditResponse extends PanelEnvelope {

@@ -110,8 +110,8 @@ async def save_panel(payload: PanelSaveRequest, request: Request) -> ActionRespo
                 test_duration_days=payload.test_duration_days,
             )
             await audit.record(
-                admin_id=actor.user_id,
-                admin_username=actor.username,
+                actor_id=actor.user_id,
+                actor_username=actor.username,
                 action="panel_create",
                 target_type="panel",
                 target_id=new_code,

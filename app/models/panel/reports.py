@@ -42,8 +42,8 @@ class PanelReportsResponse(PanelResponse):
 
 class PanelAuditRow(BaseModel):
     id: int
-    admin_id: int | None = None
-    admin_username: str | None = None
+    actor_id: int | None = None
+    actor_username: str | None = None
     action: str
     target_type: str | None = None
     target_id: str | None = None
@@ -54,7 +54,7 @@ class PanelAuditRow(BaseModel):
 
 class PanelAuditRequest(PagedRequest):
     action: str = Field("", max_length=64)
-    admin_id: int | None = None
+    actor_id: int | None = None
 
 
 class PanelAuditResponse(PanelResponse):

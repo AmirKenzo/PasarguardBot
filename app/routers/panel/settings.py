@@ -181,8 +181,8 @@ async def save_settings(payload: PanelSettingsSaveRequest, request: Request) -> 
             await apply_glass_mode(glass_after)
 
         await audit.record(
-            admin_id=actor.user_id,
-            admin_username=actor.username,
+            actor_id=actor.user_id,
+            actor_username=actor.username,
             action="settings_update",
             target_type="settings",
             detail={"keys": sorted(updates)},

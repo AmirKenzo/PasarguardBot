@@ -33,8 +33,8 @@ router = APIRouter()
 
 async def _log(actor: PanelActor, action: str, **kwargs) -> None:
     await audit.record(
-        admin_id=actor.user_id,
-        admin_username=actor.username,
+        actor_id=actor.user_id,
+        actor_username=actor.username,
         action=action,
         ip=actor.ip,
         **kwargs,

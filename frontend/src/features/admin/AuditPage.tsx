@@ -94,9 +94,9 @@ export default function AdminAuditPage() {
       ),
     },
     {
-      key: "admin",
+      key: "actor",
       header: t("panel.audit.admin"),
-      cell: (row) => <code className="ltr-field text-xs">{row.admin_username || row.admin_id || "—"}</code>,
+      cell: (row) => <code className="ltr-field text-xs">{row.actor_username || row.actor_id || "—"}</code>,
     },
     {
       key: "action",

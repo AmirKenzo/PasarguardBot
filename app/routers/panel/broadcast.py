@@ -31,8 +31,8 @@ FINISHED_STATUSES = ("done", "canceled", "failed")
 
 async def _log(actor: PanelActor, action: str, job_id: int, **kwargs) -> None:
     await audit.record(
-        admin_id=actor.user_id,
-        admin_username=actor.username,
+        actor_id=actor.user_id,
+        actor_username=actor.username,
         action=action,
         target_type="broadcast",
         target_id=job_id,

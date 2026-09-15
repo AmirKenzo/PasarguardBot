@@ -27,8 +27,8 @@ log = get_logger(__name__)
 
 async def _audit(ctx: PanelActor, action: str, **kwargs: Any) -> None:
     await audit.record(
-        admin_id=ctx.user_id,
-        admin_username=ctx.username,
+        actor_id=ctx.user_id,
+        actor_username=ctx.username,
         action=action,
         ip=ctx.ip,
         **kwargs,
