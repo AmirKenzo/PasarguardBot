@@ -30,8 +30,14 @@ MINIAPP_REJECTED = "تلگرام این آدرس را نپذیرفت. باید �
 
 
 def miniapp_url(*, panel: bool = False) -> str:
-    base = WEBAPP_URL.rstrip("/")
-    return f"{base}?panel=1" if panel else WEBAPP_URL
+    """The address to open, optionally landing straight on the admin panel.
+
+    The panel is a route of the mini app, not a separate page, and the app
+    routes on the URL fragment — so the way in is ``#/panel``. A query string
+    would reach the server and never the router.
+    """
+    base = WEBAPP_URL.split("#", 1)[0]
+    return f"{base}#/panel" if panel else WEBAPP_URL
 
 
 def miniapp_ready() -> bool:

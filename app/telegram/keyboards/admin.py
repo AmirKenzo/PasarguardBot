@@ -8,7 +8,9 @@ from config import WEBAPP_URL
 from .common import create_button, glass_inline_button, glass_text_button, styled_simple_webview_button
 
 DOCS_URL = "https://amirkenzo.github.io/PasarguardBot/"
-WEB_PANEL_URL = f"{WEBAPP_URL.rstrip('/')}?panel=1" if WEBAPP_URL.startswith("https://") else ""
+# Telegram refuses a web-view button on plain http, so the entry only exists
+# once the WebApp has a real address; the URL itself is built when pressed.
+WEB_PANEL_READY = WEBAPP_URL.startswith("https://")
 
 Lock_Channels_Menu_Buttons = [
     [glass_text_button("افزودن کانال"), glass_text_button("حذف کانال")],
@@ -116,7 +118,7 @@ Panel_Admin_Buttons = [
         # Plain, not a web-view button: a web app opened from the reply keyboard
         # gets no Telegram sign-in, so the panel would ask the admin to log in by
         # phone. Pressing it brings an inline web-view button instead.
-        *([create_button("🖥 پنل تحت وب")] if WEB_PANEL_URL else []),
+        *([create_button("🖥 پنل تحت وب")] if WEB_PANEL_READY else []),
     ],
     [create_button("🈸 آپدیت برنامه ها")],
     [create_button("🏠")],
