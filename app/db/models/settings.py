@@ -22,6 +22,8 @@ DEFAULT_CORE_SETTINGS: dict[str, Any] = {
     "channel_lock": False,
     # Hide the bot's own menu and send everyone into the mini app instead.
     "miniapp_only_mode": False,
+    # Draw every home button with the glassy brackets, without touching colours.
+    "glass_buttons_mode": False,
     # The reaction the bot leaves on /start, and the effect it sends the welcome
     # message with. Empty or 0 turns each one off on its own.
     "start_reaction_emoji": "🔥",

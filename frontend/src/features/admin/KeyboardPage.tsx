@@ -206,6 +206,9 @@ export default function AdminKeyboardPage() {
           {t("panel.keyboard.layoutHintStart")}
           {t("panel.keyboard.layoutHintEnd")}
         </p>
+        {query.data.glass_mode ? (
+          <p className="mt-2 text-xs text-muted">{t("panel.keyboard.glassModeOn")}</p>
+        ) : null}
       </SectionCard>
 
       <SectionCard

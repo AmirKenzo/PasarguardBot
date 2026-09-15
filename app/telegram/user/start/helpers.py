@@ -140,7 +140,17 @@ async def send_welcome_menu(event: Message, welcome_text: str, lang: str) -> Non
     }
     if reaction_on and effect_id:
         send_kwargs["message_effect_id"] = effect_id
-    await Kenzo.send_message(**send_kwargs)
+    try:
+        await Kenzo.send_message(**send_kwargs)
+    except Exception as exc:
+        # The effect id is admin-editable and Telegram rejects an unknown one,
+        # which would fail the whole message: the user presses /start, nothing
+        # arrives, and the keyboard already on their screen stays as it was.
+        if "message_effect_id" not in send_kwargs:
+            raise
+        logger.warning("Welcome message with effect %s failed (%s) — resending without it", effect_id, exc)
+        send_kwargs.pop("message_effect_id")
+        await Kenzo.send_message(**send_kwargs)
 
 
 async def handle_discount_start_param(user_id: int, param: str | None, *, notify: bool = True) -> bool:

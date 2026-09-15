@@ -18,6 +18,7 @@ from app.models.panel.settings import (
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.keyboard_glass import apply_glass_mode, glass_mode_active
 
 router = APIRouter()
 
@@ -95,10 +96,17 @@ async def save_settings(payload: PanelSettingsSaveRequest, request: Request) -> 
                 except ValueError:
                     return ActionResponse(ok=False, error=f"مقدار «{key}» عددی نیست.")
 
+        glass_before = glass_mode_active(setting)
         if setting is None:
             await manager.add_setting(**updates)
         else:
             await manager.update_setting(setting.id, **updates)
+
+        # The glassy look is baked into the stored button labels, so flipping the
+        # switch has to rewrite them; nothing else here has work to do after the save.
+        glass_after = bool(updates.get("glass_buttons_mode", glass_before))
+        if glass_after != glass_before:
+            await apply_glass_mode(glass_after)
 
         await audit.record(
             admin_id=actor.user_id,

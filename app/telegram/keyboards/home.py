@@ -163,7 +163,12 @@ async def bhome_buttons(user_id, lang):
         menu_miniapp, menu_miniapp_style = await _get_keyboard_button_config(
             keyboard_crud, "bt.menu_miniapp", "🚀 ورود به اپلیکیشن", default_style="primary"
         )
-        rows = [[styled_simple_webview_button(menu_miniapp, WEBAPP_URL, menu_miniapp_style)]]
+        # A plain button, not a web-view one: Telegram opens a keyboard-button
+        # web app "without sending user information" (keyboardButtonSimpleWebView),
+        # so the mini app would land on its own login screen. Pressing this asks
+        # the bot for an inline web-view button instead, which does carry the
+        # Telegram sign-in.
+        rows = [[styled_reply_button(menu_miniapp, menu_miniapp_style)]]
         if user_id in ADMIN_ID:
             rows.append([styled_reply_button(menu_admin_panel, menu_admin_panel_style)])
         return ReplyKeyboardMarkup([KeyboardButtonRow(row) for row in rows], resize=True)

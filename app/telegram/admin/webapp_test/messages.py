@@ -1,40 +1,38 @@
-"""Message handler for the admin /webapp test command."""
+"""Admin entry points that open the WebApp."""
 
 from telethon import events
-from telethon.errors.rpcerrorlist import ButtonUrlInvalidError
-from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
+from telethon.tl.custom import Message
 
-from app.telegram.keyboards.common import styled_webview_button
-from config import ADMIN_ID, WEBAPP_URL
+from app.telegram.shared.utils.miniapp import send_miniapp_launcher
+from config import ADMIN_ID
+
+WEB_PANEL_BUTTON = "🖥 پنل تحت وب"
+WEB_PANEL_INTRO = "برای ورود به پنل تحت وب، روی دکمهٔ زیر بزن:"
 
 
 async def open_webapp(event):
     if not event.is_private:
         return
+    await send_miniapp_launcher(event, label="🧪 باز کردن وب‌اپ", intro="برای تست ورود از سمت تلگرام، روی دکمه زیر بزن:")
 
-    if not WEBAPP_URL:
-        await event.reply("آدرس وب‌اپ تنظیم نشده. مقدار `WEBAPP_URL` را در فایل .env تنظیم کن.")
-        return
 
-    if not WEBAPP_URL.startswith("https://"):
-        await event.reply(
-            "آدرس وب‌اپ باید حتماً با `https://` شروع شود (تلگرام آدرس http را قبول نمی‌کند).\n"
-            "یک دامنه با گواهی SSL معتبر (مثل Let's Encrypt پشت nginx/caddy) پیدا کن و "
-            "`WEBAPP_URL` را در فایل .env به آن آدرس تغییر بده."
-        )
-        return
+def _web_panel_filter(event: Message) -> bool:
+    if event.sender_id not in ADMIN_ID or not event.is_private:
+        return False
+    return (event.message.text or "").strip() == WEB_PANEL_BUTTON
 
-    buttons = ReplyInlineMarkup([KeyboardInlineButtonRow([styled_webview_button("🧪 باز کردن وب‌اپ", WEBAPP_URL)])])
-    try:
-        await event.reply("برای تست ورود از سمت تلگرام، روی دکمه زیر بزن:", buttons=buttons)
-    except ButtonUrlInvalidError:
-        await event.reply(
-            "تلگرام این آدرس را نپذیرفت. باید یک دامنه با HTTPS معتبر (نه IP خام و نه گواهی self-signed) باشد."
-        )
+
+async def open_web_panel(event: Message):
+    await send_miniapp_launcher(event, label=WEB_PANEL_BUTTON, intro=WEB_PANEL_INTRO, panel=True)
+    raise events.StopPropagation
 
 
 def register(client):
     client.add_event_handler(
         open_webapp,
         events.NewMessage(pattern=r"/webapp$", incoming=True, from_users=ADMIN_ID),
+    )
+    client.add_event_handler(
+        open_web_panel,
+        events.NewMessage(incoming=True, func=_web_panel_filter),
     )

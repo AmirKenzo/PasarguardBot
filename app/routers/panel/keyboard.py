@@ -23,6 +23,7 @@ from app.panel import audit
 from app.panel.forms import parse_icon
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.keyboard_glass import GLASS_KEY_PREFIX, glass_mode_active
 from app.telegram.keyboards.home import DEFAULT_HOME_LAYOUT, home_button_conditions
 from app.telegram.keyboards.registry import (
     KEYBOARD_BUTTON_DEFAULT_STYLES,
@@ -110,6 +111,7 @@ async def keyboard_overview(payload: PanelRequest, request: Request) -> PanelKey
             home_keys=list(HOME_KEYS),
             sections=SECTION_SLUGS,
             premium_emoji_enabled=bool(getattr(setting, "premium_emoji_status", False)) if setting else False,
+            glass_mode=glass_mode_active(setting),
         )
 
     return await guard.run(payload, request, PanelKeyboardResponse, handle)
@@ -174,7 +176,8 @@ async def save_button(payload: PanelKeyboardButtonSaveRequest, request: Request)
         # it is baked into the stored text. Handlers match a press against that
         # same stored text, which is how the button keeps working either way.
         label = unglass_text(payload.text.strip())
-        if style == GLASS_STYLE:
+        setting = await SettingsManager().get_settings()
+        if style == GLASS_STYLE or (glass_mode_active(setting) and key.startswith(GLASS_KEY_PREFIX)):
             label = glass_text(label)
 
         icon_raw = payload.icon.strip()

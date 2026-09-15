@@ -40,6 +40,9 @@ class PanelKeyboardResponse(PanelResponse):
     sections: list[str] = Field(default_factory=list)
     style_options: list[str] = Field(default_factory=lambda: list(STYLE_OPTIONS))
     premium_emoji_enabled: bool = False
+    # The global switch in settings; when on, every home button is drawn glassy
+    # whatever its own style says.
+    glass_mode: bool = False
 
 
 class PanelKeyboardLayoutRequest(PanelRequest):

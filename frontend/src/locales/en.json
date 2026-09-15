@@ -663,7 +663,8 @@
       "copyLink": "Copy link",
       "miniappOnly": "Mini app only (bot menu off)",
       "startReactionEmoji": "Start reaction emoji (empty for none)",
-      "startEffectId": "Start message effect ID (0 for none)"
+      "startEffectId": "Start message effect ID (0 for none)",
+      "glassButtons": "Glassy buttons"
     },
     "audit": {
       "broadcastResume": "Broadcast resumed",
@@ -759,7 +760,8 @@
       "mainMenuLayout": "Main menu layout",
       "key": "Key",
       "glass": "Glassy",
-      "blockedMiniappOnly": "Mini-app-only mode is on, so the bot's menu is hidden"
+      "blockedMiniappOnly": "Mini-app-only mode is on, so the bot's menu is hidden",
+      "glassModeOn": "Glassy mode is on: every main-menu button is drawn with brackets. Turn it off in settings."
     },
     "channels": {
       "topicId": "Topic ID (optional)",
