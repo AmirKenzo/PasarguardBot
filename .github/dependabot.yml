@@ -7,6 +7,10 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    groups:
+      backend:
+        patterns:
+          - "*"
 
   - package-ecosystem: "bun"
     directory: "/docs"
@@ -16,6 +20,10 @@ updates:
     open-pull-requests-limit: 10
     ignore:
       - dependency-name: "fumadocs-ui"
+    groups:
+      docs:
+        patterns:
+          - "*"
 
   - package-ecosystem: "bun"
     directory: "/frontend"
@@ -23,6 +31,10 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    groups:
+      frontend:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -30,6 +42,10 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
+    groups:
+      docker:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -37,3 +53,7 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
