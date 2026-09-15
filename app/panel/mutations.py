@@ -20,6 +20,7 @@ from app.db.models.user import User
 from app.logger import get_logger
 from app.panel import audit
 from app.routers.panel.auth import PanelActor
+from app.services.panels.settings import resolve_panel_update_kwargs
 
 log = get_logger(__name__)
 
@@ -200,18 +201,25 @@ async def reject_transaction(ctx: PanelActor, tx_id: int) -> bool:
 
 
 async def upsert_panel(ctx: PanelActor, code: int | None, values: dict[str, Any]) -> int:
-    """Create or update a panel row. Returns the panel code."""
+    """Create or update a panel row. Returns the panel code.
+
+    ``values`` may include legacy flat fields (e.g. ``test_enabled``) that live
+    inside a JSON column; ``resolve_panel_update_kwargs`` maps those onto the
+    real columns the same way the bot's own panel editors do.
+    """
     async with Session() as session:
         if code is None:
             highest = (await session.execute(select(Panels.code).order_by(Panels.code.desc()).limit(1))).scalar()
             new_code = int(highest or 0) + 1
-            session.add(Panels(code=new_code, **values))
+            session.add(Panels(code=new_code, **resolve_panel_update_kwargs(None, **values)))
             await session.commit()
             await _audit(
                 ctx, "panel_create", target_type="panel", target_id=new_code, detail={"name": values.get("name")}
             )
             return new_code
-        await session.execute(update(Panels).where(Panels.code == code).values(**values))
+        panel = (await session.execute(select(Panels).where(Panels.code == code))).scalars().first()
+        resolved = resolve_panel_update_kwargs(panel, **values)
+        await session.execute(update(Panels).where(Panels.code == code).values(**resolved))
         await session.commit()
     await _audit(ctx, "panel_update", target_type="panel", target_id=code, detail={"fields": sorted(values)})
     return code
