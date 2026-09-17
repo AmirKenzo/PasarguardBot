@@ -56,7 +56,7 @@ SETTINGS_MENU_SECTIONS = (
             SettingsMenuItem("قفل کانال", "channel_lock"),
             SettingsMenuItem("ری‌اکشن استارت", "start_reaction", default=True, wide=True),
             SettingsMenuItem("فقط مینی‌اپ (منوی ربات خاموش)", "miniapp_only_mode", wide=True),
-            SettingsMenuItem("دکمه‌های شیشه‌ای", "glass_buttons_mode", wide=True),
+            SettingsMenuItem("کیبورد شیشه‌ای (همیشه داخل چت)", "glass_keyboard_mode", wide=True),
         ),
         separate_page=False,
     ),

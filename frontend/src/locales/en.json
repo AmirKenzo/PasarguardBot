@@ -741,7 +741,7 @@
       "startReactionEmoji": "Start reaction emoji",
       "startEffectId": "Start message effect",
       "readOnlyHint": "Updated automatically — not editable here",
-      "glassButtons": "Glassy buttons"
+      "glassKeyboard": "Glassy keyboard (always in chat)"
     },
     "audit": {
       "broadcastResume": "Broadcast resumed",
@@ -838,9 +838,8 @@
       "resetConfirm": "Clear the custom layout and restore the default?",
       "mainMenuLayout": "Main menu layout",
       "key": "Key",
-      "glass": "Glassy",
       "blockedMiniappOnly": "Mini-app-only mode is on, so the bot's menu is hidden",
-      "glassModeOn": "Glassy mode is on: every main-menu button is drawn with brackets. Turn it off in settings."
+      "glassModeOn": "Glassy keyboard is on: the main menu is drawn inside the chat and any button without its own colour turns blue. Turn it off in settings."
     },
     "channels": {
       "topicId": "Topic ID (optional)",
@@ -900,7 +899,9 @@
       "channelsEmpty": "No channels set",
       "lockChannels": "Membership-lock channels",
       "group": "Group / supergroup",
-      "reportPurchase": "Purchase report (public channel)"
+      "reportPurchase": "Purchase report (public channel)",
+      "reportRenew": "Renewal report (public channel)",
+      "reportTrial": "Trial report (public channel)"
     },
     "tools": {
       "runsInBackground": "This runs in the background; the final result is written to the audit log.",

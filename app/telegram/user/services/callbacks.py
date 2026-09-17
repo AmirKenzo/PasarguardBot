@@ -44,6 +44,7 @@ from app.services.panels.settings import (
     panel_time_plans,
     panel_volume_plans,
 )
+from app.services.public_report import send_renew_report
 from app.services.subscriptions.links import (
     build_tunnel_subscription_url,
     format_subscription_links_for_message,
@@ -542,6 +543,12 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
 
                 await clear_user(event.sender_id)
                 await send_log_message(LogType.OTHER, message=log_text)
+                await send_renew_report(
+                    user_id=event.sender_id,
+                    panel_name=getattr(panel, "name", None),
+                    plan_label=plan_name_with_limit,
+                    price=int(plan.price),
+                )
 
             except Exception as e:
                 logger.error(str(e))
@@ -713,6 +720,12 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     ]
                     await event.edit(txt, buttons=inline_service)
                     await send_log_message(LogType.OTHER, message=log_text)
+                    await send_renew_report(
+                        user_id=event.sender_id,
+                        panel_name=getattr(panel, "name", None),
+                        plan_label=plan_name_with_limit,
+                        price=int(new_price),
+                    )
                     await clear_user(event.sender_id)
                     await DiscountCodeManager().update_discount_usage(code=code_takhfif)
 
