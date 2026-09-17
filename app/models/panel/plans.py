@@ -2,12 +2,21 @@
 
 from pydantic import BaseModel, Field
 
-from app.models.panel.common import PanelRequest, PanelResponse
-from app.models.panel.services import PanelPanelOption
+from app.models.panel.common import PagedRequest, PageMeta, PanelRequest, PanelResponse
 
 PLAN_TYPES = ("volume", "fair_usage")
 RESET_STRATEGIES = ("no_reset", "day", "week", "month", "year")
 BUTTON_STYLE_VALUES = ("", "primary", "success", "danger")
+PLAN_SORT_VALUES = (
+    "newest",
+    "oldest",
+    "price_asc",
+    "price_desc",
+    "volume_asc",
+    "volume_desc",
+    "duration_asc",
+    "duration_desc",
+)
 
 
 class PanelPlanRow(BaseModel):
@@ -25,13 +34,14 @@ class PanelPlanRow(BaseModel):
     button_icon: int | None = None
 
 
-class PanelPlansRequest(PanelRequest):
+class PanelPlansRequest(PagedRequest):
     panel: str = Field("", description="Panel code, or empty for all")
+    sort: str = Field("newest", description=" | ".join(PLAN_SORT_VALUES))
 
 
 class PanelPlansResponse(PanelResponse):
     plans: list[PanelPlanRow] = Field(default_factory=list)
-    panels: list[PanelPanelOption] = Field(default_factory=list)
+    meta: PageMeta = Field(default_factory=PageMeta)
     plan_types: list[str] = Field(default_factory=lambda: list(PLAN_TYPES))
     reset_strategies: list[str] = Field(default_factory=lambda: list(RESET_STRATEGIES))
     button_styles: list[str] = Field(default_factory=lambda: list(BUTTON_STYLE_VALUES))

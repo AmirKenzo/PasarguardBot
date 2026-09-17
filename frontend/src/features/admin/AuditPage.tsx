@@ -1,12 +1,12 @@
 import { useState } from "react";
+import { Filter, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Badge, Button, ErrorState, Pagination } from "../../components/ui";
+import { Badge, ErrorState, Modal, Pagination, Skeleton } from "../../components/ui";
 import { formatNumber, formatUnixDate } from "../../lib/format";
 import { panelAuditApi } from "../../api/panel";
 import type { PanelAuditRow } from "../../types/panel";
 import { usePanelQuery } from "../../queries/usePanelApi";
-import { DataTable, SectionCard, SelectField, Toolbar } from "./components";
-import type { Column } from "./components";
+import { IconMenuButton, MenuHeader, MenuRow, SectionCard } from "./components";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
@@ -73,69 +73,24 @@ const DESTRUCTIVE = /_(delete|reject|disable|failed)$/;
 export default function AdminAuditPage() {
   const { t } = useTranslation();
   const [action, setAction] = useState("");
-  const [draftAction, setDraftAction] = useState("");
   const [page, setPage] = useState(1);
+  const [detailRow, setDetailRow] = useState<PanelAuditRow | null>(null);
 
   const query = usePanelQuery(["audit", action, page], (auth) =>
-    panelAuditApi.listAudit({ ...auth, action, page, limit: 50 })
+    panelAuditApi.listAudit({ ...auth, action, page, limit: 10 })
   );
 
   const actionOptions = [
-    { value: "", label: t("panel.audit.allActions") },
-    ...(query.data?.actions || []).map((value) => ({ value, label: actionLabels(t)[value] || value })),
+    { value: "", label: t("panel.audit.allActions"), icon: Filter },
+    ...(query.data?.actions || []).map((value) => ({ value, label: actionLabels(t)[value] || value, icon: undefined })),
   ];
 
-  const columns: Column<PanelAuditRow>[] = [
-    {
-      key: "time",
-      header: t("panel.common.time"),
-      cell: (row) => (
-        <span className="text-xs text-muted">{row.created_at ? formatUnixDate(row.created_at) : "—"}</span>
-      ),
-    },
-    {
-      key: "actor",
-      header: t("panel.audit.admin"),
-      cell: (row) => <code className="ltr-field text-xs">{row.actor_username || row.actor_id || "—"}</code>,
-    },
-    {
-      key: "action",
-      header: t("panel.common.actions"),
-      cell: (row) => (
-        <Badge tone={DESTRUCTIVE.test(row.action) ? "danger" : "muted"}>
-          {actionLabels(t)[row.action] || row.action}
-        </Badge>
-      ),
-    },
-    {
-      key: "target",
-      header: t("panel.audit.target"),
-      secondary: true,
-      cell: (row) => (
-        <span className="text-xs">{[row.target_type, row.target_id].filter(Boolean).join(" ") || "—"}</span>
-      ),
-    },
-    {
-      key: "detail",
-      header: t("panel.common.details"),
-      secondary: true,
-      cell: (row) => (
-        <span className="block max-w-[18rem] truncate text-xs text-muted" title={JSON.stringify(row.detail ?? {})}>
-          {row.detail
-            ? Object.entries(row.detail)
-                .map(([key, value]) => `${key}: ${String(value)}`)
-                .join(t("panel.common.listSeparator"))
-            : "—"}
-        </span>
-      ),
-    },
-    {
-      key: "ip",
-      header: "IP",
-      secondary: true,
-      cell: (row) => <code className="ltr-field text-xs text-muted">{row.ip || "—"}</code>,
-    },
-  ];
+  const rows = query.data?.entries || [];
+
+  function updateAction(value: string) {
+    setAction(value);
+    setPage(1);
+  }
 
   return (
     <>
@@ -144,41 +99,117 @@ export default function AdminAuditPage() {
         subtitle={query.data ? t("panel.audit.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined}
       />
 
-      <Toolbar
-        onSubmit={() => {
-          setPage(1);
-          setAction(draftAction);
-        }}
-      >
-        <div className="min-w-[14rem] flex-1">
-          <SelectField
-            label={t("panel.audit.actionType")}
-            options={actionOptions}
-            value={draftAction}
-            onChange={(event) => setDraftAction(event.target.value)}
-          />
+      <SectionCard title={t("panel.audit.subtitle")}>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2.5">
+          <IconMenuButton
+            icon={SlidersHorizontal}
+            title={t("panel.audit.actionType")}
+            active={action !== ""}
+            badge={action !== ""}
+            width={224}
+            heightEstimate={320}
+          >
+            {(close) => (
+              <>
+                <MenuHeader title={t("panel.audit.actionType")} />
+                {actionOptions.map((opt) => (
+                  <MenuRow
+                    key={opt.value}
+                    icon={opt.icon}
+                    label={opt.label}
+                    active={opt.value === action}
+                    onClick={() => {
+                      updateAction(opt.value);
+                      close();
+                    }}
+                  />
+                ))}
+              </>
+            )}
+          </IconMenuButton>
+          {action !== "" && (
+            <Badge tone="primary">{actionLabels(t)[action] || action}</Badge>
+          )}
         </div>
-        <Button size="md" type="submit" variant="secondary">
-          {t("panel.common.applyFilter")}
-        </Button>
-      </Toolbar>
 
-      {query.isError ? (
-        <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
-      ) : (
-        <SectionCard title={t("panel.audit.subtitle")}>
-          <DataTable
-            columns={columns}
-            rows={query.data?.entries || []}
-            rowKey={(row) => row.id}
-            loading={query.isLoading}
-            emptyTitle={t("panel.audit.empty")}
-          />
-          <div className="mt-4">
-            <Pagination page={page} totalPages={query.data?.meta.total_pages || 1} onChange={setPage} />
+        {query.isError ? (
+          <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
+        ) : query.isLoading ? (
+          <div className="mt-4 space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-md" />
+            ))}
           </div>
-        </SectionCard>
-      )}
+        ) : rows.length ? (
+          <div className="mt-2 divide-y divide-border/60">
+            {rows.map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => setDetailRow(row)}
+                className="flex w-full flex-wrap items-center gap-2.5 py-2.5 text-start first:pt-0 last:pb-0 hover:bg-surface-2/60"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <Badge tone={DESTRUCTIVE.test(row.action) ? "danger" : "muted"}>
+                      {actionLabels(t)[row.action] || row.action}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted">
+                    <code className="ltr-field">{row.actor_username || row.actor_id || "—"}</code>
+                    {row.target_type ? ` · ${[row.target_type, row.target_id].filter(Boolean).join(" ")}` : ""}
+                  </div>
+                </div>
+                <div className="text-[11px] text-muted">{row.created_at ? formatUnixDate(row.created_at) : "—"}</div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="py-8 text-center text-sm text-muted">{t("panel.audit.empty")}</p>
+        )}
+
+        <div className="mt-4">
+          <Pagination page={page} totalPages={query.data?.meta.total_pages || 1} onChange={setPage} />
+        </div>
+      </SectionCard>
+
+      <Modal
+        open={detailRow != null}
+        onClose={() => setDetailRow(null)}
+        title={detailRow ? t("panel.audit.detailTitle", { id: detailRow.id }) : ""}
+      >
+        {detailRow && (
+          <div className="space-y-3 text-sm">
+            <DetailRow label={t("panel.common.time")} value={detailRow.created_at ? formatUnixDate(detailRow.created_at) : "—"} />
+            <DetailRow label={t("panel.audit.admin")} value={detailRow.actor_username || String(detailRow.actor_id ?? "—")} ltr />
+            <DetailRow label={t("panel.common.actions")} value={actionLabels(t)[detailRow.action] || detailRow.action} />
+            <DetailRow
+              label={t("panel.audit.target")}
+              value={[detailRow.target_type, detailRow.target_id].filter(Boolean).join(" ") || "—"}
+            />
+            <DetailRow label="IP" value={detailRow.ip || "—"} ltr />
+            <div>
+              <p className="mb-1 text-xs text-muted">{t("panel.common.details")}</p>
+              {detailRow.detail && Object.keys(detailRow.detail).length ? (
+                <pre className="ltr-field max-h-64 overflow-auto rounded-md bg-surface-2 p-3 text-xs leading-relaxed text-text">
+                  {JSON.stringify(detailRow.detail, null, 2)}
+                </pre>
+              ) : (
+                <p className="text-xs text-muted">{t("panel.audit.noDetail")}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
+  );
+}
+
+function DetailRow({ label, value, ltr = false }: { label: string; value: string; ltr?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-2 text-xs">
+      <span className="shrink-0 text-muted">{label}</span>
+      <span className={`min-w-0 truncate font-medium text-text ${ltr ? "ltr-field" : ""}`}>{value}</span>
+    </div>
   );
 }

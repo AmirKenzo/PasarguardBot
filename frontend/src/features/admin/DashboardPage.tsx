@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import type { LucideIcon } from "lucide-react";
 import {
   Ban,
   Boxes,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { ErrorState, Skeleton } from "../../components/ui";
-import { formatNumber, formatToman } from "../../lib/format";
+import { formatCompactToman, formatNumber, formatToman } from "../../lib/format";
 import { panelDashboardApi } from "../../api/panel";
 import { usePanelQuery } from "../../queries/usePanelApi";
 import { SectionCard, StatTile, TrendChart } from "./components";
@@ -65,35 +66,26 @@ export default function AdminDashboardPage() {
 
         <div className="relative flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs text-primary-text/70">{t("panel.dashboard.revenueToday")}</p>
-            <p className="mt-1 text-2xl font-extrabold tracking-tight" dir="ltr">
+            <p className="text-xs font-medium text-primary-text/70">{t("panel.dashboard.revenueToday")}</p>
+            <p className="mt-1.5 text-[1.75rem] font-extrabold leading-none tracking-tight" dir="ltr">
               {formatToman(stats.income_today)}
             </p>
           </div>
           {stats.pending_tx > 0 && (
             <Link
               to="/panel/transactions"
-              className="flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-medium transition-colors hover:bg-white/25"
+              className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/25"
             >
               {formatNumber(stats.pending_tx)} {t("panel.dashboard.pendingTransactions")}
-              <ChevronLeft size={14} />
+              <ChevronLeft size={13} />
             </Link>
           )}
         </div>
 
-        <div className="relative mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-primary-text/80">
-          <span className="flex items-center gap-1.5">
-            <TrendingUp size={13} />
-            {t("panel.dashboard.revenueThirtyDays")}: {formatToman(stats.income_month)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Users size={13} />
-            {formatNumber(stats.users_total)} {t("common.user")}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Boxes size={13} />
-            {formatNumber(stats.services_active)} {t("panel.dashboard.activeService")}
-          </span>
+        <div className="relative mt-5 flex flex-wrap items-center gap-2 border-t border-white/15 pt-4 text-xs text-primary-text/85">
+          <HeroStat icon={TrendingUp} value={formatToman(stats.income_month)} label={t("panel.dashboard.revenueThirtyDays")} />
+          <HeroStat icon={Users} value={formatNumber(stats.users_total)} label={t("common.user")} />
+          <HeroStat icon={Boxes} value={formatNumber(stats.services_active)} label={t("panel.dashboard.activeService")} />
         </div>
       </motion.div>
 
@@ -111,7 +103,12 @@ export default function AdminDashboardPage() {
           icon={Ban}
           tone={stats.users_blocked ? "warning" : "default"}
         />
-        <StatTile label={t("panel.dashboard.walletBalances")} value={formatToman(stats.wallet_total)} icon={Wallet} />
+        <StatTile
+          label={t("panel.dashboard.walletBalances")}
+          value={formatCompactToman(stats.wallet_total)}
+          exactValue={formatToman(stats.wallet_total)}
+          icon={Wallet}
+        />
         <StatTile
           label={t("panel.common.awaitingApproval")}
           value={formatNumber(stats.pending_tx)}
@@ -132,20 +129,45 @@ export default function AdminDashboardPage() {
           hint={t("panel.dashboard.activeResellers", { count: formatNumber(stats.resellers_active) })}
           icon={Server}
         />
-        <StatTile label={t("panel.dashboard.revenueThirtyDays")} value={formatToman(stats.income_month)} icon={CreditCard} tone="primary" />
+        <StatTile
+          label={t("panel.dashboard.revenueThirtyDays")}
+          value={formatCompactToman(stats.income_month)}
+          exactValue={formatToman(stats.income_month)}
+          icon={CreditCard}
+          tone="primary"
+        />
       </div>
 
       <SectionCard title={t("panel.dashboard.revenuePerDay")} description={t("panel.dashboard.lastFourteenDays")}>
-        <TrendChart points={series.map((point) => ({ ts: point.ts, value: point.revenue }))} format={formatToman} />
+        <TrendChart
+          points={series.map((point) => ({ ts: point.ts, value: point.revenue }))}
+          format={formatToman}
+          total={formatToman(series.reduce((sum, point) => sum + point.revenue, 0))}
+        />
       </SectionCard>
 
       <SectionCard title={t("panel.dashboard.signupsPerDay")} description={t("panel.dashboard.lastFourteenDays")}>
         <TrendChart
           points={series.map((point) => ({ ts: point.ts, value: point.signups }))}
           format={(value) => t("panel.dashboard.userCount", { count: formatNumber(value) })}
+          total={t("panel.dashboard.userCount", { count: formatNumber(series.reduce((sum, point) => sum + point.signups, 0)) })}
           tone="accent"
         />
       </SectionCard>
     </>
+  );
+}
+
+function HeroStat({ icon: Icon, value, label }: { icon: LucideIcon; value: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5">
+      <Icon size={13} className="shrink-0 text-primary-text/70" />
+      <div className="leading-tight">
+        <p className="font-semibold text-primary-text" dir="ltr">
+          {value}
+        </p>
+        <p className="text-[10px] text-primary-text/70">{label}</p>
+      </div>
+    </div>
   );
 }

@@ -6,10 +6,12 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string | null;
   suffix?: ReactNode;
   ltr?: boolean;
+  /** Shorter height for compact toolbars (filters, inline search). */
+  dense?: boolean;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, suffix, ltr = false, className = "", id, ...rest },
+  { label, error, suffix, ltr = false, dense = false, className = "", id, ...rest },
   ref
 ) {
   const inputId = id || rest.name;
@@ -20,7 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         <input
           ref={ref}
           id={inputId}
-          className={`h-11 w-full rounded-md border bg-surface px-3.5 text-text placeholder:text-muted outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary focus:ring-4 ${
+          className={`${dense ? "h-9 px-3 text-sm" : "h-10 px-3 text-sm"} w-full rounded-md border bg-surface text-text placeholder:text-muted outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary focus:ring-4 ${
             error ? "border-danger focus:ring-danger/10" : "border-border focus:ring-primary/10"
           } ${suffix ? "pl-10" : ""} ${ltr ? "ltr-field" : ""} ${className}`}
           {...rest}

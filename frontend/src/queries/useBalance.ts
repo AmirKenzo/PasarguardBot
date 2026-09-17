@@ -36,10 +36,15 @@ export function useDepositManualMutation() {
 
 export function useDepositManualReceiptMutation() {
   const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ txId, file }: { txId: number; file: File }) =>
-      balanceApi.depositManualReceipt(auth!, txId, file),
+    mutationFn: ({ amount, file }: { amount: number; file: File }) =>
+      balanceApi.depositManualReceipt(auth!, amount, file),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
   });
 }
 

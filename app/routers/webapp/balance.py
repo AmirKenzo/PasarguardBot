@@ -139,16 +139,17 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
                 ok=False,
                 error=f"مبلغ باید بین {min_a:,} تا {max_a:,} تومان باشد",
             )
-        tx = await TransactionCRUD().create(user_id=user_id, amount=amount, method="manual")
         cards = await ManualCardManager().get_all_cards()
-        active = next((c for c in cards if getattr(c, "active", False)), None)
-        if not active and cards:
-            active = cards[0]
+        if settings.manual_card_random_mode and cards:
+            active = random.choice(cards)
+        else:
+            active = next((c for c in cards if getattr(c, "active", False)), None)
+            if not active and cards:
+                active = cards[0]
         card_number = getattr(active, "number", None) if active else None
         card_name = getattr(active, "name", None) if active else None
         return BalanceDepositManualResponse(
             ok=True,
-            tx_id=getattr(tx, "id", None),
             card_number=card_number,
             card_name=card_name,
         )
@@ -160,7 +161,7 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
 
 @router.post("/webapp/balance/deposit/manual/receipt", response_model=BalanceDepositManualReceiptResponse)
 async def deposit_manual_receipt(
-    tx_id: int = Form(...),
+    amount: int = Form(...),
     session_token: str | None = Form(None),
     init_data: str | None = Form(None),
     file: UploadFile = File(...),
@@ -171,12 +172,19 @@ async def deposit_manual_receipt(
             init_data=init_data,
             session_token=session_token,
         )
-        tx = await TransactionCRUD().get(tx_id)
-        if not tx or int(tx.user_id) != user_id:
-            return BalanceDepositManualReceiptResponse(ok=False, error="تراکنش یافت نشد")
-
-        if str(tx.status) != "pending":
-            return BalanceDepositManualReceiptResponse(ok=False, error="این تراکنش قبلاً بررسی شده است")
+        settings = await SettingsManager().get_settings()
+        if not settings or not settings.pay_mode:
+            return BalanceDepositManualReceiptResponse(ok=False, error="پرداخت کارت به کارت غیرفعال است")
+        user = await UserCRUD().read_user(user_id)
+        if _phone_verify_required(settings, user):
+            return BalanceDepositManualReceiptResponse(ok=False, error="ابتدا باید شماره تلفن خود را تایید کنید.")
+        min_a = int(settings.manual_deposit_min or 0)
+        max_a = int(settings.manual_deposit_max or 0)
+        if amount < min_a or amount > max_a:
+            return BalanceDepositManualReceiptResponse(
+                ok=False,
+                error=f"مبلغ باید بین {min_a:,} تا {max_a:,} تومان باشد",
+            )
 
         filename = (file.filename or "").lower()
         content_type = (file.content_type or "").lower()
@@ -190,9 +198,10 @@ async def deposit_manual_receipt(
         if not content or len(content) > 10 * 1024 * 1024:
             return BalanceDepositManualReceiptResponse(ok=False, error="حجم تصویر حداکثر ۱۰ مگابایت باشد")
 
+        tx = await TransactionCRUD().create(user_id=user_id, amount=amount, method="manual")
         rule_crud = ManualAutoApproveRuleCRUD()
         matched_rule = await rule_crud.schedule_for_transaction(tx)
-        tx = await TransactionCRUD().get(tx_id) or tx
+        tx = await TransactionCRUD().get(tx.id) or tx
 
         user_record = await UserCRUD().read_user(user_id)
         crud = TransactionCRUD()
@@ -230,7 +239,7 @@ async def deposit_manual_receipt(
             )
             if message and getattr(message, "id", None):
                 await TransactionCRUD().update(
-                    tx_id,
+                    tx.id,
                     message_id=message.id,
                     message_chat_id=getattr(message, "chat_id", None) or getattr(message, "peer_id", None),
                 )

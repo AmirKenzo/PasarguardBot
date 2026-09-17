@@ -3,15 +3,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+const SIZE_CLASSES = {
+  md: "max-w-lg",
+  xl: "max-w-3xl",
+} as const;
+
 export interface FormModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  size?: keyof typeof SIZE_CLASSES;
 }
 
 /** Like the UI kit's Modal, but wide enough for a multi-field form. */
-export function FormModal({ open, onClose, title, children }: FormModalProps) {
+export function FormModal({ open, onClose, title, children, size = "md" }: FormModalProps) {
   const { t } = useTranslation();
   return (
     <AnimatePresence>
@@ -30,7 +36,7 @@ export function FormModal({ open, onClose, title, children }: FormModalProps) {
               key="panel"
               role="dialog"
               aria-modal="true"
-              className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg border border-border bg-surface p-5 shadow-lg"
+              className={`max-h-[85vh] w-full ${SIZE_CLASSES[size]} overflow-y-auto rounded-lg border border-border bg-surface p-5 shadow-lg`}
               initial={{ opacity: 0, scale: 0.94, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}

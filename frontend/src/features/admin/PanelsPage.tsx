@@ -1,112 +1,26 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { PageHeader } from "../../components/layout/PageHeader";
-import { Badge, Button, ErrorState, Input, Skeleton } from "../../components/ui";
-import { panelPanelsApi } from "../../api/panel";
-import type { PanelRow, PanelSaveRequest } from "../../types/panel";
-import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
-import { ConfirmButton, DataTable, FormModal, SectionCard, SelectField, Toggle } from "./components";
-import type { Column } from "./components";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
-
-const authLabels = (t: TFunction): Record<string, string> => ({
-  password: t("panel.panels.usernamePassword"),
-  api_key: "API Key",
-});
-
-type Draft = Omit<PanelSaveRequest, "session_token" | "init_data">;
-
-const EMPTY_DRAFT: Draft = {
-  code: null,
-  name: "",
-  base_url: "",
-  tunnel_url: "",
-  auth_type: "password",
-  username: "",
-  secret: "",
-  enable: true,
-  test_enabled: false,
-  test_volume_gb: 2,
-  test_duration_days: 3,
-};
+import { PageHeader } from "../../components/layout/PageHeader";
+import { Button, ErrorState, Skeleton } from "../../components/ui";
+import { panelPanelsApi } from "../../api/panel";
+import { usePanelQuery } from "../../queries/usePanelApi";
+import { SectionCard } from "./components";
+import { PanelCard } from "./panels/PanelCard";
+import { PanelQuickEditModal, EMPTY_PANEL_DRAFT } from "./panels/PanelQuickEditModal";
+import type { PanelDraft } from "./panels/PanelQuickEditModal";
+import { PanelInfoModal } from "./panels/PanelInfoModal";
+import { PanelSettingsModal } from "./panels/PanelSettingsModal";
 
 export default function AdminPanelsPage() {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<PanelDraft | null>(null);
+  const [infoCode, setInfoCode] = useState<number | null>(null);
+  const [settingsCode, setSettingsCode] = useState<number | null>(null);
 
   const query = usePanelQuery(["panels"], (auth) => panelPanelsApi.listPanels(auth));
-  const invalidate = [["panels"], ["plans"], ["dashboard"]];
-  const save = usePanelAction(panelPanelsApi.savePanel, { invalidate });
-  const test = usePanelAction(panelPanelsApi.testPanel);
-  const remove = usePanelAction(panelPanelsApi.deletePanel, { invalidate });
-
-  const authOptions = (query.data?.auth_types || ["password", "api_key"]).map((value) => ({
-    value,
-    label: authLabels(t)[value] || value,
-  }));
-
-  const columns: Column<PanelRow>[] = [
-    { key: "code", header: t("panel.common.code"), cell: (row) => <code className="ltr-field text-xs">{row.code}</code> },
-    { key: "name", header: t("panel.panels.name"), cell: (row) => row.name },
-    {
-      key: "url",
-      header: t("panel.common.address"),
-      secondary: true,
-      cell: (row) => <span className="ltr-field break-all text-xs text-muted">{row.base_url}</span>,
-    },
-    {
-      key: "auth",
-      header: t("panel.panels.auth"),
-      secondary: true,
-      cell: (row) => <span className="text-xs">{authLabels(t)[row.auth_type] || row.auth_type}</span>,
-    },
-    {
-      key: "status",
-      header: t("panel.common.status"),
-      cell: (row) => (row.enable ? <Badge tone="success">{t("panel.common.active")}</Badge> : <Badge tone="muted">{t("panel.common.inactive")}</Badge>),
-    },
-    {
-      key: "actions",
-      header: t("panel.common.actions"),
-      cell: (row) => (
-        <div className="flex flex-wrap gap-1.5">
-          <Button size="sm" variant="ghost" loading={test.isPending} onClick={() => test.mutate({ code: row.code })}>
-            {t("panel.panels.testConnection")}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() =>
-              setDraft({
-                code: row.code,
-                name: row.name,
-                base_url: row.base_url,
-                tunnel_url: row.tunnel_url || "",
-                auth_type: row.auth_type,
-                username: row.username || "",
-                secret: "",
-                enable: row.enable,
-                test_enabled: row.test_enabled,
-                test_volume_gb: row.test_volume_gb,
-                test_duration_days: row.test_duration_days,
-              })
-            }
-          >
-            {t("common.edit")}
-          </Button>
-          <ConfirmButton
-            size="sm"
-            variant="danger"
-            message={t("panel.panels.deleteConfirm")}
-            onConfirm={() => remove.mutate({ code: row.code })}
-          >
-            {t("common.delete")}
-          </ConfirmButton>
-        </div>
-      ),
-    },
-  ];
+  const panels = query.data?.panels || [];
+  const activePanel = panels.find((p) => p.code === (infoCode ?? settingsCode));
 
   return (
     <>
@@ -114,7 +28,7 @@ export default function AdminPanelsPage() {
         title={t("panel.common.panels")}
         subtitle={t("panel.panels.subtitle")}
         action={
-          <Button size="sm" onClick={() => setDraft({ ...EMPTY_DRAFT })}>
+          <Button size="sm" onClick={() => setDraft({ ...EMPTY_PANEL_DRAFT })}>
             <Plus size={16} />
             {t("panel.common.addPanel")}
           </Button>
@@ -127,114 +41,45 @@ export default function AdminPanelsPage() {
         <SectionCard title={t("panel.panels.title")}>
           {query.isLoading ? (
             <Skeleton className="h-40 w-full" />
+          ) : panels.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="font-semibold text-text">{t("panel.panels.empty")}</p>
+              <p className="mt-1 text-sm text-muted">{t("panel.panels.addFirst")}</p>
+            </div>
           ) : (
-            <DataTable
-              columns={columns}
-              rows={query.data?.panels || []}
-              rowKey={(row) => row.code}
-              emptyTitle={t("panel.panels.empty")}
-              emptyDescription={t("panel.panels.addFirst")}
-            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {panels.map((panel) => (
+                <PanelCard
+                  key={panel.code}
+                  panel={panel}
+                  trialEnabled={panel.test_enabled}
+                  onView={() => setInfoCode(panel.code)}
+                  onEdit={() =>
+                    setDraft({
+                      code: panel.code,
+                      name: panel.name,
+                      base_url: panel.base_url,
+                      tunnel_url: panel.tunnel_url || "",
+                      auth_type: panel.auth_type,
+                      username: panel.username || "",
+                      secret: "",
+                      enable: panel.enable,
+                      test_enabled: panel.test_enabled,
+                      test_volume_gb: panel.test_volume_gb,
+                      test_duration_days: panel.test_duration_days,
+                    })
+                  }
+                  onSettings={() => setSettingsCode(panel.code)}
+                />
+              ))}
+            </div>
           )}
         </SectionCard>
       )}
 
-      <FormModal
-        open={draft !== null}
-        onClose={() => setDraft(null)}
-        title={draft?.code ? t("panel.panels.editTitle", { name: draft.name }) : t("panel.common.addPanel")}
-      >
-        {draft && (
-          <div className="space-y-3">
-            <Input
-              label={t("panel.panels.panelName")}
-              value={draft.name}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            />
-            <Input
-              label={t("panel.panels.url")}
-              ltr
-              placeholder="https://panel.example.com"
-              value={draft.base_url}
-              onChange={(event) => setDraft({ ...draft, base_url: event.target.value })}
-            />
-            <Input
-              label={t("panel.panels.tunnelUrl")}
-              ltr
-              value={draft.tunnel_url || ""}
-              onChange={(event) => setDraft({ ...draft, tunnel_url: event.target.value })}
-            />
-            <SelectField
-              label={t("panel.panels.authType")}
-              options={authOptions}
-              value={draft.auth_type}
-              onChange={(event) => setDraft({ ...draft, auth_type: event.target.value })}
-            />
-            {draft.auth_type === "password" && (
-              <Input
-                label={t("panel.panels.panelUsername")}
-                ltr
-                value={draft.username || ""}
-                onChange={(event) => setDraft({ ...draft, username: event.target.value })}
-              />
-            )}
-            <Input
-              label={draft.auth_type === "api_key" ? "API Key" : t("panel.panels.password")}
-              type="password"
-              ltr
-              autoComplete="new-password"
-              placeholder={draft.code ? t("panel.panels.changeHint") : ""}
-              value={draft.secret || ""}
-              onChange={(event) => setDraft({ ...draft, secret: event.target.value })}
-            />
-            <div className="space-y-3 rounded-md border border-border p-3">
-              <Toggle
-                checked={draft.test_enabled ?? false}
-                onChange={(test_enabled) => setDraft({ ...draft, test_enabled })}
-                label={t("panel.panels.trialEnabled")}
-              />
-              <p className="text-xs text-muted">{t("panel.panels.trialHint")}</p>
-              {draft.test_enabled && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    label={t("panel.plans.volumeGb")}
-                    inputMode="decimal"
-                    value={String(draft.test_volume_gb ?? "")}
-                    onChange={(event) => setDraft({ ...draft, test_volume_gb: Number(event.target.value) })}
-                  />
-                  <Input
-                    label={t("panel.common.periodDays")}
-                    inputMode="numeric"
-                    value={String(draft.test_duration_days ?? "")}
-                    onChange={(event) => setDraft({ ...draft, test_duration_days: Number(event.target.value) })}
-                  />
-                </div>
-              )}
-            </div>
-            <Toggle
-              checked={draft.enable ?? true}
-              onChange={(enable) => setDraft({ ...draft, enable })}
-              label={t("panel.panels.enabled")}
-            />
-            <p className="text-xs text-muted">
-              {t("panel.panels.verifyNote")}
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
-                {t("panel.common.dismiss")}
-              </Button>
-              <Button
-                size="sm"
-                loading={save.isPending}
-                disabled={!draft.name.trim() || !draft.base_url.trim()}
-                onClick={() => save.mutate(draft, { onSuccess: () => setDraft(null) })}
-              >
-                {t("common.save")}
-              </Button>
-            </div>
-          </div>
-        )}
-      </FormModal>
+      <PanelQuickEditModal draft={draft} onClose={() => setDraft(null)} onChange={setDraft} />
+      <PanelInfoModal code={infoCode} name={activePanel?.name} onClose={() => setInfoCode(null)} />
+      <PanelSettingsModal code={settingsCode} name={activePanel?.name} onClose={() => setSettingsCode(null)} />
     </>
   );
 }

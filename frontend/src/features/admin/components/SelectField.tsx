@@ -24,7 +24,7 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(funct
       <select
         ref={ref}
         id={selectId}
-        className={`h-11 w-full rounded-md border border-border bg-surface px-3 text-text outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary focus:ring-4 focus:ring-primary/10 ${className}`}
+        className={`h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-text outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary focus:ring-4 focus:ring-primary/10 ${className}`}
         {...rest}
       >
         {options.map((option) => (

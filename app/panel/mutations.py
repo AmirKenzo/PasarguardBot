@@ -92,11 +92,15 @@ async def adjust_balance(ctx: PanelActor, user_id: int, delta: int, *, notify: b
 
 async def set_user_block(ctx: PanelActor, user_id: int, blocked: bool, *, notify: bool = True) -> bool:
     async with Session() as session:
-        result = await session.execute(update(User).where(User.id == user_id).values(status="ban" if blocked else None))
+        exists = bool((await session.execute(select(User.id).where(User.id == user_id))).scalar())
+        if not exists:
+            return False
+        if blocked:
+            stmt = update(User).where(User.id == user_id).values(status="ban")
+        else:
+            stmt = update(User).where(User.id == user_id, User.status == "ban").values(status=None)
+        await session.execute(stmt)
         await session.commit()
-        changed = bool(result.rowcount)
-    if not changed:
-        return False
     await _audit(ctx, "user_block" if blocked else "user_unblock", target_type="user", target_id=user_id)
     if notify:
         await notify_user(

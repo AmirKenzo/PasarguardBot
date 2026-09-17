@@ -54,7 +54,6 @@ class BalanceDepositManualRequest(BaseModel):
 class BalanceDepositManualResponse(BaseModel):
     ok: bool
     message: str | None = None
-    tx_id: int | None = None
     card_number: str | None = None
     card_name: str | None = None
     error: str | None = None

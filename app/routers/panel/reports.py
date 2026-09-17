@@ -28,10 +28,18 @@ DAY = 86400
 def _period_start(period: str) -> int:
     now = int(time.time())
     today = now - (now % DAY)
+    if period == "3d":
+        return today - 2 * DAY
     if period == "week":
         return today - 6 * DAY
     if period == "month":
         return today - 29 * DAY
+    if period == "quarter":
+        return today - 89 * DAY
+    if period == "year":
+        return today - 364 * DAY
+    if period == "all":
+        return 0
     return today
 
 

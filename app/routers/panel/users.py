@@ -21,6 +21,7 @@ from app.models.panel.users import (
     PanelUsersRequest,
     PanelUsersResponse,
     PanelUserTransactionRow,
+    UserState,
 )
 from app.panel import mutations, queries
 from app.routers.panel import guard
@@ -29,16 +30,22 @@ from app.utils.formatting import normalise_phone_number
 
 router = APIRouter()
 
+_STATUS_TO_STATE: dict[str, UserState] = {
+    "ban": "banned",
+    "BlockedBot": "blocked_bot",
+    "DeleteAccount": "deleted",
+}
 
-def _is_blocked(user) -> bool:
-    return (user.status or "") in queries.INACTIVE_STATUSES
+
+def _user_state(user) -> UserState:
+    return _STATUS_TO_STATE.get(user.status or "", "active")
 
 
 def _user_row(user, services: int = 0) -> PanelUserRow:
     return PanelUserRow(
         id=int(user.id),
         status=user.status,
-        blocked=_is_blocked(user),
+        state=_user_state(user),
         number=user.number,
         balance=int(user.amount or 0),
         joined_at=int(user.time_s) if user.time_s else None,
@@ -54,6 +61,7 @@ async def list_users(payload: PanelUsersRequest, request: Request) -> PanelUsers
             state=payload.state,
             page=payload.page,
             per_page=payload.limit,
+            sort=payload.sort,
         )
         return PanelUsersResponse(
             users=[_user_row(user) for user in rows],

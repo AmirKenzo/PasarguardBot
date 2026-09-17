@@ -1,14 +1,18 @@
 """Admin panel DTOs: bot users."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.models.panel.common import ActionResponse, PagedRequest, PageMeta, PanelRequest, PanelResponse
+
+UserState = Literal["active", "banned", "blocked_bot", "deleted"]
 
 
 class PanelUserRow(BaseModel):
     id: int
     status: str | None = None
-    blocked: bool = False
+    state: UserState = "active"
     number: str | None = None
     balance: int = 0
     joined_at: int | None = None
@@ -17,7 +21,8 @@ class PanelUserRow(BaseModel):
 
 class PanelUsersRequest(PagedRequest):
     q: str = Field("", max_length=64)
-    state: str = Field("", description="empty | active | blocked")
+    state: str = Field("", description="empty | active | banned | blocked_bot | deleted")
+    sort: str = Field("newest", description="newest | oldest")
 
 
 class PanelUsersResponse(PanelResponse):

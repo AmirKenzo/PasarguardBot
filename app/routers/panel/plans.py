@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter, Request
 
-from app.models.panel.common import ActionResponse
+from app.models.panel.common import ActionResponse, page_meta
 from app.models.panel.plans import (
     PLAN_TYPES,
     RESET_STRATEGIES,
@@ -16,7 +14,6 @@ from app.models.panel.plans import (
     PanelPlansRequest,
     PanelPlansResponse,
 )
-from app.models.panel.services import PanelPanelOption
 from app.panel import mutations, queries
 from app.panel.forms import parse_icon, parse_style
 from app.routers.panel import guard
@@ -28,10 +25,10 @@ router = APIRouter()
 @router.post("/panel/plans", response_model=PanelPlansResponse)
 async def list_plans(payload: PanelPlansRequest, request: Request) -> PanelPlansResponse:
     async def handle(_: PanelActor) -> PanelPlansResponse:
-        plans, panels = await asyncio.gather(
-            queries.list_plans(payload.panel.strip()),
-            queries.panel_names(),
+        plans, total = await queries.list_plans(
+            payload.panel.strip(), page=payload.page, per_page=payload.limit, sort=payload.sort
         )
+        panels = await queries.panel_names_for({int(plan.panel_code) for plan in plans})
         return PanelPlansResponse(
             plans=[
                 PanelPlanRow(
@@ -50,7 +47,7 @@ async def list_plans(payload: PanelPlansRequest, request: Request) -> PanelPlans
                 )
                 for plan in plans
             ],
-            panels=[PanelPanelOption(code=code, name=name) for code, name in panels.items()],
+            meta=page_meta(total, payload.page, payload.limit),
         )
 
     return await guard.run(payload, request, PanelPlansResponse, handle)
@@ -59,8 +56,7 @@ async def list_plans(payload: PanelPlansRequest, request: Request) -> PanelPlans
 @router.post("/panel/plans/save", response_model=ActionResponse)
 async def save_plan(payload: PanelPlanSaveRequest, request: Request) -> ActionResponse:
     async def handle(actor: PanelActor) -> ActionResponse:
-        panels = await queries.panel_names()
-        if payload.panel_code not in panels:
+        if await queries.get_panel(payload.panel_code) is None:
             return ActionResponse(ok=False, error="پنلی با این کد پیدا نشد.")
         try:
             icon = parse_icon(payload.button_icon)

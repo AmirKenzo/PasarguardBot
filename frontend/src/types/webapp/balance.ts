@@ -34,7 +34,6 @@ export interface BalanceDepositManualRequest extends WebAppAuthRequest {
 export interface BalanceDepositManualResponse {
   ok: boolean;
   message?: string | null;
-  tx_id?: number | null;
   card_number?: string | null;
   card_name?: string | null;
   error?: string | null;
