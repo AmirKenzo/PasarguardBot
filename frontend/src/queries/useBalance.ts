@@ -61,3 +61,22 @@ export function useDepositCryptoMutation() {
     },
   });
 }
+
+export function useDepositStarsMutation() {
+  const { auth, initData } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (amount: number) =>
+      balanceApi.depositStars({
+        amount,
+        session_token: auth?.session_token,
+        // Always attach Telegram init_data when present so Stars credits the Mini App user.
+        init_data: initData ?? auth?.init_data,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}

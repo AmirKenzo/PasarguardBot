@@ -93,8 +93,11 @@ AUTO_CARD_SAFE_DISABLED_ALERT = (
 NO_CRYPTO_WALLET_ALERT = "❌ هیچ کیف پول ارزی ثبت نشده است."
 CRYPTO_SELECT_PROMPT = "💵 **پرداخت ارزی**\n\nلطفاً نوع ارز مورد نظر خود را انتخاب کنید:"
 CRYPTO_TRX_CURRENCY = "💵 **ارز:** TRX (ترون)"
-CRYPTO_USDT_CURRENCY = "💵 **ارز:** USDT (تتر)"
+CRYPTO_USDT_CURRENCY = "💵 **ارز:** USDT (تتر - شبکه ترون)"
+CRYPTO_USDT_TON_CURRENCY = "💵 **ارز:** USDT (تتر - شبکه تون)"
+CRYPTO_USDT_BEP20_CURRENCY = "💵 **ارز:** USDT (تتر - شبکه بایننس)"
 CRYPTO_TON_CURRENCY = "💎 **ارز:** TON (تون)"
+CRYPTO_POL_CURRENCY = "🔷 **ارز:** POL (پالیگان)"
 CRYPTO_AMOUNT_PROMPT_TEMPLATE = (
     "💰 مبلغ شارژ را به **تومان** (فقط عدد) ارسال کنید.\n\n"
     "📉 حداقل: `{min}` | 📈 حداکثر: `{max}`\n"
@@ -119,7 +122,12 @@ NO_CARD_REGISTERED = "شماره کارت ثبت نشده"
 PENDING_ORDERS_LIMIT = "⚠️ شما بیش از سه فاکتور در انتظار دارید. لطفاً ابتدا فاکتورهای قبلی را پرداخت کنید."
 WALLET_NOT_FOUND_TRX = "❌ کیف پول ترون در سیستم ثبت نشده است. لطفاً با پشتیبانی تماس بگیرید."
 WALLET_NOT_FOUND_USDT = "❌ کیف پول USDT در سیستم ثبت نشده است. لطفاً با پشتیبانی تماس بگیرید."
+WALLET_NOT_FOUND_USDT_TON = "❌ کیف پول USDT-TON در سیستم ثبت نشده است. لطفاً با پشتیبانی تماس بگیرید."
+WALLET_NOT_FOUND_USDT_BEP20 = "❌ کیف پول USDT-BEP20 در سیستم ثبت نشده است. لطفاً با پشتیبانی تماس بگیرید."
 WALLET_NOT_FOUND_TON = "❌ کیف پول TON در سیستم ثبت نشده است. لطفاً با پشتیبانی تماس بگیرید."
+WALLET_NOT_FOUND_POL = "❌ کیف پول POL در سیستم ثبت نشده است. لطفاً با پشتیبانی تماس بگیرید."
+
+OPEN_TONKEEPER_LABEL = "پرداخت با TON Keeper"
 
 REFERRAL_BANNER = (
     " بنر شما برای دعوت دیگران به ربات\n"

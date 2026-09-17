@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronLeft, CreditCard, DollarSign, History } from "lucide-react";
+import { ChevronLeft, CreditCard, DollarSign, History, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Card, EmptyState, IconBadge } from "../../components/ui";
@@ -38,6 +38,14 @@ export default function BalanceHubPage() {
         <EmptyState title={t("balanceHub.noMethodActive")} description={t("balanceHub.noMethodActiveDesc")} />
       ) : (
         <div className="space-y-3">
+          {methods.cart_sta && (
+            <MethodLink
+              to="/balance/stars"
+              icon={Star}
+              title={t("balanceHub.starsPay")}
+              description={`${t("balanceHub.starsPayDesc")}${bonusText(methods.stars_bonus_percent, t)}`}
+            />
+          )}
           {methods.pay_mode && (
             <MethodLink
               to="/balance/manual"
@@ -61,7 +69,7 @@ export default function BalanceHubPage() {
 }
 
 function hasAnyMethod(methods: NonNullable<ReturnType<typeof useBalanceMethodsQuery>["data"]>) {
-  return methods.pay_mode || methods.arz_mode;
+  return methods.pay_mode || methods.arz_mode || methods.cart_sta;
 }
 
 function bonusText(percent: number, t: (key: string, opts?: Record<string, unknown>) => string) {

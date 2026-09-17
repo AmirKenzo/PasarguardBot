@@ -31,6 +31,20 @@ async def create_inline_cartbcard(settings, user=None) -> list:
     keyboard_crud = KeyboardButtonCRUD()
     buttons: list[list] = []
 
+    if settings and settings.cart_sta:
+        buttons.append(
+            [
+                await _balance_inline_button(
+                    keyboard_crud,
+                    "in.balance.stars",
+                    KEYBOARD_BUTTON_DEFAULTS["in.balance.stars"],
+                    b"StarsPayment",
+                    bonus_enabled=settings.stars_bonus_enabled,
+                    bonus_percent=settings.stars_bonus_percent,
+                )
+            ]
+        )
+
     if settings and settings.arz_mode:
         buttons.append(
             [
@@ -82,7 +96,10 @@ async def create_inline_crypto_payment_buttons(
     *,
     has_trx: bool,
     has_usdt: bool,
+    has_usdt_ton: bool = False,
+    has_usdt_bep20: bool = False,
     has_ton: bool,
+    has_pol: bool = False,
 ) -> list:
     """English docstring for create_inline_crypto_payment_buttons."""
     keyboard_crud = KeyboardButtonCRUD()
@@ -100,11 +117,29 @@ async def create_inline_crypto_payment_buttons(
         )
         buttons.append([styled_callback_button(usdt_text, b"CryptoPayments_USDT", usdt_style)])
 
+    if has_usdt_ton:
+        usdt_ton_text, usdt_ton_style = await _get_keyboard_button_config(
+            keyboard_crud, "in.balance.usdt_ton", KEYBOARD_BUTTON_DEFAULTS["in.balance.usdt_ton"]
+        )
+        buttons.append([styled_callback_button(usdt_ton_text, b"CryptoPayments_USDT_TON", usdt_ton_style)])
+
+    if has_usdt_bep20:
+        usdt_bep20_text, usdt_bep20_style = await _get_keyboard_button_config(
+            keyboard_crud, "in.balance.usdt_bep20", KEYBOARD_BUTTON_DEFAULTS["in.balance.usdt_bep20"]
+        )
+        buttons.append([styled_callback_button(usdt_bep20_text, b"CryptoPayments_USDT_BEP20", usdt_bep20_style)])
+
     if has_ton:
         ton_text, ton_style = await _get_keyboard_button_config(
             keyboard_crud, "in.balance.ton", KEYBOARD_BUTTON_DEFAULTS["in.balance.ton"]
         )
         buttons.append([styled_callback_button(ton_text, b"CryptoPayments_TON", ton_style)])
+
+    if has_pol:
+        pol_text, pol_style = await _get_keyboard_button_config(
+            keyboard_crud, "in.balance.pol", KEYBOARD_BUTTON_DEFAULTS["in.balance.pol"]
+        )
+        buttons.append([styled_callback_button(pol_text, b"CryptoPayments_POL", pol_style)])
 
     back_text, back_style = await _get_keyboard_button_config(
         keyboard_crud, "in.balance.crypto_back", KEYBOARD_BUTTON_DEFAULTS["in.balance.crypto_back"]

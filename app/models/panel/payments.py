@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from app.models.panel.common import PanelRequest, PanelResponse
 
-WALLET_TYPES = ("TRX", "USDT", "TON")
+WALLET_TYPES = ("TRX", "USDT", "USDT-TON", "USDT-BEP20", "TON", "POL")
 
 
 class PanelWalletRow(BaseModel):

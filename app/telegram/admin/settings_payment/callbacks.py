@@ -37,8 +37,10 @@ _SETTINGS_PAYMENT_EXACT_CALLBACKS = frozenset(
         "bonus_settings_menu",
         "toggle_manual_bonus",
         "toggle_crypto_bonus",
+        "toggle_stars_bonus",
         "set_manual_bonus_percent",
         "set_crypto_bonus_percent",
+        "set_stars_bonus_percent",
     }
 )
 
@@ -252,6 +254,14 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         bonus_text, buttons = await keyboards.get_bonus_settings_menu(settings)
         await event.edit(bonus_text, buttons=buttons)
 
+    elif data == "toggle_stars_bonus":
+        settings = await SettingsManager().get_settings()
+        new_status = not settings.stars_bonus_enabled
+        await SettingsManager().update_setting(settings.id, stars_bonus_enabled=new_status)
+        settings = await SettingsManager().get_settings()
+        bonus_text, buttons = await keyboards.get_bonus_settings_menu(settings)
+        await event.edit(bonus_text, buttons=buttons)
+
     elif data == "set_manual_bonus_percent":
         await set_step(event.sender_id, "set_manual_bonus_percent")
         await event.edit(texts.MANUAL_BONUS_PERCENT_PROMPT, buttons=keyboards.back_to_bonus_menu_button())
@@ -259,6 +269,10 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
     elif data == "set_crypto_bonus_percent":
         await set_step(event.sender_id, "set_crypto_bonus_percent")
         await event.edit(texts.CRYPTO_BONUS_PERCENT_PROMPT, buttons=keyboards.back_to_bonus_menu_button())
+
+    elif data == "set_stars_bonus_percent":
+        await set_step(event.sender_id, "set_stars_bonus_percent")
+        await event.edit(texts.STARS_BONUS_PERCENT_PROMPT, buttons=keyboards.back_to_bonus_menu_button())
 
     elif data.startswith("BackTOSettingsCardToCard"):
         await set_step(user_id=event.sender_id, step="SettingsCardToCard")

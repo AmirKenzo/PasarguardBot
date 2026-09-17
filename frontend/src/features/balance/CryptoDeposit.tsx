@@ -8,7 +8,7 @@ import type { CryptoCurrency } from "../../types/webapp";
 import { copyToClipboard, formatNumber } from "../../lib/format";
 import { useBalanceMethodsQuery, useDepositCryptoMutation } from "../../queries/useBalance";
 
-const CRYPTO_OPTIONS: CryptoCurrency[] = ["trx", "usdt", "ton"];
+const CRYPTO_OPTIONS: CryptoCurrency[] = ["trx", "usdt", "usdt-ton", "usdt-bep20", "ton", "pol"];
 
 function parseAmount(value: string): number {
   return parseInt(value.replace(/,/g, ""), 10) || 0;

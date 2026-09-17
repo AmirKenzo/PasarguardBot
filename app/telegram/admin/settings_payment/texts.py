@@ -47,9 +47,11 @@ SETTINGS_SAVED = "وضعیت جدید ذخیره شد"
 
 MANUAL_BONUS_PERCENT_PROMPT = "درصد بونوس کارت دستی را وارد کنید (0-100):"
 CRYPTO_BONUS_PERCENT_PROMPT = "درصد بونوس ارزی را وارد کنید (0-100):"
+STARS_BONUS_PERCENT_PROMPT = "درصد بونوس استارز را وارد کنید (0-100):"
 
 MANUAL_BONUS_SET_TEMPLATE = "✅ درصد بونوس کارت دستی روی {percent}% تنظیم شد\n\n{bonus_text}"
 CRYPTO_BONUS_SET_TEMPLATE = "✅ درصد بونوس ارزی روی {percent}% تنظیم شد\n\n{bonus_text}"
+STARS_BONUS_SET_TEMPLATE = "✅ درصد بونوس استارز روی {percent}% تنظیم شد\n\n{bonus_text}"
 
 MAAR_EDIT_VALUE_PROMPT = "مقدار جدید را بفرستید:"
 
@@ -180,7 +182,8 @@ def bonus_settings_header(settings) -> str:
     return (
         "🎁 **تنظیمات بونوس درصدی**\n\n"
         f"💳 **کارت دستی**: {settings.manual_bonus_percent}% {'✅ فعال' if settings.manual_bonus_enabled else '❌ غیرفعال'}\n"
-        f"💵 **ارزی**: {settings.crypto_bonus_percent}% {'✅ فعال' if settings.crypto_bonus_enabled else '❌ غیرفعال'}\n\n"
+        f"💵 **ارزی**: {settings.crypto_bonus_percent}% {'✅ فعال' if settings.crypto_bonus_enabled else '❌ غیرفعال'}\n"
+        f"⭐ **استارز**: {settings.stars_bonus_percent}% {'✅ فعال' if settings.stars_bonus_enabled else '❌ غیرفعال'}\n\n"
         "روی گزینه‌های زیر کلیک کنید:"
     )
 

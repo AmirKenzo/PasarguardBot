@@ -34,6 +34,7 @@ from app.telegram.user.balance.messages import (
     return_to_balance_menu,
     return_to_home_menu,
 )
+from app.telegram.user.payment import send_star_invoice
 from app.utils.text.bot_texts import get_bot_text
 
 
@@ -48,16 +49,22 @@ async def crypto_payments_callback(event: events.CallbackQuery.Event):
         raise events.StopPropagation
     trx_wallet = await WalletCRUD().get_wallet_by_type("TRX")
     usdt_wallet = await WalletCRUD().get_wallet_by_type("USDT")
+    usdt_ton_wallet = await WalletCRUD().get_wallet_by_type("USDT-TON")
+    usdt_bep20_wallet = await WalletCRUD().get_wallet_by_type("USDT-BEP20")
     ton_wallet = await WalletCRUD().get_wallet_by_type("TON")
+    pol_wallet = await WalletCRUD().get_wallet_by_type("POL")
 
-    if not trx_wallet and not usdt_wallet and not ton_wallet:
+    if not any((trx_wallet, usdt_wallet, usdt_ton_wallet, usdt_bep20_wallet, ton_wallet, pol_wallet)):
         await event.answer(texts.NO_CRYPTO_WALLET_ALERT, alert=True)
         raise events.StopPropagation
 
     buttons = await create_inline_crypto_payment_buttons(
         has_trx=bool(trx_wallet),
         has_usdt=bool(usdt_wallet),
+        has_usdt_ton=bool(usdt_ton_wallet),
+        has_usdt_bep20=bool(usdt_bep20_wallet),
         has_ton=bool(ton_wallet),
+        has_pol=bool(pol_wallet),
     )
     await event.edit(texts.CRYPTO_SELECT_PROMPT, buttons=buttons)
     await remember_balance_flow_message(event.sender_id, event.message_id)
@@ -118,6 +125,96 @@ async def crypto_payments_ton_callback(event: events.CallbackQuery.Event):
         await create_crypto_invoice(event, arz="ton", amount_irt=amount)
         raise events.StopPropagation
     await _prompt_crypto_amount(event, step=states.STEP_CRYPTO_TON_2, currency_text=texts.CRYPTO_TON_CURRENCY)
+    raise events.StopPropagation
+
+
+@bot_is_offline
+@debounce_callback()
+async def crypto_payments_usdt_ton_callback(event: events.CallbackQuery.Event):
+    if not await _require_balance_payment_step(event):
+        return
+    if await is_direct_pay_active(event.sender_id):
+        settings = await SettingsManager().get_settings()
+        amount = await get_direct_pay_prefilled_amount(event.sender_id)
+        if amount is None:
+            await event.answer(texts.ENTER_AMOUNT_FIRST_ALERT, alert=True)
+            raise events.StopPropagation
+        amount = clamp_deposit_amount(amount, settings.crypto_deposit_min, settings.crypto_deposit_max)
+        await set_data(event.sender_id, "mablagh", amount)
+        await create_crypto_invoice(event, arz="usdt-ton", amount_irt=amount)
+        raise events.StopPropagation
+    await _prompt_crypto_amount(event, step=states.STEP_CRYPTO_USDT_TON_2, currency_text=texts.CRYPTO_USDT_TON_CURRENCY)
+    raise events.StopPropagation
+
+
+@bot_is_offline
+@debounce_callback()
+async def crypto_payments_usdt_bep20_callback(event: events.CallbackQuery.Event):
+    if not await _require_balance_payment_step(event):
+        return
+    if await is_direct_pay_active(event.sender_id):
+        settings = await SettingsManager().get_settings()
+        amount = await get_direct_pay_prefilled_amount(event.sender_id)
+        if amount is None:
+            await event.answer(texts.ENTER_AMOUNT_FIRST_ALERT, alert=True)
+            raise events.StopPropagation
+        amount = clamp_deposit_amount(amount, settings.crypto_deposit_min, settings.crypto_deposit_max)
+        await set_data(event.sender_id, "mablagh", amount)
+        await create_crypto_invoice(event, arz="usdt-bep20", amount_irt=amount)
+        raise events.StopPropagation
+    await _prompt_crypto_amount(
+        event, step=states.STEP_CRYPTO_USDT_BEP20_2, currency_text=texts.CRYPTO_USDT_BEP20_CURRENCY
+    )
+    raise events.StopPropagation
+
+
+@bot_is_offline
+@debounce_callback()
+async def crypto_payments_pol_callback(event: events.CallbackQuery.Event):
+    if not await _require_balance_payment_step(event):
+        return
+    if await is_direct_pay_active(event.sender_id):
+        settings = await SettingsManager().get_settings()
+        amount = await get_direct_pay_prefilled_amount(event.sender_id)
+        if amount is None:
+            await event.answer(texts.ENTER_AMOUNT_FIRST_ALERT, alert=True)
+            raise events.StopPropagation
+        amount = clamp_deposit_amount(amount, settings.crypto_deposit_min, settings.crypto_deposit_max)
+        await set_data(event.sender_id, "mablagh", amount)
+        await create_crypto_invoice(event, arz="pol", amount_irt=amount)
+        raise events.StopPropagation
+    await _prompt_crypto_amount(event, step=states.STEP_CRYPTO_POL_2, currency_text=texts.CRYPTO_POL_CURRENCY)
+    raise events.StopPropagation
+
+
+@bot_is_offline
+@debounce_callback()
+async def stars_payment_callback(event: events.CallbackQuery.Event):
+    if not await _require_balance_payment_step(event):
+        return
+    settings = await SettingsManager().get_settings()
+    if not settings.cart_sta:
+        await event.answer(texts.PAYMENT_DISABLED_ALERT, alert=True)
+        raise events.StopPropagation
+    if await is_direct_pay_active(event.sender_id):
+        amount = await get_direct_pay_prefilled_amount(event.sender_id)
+        if amount is None:
+            await event.answer(texts.ENTER_AMOUNT_FIRST_ALERT, alert=True)
+            raise events.StopPropagation
+        amount = clamp_deposit_amount(amount, settings.crypto_deposit_min, settings.crypto_deposit_max)
+        await set_data(event.sender_id, "mablagh", amount)
+        await send_star_invoice(event.sender_id, amount)
+        await set_step(event.sender_id, states.STEP_HOME)
+        raise events.StopPropagation
+    await event.edit(
+        texts.STARS_AMOUNT_PROMPT_TEMPLATE.format(
+            min=f"{settings.crypto_deposit_min:,}",
+            max=f"{settings.crypto_deposit_max:,}",
+        ),
+        buttons=await balance_flow_cancel_rows(),
+    )
+    await remember_balance_flow_message(event.sender_id, event.message_id)
+    await set_step(user_id=event.sender_id, step=states.STEP_STARS_2)
     raise events.StopPropagation
 
 
@@ -235,6 +332,22 @@ def register(client):
     client.add_event_handler(
         crypto_payments_ton_callback,
         events.CallbackQuery(data=states.CALLBACK_CRYPTO_TON),
+    )
+    client.add_event_handler(
+        crypto_payments_usdt_ton_callback,
+        events.CallbackQuery(data=states.CALLBACK_CRYPTO_USDT_TON),
+    )
+    client.add_event_handler(
+        crypto_payments_usdt_bep20_callback,
+        events.CallbackQuery(data=states.CALLBACK_CRYPTO_USDT_BEP20),
+    )
+    client.add_event_handler(
+        crypto_payments_pol_callback,
+        events.CallbackQuery(data=states.CALLBACK_CRYPTO_POL),
+    )
+    client.add_event_handler(
+        stars_payment_callback,
+        events.CallbackQuery(data=states.CALLBACK_STARS),
     )
     client.add_event_handler(
         manual_card_payment_callback,

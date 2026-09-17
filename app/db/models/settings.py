@@ -36,6 +36,7 @@ DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
     "pay_mode": False,
     "pay_phone_verify": True,
     "arz_mode": False,
+    "cart_sta": False,
     "manual_card_visibility": None,
     "manual_auto_confirm": False,
     "manual_card_random_mode": False,
@@ -47,9 +48,12 @@ DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
     "manual_bonus_percent": 0,
     "crypto_bonus_enabled": False,
     "crypto_bonus_percent": 0,
+    "stars_bonus_enabled": False,
+    "stars_bonus_percent": 0,
     "arz_usd": 0,
     "arz_trx": 0,
     "arz_ton": 0,
+    "arz_pol": 0,
 }
 
 DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {
