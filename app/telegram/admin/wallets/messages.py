@@ -66,6 +66,10 @@ async def wallet_message_handler(event: Message):
 
         api_key = msg if msg != "/skip" else None
 
+        if api_key is None and wallet_type.upper() in texts.WALLET_API_KEY_REQUIRED_TYPES:
+            await event.respond(texts.wallet_api_key_prompt(wallet_type))
+            return
+
         existing_wallet = await WalletCRUD().get_wallet_by_type(wallet_type)
         if existing_wallet:
             await event.respond(texts.WALLET_DUPLICATE_ERROR_TEMPLATE.format(wallet_type=wallet_type))
@@ -114,6 +118,14 @@ async def wallet_message_handler(event: Message):
             return
 
         api_key = msg if msg != "/skip" else None
+        if api_key is None and wallet_type.upper() in texts.WALLET_API_KEY_REQUIRED_TYPES:
+            current = await WalletCRUD().get_wallet_by_id(wallet_id)
+            if not current or not (current.api_key or "").strip():
+                await event.respond(
+                    texts.wallet_api_key_prompt(wallet_type, api_key_status=texts.WALLET_API_NOT_CONFIGURED)
+                )
+                return
+
         wallet = await WalletCRUD().update_wallet(wallet_id, address=address, wallet_type=wallet_type, api_key=api_key)
         await clear_user(user_id)
         await set_step(user_id, states.SETTINGS_CARD_TO_CARD_STEP)

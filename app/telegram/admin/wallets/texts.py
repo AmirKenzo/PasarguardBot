@@ -8,8 +8,18 @@ WALLET_API_NOT_CONFIGURED = "❌ تنظیم نشده"
 
 WALLET_TYPE_NOT_FOUND_ERROR = "❌ خطا: نوع کیف پول یافت نشد. لطفاً دوباره تلاش کنید."
 WALLET_INFO_ERROR = "❌ خطا در دریافت اطلاعات. لطفاً دوباره تلاش کنید."
-TRONSCAN_API_KEYS_URL = "https://tronscan.org/myaccount/apiKeys"
-TRON_WALLET_TYPES = frozenset({"TRX", "USDT"})
+
+# Where to get the explorer/node API key for each wallet type, and whether
+# automatic on-chain confirmation actually needs it (vs. being optional).
+WALLET_API_KEY_SOURCES: dict[str, tuple[str, str]] = {
+    "TRX": ("TronScan", "https://tronscan.org/#/myaccount/apiKeys"),
+    "USDT": ("TronScan", "https://tronscan.org/#/myaccount/apiKeys"),
+    "TON": ("TonConsole (TonAPI)", "https://tonconsole.com/"),
+    "USDT-TON": ("TonConsole (TonAPI)", "https://tonconsole.com/"),
+    "USDT-BEP20": ("MegaNode / NodeReal", "https://nodereal.io/meganode"),
+    "POL": ("Alchemy (Polygon)", "https://dashboard.alchemy.com/"),
+}
+WALLET_API_KEY_REQUIRED_TYPES = frozenset({"USDT-BEP20", "POL"})
 WALLET_ADDRESS_PROMPT_TEMPLATE = "آدرس کیف پول {wallet_type} را ارسال کنید:"
 WALLET_DUPLICATE_ERROR_TEMPLATE = "❌ کیف پول {wallet_type} قبلاً اضافه شده است. نمی‌توانید کیف پول تکراری اضافه کنید."
 WALLET_ADDED_SUCCESS_TEMPLATE = "✅ کیف پول {wallet_type} با موفقیت اضافه شد."
@@ -23,7 +33,7 @@ WALLET_DELETE_FAILED = "❌ خطا در حذف کیف پول. لطفاً دوب�
 WALLET_NOT_FOUND = "❌ کیف پول یافت نشد."
 WALLET_LIST_EMPTY = "هیچ کیف پولی ثبت نشده است."
 WALLET_LIST_HEADER = "📋 **لیست کیف پول‌ها**\n\n"
-WALLET_ALL_TYPES_EXIST = "❌ همه نوع کیف پول‌ها (TRX, USDT, TON) قبلاً اضافه شده‌اند."
+WALLET_ALL_TYPES_EXIST = "❌ همه نوع کیف پول‌ها (TRX, USDT, USDT-TON, USDT-BEP20, TON, POL) قبلاً اضافه شده‌اند."
 WALLET_TYPE_SELECT_PROMPT = "نوع کیف پول را انتخاب کنید:"
 WALLET_EDIT_SELECT_PROMPT = "کیف پول مورد نظر را برای ویرایش انتخاب کنید:"
 WALLET_DELETE_SELECT_PROMPT = "کیف پول مورد نظر را برای حذف انتخاب کنید:"
@@ -57,15 +67,16 @@ ACTIVE_SERVICE_USERS_LABEL = "کاربرهای دارای سرویس فعال"
 
 def wallet_api_key_prompt(wallet_type: str | None = None, *, api_key_status: str | None = None) -> str:
     kind = (wallet_type or "").upper()
-    if kind in TRON_WALLET_TYPES:
-        text = (
-            f"🔑 API Key برای {kind} (اختیاری)\n\n"
-            "کلید را از TronScan بگیرید:\n"
-            f"{TRONSCAN_API_KEYS_URL}\n\n"
-            "API Key را ارسال کنید یا برای رد شدن /skip بفرستید."
-        )
+    required = kind in WALLET_API_KEY_REQUIRED_TYPES
+    source = WALLET_API_KEY_SOURCES.get(kind)
+
+    skip_hint = "API Key را ارسال کنید:" if required else "API Key را ارسال کنید یا برای رد شدن /skip بفرستید."
+    if source:
+        provider, url = source
+        required_note = f"\n\nبرای تایید خودکار {kind} این کلید لازم است." if required else ""
+        text = f"🔑 API Key برای {kind}{required_note}\n\nکلید را از **{provider}** بگیرید:\n{url}\n\n{skip_hint}"
     else:
-        text = "API Key را ارسال کنید (اختیاری — برای رد شدن /skip ارسال کنید):"
+        text = f"🔑 API Key برای {kind}\n\n{skip_hint}" if kind else f"🔑 API Key\n\n{skip_hint}"
 
     if api_key_status is not None:
         text += f"\n\nوضعیت فعلی: {api_key_status}"
