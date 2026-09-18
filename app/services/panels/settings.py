@@ -408,6 +408,27 @@ def panel_sales_settings_from_feature(settings: dict[str, Any]) -> dict[str, boo
     }
 
 
+def apply_feature_settings_patch(
+    panel,
+    *,
+    sales: dict[str, Any] | None = None,
+    custom_buy: dict[str, Any] | None = None,
+    reseller_capacity: dict[str, Any] | None = None,
+    reseller_buttons: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+
+    feature = feature_settings(panel)
+    if sales:
+        feature[FEATURE_SALES] = {**panel_sales_settings_from_feature(feature), **sales}
+    if custom_buy:
+        update_custom_buy_in_feature_settings(feature, **custom_buy)
+    if reseller_capacity:
+        update_reseller_capacity_in_feature_settings(feature, **reseller_capacity)
+    if reseller_buttons:
+        feature[FEATURE_RESELLER_BUTTONS] = {**panel_reseller_button_settings_from_feature(feature), **reseller_buttons}
+    return feature
+
+
 def _compact_volume_plan(plan: dict[str, Any]) -> dict[str, Any]:
     stored: dict[str, Any] = {
         "id": plan["id"],

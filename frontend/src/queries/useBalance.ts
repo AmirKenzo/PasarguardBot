@@ -36,10 +36,15 @@ export function useDepositManualMutation() {
 
 export function useDepositManualReceiptMutation() {
   const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ txId, file }: { txId: number; file: File }) =>
-      balanceApi.depositManualReceipt(auth!, txId, file),
+    mutationFn: ({ amount, file }: { amount: number; file: File }) =>
+      balanceApi.depositManualReceipt(auth!, amount, file),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
   });
 }
 
@@ -50,6 +55,25 @@ export function useDepositCryptoMutation() {
   return useMutation({
     mutationFn: ({ amount, currency }: { amount: number; currency: CryptoCurrency }) =>
       balanceApi.depositCrypto({ ...auth!, amount, currency }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useDepositStarsMutation() {
+  const { auth, initData } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (amount: number) =>
+      balanceApi.depositStars({
+        amount,
+        session_token: auth?.session_token,
+        // Always attach Telegram init_data when present so Stars credits the Mini App user.
+        init_data: initData ?? auth?.init_data,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["profile"] });
       void queryClient.invalidateQueries({ queryKey: ["transactions"] });

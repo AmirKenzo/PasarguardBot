@@ -183,17 +183,22 @@ async def daily_series(days: int = 14) -> list[dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 
 
-async def list_users(*, q: str = "", state: str = "", page: int = 1, per_page: int = 25):
+# Maps the API's `state` filter to the raw `User.status` value it corresponds to.
+USER_STATE_TO_STATUS = {"banned": "ban", "blocked_bot": "BlockedBot", "deleted": "DeleteAccount"}
+
+
+async def list_users(*, q: str = "", state: str = "", page: int = 1, per_page: int = 25, sort: str = "newest"):
     offset, limit = _page_bounds(page, per_page)
     filters = []
     if q:
         like = f"%{q}%"
         filters.append(or_(cast(User.id, String).like(like), User.number.like(like)))
-    if state == "blocked":
-        filters.append(User.status.in_(INACTIVE_STATUSES))
-    elif state == "active":
+    if state == "active":
         filters.append(or_(User.status.is_(None), User.status.notin_(INACTIVE_STATUSES)))
+    elif state in USER_STATE_TO_STATUS:
+        filters.append(User.status == USER_STATE_TO_STATUS[state])
 
+    order = User.time_s.asc() if sort == "oldest" else User.time_s.desc()
     async with Session() as session:
         base = select(User)
         counter = select(func.count()).select_from(User)
@@ -201,11 +206,7 @@ async def list_users(*, q: str = "", state: str = "", page: int = 1, per_page: i
             base = base.where(condition)
             counter = counter.where(condition)
         total = int((await session.execute(counter)).scalar() or 0)
-        rows = (
-            (await session.execute(base.order_by(User.time_s.desc(), User.id.desc()).limit(limit).offset(offset)))
-            .scalars()
-            .all()
-        )
+        rows = (await session.execute(base.order_by(order, User.id.desc()).limit(limit).offset(offset))).scalars().all()
     return list(rows), total
 
 
@@ -467,12 +468,63 @@ async def panel_names() -> dict[int, str]:
     return {int(code): str(name) for code, name in rows}
 
 
-async def list_plans(panel: str = "") -> list[Plan]:
+async def panel_names_for(codes: set[int]) -> dict[int, str]:
+    if not codes:
+        return {}
+    async with Session() as session:
+        rows = (await session.execute(select(Panels.code, Panels.name).where(Panels.code.in_(codes)))).all()
+    return {int(code): str(name) for code, name in rows}
+
+
+async def list_panel_options(
+    *, fields: tuple[str, ...], q: str = "", page: int = 1, per_page: int = 25
+) -> tuple[list[Any], int]:
+    offset, limit = _page_bounds(page, per_page)
+    columns = [getattr(Panels, field) for field in fields]
+    filters = []
+    if q:
+        like = f"%{q}%"
+        filters.append(or_(Panels.name.like(like), Panels.base_url.like(like)))
+
+    async with Session() as session:
+        stmt = select(*columns)
+        counter = select(func.count()).select_from(Panels)
+        for condition in filters:
+            stmt = stmt.where(condition)
+            counter = counter.where(condition)
+        total = int((await session.execute(counter)).scalar() or 0)
+        rows = (await session.execute(stmt.order_by(Panels.code).limit(limit).offset(offset))).all()
+    return list(rows), total
+
+
+PLAN_SORTS = {
+    "newest": lambda: Plan.id.desc(),
+    "oldest": lambda: Plan.id.asc(),
+    "price_asc": lambda: Plan.price.asc(),
+    "price_desc": lambda: Plan.price.desc(),
+    "volume_asc": lambda: Plan.storage.asc(),
+    "volume_desc": lambda: Plan.storage.desc(),
+    "duration_asc": lambda: Plan.duration.asc(),
+    "duration_desc": lambda: Plan.duration.desc(),
+}
+
+
+async def list_plans(
+    panel: str = "", *, page: int = 1, per_page: int = 25, sort: str = "newest"
+) -> tuple[list[Plan], int]:
+    offset, limit = _page_bounds(page, per_page)
+    order = PLAN_SORTS.get(sort, PLAN_SORTS["newest"])()
+
     async with Session() as session:
         stmt = select(Plan)
+        counter = select(func.count()).select_from(Plan)
         if panel.isdigit():
-            stmt = stmt.where(Plan.panel_code == int(panel))
-        return list((await session.execute(stmt.order_by(Plan.panel_code, Plan.duration, Plan.price))).scalars().all())
+            condition = Plan.panel_code == int(panel)
+            stmt = stmt.where(condition)
+            counter = counter.where(condition)
+        total = int((await session.execute(counter)).scalar() or 0)
+        rows = (await session.execute(stmt.order_by(order).limit(limit).offset(offset))).scalars().all()
+    return list(rows), total
 
 
 async def get_plan(plan_id: int) -> Plan | None:

@@ -4,6 +4,8 @@ import type {
   BalanceDepositManualReceiptResponse,
   BalanceDepositManualRequest,
   BalanceDepositManualResponse,
+  BalanceDepositStarsRequest,
+  BalanceDepositStarsResponse,
   BalanceMethodsResponse,
   BalancePhoneRequestResponse,
   WebAppBalanceMethodsRequest,
@@ -27,9 +29,13 @@ export function depositCrypto(body: BalanceDepositCryptoRequest) {
   return apiPost<BalanceDepositCryptoResponse>("/balance/deposit/crypto", body);
 }
 
-export function depositManualReceipt(auth: AuthPayload, txId: number, file: File) {
+export function depositManualReceipt(auth: AuthPayload, amount: number, file: File) {
   const form = new FormData();
-  form.set("tx_id", String(txId));
+  form.set("amount", String(amount));
   form.set("file", file);
   return apiPostForm<BalanceDepositManualReceiptResponse>("/balance/deposit/manual/receipt", form, auth);
+}
+
+export function depositStars(body: BalanceDepositStarsRequest) {
+  return apiPost<BalanceDepositStarsResponse>("/balance/deposit/stars", body);
 }

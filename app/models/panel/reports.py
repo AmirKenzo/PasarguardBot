@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.models.panel.common import PagedRequest, PageMeta, PanelRequest, PanelResponse
 
-REPORT_PERIODS = ("today", "week", "month")
+REPORT_PERIODS = ("today", "3d", "week", "month", "quarter", "year", "all")
 
 
 class PanelRankRow(BaseModel):
@@ -27,7 +27,7 @@ class PanelReportTotals(BaseModel):
 
 
 class PanelReportsRequest(PanelRequest):
-    period: str = Field("today", description="today | week | month")
+    period: str = Field("today", description="today | 3d | week | month | quarter | year | all")
 
 
 class PanelReportsResponse(PanelResponse):

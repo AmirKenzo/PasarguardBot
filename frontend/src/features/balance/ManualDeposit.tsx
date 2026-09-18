@@ -29,6 +29,7 @@ export default function ManualDeposit() {
   const [file, setFile] = useState<File | null>(null);
   const [receiptSent, setReceiptSent] = useState(false);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
+  const [confirmedAmount, setConfirmedAmount] = useState<number | null>(null);
 
   const result = deposit.data;
   const min = methods?.manual_deposit_min ?? 0;
@@ -86,15 +87,16 @@ export default function ManualDeposit() {
     }
     try {
       await deposit.mutateAsync(value);
+      setConfirmedAmount(value);
     } catch (err) {
       show(err instanceof Error ? err.message : t("manualDeposit.genericError"), "error");
     }
   }
 
   async function handleReceiptSubmit() {
-    if (!result?.tx_id || !file) return;
+    if (!confirmedAmount || !file) return;
     try {
-      await receipt.mutateAsync({ txId: result.tx_id, file });
+      await receipt.mutateAsync({ amount: confirmedAmount, file });
       setReceiptSent(true);
       show(t("manualDeposit.receiptSuccess"), "success");
     } catch (err) {
@@ -111,10 +113,10 @@ export default function ManualDeposit() {
           <p className="font-medium text-success">{t("manualDeposit.receiptSent")}</p>
           <p className="text-sm text-muted">{t("manualDeposit.receiptSentDesc")}</p>
         </Card>
-      ) : result?.tx_id != null ? (
+      ) : confirmedAmount != null ? (
         <Card className="space-y-4 p-5">
-          <p className="font-medium text-success">{result.message ?? t("manualDeposit.requestRegistered")}</p>
-          {result.card_number && (
+          <p className="font-medium text-success">{result?.message ?? t("manualDeposit.requestRegistered")}</p>
+          {result?.card_number && (
             <div>
               <p className="text-sm text-muted">{t("manualDeposit.cardNumber")}</p>
               <p className="break-all font-mono text-text">{result.card_number}</p>

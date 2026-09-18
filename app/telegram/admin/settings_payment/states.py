@@ -13,6 +13,7 @@ SET_RESELLER_MIN_WALLET_STEP = "set_reseller_min_wallet"
 
 SET_MANUAL_BONUS_PERCENT_STEP = "set_manual_bonus_percent"
 SET_CRYPTO_BONUS_PERCENT_STEP = "set_crypto_bonus_percent"
+SET_STARS_BONUS_PERCENT_STEP = "set_stars_bonus_percent"
 
 MAAR_ADD_MIN_STEP = "maar_add_min"
 MAAR_ADD_MAX_STEP = "maar_add_max"

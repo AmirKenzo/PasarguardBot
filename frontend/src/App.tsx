@@ -14,6 +14,7 @@ const HelpPage = lazy(() => import("./features/help/HelpPage"));
 const BalanceHubPage = lazy(() => import("./features/balance/BalanceHubPage"));
 const ManualDeposit = lazy(() => import("./features/balance/ManualDeposit"));
 const CryptoDeposit = lazy(() => import("./features/balance/CryptoDeposit"));
+const StarsDeposit = lazy(() => import("./features/balance/StarsDeposit"));
 const TransactionsPage = lazy(() => import("./features/balance/TransactionsPage"));
 const ServicesListPage = lazy(() => import("./features/services/ServicesListPage"));
 const ServiceDetailPage = lazy(() => import("./features/services/ServiceDetailPage"));
@@ -130,6 +131,7 @@ export default function App() {
           <Route path="balance/transactions" element={<TransactionsPage />} />
           <Route path="balance/manual" element={<ManualDeposit />} />
           <Route path="balance/crypto" element={<CryptoDeposit />} />
+          <Route path="balance/stars" element={<StarsDeposit />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="help" element={<HelpPage />} />
         </Route>

@@ -59,6 +59,13 @@ def bonus_settings_buttons(settings):
             ),
             Button.inline("📝 تنظیم درصد", data="set_crypto_bonus_percent"),
         ],
+        [
+            Button.inline(
+                f"⭐ استارز: {settings.stars_bonus_percent}% {'✅' if settings.stars_bonus_enabled else '❌'}",
+                data="toggle_stars_bonus",
+            ),
+            Button.inline("📝 تنظیم درصد", data="set_stars_bonus_percent"),
+        ],
         [Button.inline("🔙 بازگشت", data="BackTOSettingsCardToCard")],
     ]
 

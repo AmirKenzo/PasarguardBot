@@ -4,6 +4,7 @@ export * from "./users";
 export * from "./services";
 export * from "./payments";
 export * from "./panels";
+export * from "./panel_options";
 export * from "./plans";
 export * from "./resellers";
 export * from "./marketing";

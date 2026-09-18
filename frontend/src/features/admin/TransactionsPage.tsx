@@ -1,6 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, Coins, CreditCard, Eye, Maximize, Minimize, RotateCcw, ShieldAlert, X } from "lucide-react";
+import {
+  Banknote,
+  Calendar,
+  CalendarClock,
+  CalendarDays,
+  CalendarRange,
+  Check,
+  Coins,
+  CreditCard,
+  Eye,
+  Filter,
+  Maximize,
+  Minimize,
+  RotateCcw,
+  SlidersHorizontal,
+  ShieldAlert,
+  User,
+  X,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, IconBadge, Input, Modal, Pagination, Skeleton } from "../../components/ui";
@@ -10,7 +28,7 @@ import { panelTransactionsApi } from "../../api/panel";
 import type { PanelTransactionRow } from "../../types/panel";
 import { useWebAppAuth } from "../../hooks/useWebAppAuth";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
-import { ConfirmButton, SectionCard, SelectField, StatTile, Toolbar } from "./components";
+import { AutoRefreshMenu, ConfirmButton, IconMenuButton, MenuDivider, MenuHeader, MenuRow, SectionCard, StatTile } from "./components";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
@@ -27,6 +45,14 @@ const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "muted" | "
   expired: "muted",
 };
 
+const TAB_ACTIVE_CLASSES: Record<"success" | "warning" | "danger" | "muted" | "primary", string> = {
+  primary: "bg-primary/12 text-primary",
+  success: "bg-success/12 text-success",
+  warning: "bg-warning/12 text-warning",
+  danger: "bg-danger/12 text-danger",
+  muted: "bg-surface-2 text-text",
+};
+
 const methodLabels = (t: TFunction): Record<string, string> => ({
   manual_card: t("panel.transactions.methodManualCard"),
   crypto: t("panel.transactions.methodCrypto"),
@@ -40,29 +66,51 @@ const statusLabels = (t: TFunction): Record<string, string> => ({
   expired: t("panel.transactions.statusExpired"),
 });
 
-const methodOptions = (t: TFunction) => [
-  { value: "", label: t("panel.common.all") },
-  { value: "manual_card", label: t("panel.transactions.methodManualCard") },
-  { value: "crypto", label: t("panel.transactions.methodCrypto") },
+/** Quick top-level tabs — the one filter dimension used often enough to skip the modal. */
+const statusTabs = (t: TFunction) => [
+  { value: "", label: t("panel.common.all"), tone: "muted" as const },
+  { value: "pending", label: t("panel.transactions.statusPending"), tone: "warning" as const },
+  { value: "approved", label: t("panel.transactions.statusApproved"), tone: "success" as const },
+  { value: "rejected", label: t("panel.transactions.statusRejected"), tone: "danger" as const },
+  { value: "needs_fix", label: t("panel.transactions.statusNeedsFix"), tone: "primary" as const },
+  { value: "expired", label: t("panel.transactions.statusExpired"), tone: "muted" as const },
 ];
 
-const statusOptions = (t: TFunction) => [
-  { value: "", label: t("panel.common.all") },
-  { value: "pending", label: t("panel.transactions.statusPending") },
-  { value: "approved", label: t("panel.transactions.statusApproved") },
-  { value: "rejected", label: t("panel.transactions.statusRejected") },
-  { value: "needs_fix", label: t("panel.transactions.statusNeedsFix") },
-  { value: "expired", label: t("panel.transactions.statusExpired") },
+/** Less-common filters live in the compact "more filters" dropdown instead of cluttering the toolbar. */
+const methodOptions = (t: TFunction) => [
+  { value: "", label: t("panel.common.all"), icon: Filter },
+  { value: "manual_card", label: t("panel.transactions.methodManualCard"), icon: CreditCard },
+  { value: "crypto", label: t("panel.transactions.methodCrypto"), icon: Coins },
 ];
 
 const dayOptions = (t: TFunction) => [
-  { value: "0", label: t("panel.transactions.dateAll") },
-  { value: "1", label: t("panel.transactions.dateToday") },
-  { value: "7", label: t("panel.transactions.date7d") },
-  { value: "30", label: t("panel.transactions.date30d") },
+  { value: "0", label: t("panel.transactions.dateAll"), icon: Calendar },
+  { value: "1", label: t("panel.transactions.dateToday"), icon: CalendarClock },
+  { value: "7", label: t("panel.transactions.date7d"), icon: CalendarRange },
+  { value: "30", label: t("panel.transactions.date30d"), icon: CalendarDays },
 ];
 
-const EMPTY_FILTERS = { txId: "", userId: "", amount: "", method: "", status: "", days: "0" };
+const refreshOptions = (t: TFunction) => [
+  { value: 0, label: t("panel.transactions.refreshManual") },
+  { value: 5000, label: t("panel.transactions.refresh5s") },
+  { value: 15000, label: t("panel.transactions.refresh15s") },
+  { value: 30000, label: t("panel.transactions.refresh30s") },
+  { value: 60000, label: t("panel.transactions.refresh1m") },
+];
+
+const EMPTY_FILTERS = { userId: "", amount: "", method: "", status: "", days: "0" };
+const EMPTY_SEARCH = { userId: "", amount: "" };
+const SEARCH_DEBOUNCE_MS = 400;
+const AUTO_REFRESH_STORAGE_KEY = "admin.transactions.autoRefreshMs";
+
+function loadAutoRefreshMs(): number {
+  try {
+    const raw = Number(localStorage.getItem(AUTO_REFRESH_STORAGE_KEY));
+    return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export default function AdminTransactionsPage() {
   const { t } = useTranslation();
@@ -70,9 +118,13 @@ export default function AdminTransactionsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  // Free-text fields are debounced so typing doesn't fire a request per
+  // keystroke; chip filters apply straight to `filters` since they're
+  // discrete clicks already.
+  const [searchInputs, setSearchInputs] = useState(EMPTY_SEARCH);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [draft, setDraft] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
+  const [autoRefreshMs, setAutoRefreshMs] = useState(loadAutoRefreshMs);
   const [receiptFor, setReceiptFor] = useState<PanelTransactionRow | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
@@ -85,6 +137,22 @@ export default function AdminTransactionsPage() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setFilters((prev) => ({ ...prev, ...searchInputs }));
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchInputs]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(AUTO_REFRESH_STORAGE_KEY, String(autoRefreshMs));
+    } catch {
+      // Private browsing / storage disabled — auto-refresh still works for this session.
+    }
+  }, [autoRefreshMs]);
+
   function toggleReceiptFullscreen() {
     if (document.fullscreenElement) {
       void document.exitFullscreen();
@@ -94,11 +162,10 @@ export default function AdminTransactionsPage() {
   }
 
   const query = usePanelQuery(
-    ["transactions", filters.txId, filters.userId, filters.amount, filters.method, filters.status, filters.days, page],
+    ["transactions", filters.userId, filters.amount, filters.method, filters.status, filters.days, page],
     (a) =>
       panelTransactionsApi.listTransactions({
         ...a,
-        tx_id: filters.txId,
         user_id: filters.userId,
         amount: filters.amount,
         method: filters.method,
@@ -106,7 +173,8 @@ export default function AdminTransactionsPage() {
         days: Number(filters.days) || 0,
         page,
         limit: 15,
-      })
+      }),
+    { refetchInterval: autoRefreshMs || false }
   );
 
   const invalidate = [["transactions"], ["me"], ["dashboard"]];
@@ -118,15 +186,19 @@ export default function AdminTransactionsPage() {
   const rows = query.data?.transactions || [];
   const stats = query.data?.stats;
 
-  function applyFilters() {
+  function updateFilter(key: "method" | "status" | "days", value: string) {
+    setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
-    setFilters(draft);
   }
   function clearFilters() {
-    setDraft(EMPTY_FILTERS);
+    setSearchInputs(EMPTY_SEARCH);
     setFilters(EMPTY_FILTERS);
     setPage(1);
   }
+
+  const hasAdvancedFilters = filters.method !== "" || filters.days !== "0";
+  const hasActiveFilters =
+    searchInputs.userId !== "" || searchInputs.amount !== "" || filters.status !== "" || hasAdvancedFilters;
 
   async function openReceipt(row: PanelTransactionRow) {
     if (!auth) return;
@@ -171,20 +243,112 @@ export default function AdminTransactionsPage() {
       )}
 
       <SectionCard title={t("panel.transactions.title")}>
-        <Toolbar onSubmit={applyFilters}>
-          <div className="w-36"><Input label={t("panel.transactions.filterTxId")} ltr value={draft.txId} onChange={(e) => setDraft({ ...draft, txId: e.target.value })} /></div>
-          <div className="w-40"><Input label={t("panel.transactions.filterUserId")} ltr value={draft.userId} onChange={(e) => setDraft({ ...draft, userId: e.target.value })} /></div>
-          <div className="w-40"><Input label={t("panel.transactions.filterAmount")} ltr value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} /></div>
-          <div className="w-44"><SelectField label={t("panel.transactions.paymentMethod")} options={methodOptions(t)} value={draft.method} onChange={(e) => setDraft({ ...draft, method: e.target.value })} /></div>
-          <div className="w-40"><SelectField label={t("panel.common.status")} options={statusOptions(t)} value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })} /></div>
-          <div className="w-36"><SelectField label={t("panel.transactions.dateRange")} options={dayOptions(t)} value={draft.days} onChange={(e) => setDraft({ ...draft, days: e.target.value })} /></div>
-          <button type="submit" className="h-11 rounded-md bg-primary px-5 text-sm font-semibold text-primary-text">
-            {t("panel.common.applyFilter")}
-          </button>
-          <button type="button" onClick={clearFilters} className="h-11 text-sm font-semibold text-muted hover:text-text">
-            {t("panel.transactions.clearFilters")}
-          </button>
-        </Toolbar>
+        <div className="space-y-2 rounded-lg border border-border bg-surface p-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-28">
+              <User size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ltr:left-2.5 rtl:right-2.5" />
+              <Input
+                dense
+                ltr
+                placeholder={t("panel.transactions.filterUserId")}
+                aria-label={t("panel.transactions.filterUserId")}
+                className="ltr:pl-7 rtl:pr-7"
+                value={searchInputs.userId}
+                onChange={(e) => setSearchInputs((s) => ({ ...s, userId: e.target.value }))}
+              />
+            </div>
+            <div className="relative w-32">
+              <Banknote size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ltr:left-2.5 rtl:right-2.5" />
+              <Input
+                dense
+                ltr
+                placeholder={t("panel.transactions.filterAmount")}
+                aria-label={t("panel.transactions.filterAmount")}
+                className="ltr:pl-7 rtl:pr-7"
+                value={searchInputs.amount}
+                onChange={(e) => setSearchInputs((s) => ({ ...s, amount: e.target.value }))}
+              />
+            </div>
+
+            <IconMenuButton
+              icon={SlidersHorizontal}
+              title={t("panel.transactions.advancedFilters")}
+              active={hasAdvancedFilters}
+              badge={hasAdvancedFilters}
+              width={208}
+              heightEstimate={320}
+            >
+              {(close) => (
+                <>
+                  <MenuHeader title={t("panel.transactions.paymentMethod")} />
+                  {methodOptions(t).map((opt) => (
+                    <MenuRow
+                      key={opt.value}
+                      icon={opt.icon}
+                      label={opt.label}
+                      active={opt.value === filters.method}
+                      onClick={() => {
+                        updateFilter("method", opt.value);
+                        close();
+                      }}
+                    />
+                  ))}
+                  <MenuDivider />
+                  <MenuHeader title={t("panel.transactions.dateRange")} />
+                  {dayOptions(t).map((opt) => (
+                    <MenuRow
+                      key={opt.value}
+                      icon={opt.icon}
+                      label={opt.label}
+                      active={opt.value === filters.days}
+                      onClick={() => {
+                        updateFilter("days", opt.value);
+                        close();
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+            </IconMenuButton>
+
+            <AutoRefreshMenu
+              options={refreshOptions(t)}
+              value={autoRefreshMs}
+              onChange={setAutoRefreshMs}
+              onRefreshNow={() => void query.refetch()}
+              isRefreshing={query.isFetching}
+            />
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                title={t("panel.transactions.clearFilters")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1">
+            {statusTabs(t).map((tab) => {
+              const active = tab.value === filters.status;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => updateFilter("status", tab.value)}
+                  className={`shrink-0 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    active ? TAB_ACTIVE_CLASSES[tab.tone] : "text-muted hover:bg-surface-2 hover:text-text"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {query.isError ? (
           <p className="py-6 text-center text-sm text-danger">{query.error.message}</p>

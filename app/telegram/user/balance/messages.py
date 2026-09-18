@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import os
 import random
+from decimal import Decimal
 from io import BytesIO
 
 import qrcode
@@ -40,6 +41,7 @@ from app.services.billing.direct_pay_store import (
     link_transaction,
 )
 from app.services.pricing.crypto_amounts import (
+    calculate_pol_amount_with_tax,
     calculate_ton_amount_with_tax,
     calculate_trx_amount_with_tax,
     calculate_usdt_amount_with_tax,
@@ -53,11 +55,18 @@ from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import clear_user, get_data, get_step, set_data, set_step
 from app.telegram.user.balance import keyboards, states, texts
+from app.telegram.user.payment import send_star_invoice
 from app.utils.formatting.dates import Time_Date
 from app.utils.text.bot_texts import get_bot_text
 from config import LOG_CHANNEL
 
 logger = get_logger(__name__)
+
+# Wallet types and on-chain metadata for the two extra USDT networks and POL.
+USDT_TON = "USDT-TON"
+USDT_BEP20 = "USDT-BEP20"
+USDT_TON_JETTON = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"
+USDT_BEP20_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
 
 
 async def build_manual_card_line(settings) -> str:
@@ -634,6 +643,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
 
     order = random.randint(55555, 999999)
     arz_lower = arz.lower()
+    open_wallet_url: str | None = None
     if arz_lower == "trx":
         crypto_amount = await calculate_trx_amount_with_tax(int(settings.arz_trx), amount)
         wallet = await WalletCRUD().get_wallet_by_type("TRX")
@@ -700,6 +710,74 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"💰 مقدار USDT: <code>{crypto_amount}</code>\n"
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
+    elif arz_lower == "usdt-ton":
+        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount)
+        wallet = await WalletCRUD().get_wallet_by_type(USDT_TON)
+        if not wallet:
+            await event.respond(texts.WALLET_NOT_FOUND_USDT_TON)
+            await set_step(event.sender_id, states.STEP_HOME)
+            return
+        wallet_key = wallet.address
+        usdt_units = round(float(crypto_amount) * 1_000_000)
+        uri = f"ton://transfer/{wallet_key}?jetton={USDT_TON_JETTON}&amount={usdt_units}"
+        open_wallet_url = keyboards.tonkeeper_usdt_transfer_url(wallet_key, crypto_amount, USDT_TON_JETTON)
+        logo_path = "app/assets/ton.png"
+        file_name = f"USDT_TON_{order}.png"
+        message_text = (
+            f"<b>✅ فاکتور پرداخت ارزی USDT-TON ایجاد شد.</b>\n"
+            f"- -\n"
+            f"➿ شماره فاکتور : <code>{order}</code>\n"
+            f"🕰 مهلت پرداخت : 30 دقیقه\n"
+            f"<b>💵 مبلغ فاکتور :</b> <code>{amount:,}</code> <b>تومان</b>\n"
+            f"<b>📊 قیمت دلار:</b> <code>{settings.arz_usd:,}</code> <b>هزارتومان</b>\n"
+            f"<b>🧬 شبکه:</b> <code>{USDT_TON}</code>\n"
+            f"<b>💰 مبلغ </b> <code>{crypto_amount}</code> <b> USDT به آدرس کیف پول زیر واریز کنید </b>\n\n"
+            f"<code>{wallet_key}</code>\n\n"
+            f"🪩 همچنین میتونید کیو ار کد بالا رو اسکن کنید"
+        )
+        log_text = (
+            "#فاکتور_جدید_USDT_TON\n"
+            f"👤 شناسه کاربر: <code>{event.sender_id}</code> | "
+            f"<a href='tg://user?id={event.sender_id}'>پروفایل کاربر</a>\n"
+            f"💡 شماره فاکتور: <code>{order}</code>\n"
+            f"💵 مبلغ فاکتور: <code>{amount:,}</code> تومان\n"
+            f"💰 مقدار USDT: <code>{crypto_amount}</code>\n"
+            f"🧬 شبکه: {USDT_TON}\n"
+            f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
+        )
+    elif arz_lower == "usdt-bep20":
+        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount)
+        wallet = await WalletCRUD().get_wallet_by_type(USDT_BEP20)
+        if not wallet:
+            await event.respond(texts.WALLET_NOT_FOUND_USDT_BEP20)
+            await set_step(event.sender_id, states.STEP_HOME)
+            return
+        wallet_key = wallet.address
+        usdt_units = int(Decimal(str(crypto_amount)) * (Decimal(10) ** 18))
+        uri = f"ethereum:{USDT_BEP20_CONTRACT}@56/transfer?address={wallet_key}&uint256={usdt_units}"
+        logo_path = "app/assets/bsc.png"
+        file_name = f"USDT_BEP20_{order}.png"
+        message_text = (
+            f"<b>✅ فاکتور پرداخت ارزی USDT-BEP20 ایجاد شد.</b>\n"
+            f"- -\n"
+            f"➿ شماره فاکتور : <code>{order}</code>\n"
+            f"🕰 مهلت پرداخت : 30 دقیقه\n"
+            f"<b>💵 مبلغ فاکتور :</b> <code>{amount:,}</code> <b>تومان</b>\n"
+            f"<b>📊 قیمت دلار:</b> <code>{settings.arz_usd:,}</code> <b>هزارتومان</b>\n"
+            f"<b>🧬 شبکه:</b> <code>{USDT_BEP20}</code>\n"
+            f"<b>💰 مبلغ </b> <code>{crypto_amount}</code> <b> USDT به آدرس کیف پول زیر واریز کنید </b>\n\n"
+            f"<code>{wallet_key}</code>\n\n"
+            f"🪩 همچنین میتونید کیو ار کد بالا رو اسکن کنید"
+        )
+        log_text = (
+            "#فاکتور_جدید_USDT_BEP20\n"
+            f"👤 شناسه کاربر: <code>{event.sender_id}</code> | "
+            f"<a href='tg://user?id={event.sender_id}'>پروفایل کاربر</a>\n"
+            f"💡 شماره فاکتور: <code>{amount:,}</code> تومان\n"
+            f"💰 مقدار USDT: <code>{crypto_amount}</code>\n"
+            f"🧬 شبکه: {USDT_BEP20}\n"
+            f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
+        )
     elif arz_lower == "ton":
         crypto_amount = await calculate_ton_amount_with_tax(int(settings.arz_ton), amount)
         wallet = await WalletCRUD().get_wallet_by_type("TON")
@@ -708,7 +786,9 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             await set_step(event.sender_id, states.STEP_HOME)
             return
         wallet_key = wallet.address
-        uri = f"ton://transfer/{wallet_key}?amount={int(float(crypto_amount) * 1e9)}"
+        nano_amount = int(float(crypto_amount) * 1e9)
+        uri = f"ton://transfer/{wallet_key}?amount={nano_amount}"
+        open_wallet_url = keyboards.tonkeeper_transfer_url(wallet_key, crypto_amount)
         logo_path = "app/assets/ton.png"
         file_name = f"TON_{order}.png"
         message_text = (
@@ -731,6 +811,41 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"💵 مبلغ فاکتور: <code>{amount:,}</code> تومان\n"
             f"💰 مقدار TON: <code>{crypto_amount}</code>\n"
             f"📊 قیمت TON: <code>{settings.arz_ton:,}</code> هزار تومان\n"
+            f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
+        )
+    elif arz_lower == "pol":
+        crypto_amount = await calculate_pol_amount_with_tax(int(settings.arz_pol), amount)
+        wallet = await WalletCRUD().get_wallet_by_type("POL")
+        if not wallet:
+            await event.respond(texts.WALLET_NOT_FOUND_POL)
+            await set_step(event.sender_id, states.STEP_HOME)
+            return
+        wallet_key = wallet.address
+        pol_wei = int(Decimal(str(crypto_amount)) * (Decimal(10) ** 18))
+        uri = f"ethereum:{wallet_key}@137?value={pol_wei}"
+        logo_path = "app/assets/pol.png"
+        file_name = f"POL_{order}.png"
+        message_text = (
+            f"<b>✅ فاکتور پرداخت ارزی POL ایجاد شد.</b>\n"
+            f"- -\n"
+            f"➿ شماره فاکتور : <code>{order}</code>\n"
+            f"🕰 مهلت پرداخت : 30 دقیقه\n"
+            f"<b>💵 مبلغ فاکتور :</b> <code>{amount:,}</code> <b>تومان</b>\n"
+            f"<b>📊 قیمت POL:</b> <code>{settings.arz_pol:,}</code> <b>هزارتومان</b>\n"
+            f"<b>📊 قیمت دلار:</b> <code>{settings.arz_usd:,}</code> <b>هزارتومان</b>\n"
+            f"<b>🧬 شبکه:</b> <code>Polygon</code>\n"
+            f"<b>💰 مبلغ </b> <code>{crypto_amount}</code> <b> POL به آدرس کیف پول زیر واریز کنید </b>\n\n"
+            f"<code>{wallet_key}</code>\n\n"
+            f"🪩 همچنین میتونید کیو ار کد بالا رو اسکن کنید"
+        )
+        log_text = (
+            "#فاکتور_جدید_POL\n"
+            f"👤 شناسه کاربر: <code>{event.sender_id}</code> | "
+            f"<a href='tg://user?id={event.sender_id}'>پروفایل کاربر</a>\n"
+            f"💡 شماره فاکتور: <code>{order}</code>\n"
+            f"💵 مبلغ فاکتور: <code>{amount:,}</code> تومان\n"
+            f"💰 مقدار POL: <code>{crypto_amount}</code>\n"
+            f"📊 قیمت POL: <code>{settings.arz_pol:,}</code> هزار تومان\n"
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     else:
@@ -761,7 +876,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
     invoice = await event.respond(
         message_text,
         file=qr_file,
-        buttons=keyboards.crypto_copy_markup(crypto_amount, wallet_key),
+        buttons=keyboards.crypto_copy_markup(crypto_amount, wallet_key, open_url=open_wallet_url),
         parse_mode="html",
     )
 
@@ -853,6 +968,119 @@ async def crypto_payments_ton_handler(event: Message):
         event,
         text_key="crypto_numeric_error",
         default=texts.CRYPTO_NUMERIC_ERROR_DEFAULT,
+    )
+    raise events.StopPropagation
+
+
+async def crypto_payment_usdt_ton_step_filter(event):
+    if event.is_channel or not event.is_private:
+        return False
+    if (await get_step(event.sender_id)) != states.STEP_CRYPTO_USDT_TON_2:
+        return False
+    msg = event.message.message
+    if not msg:
+        return False
+    return not _is_nav_command(msg)
+
+
+@bot_is_offline
+async def crypto_payments_usdt_ton_handler(event: Message):
+    msg = event.message.message
+    if msg.isdigit():
+        await create_crypto_invoice(event, arz="usdt-ton", amount_irt=int(msg))
+        raise events.StopPropagation
+    await respond_deposit_numeric_error(
+        event,
+        text_key="crypto_numeric_error",
+        default=texts.CRYPTO_NUMERIC_ERROR_DEFAULT,
+    )
+    raise events.StopPropagation
+
+
+async def crypto_payment_usdt_bep20_step_filter(event):
+    if event.is_channel or not event.is_private:
+        return False
+    if (await get_step(event.sender_id)) != states.STEP_CRYPTO_USDT_BEP20_2:
+        return False
+    msg = event.message.message
+    if not msg:
+        return False
+    return not _is_nav_command(msg)
+
+
+@bot_is_offline
+async def crypto_payments_usdt_bep20_handler(event: Message):
+    msg = event.message.message
+    if msg.isdigit():
+        await create_crypto_invoice(event, arz="usdt-bep20", amount_irt=int(msg))
+        raise events.StopPropagation
+    await respond_deposit_numeric_error(
+        event,
+        text_key="crypto_numeric_error",
+        default=texts.CRYPTO_NUMERIC_ERROR_DEFAULT,
+    )
+    raise events.StopPropagation
+
+
+async def crypto_payment_pol_step_filter(event):
+    if event.is_channel or not event.is_private:
+        return False
+    if (await get_step(event.sender_id)) != states.STEP_CRYPTO_POL_2:
+        return False
+    msg = event.message.message
+    if not msg:
+        return False
+    return not _is_nav_command(msg)
+
+
+@bot_is_offline
+async def crypto_payments_pol_handler(event: Message):
+    msg = event.message.message
+    if msg.isdigit():
+        await create_crypto_invoice(event, arz="pol", amount_irt=int(msg))
+        raise events.StopPropagation
+    await respond_deposit_numeric_error(
+        event,
+        text_key="crypto_numeric_error",
+        default=texts.CRYPTO_NUMERIC_ERROR_DEFAULT,
+    )
+    raise events.StopPropagation
+
+
+async def stars_payment_step_filter(event):
+    if event.is_channel or not event.is_private:
+        return False
+    if (await get_step(event.sender_id)) != states.STEP_STARS_2:
+        return False
+    msg = event.message.message
+    if not msg:
+        return False
+    return not _is_nav_command(msg)
+
+
+@bot_is_offline
+async def stars_payment_2_handler(event: Message):
+    msg = event.message.message
+
+    if msg.isdigit():
+        settings = await SettingsManager().get_settings()
+        amount = int(msg)
+        if amount < settings.crypto_deposit_min or amount > settings.crypto_deposit_max:
+            await respond_deposit_amount_range_error(
+                event,
+                text_key="stars_amount_range_error",
+                default=texts.STARS_AMOUNT_RANGE_ERROR_DEFAULT,
+                min_amount=settings.crypto_deposit_min,
+                max_amount=settings.crypto_deposit_max,
+            )
+            raise events.StopPropagation
+        await send_star_invoice(event.sender_id, amount)
+        await set_step(event.sender_id, states.STEP_HOME)
+        raise events.StopPropagation
+    await respond_deposit_numeric_error(
+        event,
+        text_key="stars_numeric_error",
+        default=texts.STARS_NUMERIC_ERROR_DEFAULT,
     )
     raise events.StopPropagation
 
@@ -955,6 +1183,22 @@ def register(client):
     client.add_event_handler(
         crypto_payments_ton_handler,
         events.NewMessage(incoming=True, func=crypto_payment_ton_step_filter),
+    )
+    client.add_event_handler(
+        crypto_payments_usdt_ton_handler,
+        events.NewMessage(incoming=True, func=crypto_payment_usdt_ton_step_filter),
+    )
+    client.add_event_handler(
+        crypto_payments_usdt_bep20_handler,
+        events.NewMessage(incoming=True, func=crypto_payment_usdt_bep20_step_filter),
+    )
+    client.add_event_handler(
+        crypto_payments_pol_handler,
+        events.NewMessage(incoming=True, func=crypto_payment_pol_step_filter),
+    )
+    client.add_event_handler(
+        stars_payment_2_handler,
+        events.NewMessage(incoming=True, func=stars_payment_step_filter),
     )
     client.add_event_handler(
         balance_phone_verify_handler,

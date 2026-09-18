@@ -165,6 +165,29 @@ async def message_handler_settings_payment(event: Message):
         await delete_message(event)
         await event.respond(texts.NUMERIC_ONLY, buttons=keyboards.back_to_bonus_menu_button())
 
+    elif await get_step(event.sender_id) == "set_stars_bonus_percent" and msg.isdigit():
+        percent = int(msg)
+        if percent < 0 or percent > 100:
+            await delete_message(event, offset=-1)
+            await delete_message(event)
+            await event.respond(texts.PERCENT_RANGE_ERROR, buttons=keyboards.back_to_bonus_menu_button())
+            raise events.StopPropagation
+        settings = await SettingsManager().get_settings()
+        await SettingsManager().update_setting(settings.id, stars_bonus_percent=percent)
+        await set_step(event.sender_id, "SettingsCardToCard")
+        settings = await SettingsManager().get_settings()
+        bonus_text, buttons = await keyboards.get_bonus_settings_menu(settings)
+        await delete_message(event, offset=-1)
+        await delete_message(event)
+        await event.respond(
+            texts.STARS_BONUS_SET_TEMPLATE.format(percent=percent, bonus_text=bonus_text),
+            buttons=buttons,
+        )
+    elif await get_step(event.sender_id) == "set_stars_bonus_percent":
+        await delete_message(event, offset=-1)
+        await delete_message(event)
+        await event.respond(texts.NUMERIC_ONLY, buttons=keyboards.back_to_bonus_menu_button())
+
     elif await get_step(event.sender_id) == "maar_add_min" and msg.isdigit():
         await set_data(event.sender_id, "maar_min", int(msg))
         await set_step(event.sender_id, "maar_add_max")

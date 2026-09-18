@@ -1,10 +1,16 @@
 /** Mirrors app/models/panel/users.py */
 import type { ActionResponse, PagedRequest, PageMeta, PanelAuthRequest, PanelEnvelope } from "./common";
 
+/** "active": normal. "banned": an admin blocked them (reversible by an
+ * admin). "blocked_bot": the user blocked/stopped the bot themself — only
+ * their own /start can undo it, not an admin action. "deleted": Telegram
+ * reports the account itself was deleted. */
+export type UserState = "active" | "banned" | "blocked_bot" | "deleted";
+
 export interface PanelUserRow {
   id: number;
   status?: string | null;
-  blocked: boolean;
+  state: UserState;
   number?: string | null;
   balance: number;
   joined_at?: number | null;
@@ -13,8 +19,10 @@ export interface PanelUserRow {
 
 export interface PanelUsersRequest extends PagedRequest {
   q?: string;
-  /** empty | active | blocked */
+  /** empty | active | banned | blocked_bot | deleted */
   state?: string;
+  /** newest | oldest */
+  sort?: string;
 }
 
 export interface PanelUsersResponse extends PanelEnvelope {

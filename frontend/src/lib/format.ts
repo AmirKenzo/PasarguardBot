@@ -22,6 +22,19 @@ export function formatNumber(value: number): string {
   return numberFormatter().format(value);
 }
 
+/** A short "1.2M Toman" form for tight spaces (stat tiles, chips) — falls
+ * back to the exact figure once it's short enough that abbreviating buys
+ * nothing. */
+export function formatCompactToman(amount: number): string {
+  const rounded = Math.round(amount);
+  if (Math.abs(rounded) < 1_000_000) return formatToman(rounded);
+  const value = new Intl.NumberFormat(isFa() ? "fa-IR" : "en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(rounded);
+  return `${value} ${i18n.t("common.toman")}`;
+}
+
 export function formatUnixDate(unixSeconds: number): string {
   if (!unixSeconds) return i18n.t("common.unknown");
   const date = new Date(unixSeconds * 1000);

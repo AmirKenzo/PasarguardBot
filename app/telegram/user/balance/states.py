@@ -9,7 +9,10 @@ STEP_MABLAGH_SHARJ = "mablagh_sharj"
 STEP_AUTO_CARD_2 = "AutoCardToCard_2"
 STEP_CRYPTO_TRX_2 = "CryptoPayments_TRX_2"
 STEP_CRYPTO_USDT_2 = "CryptoPayments_USDT_2"
+STEP_CRYPTO_USDT_TON_2 = "CryptoPayments_USDT_TON_2"
+STEP_CRYPTO_USDT_BEP20_2 = "CryptoPayments_USDT_BEP20_2"
 STEP_CRYPTO_TON_2 = "CryptoPayments_TON_2"
+STEP_CRYPTO_POL_2 = "CryptoPayments_POL_2"
 STEP_STARS_2 = "StarsPayment_2"
 STEP_CONF_NUMBER = "conf_number"
 STEP_HOME = "home"
@@ -23,7 +26,10 @@ BALANCE_FLOW_CANCEL_STEPS = frozenset(
         STEP_AUTO_CARD_2,
         STEP_CRYPTO_TRX_2,
         STEP_CRYPTO_USDT_2,
+        STEP_CRYPTO_USDT_TON_2,
+        STEP_CRYPTO_USDT_BEP20_2,
         STEP_CRYPTO_TON_2,
+        STEP_CRYPTO_POL_2,
         STEP_STARS_2,
     }
 )
@@ -35,7 +41,10 @@ CALLBACK_AUTO_CARD = "AutoCardToCard"
 CALLBACK_CRYPTO = "CryptoPayments"
 CALLBACK_CRYPTO_TRX = "CryptoPayments_TRX"
 CALLBACK_CRYPTO_USDT = "CryptoPayments_USDT"
+CALLBACK_CRYPTO_USDT_TON = "CryptoPayments_USDT_TON"
+CALLBACK_CRYPTO_USDT_BEP20 = "CryptoPayments_USDT_BEP20"
 CALLBACK_CRYPTO_TON = "CryptoPayments_TON"
+CALLBACK_CRYPTO_POL = "CryptoPayments_POL"
 CALLBACK_STARS = "StarsPayment"
 CALLBACK_CART_PAYMENT = "cart_payment"
 CALLBACK_CART_PAYMENT_SENDPHOTO = "cart_payment_sendphoto"

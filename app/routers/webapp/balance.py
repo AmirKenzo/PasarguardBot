@@ -1,4 +1,4 @@
-"""Balance top-up methods and deposit flows: manual card and crypto."""
+"""Balance top-up methods and deposit flows: manual card, crypto and Telegram Stars."""
 
 import random
 from io import BytesIO
@@ -21,6 +21,8 @@ from app.models.webapp import (
     BalanceDepositManualReceiptResponse,
     BalanceDepositManualRequest,
     BalanceDepositManualResponse,
+    BalanceDepositStarsRequest,
+    BalanceDepositStarsResponse,
     BalanceMethodsRequest,
     BalanceMethodsResponse,
     BalancePhoneRequestRequest,
@@ -28,6 +30,7 @@ from app.models.webapp import (
 )
 from app.routers.webapp.auth import authenticate_user
 from app.services.pricing.crypto_amounts import (
+    calculate_pol_amount_with_tax,
     calculate_ton_amount_with_tax,
     calculate_trx_amount_with_tax,
     calculate_usdt_amount_with_tax,
@@ -36,6 +39,8 @@ from app.services.send_queue import enqueue
 from app.telegram.state import set_step
 from app.telegram.user.balance import states
 from app.telegram.user.balance.keyboards import transaction_review_buttons
+from app.telegram.user.payment import create_star_invoice_link
+from app.telegram.user.payment.helpers import STAR_USD_PRICE
 from app.utils.formatting.dates import Time_Date
 
 logger = get_logger(__name__)
@@ -77,6 +82,7 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
             ok=True,
             pay_mode=bool(settings.pay_mode),
             arz_mode=bool(settings.arz_mode),
+            cart_sta=bool(getattr(settings, "cart_sta", False)),
             manual_deposit_min=int(settings.manual_deposit_min or 0),
             manual_deposit_max=int(settings.manual_deposit_max or 0),
             crypto_deposit_min=int(settings.crypto_deposit_min or 0),
@@ -85,9 +91,11 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
             card_name=card_name,
             manual_bonus_percent=int(getattr(settings, "manual_bonus_percent", 0) or 0),
             crypto_bonus_percent=int(getattr(settings, "crypto_bonus_percent", 0) or 0),
+            stars_bonus_percent=int(getattr(settings, "stars_bonus_percent", 0) or 0),
             arz_usd=int(getattr(settings, "arz_usd", 0) or 0),
             arz_trx=int(getattr(settings, "arz_trx", 0) or 0),
             arz_ton=int(getattr(settings, "arz_ton", 0) or 0),
+            arz_pol=int(getattr(settings, "arz_pol", 0) or 0),
             phone_verify_required=phone_verify_required,
         )
     except ValueError as e:
@@ -139,16 +147,17 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
                 ok=False,
                 error=f"مبلغ باید بین {min_a:,} تا {max_a:,} تومان باشد",
             )
-        tx = await TransactionCRUD().create(user_id=user_id, amount=amount, method="manual")
         cards = await ManualCardManager().get_all_cards()
-        active = next((c for c in cards if getattr(c, "active", False)), None)
-        if not active and cards:
-            active = cards[0]
+        if settings.manual_card_random_mode and cards:
+            active = random.choice(cards)
+        else:
+            active = next((c for c in cards if getattr(c, "active", False)), None)
+            if not active and cards:
+                active = cards[0]
         card_number = getattr(active, "number", None) if active else None
         card_name = getattr(active, "name", None) if active else None
         return BalanceDepositManualResponse(
             ok=True,
-            tx_id=getattr(tx, "id", None),
             card_number=card_number,
             card_name=card_name,
         )
@@ -160,7 +169,7 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
 
 @router.post("/webapp/balance/deposit/manual/receipt", response_model=BalanceDepositManualReceiptResponse)
 async def deposit_manual_receipt(
-    tx_id: int = Form(...),
+    amount: int = Form(...),
     session_token: str | None = Form(None),
     init_data: str | None = Form(None),
     file: UploadFile = File(...),
@@ -171,12 +180,19 @@ async def deposit_manual_receipt(
             init_data=init_data,
             session_token=session_token,
         )
-        tx = await TransactionCRUD().get(tx_id)
-        if not tx or int(tx.user_id) != user_id:
-            return BalanceDepositManualReceiptResponse(ok=False, error="تراکنش یافت نشد")
-
-        if str(tx.status) != "pending":
-            return BalanceDepositManualReceiptResponse(ok=False, error="این تراکنش قبلاً بررسی شده است")
+        settings = await SettingsManager().get_settings()
+        if not settings or not settings.pay_mode:
+            return BalanceDepositManualReceiptResponse(ok=False, error="پرداخت کارت به کارت غیرفعال است")
+        user = await UserCRUD().read_user(user_id)
+        if _phone_verify_required(settings, user):
+            return BalanceDepositManualReceiptResponse(ok=False, error="ابتدا باید شماره تلفن خود را تایید کنید.")
+        min_a = int(settings.manual_deposit_min or 0)
+        max_a = int(settings.manual_deposit_max or 0)
+        if amount < min_a or amount > max_a:
+            return BalanceDepositManualReceiptResponse(
+                ok=False,
+                error=f"مبلغ باید بین {min_a:,} تا {max_a:,} تومان باشد",
+            )
 
         filename = (file.filename or "").lower()
         content_type = (file.content_type or "").lower()
@@ -190,9 +206,10 @@ async def deposit_manual_receipt(
         if not content or len(content) > 10 * 1024 * 1024:
             return BalanceDepositManualReceiptResponse(ok=False, error="حجم تصویر حداکثر ۱۰ مگابایت باشد")
 
+        tx = await TransactionCRUD().create(user_id=user_id, amount=amount, method="manual")
         rule_crud = ManualAutoApproveRuleCRUD()
         matched_rule = await rule_crud.schedule_for_transaction(tx)
-        tx = await TransactionCRUD().get(tx_id) or tx
+        tx = await TransactionCRUD().get(tx.id) or tx
 
         user_record = await UserCRUD().read_user(user_id)
         crud = TransactionCRUD()
@@ -230,7 +247,7 @@ async def deposit_manual_receipt(
             )
             if message and getattr(message, "id", None):
                 await TransactionCRUD().update(
-                    tx_id,
+                    tx.id,
                     message_id=message.id,
                     message_chat_id=getattr(message, "chat_id", None) or getattr(message, "peer_id", None),
                 )
@@ -256,8 +273,10 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
         if not settings or not settings.arz_mode:
             return BalanceDepositCryptoResponse(ok=False, error="پرداخت ارزی غیرفعال است")
         currency = (request.currency or "").strip().lower()
-        if currency not in ("trx", "usdt", "ton"):
-            return BalanceDepositCryptoResponse(ok=False, error="ارز نامعتبر. trx, usdt یا ton انتخاب کنید.")
+        if currency not in ("trx", "usdt", "usdt-ton", "usdt-bep20", "ton", "pol"):
+            return BalanceDepositCryptoResponse(
+                ok=False, error="ارز نامعتبر. trx, usdt, usdt-ton, usdt-bep20, ton یا pol انتخاب کنید."
+            )
         amount = request.amount
         min_a = int(settings.crypto_deposit_min or 0)
         max_a = int(settings.crypto_deposit_max or 0)
@@ -278,6 +297,15 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
         elif currency == "usdt":
             wallet = await WalletCRUD().get_wallet_by_type("USDT-TRC20")
             amount_crypto = await calculate_usdt_amount_with_tax(int(settings.arz_usd or 0), amount)
+        elif currency == "usdt-ton":
+            wallet = await WalletCRUD().get_wallet_by_type("USDT-TON")
+            amount_crypto = await calculate_usdt_amount_with_tax(int(settings.arz_usd or 0), amount)
+        elif currency == "usdt-bep20":
+            wallet = await WalletCRUD().get_wallet_by_type("USDT-BEP20")
+            amount_crypto = await calculate_usdt_amount_with_tax(int(settings.arz_usd or 0), amount)
+        elif currency == "pol":
+            wallet = await WalletCRUD().get_wallet_by_type("POL")
+            amount_crypto = await calculate_pol_amount_with_tax(int(settings.arz_pol or 0), amount)
         else:
             wallet = await WalletCRUD().get_wallet_by_type("TON")
             amount_crypto = await calculate_ton_amount_with_tax(int(settings.arz_ton or 0), amount)
@@ -319,3 +347,46 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
         return BalanceDepositCryptoResponse(ok=False, error=str(e))
     except Exception as e:
         return BalanceDepositCryptoResponse(ok=False, error=str(e))
+
+
+@router.post("/webapp/balance/deposit/stars", response_model=BalanceDepositStarsResponse)
+async def deposit_stars(request: BalanceDepositStarsRequest) -> BalanceDepositStarsResponse:
+    """Create a Telegram Stars invoice link for Mini App openInvoice payment."""
+    try:
+        user_id = await authenticate_user(
+            init_data=request.init_data,
+            session_token=request.session_token,
+        )
+        settings = await SettingsManager().get_settings()
+        if not settings or not getattr(settings, "cart_sta", False):
+            return BalanceDepositStarsResponse(ok=False, error="پرداخت با استارز غیرفعال است")
+
+        amount = request.amount
+        min_a = int(settings.crypto_deposit_min or 0)
+        max_a = int(settings.crypto_deposit_max or 0)
+        if amount < min_a or amount > max_a:
+            return BalanceDepositStarsResponse(
+                ok=False,
+                error=f"مبلغ باید بین {min_a:,} تا {max_a:,} تومان باشد",
+            )
+        if not int(getattr(settings, "arz_usd", 0) or 0):
+            return BalanceDepositStarsResponse(ok=False, error="نرخ دلار برای محاسبه استارز تنظیم نشده است")
+
+        tx, invoice_url, stars = await create_star_invoice_link(user_id, amount)
+        usd_rate_irt = int(settings.arz_usd)
+        return BalanceDepositStarsResponse(
+            ok=True,
+            message="فاکتور استارز آماده است. پرداخت را در تلگرام تکمیل کنید.",
+            tx_id=int(tx.id),
+            invoice_no=tx.invoice_no,
+            amount_irt=amount,
+            stars=stars,
+            usd_rate_irt=usd_rate_irt,
+            star_price_irt=round(usd_rate_irt * STAR_USD_PRICE, 2),
+            invoice_url=invoice_url,
+        )
+    except ValueError as e:
+        return BalanceDepositStarsResponse(ok=False, error=str(e))
+    except Exception as e:
+        logger.exception("Stars deposit failed")
+        return BalanceDepositStarsResponse(ok=False, error=str(e))

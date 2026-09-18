@@ -6,6 +6,7 @@ import time
 
 from app.jobs.payments import (
     ManualCardProcessor,
+    StarsExpiryProcessor,
     TONProcessor,
     TRXProcessor,
     USDTProcessor,
@@ -18,6 +19,7 @@ manual_card_processor = ManualCardProcessor()
 trx_processor = TRXProcessor()
 usdt_processor = USDTProcessor()
 ton_processor = TONProcessor()
+stars_expiry_processor = StarsExpiryProcessor()
 
 
 async def auto_confirm_job():
@@ -50,3 +52,11 @@ async def ton_checking():
     await ton_processor.check_payments()
     elapsed = time.time() - start_time
     logger.debug(f"{LogTag.JOB} ton_checking completed: {elapsed:.2f}s")
+
+
+async def expire_star_transactions() -> None:
+    start_time = time.time()
+    logger.debug("%s expire_star_transactions started", LogTag.JOB)
+    await stars_expiry_processor.check_payments()
+    elapsed = time.time() - start_time
+    logger.debug(f"{LogTag.JOB} expire_star_transactions completed: {elapsed:.2f}s")

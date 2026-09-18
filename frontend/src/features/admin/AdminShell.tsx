@@ -29,6 +29,7 @@ import { PageTransition } from "../../components/layout/PageTransition";
 import { AppVersion, FullscreenToggle, LanguageToggle, ThemeToggle } from "../../components/ui";
 import { panelDashboardApi } from "../../api/panel";
 import { usePanelQuery } from "../../queries/usePanelApi";
+import { SessionExpiry } from "./components";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
@@ -120,10 +121,10 @@ function NavList({
 }) {
   const { t } = useTranslation();
   return (
-    <nav className="space-y-4">
-      {navGroups(t).map((group) => (
-        <div key={group.title}>
-          <p className="px-3 pb-1 text-[11px] font-medium text-muted/80">{group.title}</p>
+    <nav className="space-y-3">
+      {navGroups(t).map((group, index) => (
+        <div key={group.title} className={index > 0 ? "border-t border-border/60 pt-3" : ""}>
+          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted/70">{group.title}</p>
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const count = item.badge ? badges[item.badge] || 0 : 0;
@@ -134,7 +135,7 @@ function NavList({
                   end={item.end}
                   onClick={onNavigate}
                   className={({ isActive }) =>
-                    `relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                    `relative flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors ${
                       isActive ? "text-primary" : "text-muted hover:text-text"
                     }`
                   }
@@ -149,11 +150,11 @@ function NavList({
                         />
                       )}
                       <span className="relative z-10 flex items-center justify-center">
-                        <item.icon size={18} strokeWidth={isActive ? 2.3 : 1.8} />
+                        <item.icon size={16} strokeWidth={isActive ? 2.3 : 1.8} />
                       </span>
-                      <span className="relative z-10 flex-1">{item.label}</span>
+                      <span className="relative z-10 flex-1 truncate">{item.label}</span>
                       {count > 0 && (
-                        <span className="relative z-10 rounded-full bg-warning/15 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                        <span className="relative z-10 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
                           {count}
                         </span>
                       )}
@@ -207,6 +208,7 @@ export default function AdminShell() {
 
   return (
     <div className="flex min-h-screen w-full">
+      <SessionExpiry />
       <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-l border-border bg-surface p-4 md:flex">
         <div className="mb-5 flex items-center justify-between px-1">
           <BrandMark />
@@ -214,18 +216,11 @@ export default function AdminShell() {
         <div className="-mx-1 flex-1 overflow-y-auto px-1">
           <NavList badges={badges} layoutId="admin-sidebar-active" />
         </div>
-        <div className="mt-auto flex flex-col gap-3 px-1 pt-4">
+        <div className="mt-auto flex flex-col gap-3 border-t border-border/60 px-1 pt-3">
           <BackToWebApp />
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">{t("nav.appearance")}</span>
+          <div className="flex items-center justify-center gap-1 rounded-lg bg-surface-2/60 p-1">
             <ThemeToggle />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">🌐 {t("nav.language")}</span>
             <LanguageToggle />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">{t("nav.fullscreen")}</span>
             <FullscreenToggle />
           </div>
           <AppVersion className="text-center" />
@@ -233,7 +228,7 @@ export default function AdminShell() {
       </aside>
 
       <div className="flex min-h-screen w-full flex-1 flex-col">
-        <header className="safe-area-pt sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur md:hidden">
+        <header className="safe-area-pt sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/90 px-4 pb-3 pt-4 backdrop-blur md:hidden">
           <button
             onClick={() => setDrawerOpen(true)}
             className="rounded-md p-1.5 text-text transition-colors hover:bg-surface-2"
