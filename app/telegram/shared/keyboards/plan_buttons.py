@@ -26,10 +26,11 @@ def build_default_admin_plan_list_text(plan: Any) -> str:
         "unlimited_volume": "♾️ نامحدود",
         "fair_usage": "⚖️ مصرف منصفانه",
     }.get(getattr(plan, "plan_type", "volume"), "📊 حجمی")
+    duration_text = "نامحدود" if not plan.duration else f"{plan.duration} روز"
     return (
         f"💾 {_format_storage_number(plan.storage)} گیگ | "
         f"💰 {int(plan.price):,} تومان | "
-        f"⏳ {plan.duration} روز | "
+        f"⏳ {duration_text} | "
         f"{type_label}"
     )
 
@@ -54,7 +55,7 @@ def build_default_plan_button_text(plan: Any, display_mode: str, context: str) -
         for_button=True,
     )
     ip_limit = getattr(plan, "ip_limit", 0) or 0
-    duration_text = f"{plan.duration}روزه"
+    duration_text = "نامحدود" if not plan.duration else f"{plan.duration}روزه"
 
     price_text = f"{plan.price // 1000:,.0f} هزارتومان" if context == "buy" else f"{plan.price // 1000:,.0f} تومان"
 
