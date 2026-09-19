@@ -143,9 +143,10 @@ async def display_user_services(user_id, current_page, edit_message=False, origi
         f"**💡 تعداد اشتراک‌های شما :** {total_services}\n"
         f"**📄 صفحه:** {current_page} از {num_pages}\n."
     )
-    buttons = [[Button.inline("🔍 جستجوی سرویس", data=SERVICE_SEARCH_START_CALLBACK)], *service_buttons]
+    buttons = [*service_buttons]
     if navigation_buttons:
         buttons.append(navigation_buttons)
+    buttons.append([Button.inline("🔍 جستجوی سرویس", data=SERVICE_SEARCH_START_CALLBACK)])
 
     if edit_message and original_event:
         await Kenzo.edit_message(
