@@ -15,7 +15,7 @@ from app import Kenzo
 from app.db.crud.keyboards import get_button_text
 from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
-from app.db.crud.services import ServiceCRUD
+from app.db.crud.services import ServiceCRUD, get_user_services_paginated
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.services.billing.renewal import (
@@ -42,8 +42,17 @@ from app.telegram.shared.utils.usage_chart import (
     fetch_daily_usage,
     fetch_day_node_usage,
 )
-from app.telegram.state import get_data, get_step
-from app.telegram.user.services.states import SUB_LINKS_PAGE_LIMIT
+from app.telegram.state import get_data, get_step, set_data
+from app.telegram.user.services.states import (
+    SERVICE_SEARCH_AGAIN_CALLBACK,
+    SERVICE_SEARCH_CLEAR_CALLBACK,
+    SERVICE_SEARCH_OPEN_PREFIX,
+    SERVICE_SEARCH_PAGE_KEY,
+    SERVICE_SEARCH_PAGE_LIMIT,
+    SERVICE_SEARCH_PAGE_PREFIX,
+    SERVICE_SEARCH_START_CALLBACK,
+    SUB_LINKS_PAGE_LIMIT,
+)
 from app.utils.formatting.dates import Time_Date, relative_time, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_ip_limit, format_size, format_usage_progress_bar
 from app.utils.text.bot_texts import get_bot_text
@@ -76,24 +85,35 @@ async def build_service_text(service, panel_name: str, user) -> str:
 
 
 async def display_user_services(user_id, current_page, edit_message=False, original_event=None):
-    services = await ServiceCRUD().get_services_reverse(user_id)
-
     user = await UserCRUD().read_user(user_id)
+    if user is None:
+        return
     row_size = user.service_buttons_per_row or 1
     row_count = user.service_button_rows or 5
     panel_limit = min(row_size * row_count, 20)
 
-    if not services:
+    current_page = max(1, int(current_page or 1))
+    current_services, total_services = await get_user_services_paginated(
+        user_id=user_id,
+        page=current_page,
+        limit=panel_limit,
+    )
+
+    if not total_services:
         no_services_text = await get_bot_text(key="no_services_message", default="شما هیچ سرویسی ندارید.", lang="fa")
         buy_button = [await buy_empty_list_button()]
         await Kenzo.send_message(entity=user_id, message=no_services_text, buttons=buy_button)
         return
 
-    total_services = len(services)
     num_pages = (total_services + panel_limit - 1) // panel_limit
-    start_index = (current_page - 1) * panel_limit
-    end_index = start_index + panel_limit
-    current_services = services[start_index:end_index]
+    if current_page > num_pages:
+        current_page = num_pages
+        current_services, _ = await get_user_services_paginated(
+            user_id=user_id,
+            page=current_page,
+            limit=panel_limit,
+        )
+        await UserCRUD().update_user(user_id=user_id, page=current_page)
 
     panels_by_code = {panel.code: panel for panel in await PanelsManager().get_all_panels()}
 
@@ -118,8 +138,14 @@ async def display_user_services(user_id, current_page, edit_message=False, origi
         navigation_buttons.append(Button.inline("<- صفحه بعدی", data=f"NextService:{current_page}"))
 
     my_services_intro = await get_bot_text(key="my_services_intro", default="🔑 لیست سرویس‌های شما:", lang="fa")
-    message_text = f"{my_services_intro}\n**💡 تعداد اشتراک‌های شما :** {total_services}\n."
-    buttons = [*service_buttons, navigation_buttons]
+    message_text = (
+        f"{my_services_intro}\n"
+        f"**💡 تعداد اشتراک‌های شما :** {total_services}\n"
+        f"**📄 صفحه:** {current_page} از {num_pages}\n."
+    )
+    buttons = [[Button.inline("🔍 جستجوی سرویس", data=SERVICE_SEARCH_START_CALLBACK)], *service_buttons]
+    if navigation_buttons:
+        buttons.append(navigation_buttons)
 
     if edit_message and original_event:
         await Kenzo.edit_message(
@@ -130,6 +156,78 @@ async def display_user_services(user_id, current_page, edit_message=False, origi
         )
     else:
         await Kenzo.send_message(entity=user_id, message=message_text, buttons=buttons)
+
+
+async def display_user_service_search_results(
+    user_id: int,
+    query: str,
+    page: int = 1,
+    *,
+    edit_message: bool = False,
+    original_event=None,
+) -> None:
+    """Show owner-scoped, local-DB search results without calling the panel."""
+    page = max(1, int(page or 1))
+    services, total = await get_user_services_paginated(
+        user_id=user_id,
+        page=page,
+        limit=SERVICE_SEARCH_PAGE_LIMIT,
+        search=query,
+        contains=True,
+    )
+
+    total_pages = max(1, (total + SERVICE_SEARCH_PAGE_LIMIT - 1) // SERVICE_SEARCH_PAGE_LIMIT)
+    if total and page > total_pages:
+        page = total_pages
+        services, _ = await get_user_services_paginated(
+            user_id=user_id,
+            page=page,
+            limit=SERVICE_SEARCH_PAGE_LIMIT,
+            search=query,
+            contains=True,
+        )
+    await set_data(user_id, SERVICE_SEARCH_PAGE_KEY, page)
+
+    if total:
+        panels_by_code = {panel.code: panel for panel in await PanelsManager().get_all_panels()}
+        result_buttons = []
+        for service in services:
+            panel = panels_by_code.get(service.in_panel)
+            panel_name = panel.name if panel is not None else "پنل نامشخص"
+            label = f"{service.username} • کد {service.code} • {panel_name}"
+            result_buttons.append([Button.inline(label[:100], data=f"{SERVICE_SEARCH_OPEN_PREFIX}{service.code}")])
+
+        navigation = []
+        if page > 1:
+            navigation.append(Button.inline("صفحه قبلی →", data=f"{SERVICE_SEARCH_PAGE_PREFIX}{page - 1}"))
+        if page < total_pages:
+            navigation.append(Button.inline("← صفحه بعدی", data=f"{SERVICE_SEARCH_PAGE_PREFIX}{page + 1}"))
+
+        text = f"🔎 نتایج جست‌وجوی سرویس\n\nعبارت: {query}\nتعداد نتیجه: {total}\nصفحه: {page} از {total_pages}"
+        buttons = result_buttons
+        if navigation:
+            buttons.append(navigation)
+    else:
+        text = f"❌ سرویسی با عبارت «{query}» در حساب شما پیدا نشد."
+        buttons = []
+
+    buttons.extend(
+        [
+            [Button.inline("🔄 جستجوی جدید", data=SERVICE_SEARCH_AGAIN_CALLBACK)],
+            [Button.inline("📋 همه سرویس‌ها", data=SERVICE_SEARCH_CLEAR_CALLBACK)],
+        ]
+    )
+
+    if edit_message and original_event:
+        await Kenzo.edit_message(
+            entity=original_event.original_update.user_id,
+            message=original_event.original_update.msg_id,
+            text=text,
+            buttons=buttons,
+            parse_mode=None,
+        )
+    else:
+        await Kenzo.send_message(entity=user_id, message=text, buttons=buttons, parse_mode=None)
 
 
 async def _deny_unless_service_owner_or_admin(event, serv_msg) -> bool:

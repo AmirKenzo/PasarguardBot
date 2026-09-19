@@ -64,7 +64,8 @@ from app.telegram.shared.keyboards.panel_buttons import (
 )
 from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.shared.utils.maintenance import bot_is_offline
-from app.telegram.state import clear_user, get_data, get_step, set_data, set_step
+from app.telegram.state import clear_user, delete_data_many, get_data, get_step, set_data, set_step
+from app.telegram.user.services import states
 from app.telegram.user.services.helpers import (
     SERVICE_CALLBACK_PREFIXES,
     _back_to_service,
@@ -76,11 +77,13 @@ from app.telegram.user.services.helpers import (
     display_subscription_links,
     display_usage_chart,
     display_usage_chart_day,
+    display_user_service_search_results,
     display_user_services,
     edit_service_view,
     generate_volume_buttons_tamdid,
     group_durations,
 )
+from app.telegram.user.services.search import SERVICE_SEARCH_PROMPT
 from app.telegram.user.services.states import BOT_LANGUAGE, SUB_LINKS_PAGE_LIMIT
 from app.utils.formatting.conversions import convert_storage, day_to_timestamp, gigabytes_to_bytes
 from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
@@ -100,6 +103,14 @@ async def service_callback_filter(event: events.CallbackQuery.Event) -> bool:
         return True
     if data.startswith(("PrevService", "NextService")):
         return True
+    if data in {
+        states.SERVICE_SEARCH_START_CALLBACK,
+        states.SERVICE_SEARCH_AGAIN_CALLBACK,
+        states.SERVICE_SEARCH_CLEAR_CALLBACK,
+    }:
+        return True
+    if data.startswith((states.SERVICE_SEARCH_PAGE_PREFIX, states.SERVICE_SEARCH_OPEN_PREFIX)):
+        return True
     return data.startswith(SERVICE_CALLBACK_PREFIXES)
 
 
@@ -113,7 +124,67 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
     info = await UserCRUD().read_user(event.sender_id)
     lang = info.language if info and info.language else BOT_LANGUAGE
 
-    if data.startswith("TamdidVPN_"):
+    if data.startswith(states.SERVICE_SEARCH_OPEN_PREFIX):
+        service_code = data[len(states.SERVICE_SEARCH_OPEN_PREFIX) :]
+        await set_data(event.sender_id, states.SERVICE_SEARCH_RETURN_KEY, "1")
+        data = f"service_info:{service_code}"
+
+    if data in {states.SERVICE_SEARCH_START_CALLBACK, states.SERVICE_SEARCH_AGAIN_CALLBACK}:
+        await delete_data_many(
+            event.sender_id,
+            (
+                states.SERVICE_SEARCH_QUERY_KEY,
+                states.SERVICE_SEARCH_PAGE_KEY,
+                states.SERVICE_SEARCH_RETURN_KEY,
+            ),
+        )
+        await set_step(event.sender_id, states.SERVICE_SEARCH_INPUT_STEP)
+        await event.edit(
+            SERVICE_SEARCH_PROMPT,
+            buttons=[[Button.inline("📋 بازگشت به همه سرویس‌ها", data=states.SERVICE_SEARCH_CLEAR_CALLBACK)]],
+        )
+
+    elif data.startswith(states.SERVICE_SEARCH_PAGE_PREFIX):
+        if await get_step(event.sender_id) != states.SERVICE_SEARCH_RESULTS_STEP:
+            await notify_session_expired(event)
+            return
+        query = await get_data(event.sender_id, states.SERVICE_SEARCH_QUERY_KEY)
+        if not query:
+            await notify_session_expired(event)
+            return
+        try:
+            page = int(data[len(states.SERVICE_SEARCH_PAGE_PREFIX) :])
+        except ValueError:
+            await event.answer("درخواست نامعتبر است.", alert=True)
+            return
+        await display_user_service_search_results(
+            event.sender_id,
+            str(query),
+            page=page,
+            edit_message=True,
+            original_event=event,
+        )
+
+    elif data == states.SERVICE_SEARCH_CLEAR_CALLBACK:
+        await delete_data_many(
+            event.sender_id,
+            (
+                states.SERVICE_SEARCH_QUERY_KEY,
+                states.SERVICE_SEARCH_PAGE_KEY,
+                states.SERVICE_SEARCH_RETURN_KEY,
+            ),
+        )
+        await set_step(event.sender_id, "SelectService")
+        current_user = await UserCRUD().read_user(event.sender_id)
+        current_page = current_user.page if current_user and current_user.page else 1
+        await display_user_services(
+            event.sender_id,
+            current_page=current_page,
+            edit_message=True,
+            original_event=event,
+        )
+
+    elif data.startswith("TamdidVPN_"):
         selected_code = data.replace("TamdidVPN_", "")
         _step = (await get_step(event.sender_id)) or ""
         if _step.startswith("ToServiceAdmin:"):
@@ -953,11 +1024,28 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
             logger.error(f"خطای غیرمنتظره: {e!s}")
 
     elif data in ("BackToServiceList", "BackToServiceListFromCredential"):
-        current_page = await UserCRUD().read_user(event.sender_id)
-        await set_step(event.sender_id, "SelectService")
-        await display_user_services(
-            event.sender_id, current_page=current_page.page, edit_message=True, original_event=event
-        )
+        return_to_search = await get_data(event.sender_id, states.SERVICE_SEARCH_RETURN_KEY)
+        search_query = await get_data(event.sender_id, states.SERVICE_SEARCH_QUERY_KEY)
+        if return_to_search and search_query:
+            search_page = await get_data(event.sender_id, states.SERVICE_SEARCH_PAGE_KEY)
+            await delete_data_many(event.sender_id, (states.SERVICE_SEARCH_RETURN_KEY,))
+            await set_step(event.sender_id, states.SERVICE_SEARCH_RESULTS_STEP)
+            await display_user_service_search_results(
+                event.sender_id,
+                str(search_query),
+                page=int(search_page or 1),
+                edit_message=True,
+                original_event=event,
+            )
+        else:
+            current_page = await UserCRUD().read_user(event.sender_id)
+            await set_step(event.sender_id, "SelectService")
+            await display_user_services(
+                event.sender_id,
+                current_page=current_page.page if current_page and current_page.page else 1,
+                edit_message=True,
+                original_event=event,
+            )
 
     elif data.startswith("DeleteService:"):
         service_code = data.split(":")[1]

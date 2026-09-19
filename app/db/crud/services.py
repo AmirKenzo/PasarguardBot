@@ -700,20 +700,34 @@ async def get_user_services(user_id):
         return f"Error in fetching user services: {e}"
 
 
-def _inline_service_search_filter(q: str):
-    """Prefix match on service code or config username (fast inline autocomplete)."""
+def _inline_service_search_filter(q: str, *, contains: bool = False):
+    """Match service code/username for autocomplete or the user's explicit search.
+
+    Existing admin/web autocomplete keeps its prefix behavior.  The Telegram
+    "my services" search opts into a literal contains match because users often
+    remember only the middle or end of a generated panel username.
+    """
     term = q.strip()
     if not term:
         return None
+    username_filter = (
+        Service.username.icontains(term, autoescape=True)
+        if contains
+        else Service.username.istartswith(term, autoescape=True)
+    )
     if term.isdigit():
+        if contains:
+            if len(term) <= 19:
+                return or_(Service.code == int(term), username_filter)
+            return username_filter
         return or_(
             cast(Service.code, String).like(f"{term}%"),
-            Service.username.ilike(f"{term}%"),
+            username_filter,
         )
-    return Service.username.ilike(f"{term}%")
+    return username_filter
 
 
-async def _paginate_services(*, filters: list, page: int, limit: int) -> tuple[list, int]:
+async def _paginate_services(*, filters: list, page: int, limit: int, order_by: list | None = None) -> tuple[list, int]:
     page = max(1, page)
     limit = min(max(1, limit), 50)
     offset = (page - 1) * limit
@@ -726,9 +740,8 @@ async def _paginate_services(*, filters: list, page: int, limit: int) -> tuple[l
                 stmt = stmt.where(cond)
                 count_stmt = count_stmt.where(cond)
             total = (await session.execute(count_stmt)).scalar() or 0
-            result = await session.execute(
-                stmt.order_by(Service.createtime.desc(), Service.code.desc()).limit(limit).offset(offset)
-            )
+            sort_clauses = [*(order_by or []), Service.createtime.desc(), Service.code.desc()]
+            result = await session.execute(stmt.order_by(*sort_clauses).limit(limit).offset(offset))
             return list(result.scalars().all()), int(total)
     except (SQLAlchemyError, ValueError) as e:
         logger.error(f"Error in service pagination: {e}")
@@ -736,16 +749,40 @@ async def _paginate_services(*, filters: list, page: int, limit: int) -> tuple[l
 
 
 async def get_user_services_paginated(
-    user_id: int, page: int = 1, limit: int = 10, search: str | None = None, panel_code: int | None = None
+    user_id: int,
+    page: int = 1,
+    limit: int = 10,
+    search: str | None = None,
+    panel_code: int | None = None,
+    *,
+    contains: bool = False,
 ) -> tuple[list, int]:
-    """Get user services with pagination. Search: prefix on code or username."""
+    """Get one user's services with database pagination.
+
+    Search defaults to the existing prefix autocomplete behavior.  ``contains``
+    enables a literal substring match and exact numeric service-code lookup for
+    the Telegram "my services" search.
+    """
     filters = [Service.id == user_id]
     if panel_code is not None:
         filters.append(Service.in_panel == panel_code)
-    search_filter = _inline_service_search_filter(search) if search else None
+    search_filter = _inline_service_search_filter(search, contains=contains) if search else None
     if search_filter is not None:
         filters.append(search_filter)
-    return await _paginate_services(filters=filters, page=page, limit=limit)
+    order_by = []
+    if search and contains:
+        term = search.strip()
+        exact_filters = [func.lower(Service.username) == term.lower()]
+        if term.isdigit() and len(term) <= 19:
+            exact_filters.append(Service.code == int(term))
+        order_by.append(
+            case(
+                (or_(*exact_filters), 0),
+                (Service.username.istartswith(term, autoescape=True), 1),
+                else_=2,
+            )
+        )
+    return await _paginate_services(filters=filters, page=page, limit=limit, order_by=order_by)
 
 
 async def get_user_service_panel_counts(user_id: int) -> list[tuple[int, int]]:
