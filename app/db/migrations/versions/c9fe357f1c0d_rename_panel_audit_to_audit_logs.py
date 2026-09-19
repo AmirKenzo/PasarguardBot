@@ -23,17 +23,46 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    tables = sa.inspect(op.get_bind()).get_table_names()
+    inspector = sa.inspect(op.get_bind())
+    tables = inspector.get_table_names()
 
-    # Already on the new name (renamed already, or created directly under it)
-    # — nothing to do.
     if "audit_logs" in tables:
+        # Table already has its final name — but a previous run may have
+        # crashed between the rename and the column/index rework below (the
+        # MySQL "existing type" error this revision used to hit), leaving
+        # the old admin_* columns and indexes in place. Finish that work
+        # instead of silently treating the table as fully migrated.
+        columns = {c["name"] for c in inspector.get_columns("audit_logs")}
+        indexes = {ix["name"] for ix in inspector.get_indexes("audit_logs")}
+
+        if "admin_id" in columns:
+            op.alter_column("audit_logs", "admin_id", new_column_name="actor_id", existing_type=sa.BigInteger())
+        if "admin_username" in columns:
+            op.alter_column(
+                "audit_logs",
+                "admin_username",
+                new_column_name="actor_username",
+                existing_type=sa.String(length=64),
+            )
+        if "ix_panel_audit_created" in indexes:
+            op.drop_index("ix_panel_audit_created", table_name="audit_logs")
+        if "ix_panel_audit_admin" in indexes:
+            op.drop_index("ix_panel_audit_admin", table_name="audit_logs")
+        if "ix_audit_created" not in indexes:
+            op.create_index("ix_audit_created", "audit_logs", ["created_at"])
+        if "ix_audit_actor" not in indexes:
+            op.create_index("ix_audit_actor", "audit_logs", ["actor_id"])
         return
 
     if "panel_audit_logs" in tables:
         op.rename_table("panel_audit_logs", "audit_logs")
-        op.alter_column("audit_logs", "admin_id", new_column_name="actor_id")
-        op.alter_column("audit_logs", "admin_username", new_column_name="actor_username")
+        op.alter_column("audit_logs", "admin_id", new_column_name="actor_id", existing_type=sa.BigInteger())
+        op.alter_column(
+            "audit_logs",
+            "admin_username",
+            new_column_name="actor_username",
+            existing_type=sa.String(length=64),
+        )
         op.drop_index("ix_panel_audit_created", table_name="audit_logs")
         op.drop_index("ix_panel_audit_admin", table_name="audit_logs")
         op.create_index("ix_audit_created", "audit_logs", ["created_at"])
@@ -71,6 +100,11 @@ def downgrade() -> None:
     op.create_index("ix_panel_audit_admin", "audit_logs", ["actor_id"])
     op.create_index("ix_panel_audit_created", "audit_logs", ["created_at"])
 
-    op.alter_column("audit_logs", "actor_username", new_column_name="admin_username")
-    op.alter_column("audit_logs", "actor_id", new_column_name="admin_id")
+    op.alter_column(
+        "audit_logs",
+        "actor_username",
+        new_column_name="admin_username",
+        existing_type=sa.String(length=64),
+    )
+    op.alter_column("audit_logs", "actor_id", new_column_name="admin_id", existing_type=sa.BigInteger())
     op.rename_table("audit_logs", "panel_audit_logs")
