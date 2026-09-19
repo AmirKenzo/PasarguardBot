@@ -312,9 +312,9 @@ async def build_service_info_message_text(serv_msg, info_panel, user: UserRespon
             serv_msg.data_limit_reset_strategy, "دوره‌ای"
         )
         now = datetime.now()
-        if user.expire.tzinfo is not None:
+        if user.expire is not None and user.expire.tzinfo is not None:
             now = datetime.now(UTC)
-        remaining_days = (user.expire - now).days
+        remaining_days = (user.expire - now).days if user.expire is not None else 0
         if remaining_days < 0:
             remaining_days = 0
         daily_limit_bytes = user.data_limit
@@ -345,7 +345,7 @@ async def build_service_info_message_text(serv_msg, info_panel, user: UserRespon
 
     ip_limit_text = format_ip_limit(getattr(serv_msg, "ip_limit", 0))
     status_value = status_texts.get(user.status.lower(), "نامشخص")
-    expiry_date_value = timestamp_to_persian_expiry(user.expire.timestamp())
+    expiry_date_value = "♾️ نامحدود" if user.expire is None else timestamp_to_persian_expiry(user.expire.timestamp())
     last_connection_value = relative_time(user.online_at) if user.online_at else ""
     edit_at_value = relative_time(user.edit_at) if user.edit_at else ""
     lifetime_used_traffic_value = format_size(int(getattr(user, "lifetime_used_traffic", 0) or 0), decimal_places=2)
