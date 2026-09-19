@@ -2383,6 +2383,7 @@ action_install_docker() {
     info "Commands:"
     echo -e "  ${C_DIM}Manage:${C_RESET}   pasarguardbot"
     echo -e "  ${C_DIM}Status:${C_RESET}   pasarguardbot → option 7"
+    show_live_logs_after
     pause
 }
 
@@ -2420,6 +2421,7 @@ action_install_native() {
     set_install_branch "$branch"
     show_native_install_summary
     echo -e "  ${C_DIM}Branch:${C_RESET}  ${branch}"
+    show_live_logs_after
     pause
 }
 
