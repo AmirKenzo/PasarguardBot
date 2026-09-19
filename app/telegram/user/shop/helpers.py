@@ -60,7 +60,7 @@ from app.telegram.shared.utils.username import (
 )
 from app.telegram.state import clear_user, delete_data_many, get_data, get_data_many, set_data, set_step
 from app.telegram.user.shop import states
-from app.utils.formatting.conversions import convert_storage, day_to_timestamp, gigabytes_to_bytes
+from app.utils.formatting.conversions import convert_storage, gigabytes_to_bytes, plan_duration_to_expire
 from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_ip_limit
 from app.utils.media.qrcode import create_qr_code
@@ -469,7 +469,7 @@ async def create_vpn_purchase_for_user(
         username=username,
         group_ids=group_ids,
         data_limit=gigabytes_to_bytes(float(gig)),
-        expire=day_to_timestamp(int(plan.duration)),
+        expire=plan_duration_to_expire(plan.duration),
         note=f"{user_id}",
         data_limit_reset_strategy=reset_strategy,
         hwid_limit=ip_limit if ip_limit > 0 else None,
@@ -588,7 +588,7 @@ async def create_vpn_purchase_for_user(
         id=user_id,
         package_size=gigabytes_to_bytes(float(gig)),
         createtime=Time_Date()["stamp"],
-        expiration_time=day_to_timestamp(int(plan.duration)),
+        expiration_time=plan_duration_to_expire(plan.duration),
         data_limit_reset_strategy=plan.data_limit_reset_strategy
         if plan and hasattr(plan, "data_limit_reset_strategy")
         else "no_reset",

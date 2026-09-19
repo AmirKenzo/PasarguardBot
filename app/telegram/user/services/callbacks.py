@@ -85,7 +85,7 @@ from app.telegram.user.services.helpers import (
 )
 from app.telegram.user.services.search import SERVICE_SEARCH_PROMPT
 from app.telegram.user.services.states import BOT_LANGUAGE, SUB_LINKS_PAGE_LIMIT
-from app.utils.formatting.conversions import convert_storage, day_to_timestamp, gigabytes_to_bytes
+from app.utils.formatting.conversions import convert_storage, gigabytes_to_bytes, plan_duration_to_expire
 from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_ip_limit, format_size
 from app.utils.media.qrcode import create_qr_code
@@ -540,7 +540,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                 await ServiceCRUD().update_service(
                     code=ConfigID,
                     package_size=int(new_hajm),
-                    expiration_time=day_to_timestamp(int(plan.duration)),
+                    expiration_time=plan_duration_to_expire(plan.duration),
                     warning=0,
                     warning_time=0,
                     low_volume_notified=False,
@@ -705,7 +705,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     await ServiceCRUD().update_service(
                         code=ConfigID,
                         package_size=int(new_hajm),
-                        expiration_time=day_to_timestamp(int(plan.duration)),
+                        expiration_time=plan_duration_to_expire(plan.duration),
                         warning=0,
                         warning_time=0,
                         low_volume_notified=False,

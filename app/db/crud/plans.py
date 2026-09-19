@@ -38,8 +38,9 @@ class PlanManager:
                     "year": "سالانه",
                 }.get(data_limit_reset_strategy, "بدون ریست")
                 ip_limit_text = "نامحدود" if ip_limit == 0 else f"{ip_limit} کاربر"
+                duration_text = "نامحدود" if int(duration or 0) == 0 else f"{duration} روز"
 
-                return f"پلن {plan_type_text} با قیمت {price}، حجم {storage} گیگابایت، زمان {duration} روز، ریست {reset_text} و محدودیت کاربر {ip_limit_text} اضافه شد."
+                return f"پلن {plan_type_text} با قیمت {price}، حجم {storage} گیگابایت، زمان {duration_text}، ریست {reset_text} و محدودیت کاربر {ip_limit_text} اضافه شد."
         except SQLAlchemyError as e:
             return f"خطا در افزودن پنل: {e}"
 
