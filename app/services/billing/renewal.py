@@ -12,7 +12,7 @@ from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import debit_Money_if_sufficient, update_Money
 from app.logger import get_logger
 from app.services.panels.settings import panel_renew_volume_remaining_mode
-from app.utils.formatting.conversions import day_to_timestamp, gigabytes_to_bytes
+from app.utils.formatting.conversions import gigabytes_to_bytes, plan_duration_to_expire
 
 logger = get_logger(__name__)
 
@@ -117,7 +117,7 @@ async def apply_panel_user_renewal(
         user_id=panel_userid,
         user=UserModify(
             data_limit=new_hajm,
-            expire=day_to_timestamp(int(plan.duration)),
+            expire=plan_duration_to_expire(plan.duration),
             data_limit_reset_strategy=reset_strategy,
             hwid_limit=ip_limit if ip_limit > 0 else 0,
         ),
@@ -162,7 +162,7 @@ async def execute_paid_service_renewal(
         await service_crud.update_service(
             code=service.code,
             package_size=int(new_hajm),
-            expiration_time=day_to_timestamp(int(plan.duration)),
+            expiration_time=plan_duration_to_expire(plan.duration),
             **service_updates,
         )
         return new_hajm, int(new_balance)

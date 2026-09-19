@@ -49,7 +49,8 @@ async def message_handler_plans(event: Message):
         with contextlib.suppress(Exception):
             await Kenzo.delete_messages(user_id, [event.message.id])
 
-        if is_number(msg):
+        plan_type = await get_data(user_id, "plan_type")
+        if is_number(msg) and not (plan_type == "volume" and float(msg) <= 0):
             hajm = float(msg)
             await set_data(user_id, "addPlanHajm", msg)
             buttons = [
@@ -60,7 +61,7 @@ async def message_handler_plans(event: Message):
             ]
             # Create message with previous data
             message_text = f"💾 **حجم:** {hajm} گیگابایت\n\n"
-            message_text += "📅 تعداد روز رو به عدد ( 123) وارد کنید:"
+            message_text += "📅 تعداد روز را وارد کنید (0 برای زمان نامحدود):"
 
             # Edit previous volume message to show time input
             prev_msg_id = await get_data(user_id, "addPlan_volume_msg_id")
@@ -85,17 +86,20 @@ async def message_handler_plans(event: Message):
                     Button.inline("🔙 بازگشت", data="BackToVolumeInput"),
                 ],
             ]
+            error_text = (
+                "❌ در پلن حجمی حجم نمی‌تواند صفر باشد."
+                if plan_type == "volume" and is_number(msg)
+                else "📅 فقط مجاز به ارسال عدد هستید"
+            )
             # Edit previous volume message to show error
             prev_msg_id = await get_data(user_id, "addPlan_volume_msg_id")
             if prev_msg_id:
                 try:
-                    await Kenzo.edit_message(
-                        user_id, int(prev_msg_id), "📅 فقط مجاز به ارسال عدد هستید", buttons=buttons
-                    )
+                    await Kenzo.edit_message(user_id, int(prev_msg_id), error_text, buttons=buttons)
                 except Exception:
-                    await event.respond("📅 فقط مجاز به ارسال عدد هستید", buttons=buttons)
+                    await event.respond(error_text, buttons=buttons)
             else:
-                await event.respond("📅 فقط مجاز به ارسال عدد هستید", buttons=buttons)
+                await event.respond(error_text, buttons=buttons)
 
     elif msg and await get_step(user_id) == "addPlan_2":
         # Delete user's message
@@ -116,8 +120,9 @@ async def message_handler_plans(event: Message):
                 ],
             ]
             # Create message with previous data
+            time_text = "♾️ نامحدود" if time_days == 0 else f"{time_days} روز"
             message_text = f"💾 **حجم:** {hajm_text}\n"
-            message_text += f"📅 **زمان:** {time_days} روز\n\n"
+            message_text += f"📅 **زمان:** {time_text}\n\n"
             message_text += "💰 قیمت پلن رو ارسال کنید\nمثال» 10.000"
 
             # Edit previous time message to show price input
@@ -167,7 +172,12 @@ async def message_handler_plans(event: Message):
             hajm = await get_data(user_id, "addPlanHajm")
             time_days = await get_data(user_id, "addPlanTime")
             hajm_text = f"{float(hajm)} گیگابایت" if hajm else "تعیین نشده"
-            time_text = f"{int(time_days)} روز" if time_days else "تعیین نشده"
+            if time_days is None or time_days == "":
+                time_text = "تعیین نشده"
+            elif int(time_days) == 0:
+                time_text = "♾️ نامحدود"
+            else:
+                time_text = f"{int(time_days)} روز"
 
             buttons = [
                 [

@@ -69,6 +69,14 @@ def day_to_timestamp_utc(days: int) -> int:
     return int(expiry_time.timestamp())
 
 
+def plan_duration_to_expire(duration: int | float | None) -> int | None:
+    """Unix expiry timestamp for a plan's duration, or None (unlimited) when duration is 0."""
+    duration_days = int(duration or 0)
+    if duration_days <= 0:
+        return None
+    return day_to_timestamp(duration_days)
+
+
 def to_unix_timestamp(value: object) -> int | None:
     """Best-effort conversion of a datetime/int/float value to a unix timestamp."""
 

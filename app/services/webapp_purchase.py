@@ -24,7 +24,7 @@ from app.services.purchase_report import send_purchase_report
 from app.services.send_queue import enqueue
 from app.services.subscriptions.links import format_subscription_links_for_message
 from app.services.users.identifiers import generate_username
-from app.utils.formatting.conversions import convert_storage, day_to_timestamp, gigabytes_to_bytes
+from app.utils.formatting.conversions import convert_storage, gigabytes_to_bytes, plan_duration_to_expire
 from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_ip_limit
 
@@ -232,7 +232,7 @@ class WebAppPurchaseService:
             username=username,
             group_ids=group_ids,
             data_limit=gigabytes_to_bytes(float(plan.storage)),
-            expire=day_to_timestamp(int(plan.duration)),
+            expire=plan_duration_to_expire(plan.duration),
             note=f"{user_id}",
             data_limit_reset_strategy=reset_strategy,
         )
@@ -273,7 +273,7 @@ class WebAppPurchaseService:
             id=user_id,
             package_size=gigabytes_to_bytes(float(plan.storage)),
             createtime=Time_Date()["stamp"],
-            expiration_time=day_to_timestamp(int(plan.duration)),
+            expiration_time=plan_duration_to_expire(plan.duration),
             data_limit_reset_strategy=getattr(plan, "data_limit_reset_strategy", None) or "no_reset",
             ip_limit=getattr(plan, "ip_limit", 0) or 0,
             is_test=False,
