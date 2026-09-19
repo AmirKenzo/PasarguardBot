@@ -21,24 +21,46 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "stars_transactions",
-        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
-        sa.Column("invoice_no", sa.String(length=16), nullable=False),
-        sa.Column("user_id", sa.BigInteger(), nullable=False),
-        sa.Column("amount", sa.BigInteger(), nullable=False),
-        sa.Column("stars", sa.BigInteger(), nullable=False),
-        sa.Column("status", sa.String(length=20), nullable=False, server_default="pending"),
-        sa.Column("created_at", sa.BigInteger(), nullable=False),
-        sa.Column("paid_at", sa.BigInteger(), nullable=True),
-        sa.Column("message_id", sa.BigInteger(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_tables = inspector.get_table_names()
+
+    if "stars_transactions" not in existing_tables:
+        op.create_table(
+            "stars_transactions",
+            sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
+            sa.Column("invoice_no", sa.String(length=16), nullable=False),
+            sa.Column("user_id", sa.BigInteger(), nullable=False),
+            sa.Column("amount", sa.BigInteger(), nullable=False),
+            sa.Column("stars", sa.BigInteger(), nullable=False),
+            sa.Column("status", sa.String(length=20), nullable=False, server_default="pending"),
+            sa.Column("created_at", sa.BigInteger(), nullable=False),
+            sa.Column("paid_at", sa.BigInteger(), nullable=True),
+            sa.Column("message_id", sa.BigInteger(), nullable=True),
+            sa.PrimaryKeyConstraint("id"),
+        )
+
+    existing_indexes = (
+        {ix["name"] for ix in inspector.get_indexes("stars_transactions")}
+        if "stars_transactions" in existing_tables
+        else set()
     )
-    op.create_index("ix_stars_invoice_no", "stars_transactions", ["invoice_no"], unique=True)
-    op.create_index("ix_stars_user_status", "stars_transactions", ["user_id", "status"])
+
+    if "ix_stars_invoice_no" not in existing_indexes:
+        op.create_index("ix_stars_invoice_no", "stars_transactions", ["invoice_no"], unique=True)
+    if "ix_stars_user_status" not in existing_indexes:
+        op.create_index("ix_stars_user_status", "stars_transactions", ["user_id", "status"])
 
 
 def downgrade() -> None:
-    op.drop_index("ix_stars_user_status", table_name="stars_transactions")
-    op.drop_index("ix_stars_invoice_no", table_name="stars_transactions")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "stars_transactions" not in inspector.get_table_names():
+        return
+
+    existing_indexes = {ix["name"] for ix in inspector.get_indexes("stars_transactions")}
+    if "ix_stars_user_status" in existing_indexes:
+        op.drop_index("ix_stars_user_status", table_name="stars_transactions")
+    if "ix_stars_invoice_no" in existing_indexes:
+        op.drop_index("ix_stars_invoice_no", table_name="stars_transactions")
     op.drop_table("stars_transactions")
