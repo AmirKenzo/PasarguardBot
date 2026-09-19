@@ -22,8 +22,9 @@ from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.guards.channel_gate import ensure_channel_membership
 from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.shared.utils.maintenance import bot_is_offline
-from app.telegram.state import clear_user, get_data, get_step, set_data, set_step
+from app.telegram.state import clear_user, delete_data_many, get_data, get_step, set_data, set_step
 from app.telegram.user.services import helpers, states
+from app.telegram.user.services.search import validate_service_search_query
 from app.utils.formatting.conversions import convert_storage, gigabytes_to_bytes
 from app.utils.formatting.traffic import format_ip_limit, format_size
 from app.utils.text.bot_texts import get_bot_text
@@ -38,6 +39,14 @@ async def my_services_handler(event: Message):
         raise events.StopPropagation
 
     user_id = event.sender_id
+    await delete_data_many(
+        user_id,
+        (
+            states.SERVICE_SEARCH_QUERY_KEY,
+            states.SERVICE_SEARCH_PAGE_KEY,
+            states.SERVICE_SEARCH_RETURN_KEY,
+        ),
+    )
     await set_step(user_id=user_id, step="SelectService")
     await UserCRUD().update_user(user_id=user_id, page=1)
     current_page = await UserCRUD().read_user(user_id)
@@ -53,8 +62,23 @@ async def service_message_handler(event: Message):
     msg = event.message.message or event.message.text or ""
     info = await UserCRUD().read_user(event.sender_id)
     lang = info.language if info and info.language else states.BOT_LANGUAGE
+    step = await get_step(event.sender_id)
 
-    if await get_step(event.sender_id) == "WhatingForCodeTakhfifTamdid":
+    if step == states.SERVICE_SEARCH_INPUT_STEP:
+        query, error = validate_service_search_query(msg)
+        if error:
+            await event.respond(
+                error,
+                buttons=[[Button.inline("📋 بازگشت به همه سرویس‌ها", data=states.SERVICE_SEARCH_CLEAR_CALLBACK)]],
+            )
+            raise events.StopPropagation
+
+        await set_data(event.sender_id, states.SERVICE_SEARCH_QUERY_KEY, query)
+        await set_step(event.sender_id, states.SERVICE_SEARCH_RESULTS_STEP)
+        await helpers.display_user_service_search_results(event.sender_id, query, page=1)
+        raise events.StopPropagation
+
+    if step == "WhatingForCodeTakhfifTamdid":
         status, res = await DiscountCodeManager().validate_discount_code(code=msg, user_id=event.sender_id)
         msg_id_takhfif = await get_data(event.sender_id, "msg_id_takhfif")
         await event.client.delete_messages(event.chat_id, msg_id_takhfif)
@@ -147,7 +171,7 @@ async def service_message_handler(event: Message):
         await set_step(event.sender_id, "Takhfif_confirm_purchase_tamdid")
         raise events.StopPropagation
 
-    if await get_step(event.sender_id) == "whating_send_TransferConfig":
+    if step == "whating_send_TransferConfig":
         if msg.isdigit():
             user_id = int(msg)
 
@@ -226,7 +250,11 @@ async def service_message_filter(event: Message) -> bool:
         return False
     if not (event.message.message or event.message.text or ""):
         return False
-    return await get_step(event.sender_id) in {"WhatingForCodeTakhfifTamdid", "whating_send_TransferConfig"}
+    return await get_step(event.sender_id) in {
+        states.SERVICE_SEARCH_INPUT_STEP,
+        "WhatingForCodeTakhfifTamdid",
+        "whating_send_TransferConfig",
+    }
 
 
 def register(client):
