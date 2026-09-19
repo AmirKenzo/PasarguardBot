@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # ── Paths & constants ──────────────────────────────────────────────────────────
-readonly SCRIPT_VERSION="1.3.1"
+readonly SCRIPT_VERSION="1.3.2"
 readonly CONFIG_DIR="/opt/pasarguardbot"
 readonly COMPOSE_FILE="${CONFIG_DIR}/docker-compose.yml"
 readonly ENV_FILE="${CONFIG_DIR}/.env"
@@ -2383,6 +2383,7 @@ action_install_docker() {
     info "Commands:"
     echo -e "  ${C_DIM}Manage:${C_RESET}   pasarguardbot"
     echo -e "  ${C_DIM}Status:${C_RESET}   pasarguardbot → option 7"
+    show_live_logs_after
     pause
 }
 
@@ -2420,6 +2421,7 @@ action_install_native() {
     set_install_branch "$branch"
     show_native_install_summary
     echo -e "  ${C_DIM}Branch:${C_RESET}  ${branch}"
+    show_live_logs_after
     pause
 }
 
