@@ -10,8 +10,8 @@ written:
 - `commit_migration` writes what `resolve_migration` already found — it does not
   re-query the panels, so the numbers the admin approved are exactly what gets created.
 
-Users are matched by Telegram id, panels by base_url, services by panel username —
-anything already present is skipped rather than overwritten.
+Users are matched by Telegram id, panels by base_url, and services by the pair
+``(panel, username)`` — anything already present is skipped rather than overwritten.
 """
 
 from __future__ import annotations
@@ -81,11 +81,11 @@ async def _existing_user_ids(telegram_ids: list[int]) -> set[int]:
     return existing
 
 
-async def _existing_service_usernames(candidates: list[str]) -> set[str]:
+async def _existing_panel_service_usernames(panel_code: int, candidates: list[str]) -> set[str]:
     existing: set[str] = set()
     for start in range(0, len(candidates), _DB_BATCH_SIZE):
         batch = candidates[start : start + _DB_BATCH_SIZE]
-        rows = await ServiceCRUD().get_services_by_usernames(batch)
+        rows = await ServiceCRUD().get_services_by_panel_and_usernames(panel_code, batch)
         existing.update(row.username for row in rows)
     return existing
 
@@ -194,7 +194,8 @@ async def _resolve_panel(source_panel: ParsedPanel, services: list[ParsedService
 
     if services:
         all_candidates = sorted({c for s in services for c in s.username_candidates})
-        rp.already_in_db = await _existing_service_usernames(all_candidates)
+        if existing_db_panel is not None:
+            rp.already_in_db = await _existing_panel_service_usernames(existing_db_panel.code, all_candidates)
         to_query = sorted({c for c in all_candidates if c not in rp.already_in_db})
         rp.matched_users = await _fetch_panel_users(panel_for_lookup, to_query)
 
