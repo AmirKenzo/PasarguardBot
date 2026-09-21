@@ -14,7 +14,7 @@ from telethon.tl.custom import Message
 
 from app import Kenzo
 from app.db.crud.cards import ManualCardManager
-from app.db.crud.cryptopayments import add_order_crypto_payment, count_pending_orders
+from app.db.crud.cryptopayments import CryptoPaymentsCRUD, add_order_crypto_payment, count_pending_orders
 from app.db.crud.keyboards import get_button_text
 from app.db.crud.log_channels import LogChannelManager
 from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
@@ -643,9 +643,10 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
 
     order = random.randint(55555, 999999)
     arz_lower = arz.lower()
+    reserved = {str(p.amount) for p in await CryptoPaymentsCRUD().get_pending_by_arz(arz_lower)}
     open_wallet_url: str | None = None
     if arz_lower == "trx":
-        crypto_amount = await calculate_trx_amount_with_tax(int(settings.arz_trx), amount)
+        crypto_amount = await calculate_trx_amount_with_tax(int(settings.arz_trx), amount, reserved_amounts=reserved)
         wallet = await WalletCRUD().get_wallet_by_type("TRX")
         if not wallet:
             await event.respond(texts.WALLET_NOT_FOUND_TRX)
@@ -679,7 +680,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت ترون: <code>{settings.arz_trx:,}</code> هزار تومان"
         )
     elif arz_lower == "usdt":
-        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount)
+        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount, reserved_amounts=reserved)
         wallet = await WalletCRUD().get_wallet_by_type("USDT")
         if not wallet:
             await event.respond(texts.WALLET_NOT_FOUND_USDT)
@@ -711,7 +712,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     elif arz_lower == "usdt-ton":
-        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount)
+        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount, reserved_amounts=reserved)
         wallet = await WalletCRUD().get_wallet_by_type(USDT_TON)
         if not wallet:
             await event.respond(texts.WALLET_NOT_FOUND_USDT_TON)
@@ -746,7 +747,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     elif arz_lower == "usdt-bep20":
-        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount)
+        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount, reserved_amounts=reserved)
         wallet = await WalletCRUD().get_wallet_by_type(USDT_BEP20)
         if not wallet:
             await event.respond(texts.WALLET_NOT_FOUND_USDT_BEP20)
@@ -779,7 +780,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     elif arz_lower == "ton":
-        crypto_amount = await calculate_ton_amount_with_tax(int(settings.arz_ton), amount)
+        crypto_amount = await calculate_ton_amount_with_tax(int(settings.arz_ton), amount, reserved_amounts=reserved)
         wallet = await WalletCRUD().get_wallet_by_type("TON")
         if not wallet:
             await event.respond(texts.WALLET_NOT_FOUND_TON)
@@ -814,7 +815,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     elif arz_lower == "pol":
-        crypto_amount = await calculate_pol_amount_with_tax(int(settings.arz_pol), amount)
+        crypto_amount = await calculate_pol_amount_with_tax(int(settings.arz_pol), amount, reserved_amounts=reserved)
         wallet = await WalletCRUD().get_wallet_by_type("POL")
         if not wallet:
             await event.respond(texts.WALLET_NOT_FOUND_POL)

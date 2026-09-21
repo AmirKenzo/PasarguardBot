@@ -25,6 +25,7 @@ from app.telegram.shared.utils.logging import send_log_message
 from config import TON_TESTNET_MODE
 
 from .base import BasePaymentProcessor
+from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
 
@@ -310,6 +311,7 @@ class TONProcessor(BasePaymentProcessor):
             # Fetch all transactions once
             all_transactions = await _fetch_ton_transactions(client, base_url, address_wallet, earliest_time, None)
             logger.debug("Fetched %s total transactions from TonCenter", len(all_transactions))
+            consumed: set[str] = set()
 
             # Process each payment with the fetched transactions
             for payment in valid_payments:
@@ -337,6 +339,9 @@ class TONProcessor(BasePaymentProcessor):
                         address_wallet,
                         payment.order_id,
                     )
+                    txid = chain_tx_id(transaction)
+                    if txid and txid in consumed:
+                        continue
 
                     is_valid = await self._validate_transaction(transaction, payment.amount, address_wallet)
                     if not is_valid:
@@ -345,6 +350,8 @@ class TONProcessor(BasePaymentProcessor):
                     paytime = int(datetime.now(UTC).timestamp())
                     try:
                         await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
+                        if txid:
+                            consumed.add(txid)
                         break
                     except Exception as e:
                         logger.error("Error processing TON payment %s: %s", payment.order_id, e)

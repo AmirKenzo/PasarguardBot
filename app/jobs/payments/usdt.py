@@ -25,6 +25,7 @@ from app.telegram.shared.utils.logging import send_log_message
 from config import TRX_TESTNET_MODE
 
 from .base import BasePaymentProcessor
+from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
 
@@ -352,6 +353,7 @@ class USDTProcessor(BasePaymentProcessor):
             all_transactions = await _fetch_token_transfers(
                 client, base_url, headers, address_wallet, earliest_ms, "batch", usdt_contract
             )
+            consumed: set[str] = set()
 
             for payment in valid_payments:
                 start_ms = payment.createtime * 1000
@@ -374,6 +376,9 @@ class USDTProcessor(BasePaymentProcessor):
                     tx_to = transaction.get("to") or transaction.get("toAddress") or transaction.get("ownerAddress")
                     if tx_to and tx_to.lower() != address_wallet.lower():
                         continue
+                    txid = chain_tx_id(transaction)
+                    if txid and txid in consumed:
+                        continue
 
                     if not await self._validate_transaction(transaction, payment.amount, address_wallet):
                         continue
@@ -381,6 +386,8 @@ class USDTProcessor(BasePaymentProcessor):
                     paytime = int(datetime.now(UTC).timestamp())
                     try:
                         await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
+                        if txid:
+                            consumed.add(txid)
                         break
                     except Exception as e:
                         logger.error("Error processing USDT payment %s: %s", payment.order_id, e)
