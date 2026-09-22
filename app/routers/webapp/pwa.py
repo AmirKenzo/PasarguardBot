@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.db.crud.settings import SettingsManager
 from app.services.pwa_icons import icon_filenames, resolve_icon_path
-from config import env
+from config import WEBAPP_URL
 
 router = APIRouter()
 
@@ -29,7 +29,7 @@ def _webapp_scope() -> str:
     this backend, in which case the real, working entry point is whatever
     ``WEBAPP_URL`` (already used to open the Telegram Mini App) points at.
     """
-    path = urlparse(env.WEBAPP_URL).path or "/webapp"
+    path = urlparse(WEBAPP_URL).path or "/webapp"
     return path if path.endswith("/") else f"{path}/"
 
 
