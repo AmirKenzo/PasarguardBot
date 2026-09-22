@@ -29,6 +29,11 @@ DEFAULT_CORE_SETTINGS: dict[str, Any] = {
     "start_reaction_emoji": "🔥",
     "start_effect_id": 5046509860389126442,
     "backup_interval_hours": 24,
+    "api_key_login_mode": "none",
+    "pwa_app_name": "PasarguardBot WebApp",
+    "pwa_short_name": "PasarguardBot",
+    "pwa_description": "",
+    "pwa_icon_updated_at": 0,
     **DEFAULT_HOME_MENU_SETTINGS,
 }
 

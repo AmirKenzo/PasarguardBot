@@ -14,6 +14,18 @@ export class ApiError extends Error {
   }
 }
 
+/** Set by AuthContext so a sliding-session renewal (X-Session-Token response header) can update stored state. */
+let onTokenRenewed: ((token: string) => void) | null = null;
+
+export function setTokenRenewedHandler(handler: ((token: string) => void) | null): void {
+  onTokenRenewed = handler;
+}
+
+function handleTokenRenewal(res: Response): void {
+  const renewed = res.headers.get("x-session-token");
+  if (renewed) onTokenRenewed?.(renewed);
+}
+
 async function parseJson(res: Response): Promise<unknown> {
   const text = await res.text();
   if (!text) return {};
@@ -80,6 +92,7 @@ export async function apiPost<TRes extends { ok: boolean; error?: string | null 
   } catch {
     throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
+  handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
   return unwrap(payload);
 }
@@ -111,6 +124,7 @@ export async function apiGet<TRes extends { ok: boolean; error?: string | null }
   } catch {
     throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
+  handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
   return unwrap(payload);
 }
@@ -139,6 +153,7 @@ export async function apiPostForm<TRes extends { ok: boolean; error?: string | n
   } catch {
     throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
+  handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
   return unwrap(payload);
 }

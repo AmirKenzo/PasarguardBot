@@ -21,3 +21,7 @@ business_connections.json
 /frontend/dist
 /frontend/package-lock.json
 /frontend/tsconfig.tsbuildinfo
+/.claude
+
+# Admin-uploaded PWA icons (runtime data, not source)
+/data/pwa_icons/

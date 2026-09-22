@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -31,7 +32,37 @@ export default defineConfig(({ mode }) => {
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || "http://127.0.0.1:8001";
 
   return {
-    plugins: [devWebappRedirectPlugin(), react()],
+    plugins: [
+      devWebappRedirectPlugin(),
+      react(),
+      VitePWA({
+        registerType: "autoUpdate",
+        injectRegister: "auto",
+        base: "/webapp/",
+        // The manifest and icons are served dynamically by the backend (admin-
+        // editable name/description/icon), not generated statically here.
+        manifest: false,
+        includeAssets: ["icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-192.png", "icons/icon-maskable-512.png"],
+        workbox: {
+          globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          navigateFallback: "/webapp/index.html",
+          navigateFallbackDenylist: [/^\/api\//],
+          runtimeCaching: [
+            {
+              // Always try the live manifest/icons first so an admin's edit
+              // shows up immediately; fall back to cache only when offline.
+              // Served from /api/webapp/... — see pwaBranding.ts for why.
+              urlPattern: /\/api\/webapp\/(manifest\.webmanifest|icons\/.*)/,
+              handler: "NetworkFirst",
+              options: { cacheName: "pwa-branding" },
+            },
+          ],
+        },
+        devOptions: {
+          enabled: false,
+        },
+      }),
+    ],
     base: "/webapp/",
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),

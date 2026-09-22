@@ -13,10 +13,14 @@ from fastapi import APIRouter, Request
 from app import Kenzo
 from app.db.crud.cryptopayments import get_user_crypto_stats
 from app.db.crud.discount_codes import DiscountCodeManager
+from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD, add_user
 from app.logger import LogType, get_logger
 from app.models.webapp import (
+    ApiKeyGenerateRequest,
+    ApiKeyGenerateResponse,
+    ApiKeyLoginRequest,
     LogoutRequest,
     PhoneLoginStartRequest,
     PhoneLoginVerifyRequest,
@@ -26,17 +30,22 @@ from app.models.webapp import (
 )
 from app.routers.webapp.state import (
     get_header_auth,
+    is_api_key_login_blocked,
     otp_key,
     otp_sessions,
     prune_auth_state,
+    record_api_key_login_failure,
     revoke_session_token,
     revoked_tokens,
 )
 from app.services.send_queue import enqueue
 from app.utils.formatting.conversions import to_unix_timestamp
 from app.utils.formatting.dates import Time_Date
+from app.utils.security.crypto import encrypt_data
 from app.utils.security.webapp_auth import (
     create_session_token,
+    generate_api_key,
+    hash_api_key,
     parse_session_token_async,
     validate_webapp_data,
 )
@@ -152,6 +161,8 @@ async def _build_user_profile(
     phone_number = user_record.number if user_record else None
 
     join_date = to_unix_timestamp(user_record.time_s) if user_record and user_record.time_s else None
+    has_api_key = bool(user_record.api_key_hash) if user_record else False
+    api_key_created_at = int(user_record.api_key_created_at) if user_record and user_record.api_key_created_at else None
 
     discount_info = await _get_discount_info(user_id)
     transaction_stats = await _get_transaction_stats(user_id)
@@ -168,6 +179,8 @@ async def _build_user_profile(
         "join_date": join_date,
         "discount": discount_info,
         "transactions": transaction_stats,
+        "has_api_key": has_api_key,
+        "api_key_created_at": api_key_created_at,
     }
 
 
@@ -193,7 +206,22 @@ async def build_user_payload_no_services(
                 user_record = await UserCRUD().read_user(user_id)
 
     user_profile = await _build_user_profile(user_id, user_record, telegram_user)
-    return {"ok": True, "user": user_profile}
+    settings = await SettingsManager().get_settings()
+    api_key_login_mode = getattr(settings, "api_key_login_mode", "none") if settings else "none"
+    return {
+        "ok": True,
+        "user": user_profile,
+        "api_key_login_mode": api_key_login_mode,
+    }
+
+
+def _client_ip(request: Request) -> str:
+    """Best-effort caller IP (proxy-aware), used only for login throttling."""
+    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    if forwarded:
+        return forwarded[:64]
+    client = getattr(request, "client", None)
+    return (getattr(client, "host", "") or "unknown")[:64]
 
 
 def _merge_request_auth(
@@ -229,7 +257,10 @@ async def authenticate_user(
         ok, err, payload = await parse_session_token_async(session_token)
         if not ok or not payload:
             raise ValueError(err or "توکن نامعتبر است")
-        return int(payload["uid"])
+        uid = int(payload["uid"])
+        if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
+            raise ValueError("نشست منقضی شده است. دوباره وارد شوید")
+        return uid
 
     raise ValueError("اطلاعات ناقص است")
 
@@ -310,7 +341,8 @@ async def verify_phone_login(req: PhoneLoginVerifyRequest) -> WebAppInfoResponse
             return WebAppInfoResponse(ok=False, error="کد وارد شده نادرست است")
 
         otp_sessions.pop(key, None)
-        token = create_session_token(int(sess["user_id"]))
+        version = await UserCRUD().get_session_version(int(sess["user_id"]))
+        token = create_session_token(int(sess["user_id"]), session_version=version)
         payload = await build_user_payload_no_services(int(user.id), user_record=user)
         payload["session_token"] = token
 
@@ -319,6 +351,77 @@ async def verify_phone_login(req: PhoneLoginVerifyRequest) -> WebAppInfoResponse
         return WebAppInfoResponse(**payload)
     except Exception as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+
+
+@router.post("/webapp/auth/api-key", response_model=WebAppInfoResponse)
+async def login_with_api_key(req: ApiKeyLoginRequest, request: Request) -> WebAppInfoResponse:
+    """Log in using a profile-generated API key instead of phone + OTP.
+
+    Works regardless of `api_key_login_mode` -- that setting only gates
+    generating/regenerating a key, not using one that already exists.
+    """
+    try:
+        client_ip = _client_ip(request)
+        prune_auth_state()
+        if is_api_key_login_blocked(client_ip):
+            return WebAppInfoResponse(ok=False, error="تعداد تلاش‌ها زیاد است. کمی بعد دوباره تلاش کنید")
+
+        raw_key = (req.api_key or "").strip()
+        if not raw_key:
+            return WebAppInfoResponse(ok=False, error="کلید API ارسال نشده است")
+
+        user = await UserCRUD().get_user_by_api_key_hash(hash_api_key(raw_key))
+        if not user:
+            record_api_key_login_failure(client_ip)
+            return WebAppInfoResponse(ok=False, error="کلید API نامعتبر است")
+
+        version = await UserCRUD().get_session_version(int(user.id))
+        token = create_session_token(int(user.id), session_version=version)
+        payload = await build_user_payload_no_services(int(user.id), user_record=user)
+        payload["session_token"] = token
+
+        await _send_login_notification(int(user.id), "کلید API", user_record=user)
+
+        return WebAppInfoResponse(**payload)
+    except Exception as e:
+        return WebAppInfoResponse(ok=False, error=str(e))
+
+
+@router.post("/webapp/profile/api-key/generate", response_model=ApiKeyGenerateResponse)
+async def generate_profile_api_key(req: ApiKeyGenerateRequest) -> ApiKeyGenerateResponse:
+    """Generate (or regenerate) the caller's API key.
+
+    Bumps `session_version`, so every session token issued before this call --
+    including the one used to call it -- stops working right after. The raw key
+    is still returned here so the frontend can show it once before treating the
+    caller's local session as gone (it must not disappear mid-copy).
+    """
+    try:
+        user_id = await authenticate_user(init_data=req.init_data, session_token=req.session_token)
+
+        settings = await SettingsManager().get_settings()
+        mode = getattr(settings, "api_key_login_mode", "none") if settings else "none"
+        if mode == "none":
+            return ApiKeyGenerateResponse(ok=False, error="ساخت کلید API غیرفعال است")
+
+        user = await UserCRUD().read_user(user_id)
+        if mode == "phone_verified" and not (user and user.number):
+            return ApiKeyGenerateResponse(
+                ok=False, error="برای ساخت کلید API ابتدا باید شماره تلفن خود را در ربات ثبت کنید"
+            )
+
+        raw_key = generate_api_key()
+        created_at = int(time_module.time())
+        await UserCRUD().set_user_api_key(
+            user_id,
+            api_key_hash=hash_api_key(raw_key),
+            api_key_encrypted=encrypt_data(raw_key),
+            created_at=created_at,
+        )
+        await UserCRUD().bump_session_version(user_id)
+        return ApiKeyGenerateResponse(ok=True, api_key=raw_key, created_at=created_at)
+    except Exception as e:
+        return ApiKeyGenerateResponse(ok=False, error=str(e))
 
 
 @router.get("/webapp/info/session", response_model=WebAppInfoResponse)
@@ -341,6 +444,8 @@ async def get_webapp_info_session(
     if not ok or not payload:
         return WebAppInfoResponse(ok=False, error=err or "توکن نامعتبر است")
     uid = int(payload["uid"])  # type: ignore
+    if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
+        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است. دوباره وارد شوید")
     try:
         payload = await build_user_payload_no_services(int(uid))
         payload["session_token"] = token
