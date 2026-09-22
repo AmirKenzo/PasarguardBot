@@ -8,23 +8,30 @@ from app.db.crud.stars_transactions import StarsTransactionCRUD
 from app.logger import LogType, get_logger
 from app.services.billing.payment_bonus import calculate_payment_bonus
 from app.services.send_queue import enqueue
+from app.telegram.user.payment.stars_precheckout import stars_precheckout_ok
 
 logger = get_logger(__name__)
+
+_PRECHECKOUT_EXPIRED = "این فاکتور منقضی شده"
 
 
 async def precheckout(event: types.UpdateBotPrecheckoutQuery):
     logger.info("Handler [precheckout]")
     payload = event.payload.decode("utf-8")
+    ok = False
     if payload.startswith("stars:"):
-        await Kenzo(
-            functions.messages.SetBotPrecheckoutResultsRequest(query_id=event.query_id, success=True, error=None)
+        try:
+            tx_id = int(payload.split(":", 1)[1])
+        except ValueError:
+            tx_id = None
+        if tx_id is not None:
+            tx = await StarsTransactionCRUD().get(tx_id)
+            ok = stars_precheckout_ok(tx, now=int(time.time()))
+    await Kenzo(
+        functions.messages.SetBotPrecheckoutResultsRequest(
+            query_id=event.query_id, success=ok, error=None if ok else _PRECHECKOUT_EXPIRED
         )
-    else:
-        await Kenzo(
-            functions.messages.SetBotPrecheckoutResultsRequest(
-                query_id=event.query_id, success=False, error="این فاکتور منفضی شده"
-            )
-        )
+    )
     raise events.StopPropagation
 
 

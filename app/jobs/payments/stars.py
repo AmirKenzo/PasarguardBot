@@ -18,7 +18,7 @@ from app.services.send_queue import enqueue
 
 from .base import BasePaymentProcessor
 
-_STARS_INVOICE_TTL_SECONDS = 1800
+STARS_INVOICE_TTL_SECONDS = 1800
 
 
 class StarsExpiryProcessor(BasePaymentProcessor):
@@ -27,7 +27,7 @@ class StarsExpiryProcessor(BasePaymentProcessor):
 
     async def check_payments(self):
         now = int(datetime.now().timestamp())
-        expire_before = now - _STARS_INVOICE_TTL_SECONDS
+        expire_before = now - STARS_INVOICE_TTL_SECONDS
         async with Session() as session:
             result = await session.execute(
                 select(StarsTransaction).where(
