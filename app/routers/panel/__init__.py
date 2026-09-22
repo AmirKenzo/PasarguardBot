@@ -22,6 +22,7 @@ Split by feature, mirroring ``app/routers/webapp``:
   - texts: the editable bot texts
   - keyboard: home menu layout, button labels, colours and icons
   - settings: the bot settings form
+  - pwa: installable-webapp branding (name, description, icon)
   - reports: sales and customer reports
   - tools: system status, backups, bulk volume/time increase
   - audit: the panel activity log
@@ -39,6 +40,7 @@ from app.routers.panel.keyboard import router as keyboard_router
 from app.routers.panel.panels import router as panels_router
 from app.routers.panel.payments import router as payments_router
 from app.routers.panel.plans import router as plans_router
+from app.routers.panel.pwa import router as pwa_router
 from app.routers.panel.referral import router as referral_router
 from app.routers.panel.reports import router as reports_router
 from app.routers.panel.resellers import router as resellers_router
@@ -67,6 +69,7 @@ panel_router.include_router(channels_router)
 panel_router.include_router(texts_router)
 panel_router.include_router(keyboard_router)
 panel_router.include_router(settings_router)
+panel_router.include_router(pwa_router)
 panel_router.include_router(reports_router)
 panel_router.include_router(tools_router)
 panel_router.include_router(audit_router)

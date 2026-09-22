@@ -9,8 +9,10 @@ import { useAuth } from "../../context/AuthContext";
 
 export default function LoginPage() {
   const { t } = useTranslation();
+  const [loginMode, setLoginMode] = useState<"phone" | "apiKey">("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,6 +51,31 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleApiKeyLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await authApi.apiKeyLogin({ api_key: apiKey.trim() });
+      if (res.session_token && res.user) {
+        setToken(res.session_token);
+        setUser(res.user);
+        navigate("/", { replace: true });
+      } else {
+        setError(t("auth.invalidApiKey"));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("auth.networkError"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function toggleLoginMode() {
+    setError("");
+    setLoginMode((mode) => (mode === "phone" ? "apiKey" : "phone"));
   }
 
   return (
@@ -92,7 +119,7 @@ export default function LoginPage() {
             <div className="mb-8 text-center">
               <h2 className="text-3xl font-black text-text">{t("auth.welcome")}</h2>
               <p className="mt-3 text-base text-muted">
-                {otpSent ? t("auth.codeVerify") : t("auth.phoneSignIn")}
+                {loginMode === "apiKey" ? t("auth.apiKeySignIn") : otpSent ? t("auth.codeVerify") : t("auth.phoneSignIn")}
               </p>
             </div>
 
@@ -106,62 +133,86 @@ export default function LoginPage() {
               </motion.div>
             )}
 
-            <form onSubmit={otpSent ? handleOtpVerify : handleOtpStart} className="mt-8 space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-text">{t("auth.phoneLabel")}</label>
-                <Input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder={t("auth.phonePlaceholder")}
-                  required
-                  disabled={otpSent}
-                  className="text-base"
-                />
-              </div>
-
-              {otpSent && (
-                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-                  <label className="mb-2 block text-sm font-medium text-text">{t("auth.codeLabel")}</label>
+            {loginMode === "apiKey" ? (
+              <form onSubmit={handleApiKeyLogin} className="mt-8 space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-text">{t("auth.apiKeyLabel")}</label>
                   <Input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder={t("auth.codePlaceholder")}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={t("auth.apiKeyPlaceholder")}
                     required
-                    maxLength={6}
                     ltr
-                    className="text-center text-lg tracking-widest"
+                    className="text-base"
                   />
-                  <p className="mt-2 text-xs text-muted">{t("auth.codeHint")}</p>
-                </motion.div>
-              )}
+                </div>
 
-              <ShimmerButton type="submit" disabled={loading} className="mt-6 w-full py-3 text-base">
-                {loading
-                  ? t("auth.processing")
-                  : otpSent
-                    ? t("auth.verifySignIn")
-                    : t("auth.sendCode")}
-              </ShimmerButton>
+                <ShimmerButton type="submit" disabled={loading} className="mt-6 w-full py-3 text-base">
+                  {loading ? t("auth.processing") : t("auth.verifySignIn")}
+                </ShimmerButton>
+              </form>
+            ) : (
+              <form onSubmit={otpSent ? handleOtpVerify : handleOtpStart} className="mt-8 space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-text">{t("auth.phoneLabel")}</label>
+                  <Input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder={t("auth.phonePlaceholder")}
+                    required
+                    disabled={otpSent}
+                    className="text-base"
+                  />
+                </div>
 
-              {otpSent && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    fullWidth
-                    className="mt-2"
-                    onClick={() => {
-                      setOtpSent(false);
-                      setCode("");
-                      setError("");
-                    }}
-                  >
-                    {t("auth.changePhone")}
-                  </Button>
-                </motion.div>
-              )}
-            </form>
+                {otpSent && (
+                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+                    <label className="mb-2 block text-sm font-medium text-text">{t("auth.codeLabel")}</label>
+                    <Input
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      placeholder={t("auth.codePlaceholder")}
+                      required
+                      maxLength={6}
+                      ltr
+                      className="text-center text-lg tracking-widest"
+                    />
+                    <p className="mt-2 text-xs text-muted">{t("auth.codeHint")}</p>
+                  </motion.div>
+                )}
+
+                <ShimmerButton type="submit" disabled={loading} className="mt-6 w-full py-3 text-base">
+                  {loading
+                    ? t("auth.processing")
+                    : otpSent
+                      ? t("auth.verifySignIn")
+                      : t("auth.sendCode")}
+                </ShimmerButton>
+
+                {otpSent && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      fullWidth
+                      className="mt-2"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setCode("");
+                        setError("");
+                      }}
+                    >
+                      {t("auth.changePhone")}
+                    </Button>
+                  </motion.div>
+                )}
+              </form>
+            )}
+
+            <Button type="button" variant="ghost" fullWidth className="mt-2" onClick={toggleLoginMode}>
+              {loginMode === "apiKey" ? t("auth.usePhoneInstead") : t("auth.useApiKeyInstead")}
+            </Button>
 
             <p className="mt-6 text-center text-xs text-muted">
               {t("auth.security")}

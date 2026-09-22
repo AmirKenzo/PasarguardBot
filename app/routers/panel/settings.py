@@ -60,6 +60,11 @@ SELECT_FIELD_OPTIONS: dict[str, list[tuple[str, str]]] = {
     ],
     "start_reaction_emoji": [("", "خاموش"), *((emoji, emoji) for emoji in START_REACTION_EMOJIS)],
     "start_effect_id": [("0", "خاموش"), *((effect_id, emoji) for effect_id, emoji in START_MESSAGE_EFFECTS)],
+    "api_key_login_mode": [
+        ("none", "غیرفعال"),
+        ("phone_verified", "فقط دارای شماره ثبت‌شده"),
+        ("all", "همه کاربران"),
+    ],
 }
 
 # Select values that must be cast back to a non-string type before storage.
@@ -69,6 +74,13 @@ SELECT_FIELD_CASTERS: dict[str, Callable[[str], Any]] = {
 
 # Auto-updated by a background job (app/jobs/prices.py) — never user-editable.
 READONLY_FIELDS: frozenset[str] = frozenset({"arz_usd", "arz_trx", "arz_ton"})
+
+
+HIDDEN_FIELDS: frozenset[str] = frozenset({"pwa_app_name", "pwa_short_name", "pwa_description", "pwa_icon_updated_at"})
+
+TEXT_FIELD_KEYS: frozenset[str] = frozenset(
+    {"avalai_api_key", "avalai_system_prompt", "instagram_api_token", "cart_num", "cart_name", "tetra_api_key"}
+)
 
 
 def _current(setting: Any, section: str, key: str, default: Any) -> Any:
@@ -85,6 +97,8 @@ def _field_type(key: str, default: Any) -> str:
         return "select"
     if isinstance(default, bool):
         return "bool"
+    if key in TEXT_FIELD_KEYS:
+        return "text"
     return "text" if isinstance(default, str) else "number"
 
 
@@ -131,7 +145,11 @@ async def read_settings(payload: PanelRequest, request: Request) -> PanelSetting
             sections=[
                 PanelSettingSection(
                     key=section,
-                    fields=[_build_field(setting, section, key, default) for key, default in defaults.items()],
+                    fields=[
+                        _build_field(setting, section, key, default)
+                        for key, default in defaults.items()
+                        if key not in HIDDEN_FIELDS
+                    ],
                 )
                 for section, defaults in SETTINGS_SECTION_DEFAULTS.items()
             ],
@@ -151,7 +169,7 @@ async def save_settings(payload: PanelSettingsSaveRequest, request: Request) -> 
             for key, default in defaults.items():
                 # Only touch keys the caller actually sent, so saving one section
                 # of the form never resets the sections it left out.
-                if key not in payload.values or key in READONLY_FIELDS:
+                if key not in payload.values or key in READONLY_FIELDS or key in HIDDEN_FIELDS:
                     continue
                 if isinstance(default, bool):
                     updates[key] = bool(payload.values[key])
@@ -162,6 +180,10 @@ async def save_settings(payload: PanelSettingsSaveRequest, request: Request) -> 
                         return ActionResponse(ok=False, error=f"مقدار «{key}» نامعتبر است.")
                     caster = SELECT_FIELD_CASTERS.get(key)
                     updates[key] = caster(raw) if caster else raw
+                    continue
+                if key in TEXT_FIELD_KEYS:
+                    raw = payload.values[key]
+                    updates[key] = None if raw is None else str(raw).strip() or None
                     continue
                 try:
                     updates[key] = _coerce(payload.values[key], default)

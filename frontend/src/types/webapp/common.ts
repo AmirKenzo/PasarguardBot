@@ -82,4 +82,6 @@ export interface UserProfile {
   join_date?: number | null;
   discount: DiscountInfo | null;
   transactions: TransactionStatsSummary;
+  has_api_key: boolean;
+  api_key_created_at?: number | null;
 }
