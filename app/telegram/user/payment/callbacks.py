@@ -12,7 +12,7 @@ from app.telegram.user.payment.stars_precheckout import stars_precheckout_ok
 
 logger = get_logger(__name__)
 
-_PRECHECKOUT_EXPIRED = "این فاکتور منفضی شده"
+_PRECHECKOUT_EXPIRED = "این فاکتور منقضی شده"
 
 
 async def precheckout(event: types.UpdateBotPrecheckoutQuery):

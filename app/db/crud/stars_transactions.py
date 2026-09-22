@@ -9,6 +9,7 @@ from sqlalchemy.future import select
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.stars_transaction import StarsTransaction
 from app.db.models.user import User
+from app.jobs.payments.stars import STARS_INVOICE_TTL_SECONDS
 
 
 def _new_invoice_no() -> str:
@@ -70,6 +71,9 @@ class StarsTransactionCRUD:
                 tx_stmt = tx_stmt.with_for_update()
             tx = (await session.execute(tx_stmt)).scalar_one_or_none()
             if not tx or tx.status != "pending":
+                return None
+            if int(tx.created_at or 0) + STARS_INVOICE_TTL_SECONDS <= paid_at:
+                tx.status = "expired"
                 return None
 
             user_stmt = select(User).where(User.id == tx.user_id)

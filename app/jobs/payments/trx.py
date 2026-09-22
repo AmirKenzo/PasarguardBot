@@ -211,12 +211,28 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
         logger.warning("TRX payment already processed or invalid: order_id=%s", payment.order_id)
         return
     payment, new_amount = approved
-    fulfilled = await try_fulfill_after_crypto_credit(int(payment.order_id))
-    if not fulfilled:
-        user_msg = _format_user_payment_message(payment, settings, bonus, total_amount, new_amount)
-        await Kenzo.send_message(
-            payment.user_id,
-            user_msg,
+    try:
+        fulfilled = await try_fulfill_after_crypto_credit(int(payment.order_id))
+        if not fulfilled:
+            user_msg = _format_user_payment_message(payment, settings, bonus, total_amount, new_amount)
+            await Kenzo.send_message(
+                payment.user_id,
+                user_msg,
+                parse_mode="html",
+                buttons=[
+                    [
+                        Button.inline(
+                            text=f"💳 موجودی: {int(new_amount):,} تومان",
+                            data="no_action",
+                        )
+                    ]
+                ],
+            )
+
+        admin_log = _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details)
+        await send_log_message(
+            LogType.CRYPTO,
+            message=admin_log,
             parse_mode="html",
             buttons=[
                 [
@@ -227,21 +243,8 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
                 ]
             ],
         )
-
-    admin_log = _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details)
-    await send_log_message(
-        LogType.CRYPTO,
-        message=admin_log,
-        parse_mode="html",
-        buttons=[
-            [
-                Button.inline(
-                    text=f"💳 موجودی: {int(new_amount):,} تومان",
-                    data="no_action",
-                )
-            ]
-        ],
-    )
+    except Exception as e:
+        logger.error("Post-credit notification failed for order_id=%s: %s", payment.order_id, e)
 
 
 class TRXProcessor(BasePaymentProcessor):
