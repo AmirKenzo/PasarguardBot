@@ -262,7 +262,7 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
         logger.warning("USDT payment already processed or invalid: order_id=%s", payment.order_id)
         return
     payment, new_amount = approved
-    
+
     try:
         fulfilled = await try_fulfill_after_crypto_credit(int(payment.order_id))
         if not fulfilled:
