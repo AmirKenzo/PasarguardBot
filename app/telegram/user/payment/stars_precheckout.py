@@ -1,4 +1,4 @@
-STARS_INVOICE_TTL_SECONDS = 1800  # keep in sync with app/jobs/payments/stars.py
+from app.jobs.payments.stars import STARS_INVOICE_TTL_SECONDS
 
 
 def stars_precheckout_ok(tx, *, now: int) -> bool:
