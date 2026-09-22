@@ -26,7 +26,7 @@ const labels = (t: TFunction): Record<string, string> => ({
   single_panel_buy_mode: t("panel.settings.singlePanelPurchase"),
   channel_lock: t("panel.settings.channelLock"),
   miniapp_only_mode: t("panel.settings.miniappOnly"),
-  glass_buttons_mode: t("panel.settings.glassButtons"),
+  glass_keyboard_mode: t("panel.settings.glassKeyboard"),
   start_reaction_emoji: t("panel.settings.startReactionEmoji"),
   start_effect_id: t("panel.settings.startEffectId"),
   backup_interval_hours: t("panel.settings.backupInterval"),

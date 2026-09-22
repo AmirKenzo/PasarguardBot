@@ -38,7 +38,7 @@ from app.services.panels.settings import (
     panel_shop_sale_enabled,
     panel_user_limit,
 )
-from app.services.purchase_report import send_purchase_report
+from app.services.public_report import send_purchase_report
 from app.services.subscriptions.links import format_subscription_links_for_message
 from app.telegram.keyboards.buy import (
     build_buy_confirm_button_rows,
