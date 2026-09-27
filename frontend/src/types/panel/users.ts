@@ -114,7 +114,7 @@ export interface PanelTransferPreviewRequest extends PanelAuthRequest {
   user_id: number;
   panel_code: number;
   source_admin: string;
-  target_admin: string;
+  target_admin?: string;
 }
 
 export interface PanelTransferConflictRow {
@@ -123,6 +123,7 @@ export interface PanelTransferConflictRow {
 }
 
 export interface PanelTransferPreviewResponse extends PanelEnvelope {
+  target_admin?: string | null;
   total_users: number;
   status_counts: Record<string, number>;
   active_users: number;

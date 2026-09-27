@@ -36,7 +36,6 @@ export function UserTransferDialog({
   const { t } = useTranslation();
   const [panelCode, setPanelCode] = useState("");
   const [source, setSource] = useState("");
-  const [target, setTarget] = useState("");
   const [previewOn, setPreviewOn] = useState(false);
   const [notify, setNotify] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -50,10 +49,9 @@ export function UserTransferDialog({
     { enabled: open && code > 0 && !jobId, retry: false, staleTime: 30_000 }
   );
   const preview = usePanelQuery(
-    ["user-transfer-preview", userId, code, source, target],
-    (auth) =>
-      panelUsersApi.transferPreview({ ...auth, user_id: userId, panel_code: code, source_admin: source, target_admin: target }),
-    { enabled: open && previewOn && code > 0 && Boolean(source) && Boolean(target) && !jobId, retry: false, staleTime: 0 }
+    ["user-transfer-preview", userId, code, source],
+    (auth) => panelUsersApi.transferPreview({ ...auth, user_id: userId, panel_code: code, source_admin: source }),
+    { enabled: open && previewOn && code > 0 && Boolean(source) && !jobId, retry: false, staleTime: 0 }
   );
   const status = usePanelQuery(
     ["user-transfer-status", jobId || ""],
@@ -68,13 +66,11 @@ export function UserTransferDialog({
   const queryClient = useQueryClient();
   const finished = Boolean(status.data && status.data.state !== "running");
 
-  // Default the destination to the admin the bot itself uses, and the source
-  // to an admin whose note or Telegram id matches this user.
+  // Preselect the admin whose note or Telegram id matches this user.
   useEffect(() => {
     if (!admins.data) return;
     const suggested = admins.data.admins.find((admin) => admin.suggested);
     setSource((current) => current || suggested?.username || "");
-    setTarget((current) => current || admins.data.current_admin || "");
   }, [admins.data]);
 
   // The user's service list only changes once the background job has finished.
@@ -88,7 +84,6 @@ export function UserTransferDialog({
   function resetSelection(nextPanel: string) {
     setPanelCode(nextPanel);
     setSource("");
-    setTarget("");
     setPreviewOn(false);
     setConfirming(false);
   }
@@ -103,16 +98,15 @@ export function UserTransferDialog({
     { value: "", label: t("panel.userDetail.transfer.choosePanel") },
     ...(panels.data?.panels || []).map((panel) => ({ value: String(panel.code), label: `${panel.name} (#${panel.code})` })),
   ];
-  const adminOptions = (exclude: string) => [
+  const botAdmin = admins.data?.current_admin || "";
+  const adminOptions = [
     { value: "", label: t("panel.userDetail.transfer.chooseAdmin") },
-    ...(admins.data?.admins || [])
-      .filter((admin) => admin.username !== exclude)
-      .map((admin) => ({
-        value: admin.username,
-        label: `${admin.suggested ? "★ " : ""}${admin.username} — ${t("panel.userDetail.transfer.usersCount", {
-          count: formatNumber(admin.total_users),
-        })}${admin.status && admin.status !== "active" ? ` (${admin.status})` : ""}`,
-      })),
+    ...(admins.data?.admins || []).map((admin) => ({
+      value: admin.username,
+      label: `${admin.suggested ? "★ " : ""}${admin.username} — ${t("panel.userDetail.transfer.usersCount", {
+        count: formatNumber(admin.total_users),
+      })}${admin.status && admin.status !== "active" ? ` (${admin.status})` : ""}`,
+    })),
   ];
 
   const p = preview.data;
@@ -143,11 +137,12 @@ export function UserTransferDialog({
           )}
 
           {admins.data && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <>
+              <p className="text-[11px] text-muted">{t("panel.userDetail.transfer.targetHint", { admin: botAdmin || "—" })}</p>
               <SelectField
                 label={t("panel.userDetail.transfer.sourceAdmin")}
                 value={source}
-                options={adminOptions(target)}
+                options={adminOptions}
                 hint={t("panel.userDetail.transfer.sourceHint")}
                 onChange={(event) => {
                   setSource(event.target.value);
@@ -155,23 +150,12 @@ export function UserTransferDialog({
                   setConfirming(false);
                 }}
               />
-              <SelectField
-                label={t("panel.userDetail.transfer.targetAdmin")}
-                value={target}
-                options={adminOptions(source)}
-                hint={t("panel.userDetail.transfer.targetHint", { admin: admins.data.current_admin || "—" })}
-                onChange={(event) => {
-                  setTarget(event.target.value);
-                  setPreviewOn(false);
-                  setConfirming(false);
-                }}
-              />
-            </div>
+            </>
           )}
 
           {admins.data && !previewOn && (
             <div className="flex justify-end">
-              <Button size="sm" disabled={!source || !target} onClick={() => setPreviewOn(true)}>
+              <Button size="sm" disabled={!source} onClick={() => setPreviewOn(true)}>
                 {t("panel.userDetail.transfer.preview")}
               </Button>
             </div>
@@ -222,7 +206,11 @@ export function UserTransferDialog({
                 {confirming ? (
                   <>
                     <span className="text-xs text-warning">
-                      {t("panel.userDetail.transfer.confirmText", { count: formatNumber(toMove), source, target })}
+                      {t("panel.userDetail.transfer.confirmText", {
+                        count: formatNumber(toMove),
+                        source,
+                        target: p.target_admin || botAdmin,
+                      })}
                     </span>
                     <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
                       {t("panel.common.dismiss")}
@@ -232,7 +220,7 @@ export function UserTransferDialog({
                       loading={start.isPending}
                       onClick={() =>
                         start.mutate(
-                          { user_id: userId, panel_code: code, source_admin: source, target_admin: target, notify },
+                          { user_id: userId, panel_code: code, source_admin: source, notify },
                           { onSuccess: (res) => res.job_id && setJobId(res.job_id) }
                         )
                       }

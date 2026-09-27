@@ -72,8 +72,8 @@ def _scope_is_all(value: Any) -> bool:
     return value is not None and int(value) == int(PermissionScope.ALL)
 
 
-async def check_transfer_access(panel) -> str:
-    """Return the username the bot is logged in as, or raise if it cannot move users."""
+async def _current_admin(panel) -> Any:
+    """The admin the bot is logged in as, or raise if it cannot move users."""
     try:
         me = await _call(panel, lambda api, token: api.get_current_admin(token=token))
     except Exception as exc:
@@ -82,7 +82,7 @@ async def check_transfer_access(panel) -> str:
 
     role = getattr(me, "role", None)
     if role is not None and getattr(role, "is_owner", False):
-        return str(me.username)
+        return me
 
     permissions = getattr(role, "permissions", None) if role is not None else None
     users_perm = getattr(permissions, "users", None) if permissions is not None else None
@@ -98,7 +98,12 @@ async def check_transfer_access(panel) -> str:
         raise TransferError(
             "اکانتی که ربات با آن به این پنل وصل است دسترسی اونر یا فول (خواندن همه یوزرها و تغییر مالک) ندارد."
         )
-    return str(me.username)
+    return me
+
+
+async def check_transfer_access(panel) -> str:
+    """Return the username the bot is logged in as, or raise if it cannot move users."""
+    return str((await _current_admin(panel)).username)
 
 
 async def fetch_admin_users(panel, admin_username: str) -> list[Any]:
@@ -167,12 +172,13 @@ class AdminOption:
 
 
 async def list_transfer_admins(panel, telegram_id: int) -> tuple[str, list[AdminOption]]:
+    """Source candidates: every panel admin except the one the bot itself uses."""
     current = await check_transfer_access(panel)
     admins = await list_panel_admins(panel)
     options: list[AdminOption] = []
     for admin in admins:
         username = str(getattr(admin, "username", "") or "").strip()
-        if not username:
+        if not username or username == current:
             continue
         note = str(getattr(admin, "note", "") or "").strip() or None
         admin_tg = getattr(admin, "telegram_id", None)
@@ -193,6 +199,7 @@ async def list_transfer_admins(panel, telegram_id: int) -> tuple[str, list[Admin
 
 @dataclass(slots=True)
 class TransferPreview:
+    target_admin: str
     total_users: int
     status_counts: dict[str, int]
     active_users: int
@@ -208,23 +215,35 @@ class TransferPreview:
 def _validate_admins(source_admin: str, target_admin: str) -> tuple[str, str]:
     source = (source_admin or "").strip()
     target = (target_admin or "").strip()
-    if not source or not target:
-        raise TransferError("ادمین مبدأ و مقصد را انتخاب کنید.")
+    if not source:
+        raise TransferError("ادمین مبدأ را انتخاب کنید.")
+    if not target:
+        raise TransferError("ادمین مقصد مشخص نیست.")
     if source == target:
         raise TransferError("ادمین مبدأ و مقصد نمی‌توانند یکی باشند.")
     return source, target
 
 
-async def _ensure_target_exists(panel, target_admin: str) -> None:
+async def _ensure_target_exists(panel, target_admin: str, current_admin: str) -> None:
+    if target_admin == current_admin:
+        return
     admins = await list_panel_admins(panel, usernames={target_admin})
     if not any(str(getattr(a, "username", "")) == target_admin for a in admins):
         raise TransferError("ادمین مقصد در پنل پیدا نشد.")
 
 
-async def build_preview(panel, *, telegram_id: int, source_admin: str, target_admin: str) -> TransferPreview:
-    source, target = _validate_admins(source_admin, target_admin)
-    await check_transfer_access(panel)
-    await _ensure_target_exists(panel, target)
+async def _resolve_admins(panel, source_admin: str, target_admin: str | None) -> tuple[str, str]:
+    """Validate the pair; an empty target means the admin the bot itself uses on this panel."""
+    current = await check_transfer_access(panel)
+    source, target = _validate_admins(source_admin, (target_admin or "").strip() or current)
+    await _ensure_target_exists(panel, target, current)
+    return source, target
+
+
+async def build_preview(
+    panel, *, telegram_id: int, source_admin: str, target_admin: str | None = None
+) -> TransferPreview:
+    source, target = await _resolve_admins(panel, source_admin, target_admin)
 
     users = await fetch_admin_users(panel, source)
     status_counts = Counter(_status(user) or "unknown" for user in users)
@@ -251,6 +270,7 @@ async def build_preview(panel, *, telegram_id: int, source_admin: str, target_ad
             unlimited += 1
 
     return TransferPreview(
+        target_admin=target,
         total_users=len(users),
         status_counts=dict(status_counts),
         active_users=len(active),
@@ -319,13 +339,11 @@ async def start_transfer(
     *,
     telegram_id: int,
     source_admin: str,
-    target_admin: str,
+    target_admin: str | None,
     actor_id: int,
     notify: bool,
 ) -> TransferJob:
-    source, target = _validate_admins(source_admin, target_admin)
-    await check_transfer_access(panel)
-    await _ensure_target_exists(panel, target)
+    source, target = await _resolve_admins(panel, source_admin, target_admin)
 
     key = (int(panel.code), source)
     async with _running_guard:

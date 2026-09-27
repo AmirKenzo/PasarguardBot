@@ -112,7 +112,7 @@ class PanelTransferPreviewRequest(PanelRequest):
     user_id: int
     panel_code: int
     source_admin: str = Field(..., min_length=1, max_length=64)
-    target_admin: str = Field(..., min_length=1, max_length=64)
+    target_admin: str = Field("", max_length=64, description="Empty = the admin the bot uses on this panel")
 
 
 class PanelTransferConflictRow(BaseModel):
@@ -121,6 +121,7 @@ class PanelTransferConflictRow(BaseModel):
 
 
 class PanelTransferPreviewResponse(PanelResponse):
+    target_admin: str | None = None
     total_users: int = 0
     status_counts: dict[str, int] = Field(default_factory=dict)
     active_users: int = 0

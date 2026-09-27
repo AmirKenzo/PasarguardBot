@@ -230,6 +230,7 @@ async def transfer_preview(payload: PanelTransferPreviewRequest, request: Reques
         except TransferError as exc:
             return PanelTransferPreviewResponse(ok=False, error=str(exc))
         return PanelTransferPreviewResponse(
+            target_admin=preview.target_admin,
             total_users=preview.total_users,
             status_counts=preview.status_counts,
             active_users=preview.active_users,
