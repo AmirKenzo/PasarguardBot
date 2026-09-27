@@ -7,6 +7,7 @@ from sqlalchemy.future import select
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.keyboards import KeyboardButton
+from app.utils.text.glass import unglass_text
 
 # Rarely-changing config table — load once into process memory.
 _buttons_by_key: dict[str, KeyboardButton] | None = None
@@ -289,8 +290,9 @@ class KeyboardButtonCRUD:
 
         try:
             async with Session() as session:
-                result = await session.execute(select(KeyboardButton.button_key))
-                existing_keys = set(result.scalars().all())
+                result = await session.execute(select(KeyboardButton))
+                rows = list(result.scalars().all())
+                existing_keys = {row.button_key for row in rows}
                 missing = [
                     KeyboardButton(button_key=key, button_text=text, description=desc)
                     for key, text, desc in default_buttons
@@ -298,6 +300,17 @@ class KeyboardButtonCRUD:
                 ]
                 if missing:
                     session.add_all(missing)
+                # An older build wrote the decoration brackets into the stored
+                # label. The glassy look is a keyboard flag now, so the brackets
+                # are dropped here once: handlers match a press against this same
+                # stored text, so leaving them would show them on every button.
+                changed = False
+                for row in rows:
+                    plain = unglass_text(row.button_text)
+                    if row.button_text and plain != row.button_text:
+                        row.button_text = plain
+                        changed = True
+                if missing or changed:
                     await session.commit()
         except SQLAlchemyError:
             pass
@@ -309,6 +322,6 @@ async def get_button_text(button_key: str, default: str | None = None) -> str:
     keyboard_crud = KeyboardButtonCRUD()
     text = await keyboard_crud.get_button_text(button_key)
     if text:
-        return text
+        return unglass_text(text)
 
     return default if default is not None else button_key

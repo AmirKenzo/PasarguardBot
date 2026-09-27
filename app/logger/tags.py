@@ -38,8 +38,10 @@ class LogType(Enum):
     USER_REGISTRATION = "user_registration"
     SYSTEM_ERROR = "system_error"
 
-    # Public sales card, separate from the detailed admin purchase log
+    # Public, filtered cards, separate from the detailed admin logs
     PURCHASE = "purchase"
+    RENEW = "renew"
+    TRIAL = "trial"
 
     # Transaction related logs
     TRANSACTION_APPROVED = "transaction_approved"

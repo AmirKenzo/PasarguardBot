@@ -4,6 +4,7 @@ import {
   Coins,
   CreditCard,
   Database,
+  Gift,
   List,
   Package,
   Pencil,
@@ -35,6 +36,8 @@ const logTypeLabels = (t: TFunction): Record<string, string> => ({
   crypto: t("panel.channels.reportCrypto"),
   stars: t("panel.channels.reportStars"),
   purchase: t("panel.channels.reportPurchase"),
+  renew: t("panel.channels.reportRenew"),
+  trial: t("panel.channels.reportTrial"),
   reseller: t("panel.channels.reportReseller"),
   user_registration: t("panel.channels.reportSignup"),
   backup: t("panel.channels.reportBackup"),
@@ -72,6 +75,8 @@ const REPORT_TYPE_ICONS: Record<string, LucideIcon> = {
   app_files: Package,
   backup: Database,
   purchase: ShoppingBag,
+  renew: RefreshCw,
+  trial: Gift,
 };
 
 function reportIcon(logType: string): LucideIcon {

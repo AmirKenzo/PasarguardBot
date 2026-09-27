@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from telethon import functions, types
+from telethon import Button, functions, types
 from telethon.tl.custom import Message
 
 from app import Kenzo
@@ -17,6 +17,7 @@ from app.services.billing.sticky_discount import (
     get_sticky_discount,
     parse_discount_start_param,
 )
+from app.services.keyboard_glass import glass_mode_active
 from app.telegram.keyboards.home import bhome_buttons, miniapp_only_active
 from app.telegram.shared.guards.channel_gate import (
     CHANNEL_JOIN_MESSAGE,
@@ -111,9 +112,25 @@ def resolve_app_download_param(param: str | None) -> str | None:
     return find_app_key_by_start_param(param)
 
 
+async def _drop_reply_keyboard(user_id: int) -> None:
+    """Take down a reply keyboard left over from before the menu moved in-chat.
+
+    Telegram only replaces a reply keyboard when a message carries a new one,
+    and the in-chat menu is inline, so without this the old keyboard would sit
+    under the composer next to its own replacement.
+    """
+    try:
+        placeholder = await Kenzo.send_message(entity=user_id, message="⏳", buttons=Button.clear())
+        await placeholder.delete()
+    except Exception as exc:
+        logger.debug("Could not clear the reply keyboard for %s: %s", user_id, exc)
+
+
 async def send_welcome_menu(event: Message, welcome_text: str, lang: str) -> None:
     reaction_on = await is_start_reaction_enabled()
     setting = await SettingsManager().get_settings()
+    if glass_mode_active(setting):
+        await _drop_reply_keyboard(event.sender_id)
     # Both are admin-editable: clearing the emoji or zeroing the effect turns
     # that half off without touching the other.
     emoji = str(_core_setting(setting, "start_reaction_emoji") or "").strip()

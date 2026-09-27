@@ -26,7 +26,7 @@ export interface PanelKeyboardResponse extends PanelEnvelope {
   sections: string[];
   style_options: string[];
   premium_emoji_enabled: boolean;
-  /** Global switch: every home button is drawn glassy whatever its own style says. */
+  /** Global switch: the home menu is drawn inside the chat, every button coloured. */
   glass_mode: boolean;
 }
 

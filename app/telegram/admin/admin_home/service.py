@@ -2,7 +2,9 @@
 
 from app import Kenzo
 from app.db.crud.log_channels import LogChannelManager
-from app.telegram.keyboards.admin import DOCS_URL, Panel_Admin_Buttons
+from app.db.crud.settings import SettingsManager
+from app.services.keyboard_glass import glass_mode_active
+from app.telegram.keyboards.admin import DOCS_URL, Panel_Admin_Buttons, admin_home_inline
 from app.telegram.state import set_step
 from config import LOG_CHANNEL
 
@@ -52,8 +54,10 @@ async def send_admin_home(user_id: int, username: str | None = None) -> None:
         if not any(ch.is_active for ch in channels):
             setup_warning = _SETUP_WARNING
 
+    setting = await SettingsManager().get_settings()
+    buttons = admin_home_inline() if glass_mode_active(setting) else Panel_Admin_Buttons
     await Kenzo.send_message(
         entity=user_id,
         message=_admin_home_message(user_id, username, setup_warning=setup_warning),
-        buttons=Panel_Admin_Buttons,
+        buttons=buttons,
     )

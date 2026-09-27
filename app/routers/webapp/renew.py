@@ -19,6 +19,7 @@ from app.models.webapp import (
 from app.routers.webapp.auth import authenticate_user
 from app.routers.webapp.state import renew_confirm_locks
 from app.services.billing.renewal import PaidRenewalError, execute_paid_service_renewal, require_panel_userid
+from app.services.public_report import send_renew_report
 from app.services.send_queue import enqueue
 from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_size
@@ -171,6 +172,13 @@ async def _confirm_renew_locked(request: WebAppRenewConfirmRequest) -> WebAppRen
 
         if request.discount_code and request.discount_code.strip():
             await DiscountCodeManager().update_discount_usage(request.discount_code.strip())
+
+        await send_renew_report(
+            user_id=int(user_id),
+            panel_name=getattr(panel, "name", None),
+            plan_label=getattr(plan, "name", None),
+            price=int(price),
+        )
 
         await enqueue(
             message=(

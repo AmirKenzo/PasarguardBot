@@ -30,8 +30,14 @@ MINIAPP_REJECTED = "تلگرام این آدرس را نپذیرفت. باید �
 
 
 def miniapp_url(*, panel: bool = False) -> str:
-    base = WEBAPP_URL.rstrip("/")
-    return f"{base}?panel=1" if panel else WEBAPP_URL
+    """The address to open, optionally landing straight on the admin panel.
+
+    The panel is a route of the mini app, not a separate page, and the app
+    routes on the URL fragment — so the way in is ``#/panel``. A query string
+    would reach the server and never the router.
+    """
+    base = WEBAPP_URL.split("#", 1)[0]
+    return f"{base}#/panel" if panel else WEBAPP_URL
 
 
 def miniapp_ready() -> bool:
@@ -47,9 +53,12 @@ async def send_miniapp_launcher(event, *, label: str, intro: str, panel: bool = 
         await event.reply(MINIAPP_NEEDS_HTTPS)
         return False
 
-    buttons = ReplyInlineMarkup([KeyboardInlineButtonRow([styled_webview_button(label, miniapp_url(panel=panel))])])
+    url = miniapp_url(panel=panel)
+    buttons = ReplyInlineMarkup([KeyboardInlineButtonRow([styled_webview_button(label, url)])])
     try:
-        await event.reply(intro, buttons=buttons)
+        # The address goes in the text too: the button only works inside Telegram,
+        # and an admin often wants the panel open on a desktop browser instead.
+        await event.reply(f"{intro}\n\n`{url}`", buttons=buttons, parse_mode="md")
     except ButtonUrlInvalidError:
         await event.reply(MINIAPP_REJECTED)
         return False

@@ -17,6 +17,7 @@ from app.services.billing.renewal import (
     execute_paid_service_renewal,
     require_panel_userid,
 )
+from app.services.public_report import send_renew_report
 from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.state import clear_user
 from app.utils.formatting.conversions import convert_storage
@@ -171,5 +172,8 @@ async def create_vpn_renew_for_user(
         logger.warning("direct_pay renew notify user=%s: %s", user_id, exc)
 
     await send_log_message(LogType.OTHER, message=log_text)
+    await send_renew_report(
+        user_id=int(user_id), panel_name=getattr(panel, "name", None), plan_label=plan_name, price=int(price)
+    )
     await clear_user(user_id)
     return True, ""

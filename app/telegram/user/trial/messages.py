@@ -22,6 +22,7 @@ from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.settings import panel_test_duration_days, panel_test_volume_gb
 from app.services.panels.trials import trial_panels
+from app.services.public_report import send_trial_report
 from app.services.subscriptions.links import format_subscription_links_for_message
 from app.telegram.keyboards.common import (
     is_keyboard_config_step,
@@ -415,6 +416,12 @@ async def deliver_trial(event, user_id: int, lang: str, panel) -> None:
         )
 
         await send_log_message(LogType.OTHER, message=log_text)
+        await send_trial_report(
+            user_id=user_id,
+            panel_name=panel.name,
+            volume_label=volume_text,
+            duration_label=f"{test_duration_days} روز",
+        )
     except Exception as exc:
         logger.error("%s", exc)
         await event.respond("ساخت سرویس تست انجام نشد. بعداً دوباره تلاش کن.")
