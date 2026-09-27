@@ -1406,7 +1406,58 @@
       "blockConfirm": "Block user {{id}}? They will no longer be able to use the bot.",
       "phoneTitle": "Phone number for user {{id}}",
       "phonePlaceholder": "09123456789",
-      "phoneHint": "The number is what the browser login checks. Leave it empty to clear it."
+      "phoneHint": "The number is what the browser login checks. Leave it empty to clear it.",
+      "transfer": {
+        "button": "Transfer panel admin users",
+        "title": "Transfer panel admin users to {{id}}",
+        "intro": "Active users of a panel admin are moved to another admin of the same panel and recorded as bot services for this numeric ID. on_hold, limited, expired and disabled users are not moved, and the source admin itself is left untouched.",
+        "panel": "Panel",
+        "choosePanel": "Choose a panel…",
+        "chooseAdmin": "Choose an admin…",
+        "checkingAccess": "Checking owner/full access and loading admins…",
+        "sourceAdmin": "Source admin",
+        "sourceHint": "★ means the admin's note or Telegram ID matches this user.",
+        "targetAdmin": "Destination admin",
+        "targetHint": "Bot admin on this panel: {{admin}}",
+        "usersCount": "{{count}} users",
+        "preview": "Check users",
+        "loadingUsers": "Loading the admin's users from the panel…",
+        "totalUsers": "Total users: {{count}}",
+        "willMove": "Will be moved (active)",
+        "willCreate": "New bot services",
+        "alreadyLinked": "Already recorded for this user",
+        "skippedInactive": "Inactive (not moved)",
+        "conflicts": "Conflicts; owned by another user (not moved)",
+        "conflictsHint": "These users are linked to another ID in the bot and will not be moved:",
+        "traffic": "Used / total traffic of active users",
+        "unlimitedCount": "{{count}} unlimited",
+        "refresh": "Refresh",
+        "start": "Start transfer",
+        "confirmText": "Move {{count}} users from {{source}} to {{target}}?",
+        "starting": "Starting…",
+        "finished": "Transfer finished",
+        "phase": {
+          "fetch": "Loading users from the panel…",
+          "check": "Checking conflicts…",
+          "transfer": "Transferring…",
+          "verify": "Final check…",
+          "done": "Done"
+        },
+        "activeUsers": "Active users",
+        "movedTotal": "Total moved",
+        "remainingOnSource": "Active users left on source",
+        "result": {
+          "moved": "Moved and recorded",
+          "moved_linked": "Moved (already in bot)",
+          "moved_no_record": "Moved, bot record failed",
+          "failed": "Failed",
+          "conflict": "Conflict"
+        },
+        "problemsOnly": "All except successful",
+        "noRows": "Nothing to show",
+        "downloadCsv": "Download CSV report",
+        "newTransfer": "New transfer"
+      }
     }
   }
 }

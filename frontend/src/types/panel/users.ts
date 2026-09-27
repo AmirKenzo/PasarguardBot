@@ -89,3 +89,89 @@ export interface PanelUserMessageRequest extends PanelAuthRequest {
   user_id: number;
   text: string;
 }
+
+export interface PanelTransferAdminsRequest extends PanelAuthRequest {
+  user_id: number;
+  panel_code: number;
+}
+
+export interface PanelTransferAdminRow {
+  username: string;
+  total_users: number;
+  status?: string | null;
+  note?: string | null;
+  /** The admin's note or Telegram id matches this bot user. */
+  suggested: boolean;
+}
+
+export interface PanelTransferAdminsResponse extends PanelEnvelope {
+  /** The admin the bot is logged in as — the default destination. */
+  current_admin?: string | null;
+  admins: PanelTransferAdminRow[];
+}
+
+export interface PanelTransferPreviewRequest extends PanelAuthRequest {
+  user_id: number;
+  panel_code: number;
+  source_admin: string;
+  target_admin: string;
+}
+
+export interface PanelTransferConflictRow {
+  username: string;
+  owner_id: number;
+}
+
+export interface PanelTransferPreviewResponse extends PanelEnvelope {
+  total_users: number;
+  status_counts: Record<string, number>;
+  active_users: number;
+  will_create: number;
+  already_linked: number;
+  conflicts: PanelTransferConflictRow[];
+  conflicts_total: number;
+  active_used_traffic: number;
+  active_data_limit: number;
+  active_unlimited: number;
+}
+
+export interface PanelTransferStartRequest extends PanelTransferPreviewRequest {
+  notify?: boolean;
+}
+
+export interface PanelTransferStartResponse extends ActionResponse {
+  job_id?: string | null;
+}
+
+export interface PanelTransferStatusRequest extends PanelAuthRequest {
+  job_id: string;
+}
+
+/** moved | moved_linked | moved_no_record | failed | conflict */
+export type PanelTransferResult = "moved" | "moved_linked" | "moved_no_record" | "failed" | "conflict";
+
+export interface PanelTransferResultRow {
+  username: string;
+  panel_user_id: number;
+  result: PanelTransferResult;
+  reason?: string | null;
+  service_code?: number | null;
+}
+
+export interface PanelTransferStatusResponse extends PanelEnvelope {
+  /** running | done | error */
+  state: string;
+  /** fetch | check | transfer | verify | done */
+  phase: string;
+  total: number;
+  processed: number;
+  skipped_inactive: number;
+  remaining_active_on_source?: number | null;
+  counts: Partial<Record<PanelTransferResult, number>>;
+  source_admin?: string | null;
+  target_admin?: string | null;
+  panel_name?: string | null;
+  job_error?: string | null;
+  /** Filled only once the job has finished. */
+  rows: PanelTransferResultRow[];
+}

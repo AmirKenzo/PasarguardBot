@@ -1,4 +1,4 @@
-"""Bot users: list, detail, balance, block and direct message."""
+"""Bot users: list, detail, balance, block, direct message and panel-admin transfer."""
 
 from __future__ import annotations
 
@@ -8,6 +8,17 @@ from fastapi import APIRouter, Request
 
 from app.models.panel.common import ActionResponse, page_meta
 from app.models.panel.users import (
+    PanelTransferAdminRow,
+    PanelTransferAdminsRequest,
+    PanelTransferAdminsResponse,
+    PanelTransferConflictRow,
+    PanelTransferPreviewRequest,
+    PanelTransferPreviewResponse,
+    PanelTransferResultRow,
+    PanelTransferStartRequest,
+    PanelTransferStartResponse,
+    PanelTransferStatusRequest,
+    PanelTransferStatusResponse,
     PanelUserBalanceRequest,
     PanelUserBalanceResponse,
     PanelUserBlockRequest,
@@ -23,9 +34,11 @@ from app.models.panel.users import (
     PanelUserTransactionRow,
     UserState,
 )
-from app.panel import mutations, queries
+from app.panel import audit, mutations, queries
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.panels import admin_transfer
+from app.services.panels.admin_transfer import TransferError
 from app.utils.formatting import normalise_phone_number
 
 router = APIRouter()
@@ -162,3 +175,141 @@ async def send_message(payload: PanelUserMessageRequest, request: Request) -> Ac
         return ActionResponse(message="پیام ارسال شد.")
 
     return await guard.run(payload, request, ActionResponse, handle)
+
+
+_USER_NOT_FOUND = "کاربری با این آیدی پیدا نشد."
+_PANEL_NOT_FOUND = "پنلی با این کد پیدا نشد."
+
+
+async def _transfer_target(user_id: int, panel_code: int):
+    """Resolve the bot user and panel for a transfer call, or raise a user-facing error."""
+    if await queries.get_user(user_id) is None:
+        raise TransferError(_USER_NOT_FOUND)
+    panel = await queries.get_panel(panel_code)
+    if panel is None:
+        raise TransferError(_PANEL_NOT_FOUND)
+    return panel
+
+
+@router.post("/panel/users/transfer/admins", response_model=PanelTransferAdminsResponse)
+async def transfer_admins(payload: PanelTransferAdminsRequest, request: Request) -> PanelTransferAdminsResponse:
+    async def handle(_: PanelActor) -> PanelTransferAdminsResponse:
+        try:
+            panel = await _transfer_target(payload.user_id, payload.panel_code)
+            current, admins = await admin_transfer.list_transfer_admins(panel, payload.user_id)
+        except TransferError as exc:
+            return PanelTransferAdminsResponse(ok=False, error=str(exc))
+        return PanelTransferAdminsResponse(
+            current_admin=current,
+            admins=[
+                PanelTransferAdminRow(
+                    username=item.username,
+                    total_users=item.total_users,
+                    status=item.status or None,
+                    note=item.note,
+                    suggested=item.suggested,
+                )
+                for item in admins
+            ],
+        )
+
+    return await guard.run(payload, request, PanelTransferAdminsResponse, handle)
+
+
+@router.post("/panel/users/transfer/preview", response_model=PanelTransferPreviewResponse)
+async def transfer_preview(payload: PanelTransferPreviewRequest, request: Request) -> PanelTransferPreviewResponse:
+    async def handle(_: PanelActor) -> PanelTransferPreviewResponse:
+        try:
+            panel = await _transfer_target(payload.user_id, payload.panel_code)
+            preview = await admin_transfer.build_preview(
+                panel,
+                telegram_id=payload.user_id,
+                source_admin=payload.source_admin,
+                target_admin=payload.target_admin,
+            )
+        except TransferError as exc:
+            return PanelTransferPreviewResponse(ok=False, error=str(exc))
+        return PanelTransferPreviewResponse(
+            total_users=preview.total_users,
+            status_counts=preview.status_counts,
+            active_users=preview.active_users,
+            will_create=preview.will_create,
+            already_linked=preview.already_linked,
+            conflicts=[PanelTransferConflictRow(**item) for item in preview.conflicts],
+            conflicts_total=preview.conflicts_total,
+            active_used_traffic=preview.active_used_traffic,
+            active_data_limit=preview.active_data_limit,
+            active_unlimited=preview.active_unlimited,
+        )
+
+    return await guard.run(payload, request, PanelTransferPreviewResponse, handle)
+
+
+@router.post("/panel/users/transfer/start", response_model=PanelTransferStartResponse)
+async def transfer_start(payload: PanelTransferStartRequest, request: Request) -> PanelTransferStartResponse:
+    async def handle(actor: PanelActor) -> PanelTransferStartResponse:
+        try:
+            panel = await _transfer_target(payload.user_id, payload.panel_code)
+            job = await admin_transfer.start_transfer(
+                panel,
+                telegram_id=payload.user_id,
+                source_admin=payload.source_admin,
+                target_admin=payload.target_admin,
+                actor_id=actor.user_id,
+                notify=payload.notify,
+            )
+        except TransferError as exc:
+            return PanelTransferStartResponse(ok=False, error=str(exc))
+        await audit.record(
+            actor_id=actor.user_id,
+            actor_username=actor.username,
+            action="user.transfer_panel_admin",
+            target_type="user",
+            target_id=payload.user_id,
+            detail={
+                "job_id": job.id,
+                "panel_code": payload.panel_code,
+                "source_admin": job.source_admin,
+                "target_admin": job.target_admin,
+            },
+            ip=actor.ip,
+        )
+        return PanelTransferStartResponse(job_id=job.id, message="انتقال شروع شد.")
+
+    return await guard.run(payload, request, PanelTransferStartResponse, handle)
+
+
+@router.post("/panel/users/transfer/status", response_model=PanelTransferStatusResponse)
+async def transfer_status(payload: PanelTransferStatusRequest, request: Request) -> PanelTransferStatusResponse:
+    async def handle(_: PanelActor) -> PanelTransferStatusResponse:
+        job = admin_transfer.get_job(payload.job_id)
+        if job is None:
+            return PanelTransferStatusResponse(ok=False, error="این عملیات انتقال پیدا نشد یا منقضی شده است.")
+        finished = job.state != "running"
+        return PanelTransferStatusResponse(
+            state=job.state,
+            phase=job.phase,
+            total=job.total,
+            processed=job.processed,
+            skipped_inactive=job.skipped_inactive,
+            remaining_active_on_source=job.remaining_active_on_source,
+            counts=job.counts(),
+            source_admin=job.source_admin,
+            target_admin=job.target_admin,
+            panel_name=job.panel_name,
+            job_error=job.error,
+            rows=[
+                PanelTransferResultRow(
+                    username=row.username,
+                    panel_user_id=row.panel_user_id,
+                    result=row.result,
+                    reason=row.reason,
+                    service_code=row.service_code,
+                )
+                for row in job.rows
+            ]
+            if finished
+            else [],
+        )
+
+    return await guard.run(payload, request, PanelTransferStatusResponse, handle)

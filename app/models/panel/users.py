@@ -88,3 +88,81 @@ class PanelUserPhoneResponse(ActionResponse):
 class PanelUserMessageRequest(PanelRequest):
     user_id: int
     text: str = Field(..., min_length=1, max_length=4000)
+
+
+class PanelTransferAdminsRequest(PanelRequest):
+    user_id: int
+    panel_code: int
+
+
+class PanelTransferAdminRow(BaseModel):
+    username: str
+    total_users: int = 0
+    status: str | None = None
+    note: str | None = None
+    suggested: bool = False
+
+
+class PanelTransferAdminsResponse(PanelResponse):
+    current_admin: str | None = None
+    admins: list[PanelTransferAdminRow] = Field(default_factory=list)
+
+
+class PanelTransferPreviewRequest(PanelRequest):
+    user_id: int
+    panel_code: int
+    source_admin: str = Field(..., min_length=1, max_length=64)
+    target_admin: str = Field(..., min_length=1, max_length=64)
+
+
+class PanelTransferConflictRow(BaseModel):
+    username: str
+    owner_id: int
+
+
+class PanelTransferPreviewResponse(PanelResponse):
+    total_users: int = 0
+    status_counts: dict[str, int] = Field(default_factory=dict)
+    active_users: int = 0
+    will_create: int = 0
+    already_linked: int = 0
+    conflicts: list[PanelTransferConflictRow] = Field(default_factory=list)
+    conflicts_total: int = 0
+    active_used_traffic: int = 0
+    active_data_limit: int = 0
+    active_unlimited: int = 0
+
+
+class PanelTransferStartRequest(PanelTransferPreviewRequest):
+    notify: bool = False
+
+
+class PanelTransferStartResponse(ActionResponse):
+    job_id: str | None = None
+
+
+class PanelTransferStatusRequest(PanelRequest):
+    job_id: str = Field(..., min_length=1, max_length=64)
+
+
+class PanelTransferResultRow(BaseModel):
+    username: str
+    panel_user_id: int
+    result: str
+    reason: str | None = None
+    service_code: int | None = None
+
+
+class PanelTransferStatusResponse(PanelResponse):
+    state: str = "running"
+    phase: str = "fetch"
+    total: int = 0
+    processed: int = 0
+    skipped_inactive: int = 0
+    remaining_active_on_source: int | None = None
+    counts: dict[str, int] = Field(default_factory=dict)
+    source_admin: str | None = None
+    target_admin: str | None = None
+    panel_name: str | None = None
+    job_error: str | None = None
+    rows: list[PanelTransferResultRow] = Field(default_factory=list)
