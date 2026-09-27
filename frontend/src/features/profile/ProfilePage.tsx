@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   ChevronLeft,
+  Copy,
   CreditCard,
+  Download,
   HelpCircle,
+  KeyRound,
   LogOut,
   Percent,
   Phone,
@@ -14,11 +18,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { AppVersion, Avatar, Badge, Button, Card, IconBadge, SkeletonCard } from "../../components/ui";
+import { AppVersion, Avatar, Badge, Button, Card, IconBadge, Modal, SkeletonCard } from "../../components/ui";
 import { ErrorState } from "../../components/ui/EmptyState";
 import { useToast } from "../../components/ui/Toast";
 import { authApi } from "../../api/webapp";
 import { useAuth } from "../../context/AuthContext";
+import { useInstallPwa } from "../../hooks/useInstallPwa";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
 import { formatExpiry, formatToman, formatUnixDate } from "../../lib/format";
 
@@ -26,10 +31,14 @@ type Tone = "primary" | "success" | "warning" | "danger" | "muted" | "accent";
 
 export default function ProfilePage() {
   const { t } = useTranslation();
-  const { user, sessionToken, loading, refreshUser, clearSession } = useAuth();
+  const { user, setUser, sessionToken, initData, loading, refreshUser, clearSession, apiKeyLoginMode } = useAuth();
   const navigate = useNavigate();
   const { show } = useToast();
   const isAdmin = useIsAdmin();
+  const { canInstall, install } = useInstallPwa();
+  const [keyModalStep, setKeyModalStep] = useState<"confirm" | "reveal" | null>(null);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   async function handleLogout() {
     try {
@@ -43,6 +52,61 @@ export default function ProfilePage() {
       navigate("/login", { replace: true });
       show(t("profile.loggedOut"), "info");
     }
+  }
+
+  async function handleGenerateApiKey() {
+    setGenerating(true);
+    try {
+      const res = await authApi.generateApiKey({ session_token: sessionToken, init_data: initData });
+      if (res.api_key) {
+        // The backend just invalidated every session for this account (including
+        // the one used for this very request), so it doesn't refetch the profile
+        // over the network here -- that would fail and yank the reveal modal away
+        // before the user can copy the key. Local state carries it instead; the
+        // forced re-login happens once they close the modal below.
+        setGeneratedKey(res.api_key);
+        setKeyModalStep("reveal");
+        if (user) {
+          setUser({ ...user, has_api_key: true, api_key_created_at: res.created_at ?? null });
+        }
+      } else {
+        show(res.error || t("profile.apiKey.genericError"), "error");
+      }
+    } catch (err) {
+      show(err instanceof Error ? err.message : t("profile.apiKey.genericError"), "error");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function handleGenerateClick() {
+    if (user?.has_api_key) {
+      setKeyModalStep("confirm");
+    } else {
+      void handleGenerateApiKey();
+    }
+  }
+
+  async function handleCopyApiKey() {
+    if (!generatedKey) return;
+    try {
+      await navigator.clipboard.writeText(generatedKey);
+      show(t("profile.apiKey.copied"), "success");
+    } catch {
+      show(t("profile.apiKey.copyFailed"), "error");
+    }
+  }
+
+  function closeConfirmModal() {
+    setKeyModalStep(null);
+  }
+
+  function finishKeyReveal() {
+    setKeyModalStep(null);
+    setGeneratedKey(null);
+    clearSession();
+    navigate("/login", { replace: true });
+    show(t("profile.apiKey.reloginNotice"), "info");
   }
 
   if (loading && !user) {
@@ -134,6 +198,49 @@ export default function ProfilePage() {
             <ProfileLink to="/help" icon={HelpCircle} label={t("profile.help")} />
           </Card>
 
+          {apiKeyLoginMode !== "none" && (
+            <Card className="p-4">
+              <div className="flex items-center gap-2.5">
+                <IconBadge icon={KeyRound} tone="accent" size="sm" />
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-semibold text-text">{t("profile.apiKey.title")}</h2>
+                  <p className="text-xs text-muted">{t("profile.apiKey.description")}</p>
+                </div>
+              </div>
+
+              {apiKeyLoginMode === "phone_verified" && !user.number ? (
+                <p className="mt-3 text-xs text-warning">{t("profile.apiKey.phoneRequired")}</p>
+              ) : (
+                <>
+                  {user.has_api_key && (
+                    <p className="mt-3 text-xs text-muted">
+                      {t("profile.apiKey.createdOn", {
+                        date: user.api_key_created_at ? formatUnixDate(user.api_key_created_at) : "-",
+                      })}
+                    </p>
+                  )}
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    className="mt-3"
+                    loading={generating}
+                    onClick={handleGenerateClick}
+                  >
+                    <KeyRound size={18} />
+                    {user.has_api_key ? t("profile.apiKey.regenerate") : t("profile.apiKey.generate")}
+                  </Button>
+                </>
+              )}
+            </Card>
+          )}
+
+          {canInstall && (
+            <Button variant="secondary" fullWidth onClick={() => void install()}>
+              <Download size={18} />
+              {t("profile.installApp")}
+            </Button>
+          )}
+
           <Button variant="danger" fullWidth onClick={() => void handleLogout()}>
             <LogOut size={18} />
             {t("profile.logout")}
@@ -144,6 +251,42 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={keyModalStep === "confirm"}
+        onClose={closeConfirmModal}
+        title={t("profile.apiKey.confirmTitle")}
+      >
+        <p className="text-sm text-muted">{t("profile.apiKey.confirmBody")}</p>
+        <div className="mt-4 flex gap-2">
+          <Button variant="ghost" fullWidth onClick={closeConfirmModal}>
+            {t("profile.apiKey.cancel")}
+          </Button>
+          <Button variant="danger" fullWidth loading={generating} onClick={() => void handleGenerateApiKey()}>
+            {t("profile.apiKey.confirmRegenerate")}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={keyModalStep === "reveal"} onClose={finishKeyReveal} title={t("profile.apiKey.revealTitle")}>
+        <p className="text-sm text-warning">{t("profile.apiKey.revealWarning")}</p>
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-surface-2 p-3 ring-1 ring-border">
+          <code className="min-w-0 flex-1 break-all text-left text-sm text-text" dir="ltr">
+            {generatedKey}
+          </code>
+          <button
+            onClick={() => void handleCopyApiKey()}
+            className="shrink-0 rounded-md p-2 text-muted hover:bg-surface hover:text-text"
+            aria-label={t("profile.apiKey.copy")}
+          >
+            <Copy size={16} />
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-muted">{t("profile.apiKey.reloginHint")}</p>
+        <Button variant="secondary" fullWidth className="mt-4" onClick={finishKeyReveal}>
+          {t("profile.apiKey.done")}
+        </Button>
+      </Modal>
     </div>
   );
 }

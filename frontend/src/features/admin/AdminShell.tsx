@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -7,6 +7,7 @@ import {
   ArrowRight,
   BarChart3,
   Boxes,
+  ChevronDown,
   CreditCard,
   Gift,
   Keyboard,
@@ -18,6 +19,9 @@ import {
   Receipt,
   Server,
   Settings,
+  ShoppingCart,
+  SlidersHorizontal,
+  Smartphone,
   Store,
   Tags,
   Users,
@@ -33,6 +37,12 @@ import { SessionExpiry } from "./components";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
+interface NavSubItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+}
+
 interface NavItem {
   to: string;
   label: string;
@@ -40,6 +50,9 @@ interface NavItem {
   end?: boolean;
   /** Key in the backend's badge map, when this section has a pending count. */
   badge?: string;
+  /** Shown as an expandable list under this item, so a section can be reached
+   *  in one click instead of landing on the page and picking a tab there. */
+  children?: NavSubItem[];
 }
 
 interface NavGroup {
@@ -88,7 +101,31 @@ const navGroups = (t: TFunction): NavGroup[] => [
     title: t("panel.shell.groupConfiguration"),
     items: [
       { to: "/panel/keyboard", label: t("panel.common.keyboardLayout"), icon: Keyboard },
-      { to: "/panel/settings", label: t("panel.common.botSettings"), icon: Settings },
+      {
+        to: "/panel/settings",
+        label: t("panel.common.botSettings"),
+        icon: Settings,
+        children: [
+          { to: "/panel/settings?section=core_settings", label: t("panel.settings.core"), icon: SlidersHorizontal },
+          {
+            to: "/panel/settings?section=payment_settings",
+            label: t("panel.settings.paymentsAndWallet"),
+            icon: CreditCard,
+          },
+          {
+            to: "/panel/settings?section=purchase_settings",
+            label: t("panel.settings.buyAndRenew"),
+            icon: ShoppingCart,
+          },
+          {
+            to: "/panel/settings?section=service_tools_settings",
+            label: t("panel.settings.serviceTools"),
+            icon: Wrench,
+          },
+          { to: "/panel/settings?section=reseller_settings", label: t("panel.common.reseller"), icon: Users },
+          { to: "/panel/settings?section=pwa", label: t("panel.pwa.tab"), icon: Smartphone },
+        ],
+      },
       { to: "/panel/tools", label: t("panel.common.tools"), icon: Wrench },
     ],
   },
@@ -107,6 +144,13 @@ function BrandMark({ size = "lg" }: { size?: "lg" | "base" }) {
   );
 }
 
+function subItemActive(location: ReturnType<typeof useLocation>, subTo: string): boolean {
+  const [path, query = ""] = subTo.split("?");
+  if (location.pathname !== path) return false;
+  const wantSection = new URLSearchParams(query).get("section");
+  return new URLSearchParams(location.search).get("section") === wantSection;
+}
+
 function NavList({
   badges,
   layoutId,
@@ -120,6 +164,10 @@ function NavList({
   onNavigate?: () => void;
 }) {
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
   return (
     <nav className="space-y-3">
       {navGroups(t).map((group, index) => (
@@ -128,6 +176,68 @@ function NavList({
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const count = item.badge ? badges[item.badge] || 0 : 0;
+              const hasChildren = !!item.children?.length;
+              const onSection = hasChildren && location.pathname === item.to;
+              const isOpen = expanded[item.to] ?? onSection;
+
+              if (hasChildren) {
+                const active = onSection || isOpen;
+                return (
+                  <div key={item.to}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Every click lands on the first section, whether
+                        // that opens or collapses the submenu.
+                        navigate(item.to);
+                        setExpanded((prev) => ({ ...prev, [item.to]: !isOpen }));
+                        onNavigate?.();
+                      }}
+                      className={`relative flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors ${
+                        active ? "text-primary" : "text-muted hover:text-text"
+                      }`}
+                    >
+                      {active && (
+                        <motion.span
+                          layoutId={layoutId}
+                          className="absolute inset-0 rounded-md bg-primary/10"
+                          transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                        />
+                      )}
+                      <span className="relative z-10 flex items-center justify-center">
+                        <item.icon size={16} strokeWidth={active ? 2.3 : 1.8} />
+                      </span>
+                      <span className="relative z-10 flex-1 truncate text-start">{item.label}</span>
+                      <ChevronDown
+                        size={14}
+                        className={`relative z-10 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {isOpen && (
+                      <div className="me-2.5 ms-6 space-y-0.5 border-e border-border/60 pe-2.5">
+                        {item.children?.map((sub) => {
+                          const subActive = subItemActive(location, sub.to);
+                          return (
+                            <NavLink
+                              key={sub.to}
+                              to={sub.to}
+                              onClick={onNavigate}
+                              className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                                subActive ? "bg-primary/10 text-primary" : "text-muted hover:text-text"
+                              }`}
+                            >
+                              <sub.icon size={13} strokeWidth={subActive ? 2.3 : 1.8} />
+                              <span className="flex-1 truncate">{sub.label}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <NavLink
                   key={item.to}

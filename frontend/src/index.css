@@ -55,6 +55,14 @@ body {
   border-radius: 999px;
 }
 
+/* Horizontally-scrollable strips (e.g. the pill Tabs bar) that shouldn't show a scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 :focus-visible {
   outline: 2px solid rgb(var(--c-primary-rgb));
   outline-offset: 2px;

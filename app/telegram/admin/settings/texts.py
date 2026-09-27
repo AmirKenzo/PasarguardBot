@@ -7,6 +7,12 @@ HELP_SETTINGS_MENU_TEXT = (
     "• **مدیریت اپ‌های دانلود:** افزودن/حذف اپ و تنظیم متن، رنگ و آیکون هر دکمه."
 )
 
+API_KEY_LOGIN_MODE_FLOW = {
+    "none": "phone_verified",
+    "phone_verified": "all",
+    "all": "none",
+}
+
 KEYBOARD_PAGE_TITLES = {
     1: "📄 **صفحه 1 از 4:** دکمه‌های منوی اصلی",
     2: "📄 **صفحه 2 از 4:** دکمه‌های بخش سرویس‌های من",

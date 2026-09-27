@@ -66,7 +66,9 @@ type TelegramEventType =
   | "backButtonClicked"
   | "settingsButtonClicked"
   | "invoiceClosed"
-  | "popupClosed";
+  | "popupClosed"
+  | "homeScreenAdded"
+  | "homeScreenChecked";
 
 interface TelegramSafeAreaInset {
   top: number;
@@ -79,6 +81,7 @@ interface TelegramWebApp {
   initData: string;
   initDataUnsafe: { user?: TelegramWebAppUser; start_param?: string };
   version: string;
+  isVersionAtLeast?: (version: string) => boolean;
   platform: string;
   colorScheme: "light" | "dark";
   themeParams: TelegramThemeParams;
@@ -112,6 +115,10 @@ interface TelegramWebApp {
   showConfirm: (message: string, cb?: (confirmed: boolean) => void) => void;
   /** Native "share phone number" prompt. `sent` is true only if the user approved sharing. */
   requestContact?: (cb?: (sent: boolean) => void) => void;
+  /** Prompts the user to add this mini app to their device's home screen (Bot API 8.0+). */
+  addToHomeScreen?: () => void;
+  /** Asynchronously reports "unsupported" | "unknown" | "added" | "missed" via the `homeScreenChecked` event. */
+  checkHomeScreenStatus?: (cb?: (status: "unsupported" | "unknown" | "added" | "missed") => void) => void;
 }
 
 declare global {

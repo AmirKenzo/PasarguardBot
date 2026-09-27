@@ -104,3 +104,5 @@ class UserProfile(BaseModel):
     join_date: int | None = None
     discount: DiscountInfo | None = None
     transactions: TransactionStatsSummary
+    has_api_key: bool = False
+    api_key_created_at: int | None = None

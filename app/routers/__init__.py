@@ -5,15 +5,17 @@ Router initialization and FastAPI app setup.
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from app.routers.webapp.state import webapp_auth_headers
+from app.utils.security import maybe_renew_session_token
 from app.version import VERSIONS
 
 from .panel import panel_router
-from .webapp import webapp_router
+from .webapp import serve_webapp, webapp_router
 from .webhook import webhook_router
 
 # Create FastAPI application
@@ -55,9 +57,14 @@ class WebAppAuthHeaderMiddleware(BaseHTTPMiddleware):
             init_data = request.headers.get("x-telegram-init-data")
             token = webapp_auth_headers.set((session or None, init_data or None))
             try:
-                return await call_next(request)
+                response = await call_next(request)
             finally:
                 webapp_auth_headers.reset(token)
+            if session:
+                renewed = maybe_renew_session_token(session)
+                if renewed:
+                    response.headers["X-Session-Token"] = renewed
+            return response
         return await call_next(request)
 
 
@@ -76,5 +83,8 @@ if assets_dir.exists():
     api_app.mount("/webapp/assets", StaticFiles(directory=str(assets_dir)), name="webapp-assets")
     # Secondary mount to support reverse proxies that only forward under /api/*
     api_app.mount("/api/webapp/assets", StaticFiles(directory=str(assets_dir)), name="webapp-assets-api")
+
+api_app.get("/", response_class=HTMLResponse)(serve_webapp)
+api_app.get("/{full_path:path}", response_class=HTMLResponse)(serve_webapp)
 
 __all__ = ["api_app"]

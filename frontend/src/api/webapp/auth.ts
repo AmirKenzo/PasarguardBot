@@ -1,4 +1,7 @@
 import type {
+  ApiKeyGenerateRequest,
+  ApiKeyGenerateResponse,
+  ApiKeyLoginRequest,
   LogoutRequest,
   PhoneLoginStartRequest,
   PhoneLoginVerifyRequest,
@@ -39,4 +42,12 @@ export function otpVerify(body: PhoneLoginVerifyRequest) {
 
 export function logout(body: LogoutRequest) {
   return apiPost<WebAppChangeResponse>("/logout", {}, { session_token: body.session_token });
+}
+
+export function apiKeyLogin(body: ApiKeyLoginRequest) {
+  return apiPost<WebAppInfoResponse>("/auth/api-key", body);
+}
+
+export function generateApiKey(body: ApiKeyGenerateRequest) {
+  return apiPost<ApiKeyGenerateResponse>("/profile/api-key/generate", body);
 }

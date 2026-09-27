@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, Column, Index, Integer, String
+from sqlalchemy import BigInteger, Boolean, Column, Index, Integer, String, Text
 
 from app.db.base import Base
 
@@ -31,6 +31,10 @@ class User(Base):
     service_buttons_per_row = Column(Integer, nullable=False, server_default="1")
     service_button_rows = Column(Integer, nullable=False, server_default="5")
     safe_mode = Column(Boolean, nullable=True)
+    session_version = Column(Integer, nullable=False, server_default="0")
+    api_key_hash = Column(String(64), unique=True, nullable=True)
+    api_key_encrypted = Column(Text, nullable=True)
+    api_key_created_at = Column(BigInteger, nullable=True)
 
     def __repr__(self):
         return f"<User(id={self.id}, status='{self.status}', time_s={self.time_s}, number={self.number}, amount={self.amount})>"

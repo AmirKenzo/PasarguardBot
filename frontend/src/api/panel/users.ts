@@ -5,6 +5,14 @@ import type {
   PanelUserBlockRequest,
   PanelUserDetailRequest,
   PanelUserDetailResponse,
+  PanelTransferAdminsRequest,
+  PanelTransferAdminsResponse,
+  PanelTransferPreviewRequest,
+  PanelTransferPreviewResponse,
+  PanelTransferStartRequest,
+  PanelTransferStartResponse,
+  PanelTransferStatusRequest,
+  PanelTransferStatusResponse,
   PanelUserMessageRequest,
   PanelUserPhoneRequest,
   PanelUserPhoneResponse,
@@ -35,4 +43,20 @@ export function setPhone(body: PanelUserPhoneRequest) {
 
 export function sendMessage(body: PanelUserMessageRequest) {
   return panelPost<ActionResponse>("/users/message", body);
+}
+
+export function transferAdmins(body: PanelTransferAdminsRequest) {
+  return panelPost<PanelTransferAdminsResponse>("/users/transfer/admins", body);
+}
+
+export function transferPreview(body: PanelTransferPreviewRequest) {
+  return panelPost<PanelTransferPreviewResponse>("/users/transfer/preview", body);
+}
+
+export function transferStart(body: PanelTransferStartRequest) {
+  return panelPost<PanelTransferStartResponse>("/users/transfer/start", body);
+}
+
+export function transferStatus(body: PanelTransferStatusRequest) {
+  return panelPost<PanelTransferStatusResponse>("/users/transfer/status", body);
 }

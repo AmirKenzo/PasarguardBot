@@ -28,6 +28,14 @@ def _invalidate_status_local(user_id: int) -> None:
     _status_local.pop(user_id, None)
 
 
+_SESSION_VERSION_LOCAL_TTL_SEC = 30.0
+_session_version_local: dict[int, tuple[float, int]] = {}
+
+
+def _invalidate_session_version_local(user_id: int) -> None:
+    _session_version_local.pop(user_id, None)
+
+
 def _get_status_local(user_id: int) -> tuple[bool, str | None]:
     entry = _status_local.get(user_id)
     if entry is None:
@@ -453,6 +461,49 @@ class UserCRUD:
                 if user:
                     return user
         return None
+
+    async def get_user_by_api_key_hash(self, api_key_hash: str):
+        async with Session() as session:
+            result = await session.execute(select(User).filter_by(api_key_hash=api_key_hash))
+            return result.scalars().first()
+
+    async def set_user_api_key(self, user_id: int, api_key_hash: str, api_key_encrypted: str, created_at: int) -> None:
+        async with Session() as session:
+            result = await session.execute(select(User).filter_by(id=user_id))
+            user = result.scalars().first()
+            if not user:
+                return
+            user.api_key_hash = api_key_hash
+            user.api_key_encrypted = api_key_encrypted
+            user.api_key_created_at = created_at
+            await session.commit()
+
+    async def get_session_version(self, user_id: int) -> int:
+        cached = _session_version_local.get(user_id)
+        if cached is not None and time.monotonic() - cached[0] <= _SESSION_VERSION_LOCAL_TTL_SEC:
+            return cached[1]
+        async with Session() as session:
+            result = await session.execute(select(User.session_version).filter_by(id=user_id))
+            raw = result.scalar_one_or_none()
+        try:
+            version = int(raw or 0)
+        except Exception:
+            version = 0
+        _session_version_local[user_id] = (time.monotonic(), version)
+        return version
+
+    async def bump_session_version(self, user_id: int) -> bool:
+        async with Session() as session:
+            result = await session.execute(
+                update(User)
+                .where(User.id == user_id)
+                .values(session_version=func.coalesce(User.session_version, 0) + 1)
+            )
+            if result.rowcount:
+                await session.commit()
+                _invalidate_session_version_local(user_id)
+                return True
+            return False
 
 
 class UserManager:

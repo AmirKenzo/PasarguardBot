@@ -7,7 +7,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 
 from app import Kenzo
 from app.db.crud.cards import ManualCardManager
-from app.db.crud.cryptopayments import add_order_crypto_payment, count_pending_orders
+from app.db.crud.cryptopayments import CryptoPaymentsCRUD, add_order_crypto_payment, count_pending_orders
 from app.db.crud.log_channels import LogChannelManager
 from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
 from app.db.crud.settings import SettingsManager
@@ -291,24 +291,37 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
                 error="بیش از سه فاکتور در انتظار دارید. ابتدا فاکتورهای قبلی را پرداخت کنید.",
             )
         order_id = random.randint(55555, 999999)
+        reserved = {str(p.amount) for p in await CryptoPaymentsCRUD().get_pending_by_arz(currency)}
         if currency == "trx":
             wallet = await WalletCRUD().get_wallet_by_type("TRX")
-            amount_crypto = await calculate_trx_amount_with_tax(int(settings.arz_trx or 0), amount)
+            amount_crypto = await calculate_trx_amount_with_tax(
+                int(settings.arz_trx or 0), amount, reserved_amounts=reserved
+            )
         elif currency == "usdt":
             wallet = await WalletCRUD().get_wallet_by_type("USDT-TRC20")
-            amount_crypto = await calculate_usdt_amount_with_tax(int(settings.arz_usd or 0), amount)
+            amount_crypto = await calculate_usdt_amount_with_tax(
+                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
+            )
         elif currency == "usdt-ton":
             wallet = await WalletCRUD().get_wallet_by_type("USDT-TON")
-            amount_crypto = await calculate_usdt_amount_with_tax(int(settings.arz_usd or 0), amount)
+            amount_crypto = await calculate_usdt_amount_with_tax(
+                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
+            )
         elif currency == "usdt-bep20":
             wallet = await WalletCRUD().get_wallet_by_type("USDT-BEP20")
-            amount_crypto = await calculate_usdt_amount_with_tax(int(settings.arz_usd or 0), amount)
+            amount_crypto = await calculate_usdt_amount_with_tax(
+                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
+            )
         elif currency == "pol":
             wallet = await WalletCRUD().get_wallet_by_type("POL")
-            amount_crypto = await calculate_pol_amount_with_tax(int(settings.arz_pol or 0), amount)
+            amount_crypto = await calculate_pol_amount_with_tax(
+                int(settings.arz_pol or 0), amount, reserved_amounts=reserved
+            )
         else:
             wallet = await WalletCRUD().get_wallet_by_type("TON")
-            amount_crypto = await calculate_ton_amount_with_tax(int(settings.arz_ton or 0), amount)
+            amount_crypto = await calculate_ton_amount_with_tax(
+                int(settings.arz_ton or 0), amount, reserved_amounts=reserved
+            )
         if not wallet:
             return BalanceDepositCryptoResponse(
                 ok=False,

@@ -8,10 +8,12 @@ import { LanguageProvider } from "./context/LanguageContext";
 import { captureTelegramInitData } from "./telegramInit";
 import { AuthProvider } from "./context/AuthContext";
 import App from "./App";
+import { applyPwaBranding } from "./pwaBranding";
 import "./i18n";
 import "./index.css";
 
 captureTelegramInitData();
+void applyPwaBranding();
 
 const queryClient = new QueryClient({
   defaultOptions: {

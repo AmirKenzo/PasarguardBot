@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { Ban, MessageSquare, Phone, Server, Wallet } from "lucide-react";
+import { ArrowRightLeft, Ban, MessageSquare, Phone, Server, Wallet } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, Button, ErrorState, IconBadge, Input, Skeleton } from "../../components/ui";
 import { formatBytes, formatExpiry, formatNumber, formatToman, formatUnixDate } from "../../lib/format";
@@ -8,6 +8,7 @@ import { panelUsersApi } from "../../api/panel";
 import type { UserState } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
 import { ConfirmButton, FormModal, SectionCard, StatTile, Toggle } from "./components";
+import { UserTransferDialog } from "./UserTransferDialog";
 import { useTranslation } from "react-i18next";
 
 const TX_TONE: Record<string, "success" | "warning" | "danger" | "muted"> = {
@@ -31,6 +32,7 @@ export default function AdminUserDetailPage() {
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const query = usePanelQuery(
     ["user", userId],
@@ -89,6 +91,9 @@ export default function AdminUserDetailPage() {
             </Button>
             <Button size="sm" variant="secondary" className="!h-9 !w-9 !px-0" title={t("panel.userDetail.message")} onClick={() => setMessageOpen(true)}>
               <MessageSquare size={15} />
+            </Button>
+            <Button size="sm" variant="secondary" className="!h-9 !w-9 !px-0" title={t("panel.userDetail.transfer.button")} onClick={() => setTransferOpen(true)}>
+              <ArrowRightLeft size={15} />
             </Button>
             {canToggleBlock && (
               <ConfirmButton
@@ -201,6 +206,7 @@ export default function AdminUserDetailPage() {
         invalidate={invalidate}
       />
       <MessageDialog open={messageOpen} onClose={() => setMessageOpen(false)} userId={user.id} />
+      <UserTransferDialog open={transferOpen} onClose={() => setTransferOpen(false)} userId={user.id} invalidate={invalidate} />
     </>
   );
 }

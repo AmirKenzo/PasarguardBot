@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, ErrorState, Input, SegmentedControl, Skeleton, Tabs } from "../../components/ui";
+import type { TabItem } from "../../components/ui";
 import { panelSettingsApi } from "../../api/panel";
 import type { PanelSettingValue } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
 import { IconPickerField, SectionCard, Toggle } from "./components";
+import { PwaSettingsSection } from "./PwaSettingsSection";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { CreditCard, ShoppingCart, SlidersHorizontal, Smartphone, Users, Wrench } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+const PWA_TAB = "pwa";
 
 // These pick from a fixed set of emoji, so they get an icon-grid picker instead
 // of a text pill row or a dropdown — see IconPickerField.
@@ -19,6 +26,15 @@ const sectionTitles = (t: TFunction): Record<string, string> => ({
   service_tools_settings: t("panel.settings.serviceTools"),
   reseller_settings: t("panel.common.reseller"),
 });
+
+const sectionIcons: Record<string, LucideIcon> = {
+  core_settings: SlidersHorizontal,
+  payment_settings: CreditCard,
+  purchase_settings: ShoppingCart,
+  service_tools_settings: Wrench,
+  reseller_settings: Users,
+  [PWA_TAB]: Smartphone,
+};
 
 const labels = (t: TFunction): Record<string, string> => ({
   bot_mode: t("panel.settings.botEnabled"),
@@ -76,12 +92,23 @@ const labels = (t: TFunction): Record<string, string> => ({
   del_service_mode: t("panel.common.deleteService"),
   reseller_sale_mode: t("panel.settings.resellerSales"),
   reseller_min_wallet_balance: t("panel.settings.resellerMinBalance"),
+  api_key_login_mode: t("panel.settings.apiKeyLoginMode"),
 });
 
 export default function AdminSettingsPage() {
   const { t } = useTranslation();
   const [values, setValues] = useState<Record<string, PanelSettingValue> | null>(null);
-  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeSection, setActiveSectionState] = useState<string | null>(searchParams.get("section"));
+
+  const setActiveSection = (section: string) => {
+    setActiveSectionState(section);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("section", section);
+      return next;
+    });
+  };
 
   const query = usePanelQuery(["settings"], (auth) => panelSettingsApi.getSettings(auth));
   const save = usePanelAction(panelSettingsApi.saveSettings, { invalidate: [["settings"], ["keyboard"]] });
@@ -93,14 +120,60 @@ export default function AdminSettingsPage() {
       for (const field of section.fields) next[field.key] = field.value;
     }
     setValues(next);
-    setActiveSection(query.data.sections[0]?.key ?? null);
   }, [query.data, values]);
+
+  // Re-runs on every navigation, not just the first load — so clicking a
+  // different section link in the sidebar (while already on this page)
+  // actually switches the active tab instead of being silently ignored.
+  useEffect(() => {
+    if (!query.data) return;
+    const validKeys = new Set([...query.data.sections.map((s) => s.key), PWA_TAB]);
+    const fromUrl = searchParams.get("section");
+    if (fromUrl && validKeys.has(fromUrl)) {
+      setActiveSectionState(fromUrl);
+      return;
+    }
+    // No (valid) section in the URL yet — landed here straight from the
+    // sidebar's parent link. Write the default section into the URL so the
+    // sidebar's own highlight (which matches on ?section=) picks it up too.
+    const defaultKey = query.data.sections[0]?.key ?? null;
+    setActiveSectionState(defaultKey);
+    if (defaultKey) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("section", defaultKey);
+        return next;
+      }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.data, searchParams]);
 
   if (query.isError) {
     return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
   }
   if (query.isLoading || !query.data || !values || !activeSection) {
     return <Skeleton className="h-64 w-full" />;
+  }
+
+  const tabItems: TabItem[] = [
+    ...query.data.sections.map((item) => ({
+      value: item.key,
+      label: sectionTitles(t)[item.key] || item.key,
+      icon: sectionIcons[item.key],
+    })),
+    { value: PWA_TAB, label: t("panel.pwa.tab"), icon: sectionIcons[PWA_TAB] },
+  ];
+
+  if (activeSection === PWA_TAB) {
+    return (
+      <>
+        <PageHeader title={t("panel.common.botSettings")} />
+        <div className="mb-4">
+          <Tabs items={tabItems} value={PWA_TAB} onChange={(value) => setActiveSection(value)} />
+        </div>
+        <PwaSettingsSection />
+      </>
+    );
   }
 
   const section = query.data.sections.find((item) => item.key === activeSection) || query.data.sections[0];
@@ -130,14 +203,7 @@ export default function AdminSettingsPage() {
       />
 
       <div className="mb-4">
-        <Tabs
-          items={query.data.sections.map((item) => ({
-            value: item.key,
-            label: sectionTitles(t)[item.key] || item.key,
-          }))}
-          value={section.key}
-          onChange={(value) => setActiveSection(value)}
-        />
+        <Tabs items={tabItems} value={section.key} onChange={(value) => setActiveSection(value)} />
       </div>
 
       <SectionCard

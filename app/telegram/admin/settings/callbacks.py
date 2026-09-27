@@ -25,6 +25,7 @@ from app.telegram.keyboards.help import (
 from app.telegram.keyboards.registry import KEYBOARD_BUTTON_TITLES, STYLE_LABELS
 from app.telegram.keyboards.settings import (
     create_buttons_settings,
+    get_api_key_login_mode_text,
     get_settings_menu_item,
     get_settings_menu_section,
     get_settings_menu_text,
@@ -104,22 +105,28 @@ async def callback_settings_toggle(event: events.CallbackQuery.Event):
         return
 
     try:
-        item = get_settings_menu_item(setting_name)
-        if item is None:
-            await event.answer("این گزینه تنظیمات پیدا نشد.", alert=True)
-            return
-
-        if setting_name == "start_reaction":
-            new_value = await toggle_start_reaction()
-            toast = f"{item.label}: {'✅ فعال شد' if new_value else '❌ غیرفعال شد'}"
+        if setting_name == "api_key_login_mode":
+            current_mode = getattr(settings, "api_key_login_mode", "none")
+            new_mode = texts.API_KEY_LOGIN_MODE_FLOW.get(current_mode, "none")
+            await SettingsManager().update_setting(settings.id, api_key_login_mode=new_mode)
+            toast = f"🔑 ورود با کلید API: {get_api_key_login_mode_text(new_mode)}"
         else:
-            current_value = bool(getattr(settings, setting_name, item.default))
-            update_kwargs = {setting_name: not current_value}
-            if setting_name == "pay_mode" and not current_value:
-                update_kwargs["manual_card_visibility"] = None
-            await SettingsManager().update_setting(settings.id, **update_kwargs)
-            toast = f"{item.label}: {'❌ غیرفعال شد' if current_value else '✅ فعال شد'}"
-            toast = await _after_settings_toggle(setting_name, not current_value, toast)
+            item = get_settings_menu_item(setting_name)
+            if item is None:
+                await event.answer("این گزینه تنظیمات پیدا نشد.", alert=True)
+                return
+
+            if setting_name == "start_reaction":
+                new_value = await toggle_start_reaction()
+                toast = f"{item.label}: {'✅ فعال شد' if new_value else '❌ غیرفعال شد'}"
+            else:
+                current_value = bool(getattr(settings, setting_name, item.default))
+                update_kwargs = {setting_name: not current_value}
+                if setting_name == "pay_mode" and not current_value:
+                    update_kwargs["manual_card_visibility"] = None
+                await SettingsManager().update_setting(settings.id, **update_kwargs)
+                toast = f"{item.label}: {'❌ غیرفعال شد' if current_value else '✅ فعال شد'}"
+                toast = await _after_settings_toggle(setting_name, not current_value, toast)
     except Exception as e:
         await event.answer(f"خطا در به‌روزرسانی تنظیمات: {e!s}", alert=True)
         return

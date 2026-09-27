@@ -5,6 +5,9 @@ instead of reaching into the individual feature modules.
 """
 
 from app.models.webapp.auth import (
+    ApiKeyGenerateRequest,
+    ApiKeyGenerateResponse,
+    ApiKeyLoginRequest,
     LogoutRequest,
     PhoneLoginStartRequest,
     PhoneLoginVerifyRequest,
@@ -98,6 +101,9 @@ from app.models.webapp.usage_chart import (
 )
 
 __all__ = [
+    "ApiKeyGenerateRequest",
+    "ApiKeyGenerateResponse",
+    "ApiKeyLoginRequest",
     "BalanceDepositCryptoRequest",
     "BalanceDepositCryptoResponse",
     "BalanceDepositManualReceiptResponse",

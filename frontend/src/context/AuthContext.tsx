@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { authApi } from "../api/webapp";
-import type { UserProfile } from "../types/webapp";
+import { authApi, setTokenRenewedHandler } from "../api/webapp";
+import type { ApiKeyLoginMode, UserProfile } from "../types/webapp";
 import { getStoredInitData } from "../telegramInit";
 
 const STORAGE_KEY = "webapp_session";
@@ -16,6 +16,7 @@ interface AuthContextType {
   refreshUser: () => Promise<UserProfile | null>;
   clearSession: () => void;
   loading: boolean;
+  apiKeyLoginMode: ApiKeyLoginMode;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [initData, setInitData] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [apiKeyLoginMode, setApiKeyLoginMode] = useState<ApiKeyLoginMode>("none");
 
   const isTelegram = !!initData;
   const isAuthenticated = !!sessionToken || !!initData;
@@ -59,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (initData) {
         const res = await authApi.getInfoWithInitData(initData);
+        setApiKeyLoginMode(res.api_key_login_mode);
         if (res.user) {
           setUser(res.user);
           return res.user;
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (sessionToken) {
         const res = await authApi.getInfoSession(sessionToken);
+        setApiKeyLoginMode(res.api_key_login_mode);
         if (res.user) {
           setUser(res.user);
           return res.user;
@@ -139,6 +143,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void refreshUser();
   }, [loading, isAuthenticated, refreshUser]);
 
+  useEffect(() => {
+    // Backend slides an active session's expiry forward via this header;
+    // persist it so activity keeps the user logged in without a hard 14-day cliff.
+    setTokenRenewedHandler(setToken);
+    return () => setTokenRenewedHandler(null);
+  }, [setToken]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -152,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshUser,
         clearSession,
         loading,
+        apiKeyLoginMode,
       }}
     >
       {children}

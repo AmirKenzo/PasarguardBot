@@ -18,6 +18,12 @@ def sts_txt(value: bool) -> str:
     return "✅" if value else "❌"
 
 
+def get_api_key_login_mode_text(mode):
+    """Get Persian text for the API key login generation mode."""
+    mode_texts = {"all": "همه کاربران", "phone_verified": "دارای شماره ثبت‌شده", "none": "غیرفعال"}
+    return mode_texts.get(mode, "نامشخص")
+
+
 @dataclass(frozen=True)
 class SettingsMenuItem:
     label: str
@@ -94,6 +100,13 @@ SETTINGS_MENU_SECTIONS = (
         columns=1,
     ),
     SettingsMenuSection(
+        "api_access",
+        "🔑 ورود با کلید API",
+        "ورود کاربران به وب‌اپ با یک کلید API به‌جای شماره تلفن و کد تایید، از این بخش مدیریت می‌شود.",
+        (),
+        columns=1,
+    ),
+    SettingsMenuSection(
         "home_menu",
         "🏠 دکمه‌های منوی اصلی",
         "نمایش یا مخفی کردن دکمه‌های اصلی صفحه هوم. این بخش جدا از ابزارهای صفحه سرویس است و پیش‌فرض همه گزینه‌ها روشن است.",
@@ -157,6 +170,9 @@ def get_settings_menu_item(attr: str | None) -> SettingsMenuItem | None:
 def get_settings_section_key_for_attr(attr: str | None) -> str | None:
     if not attr:
         return None
+    if attr == "api_key_login_mode":
+        section = get_settings_menu_section("api_access")
+        return section.key if section and section.separate_page else None
     for section in SETTINGS_MENU_SECTIONS:
         if any(item.attr == attr for item in section.items):
             return section.key if section.separate_page else None
@@ -254,6 +270,16 @@ async def _append_settings_section(rows: list[list], settings, section: Settings
         rows.append(current_row)
 
 
+def _settings_api_key_login_button(settings):
+    raw_mode = getattr(settings, "api_key_login_mode", "none")
+    mode = get_api_key_login_mode_text(raw_mode)
+    return styled_callback_button(
+        f"🔑 ورود با کلید API: {mode}",
+        b"settings.api_key_login_mode",
+        _settings_state_style(raw_mode != "none"),
+    )
+
+
 async def create_buttons_settings(settings, section_key: str | None = None):
     logger.debug("Creating settings buttons")
 
@@ -261,6 +287,8 @@ async def create_buttons_settings(settings, section_key: str | None = None):
     section = get_settings_menu_section(section_key)
     if section is not None:
         await _append_settings_section(buttons, settings, section)
+        if section.key == "api_access":
+            buttons.append([_settings_api_key_login_button(settings)])
         buttons.append(_settings_nav_buttons(section.key))
         return buttons
 
@@ -309,6 +337,16 @@ async def _settings_rich_section_rows(settings, section: SettingsMenuSection) ->
     if current_row:
         rows.append(types.PageBlockButtonRow(buttons=current_row))
     return rows
+
+
+def _settings_rich_api_key_login_button(settings) -> types.PageButton:
+    raw_mode = getattr(settings, "api_key_login_mode", "none")
+    mode = get_api_key_login_mode_text(raw_mode)
+    return types.PageButton(
+        text=_rt(f"🔑 ورود با کلید API: {mode}"),
+        type=types.InlineButtonTypeCallback(data=b"settings.api_key_login_mode"),
+        style=types.RichButtonStyle(bg_success=True) if raw_mode != "none" else types.RichButtonStyle(bg_danger=True),
+    )
 
 
 def _settings_rich_home_button() -> types.PageButton:
@@ -362,6 +400,8 @@ async def settings_menu_rich_blocks(settings, section_key: str | None = None) ->
             types.PageBlockDivider(),
         ]
         blocks.extend(await _settings_rich_section_rows(settings, section))
+        if section.key == "api_access":
+            blocks.append(types.PageBlockButtonRow(buttons=[_settings_rich_api_key_login_button(settings)]))
         blocks.append(types.PageBlockDivider())
         blocks.extend(_settings_rich_nav_button_rows(section.key))
         return blocks

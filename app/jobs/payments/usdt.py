@@ -25,6 +25,7 @@ from app.telegram.shared.utils.logging import send_log_message
 from config import TRX_TESTNET_MODE
 
 from .base import BasePaymentProcessor
+from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
 
@@ -262,12 +263,28 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
         return
     payment, new_amount = approved
 
-    fulfilled = await try_fulfill_after_crypto_credit(int(payment.order_id))
-    if not fulfilled:
-        user_msg = _format_user_payment_message(payment, settings, bonus, total_amount, new_amount)
-        await Kenzo.send_message(
-            payment.user_id,
-            user_msg,
+    try:
+        fulfilled = await try_fulfill_after_crypto_credit(int(payment.order_id))
+        if not fulfilled:
+            user_msg = _format_user_payment_message(payment, settings, bonus, total_amount, new_amount)
+            await Kenzo.send_message(
+                payment.user_id,
+                user_msg,
+                parse_mode="html",
+                buttons=[
+                    [
+                        Button.inline(
+                            text=f"💳 موجودی: {int(new_amount):,} تومان",
+                            data="no_action",
+                        )
+                    ]
+                ],
+            )
+
+        admin_log = _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details)
+        await send_log_message(
+            LogType.CRYPTO,
+            message=admin_log,
             parse_mode="html",
             buttons=[
                 [
@@ -278,21 +295,8 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
                 ]
             ],
         )
-
-    admin_log = _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details)
-    await send_log_message(
-        LogType.CRYPTO,
-        message=admin_log,
-        parse_mode="html",
-        buttons=[
-            [
-                Button.inline(
-                    text=f"💳 موجودی: {int(new_amount):,} تومان",
-                    data="no_action",
-                )
-            ]
-        ],
-    )
+    except Exception as e:
+        logger.error("Post-credit notification failed for order_id=%s: %s", payment.order_id, e)
 
 
 class USDTProcessor(BasePaymentProcessor):
@@ -352,6 +356,7 @@ class USDTProcessor(BasePaymentProcessor):
             all_transactions = await _fetch_token_transfers(
                 client, base_url, headers, address_wallet, earliest_ms, "batch", usdt_contract
             )
+            consumed: set[str] = set()
 
             for payment in valid_payments:
                 start_ms = payment.createtime * 1000
@@ -374,6 +379,9 @@ class USDTProcessor(BasePaymentProcessor):
                     tx_to = transaction.get("to") or transaction.get("toAddress") or transaction.get("ownerAddress")
                     if tx_to and tx_to.lower() != address_wallet.lower():
                         continue
+                    txid = chain_tx_id(transaction)
+                    if txid and txid in consumed:
+                        continue
 
                     if not await self._validate_transaction(transaction, payment.amount, address_wallet):
                         continue
@@ -381,6 +389,8 @@ class USDTProcessor(BasePaymentProcessor):
                     paytime = int(datetime.now(UTC).timestamp())
                     try:
                         await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
+                        if txid:
+                            consumed.add(txid)
                         break
                     except Exception as e:
                         logger.error("Error processing USDT payment %s: %s", payment.order_id, e)

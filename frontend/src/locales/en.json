@@ -37,7 +37,13 @@
     "changePhone": "Change Phone Number",
     "security": "🔒 Your data is encrypted and secure. We never store your Telegram credentials.",
     "invalidCode": "Invalid code",
-    "networkError": "Network error"
+    "networkError": "Network error",
+    "apiKeySignIn": "Enter your API key",
+    "apiKeyLabel": "API key",
+    "apiKeyPlaceholder": "mzb_xxxxxxxxxxxxxxxxxxxx",
+    "invalidApiKey": "Invalid API key",
+    "usePhoneInstead": "Sign in with phone number",
+    "useApiKeyInstead": "Sign in with API key"
   },
   "transactions": {
     "title": "Transactions",
@@ -140,8 +146,8 @@
     "faq4Body": "From the Buy menu, choose your desired panel and plan. Your active discount (if any) is applied during checkout. After payment, the service is added to your services list.",
     "faq5Title": "Where can I see transactions?",
     "faq5Body": "The full history of deposits and payments is visible in the Wallet Transactions section. Each transaction's status (pending, approved, rejected) is also shown.",
-    "faq6Title": "Signing in with a web account or OTP",
-    "faq6Body": "If you're accessing this outside of Telegram, sign in with a username/password or your phone number and an OTP code. Inside the Telegram mini-app, a separate sign-in usually isn't needed."
+    "faq6Title": "Signing in with a phone number or API key",
+    "faq6Body": "If you're accessing this outside of Telegram, sign in with your phone number and an OTP code, or with an API key generated from your profile page. Inside the Telegram mini-app, a separate sign-in usually isn't needed."
   },
   "profile": {
     "title": "My Profile",
@@ -162,8 +168,30 @@
     "transactionsCount": "{{count}} transactions",
     "help": "Help",
     "adminPanel": "Admin Panel",
+    "installApp": "Install app to home screen",
     "logout": "Log Out",
-    "loggedOut": "You have been logged out"
+    "loggedOut": "You have been logged out",
+    "apiKey": {
+      "title": "API key login",
+      "description": "Use this key to sign in directly from the login page, without a phone number or verification code.",
+      "generate": "Generate API key",
+      "regenerate": "Regenerate key",
+      "createdOn": "Created on: {{date}}",
+      "phoneRequired": "Register a phone number in the bot before generating an API key.",
+      "confirmTitle": "Generate a new key",
+      "confirmBody": "Generating a new key disables the old one and signs out every current session, including this device. You'll need to log in again after seeing the new key.",
+      "confirmRegenerate": "Generate new key",
+      "cancel": "Cancel",
+      "revealTitle": "Your API key",
+      "revealWarning": "This key is shown only once. Copy it now and store it somewhere safe.",
+      "reloginHint": "Closing this window signs you out everywhere for security -- you'll need to log in again.",
+      "reloginNotice": "For your security, please log in again",
+      "copy": "Copy",
+      "copied": "Key copied",
+      "copyFailed": "Copy failed",
+      "done": "Done",
+      "genericError": "Failed to generate the API key"
+    }
   },
   "balanceHub": {
     "title": "Wallet",
@@ -683,6 +711,18 @@
       "statRejected7d": "Rejected (7d)",
       "statVolume7d": "Approved volume (7d)"
     },
+    "pwa": {
+      "tab": "PWA",
+      "title": "Installable web app (PWA)",
+      "subtitle": "The icon, name, and description shown when users install the web app to their home screen.",
+      "appName": "Full app name / site title",
+      "shortName": "Short name (under the icon)",
+      "description": "Description",
+      "uploadIcon": "Upload icon",
+      "iconUpdated": "PWA icon updated.",
+      "iconAlt": "Web app icon",
+      "hint": "Upload any image (PNG, JPG, or WebP) — it's converted to the sizes needed for installing on Android and iOS. \"Full app name\" is also the browser tab title; it and the icon update live after saving (you may need to refresh the page)."
+    },
     "settings": {
       "serviceTools": "Service tools",
       "serviceUpgrade": "Service upgrade",
@@ -702,6 +742,7 @@
       "cryptoMin": "Minimum crypto top-up (toman)",
       "manualMin": "Minimum manual top-up (toman)",
       "resellerMinBalance": "Minimum reseller balance (toman)",
+      "apiKeyLoginMode": "API key login",
       "cryptoMax": "Maximum crypto top-up (toman)",
       "manualMax": "Maximum manual top-up (toman)",
       "singlePanelPurchase": "Buy from a single panel only",
@@ -1365,7 +1406,60 @@
       "blockConfirm": "Block user {{id}}? They will no longer be able to use the bot.",
       "phoneTitle": "Phone number for user {{id}}",
       "phonePlaceholder": "09123456789",
-      "phoneHint": "The number is what the browser login checks. Leave it empty to clear it."
+      "phoneHint": "The number is what the browser login checks. Leave it empty to clear it.",
+      "transfer": {
+        "button": "Transfer panel admin users",
+        "title": "Transfer panel admin users to {{id}}",
+        "intro": "Pick the destination panel from the bot's panels, then the admin whose users should move. Only active users are moved and recorded for this numeric ID; on_hold, limited, expired and disabled users are not moved, and the source admin itself is left untouched.",
+        "panel": "Destination panel (bot panels)",
+        "choosePanel": "Choose a panel…",
+        "chooseAdmin": "Choose an admin…",
+        "checkingAccess": "Checking owner/full access and loading admins…",
+        "sourceAdmin": "Source admin",
+        "sourceHint": "The reseller whose users move into the bot. ★ means this admin's note or Telegram ID in the panel equals this numeric ID.",
+        "targetHint": "Users stay on this panel and move under the bot admin ({{admin}}); subscription link, traffic and expiry do not change.",
+        "unlimitedNotice": "⚠️ Users with unlimited volume or unlimited time are not moved and stay under the source admin.",
+        "unlimitedSkipped": "Unlimited volume or time (not moved)",
+        "unlimitedHint": "These users are unlimited and will not be moved:",
+        "usersCount": "{{count}} users",
+        "preview": "Check users",
+        "loadingUsers": "Loading the admin's users from the panel…",
+        "totalUsers": "Total users: {{count}}",
+        "willMove": "Will be moved (active, with volume and expiry)",
+        "willCreate": "New bot services",
+        "alreadyLinked": "Already recorded for this user",
+        "skippedInactive": "Inactive (not moved)",
+        "conflicts": "Conflicts; owned by another user (not moved)",
+        "conflictsHint": "These users are linked to another ID in the bot and will not be moved:",
+        "traffic": "Used / total traffic of active users",
+        "refresh": "Refresh",
+        "start": "Start transfer",
+        "confirmText": "Move {{count}} users from {{source}} to {{target}}?",
+        "starting": "Starting…",
+        "finished": "Transfer finished",
+        "phase": {
+          "fetch": "Loading users from the panel…",
+          "check": "Checking conflicts…",
+          "transfer": "Transferring…",
+          "verify": "Final check…",
+          "done": "Done"
+        },
+        "activeUsers": "Active users",
+        "movedTotal": "Total moved",
+        "remainingOnSource": "Transferable users left on source",
+        "result": {
+          "moved": "Moved and recorded",
+          "moved_linked": "Moved (already in bot)",
+          "moved_no_record": "Moved, bot record failed",
+          "failed": "Failed",
+          "conflict": "Conflict",
+          "unlimited": "Unlimited; not moved"
+        },
+        "problemsOnly": "All except successful",
+        "noRows": "Nothing to show",
+        "downloadCsv": "Download CSV report",
+        "newTransfer": "New transfer"
+      }
     }
   }
 }
