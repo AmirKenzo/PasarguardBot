@@ -19,6 +19,7 @@ from app.models.panel.users import (
     PanelTransferStartResponse,
     PanelTransferStatusRequest,
     PanelTransferStatusResponse,
+    PanelTransferUnlimitedRow,
     PanelUserBalanceRequest,
     PanelUserBalanceResponse,
     PanelUserBlockRequest,
@@ -238,9 +239,10 @@ async def transfer_preview(payload: PanelTransferPreviewRequest, request: Reques
             already_linked=preview.already_linked,
             conflicts=[PanelTransferConflictRow(**item) for item in preview.conflicts],
             conflicts_total=preview.conflicts_total,
+            unlimited_total=preview.unlimited_total,
+            unlimited=[PanelTransferUnlimitedRow(**item) for item in preview.unlimited],
             active_used_traffic=preview.active_used_traffic,
             active_data_limit=preview.active_data_limit,
-            active_unlimited=preview.active_unlimited,
         )
 
     return await guard.run(payload, request, PanelTransferPreviewResponse, handle)

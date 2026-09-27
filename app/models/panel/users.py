@@ -120,6 +120,11 @@ class PanelTransferConflictRow(BaseModel):
     owner_id: int
 
 
+class PanelTransferUnlimitedRow(BaseModel):
+    username: str
+    reason: str
+
+
 class PanelTransferPreviewResponse(PanelResponse):
     target_admin: str | None = None
     total_users: int = 0
@@ -129,9 +134,10 @@ class PanelTransferPreviewResponse(PanelResponse):
     already_linked: int = 0
     conflicts: list[PanelTransferConflictRow] = Field(default_factory=list)
     conflicts_total: int = 0
+    unlimited_total: int = 0
+    unlimited: list[PanelTransferUnlimitedRow] = Field(default_factory=list)
     active_used_traffic: int = 0
     active_data_limit: int = 0
-    active_unlimited: int = 0
 
 
 class PanelTransferStartRequest(PanelTransferPreviewRequest):

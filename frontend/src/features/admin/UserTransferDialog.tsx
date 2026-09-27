@@ -15,6 +15,7 @@ const RESULT_TONE: Record<PanelTransferResult, "success" | "warning" | "danger" 
   moved_no_record: "warning",
   failed: "danger",
   conflict: "muted",
+  unlimited: "muted",
 };
 
 const STATUS_ORDER = ["active", "on_hold", "limited", "expired", "disabled"];
@@ -119,6 +120,7 @@ export function UserTransferDialog({
       ) : (
         <div className="space-y-4">
           <p className="text-xs text-muted">{t("panel.userDetail.transfer.intro")}</p>
+          <p className="rounded-md bg-warning/10 p-2 text-[11px] text-warning">{t("panel.userDetail.transfer.unlimitedNotice")}</p>
 
           <SelectField
             label={t("panel.userDetail.transfer.panel")}
@@ -185,14 +187,21 @@ export function UserTransferDialog({
                 <Row label={t("panel.userDetail.transfer.willCreate")} value={formatNumber(p.will_create)} />
                 <Row label={t("panel.userDetail.transfer.alreadyLinked")} value={formatNumber(p.already_linked)} />
                 <Row label={t("panel.userDetail.transfer.skippedInactive")} value={formatNumber(p.total_users - p.active_users)} />
+                <Row label={t("panel.userDetail.transfer.unlimitedSkipped")} value={formatNumber(p.unlimited_total)} />
                 <Row label={t("panel.userDetail.transfer.conflicts")} value={formatNumber(p.conflicts_total)} />
                 <Row
                   label={t("panel.userDetail.transfer.traffic")}
-                  value={`${formatBytes(p.active_used_traffic, 1)} / ${formatBytes(p.active_data_limit, 1)}${
-                    p.active_unlimited ? ` + ${t("panel.userDetail.transfer.unlimitedCount", { count: p.active_unlimited })}` : ""
-                  }`}
+                  value={`${formatBytes(p.active_used_traffic, 1)} / ${formatBytes(p.active_data_limit, 1)}`}
                 />
               </dl>
+              {p.unlimited.length > 0 && (
+                <div className="rounded-md bg-surface-2 p-2 text-[11px] text-muted">
+                  <div className="mb-1 font-semibold text-text">{t("panel.userDetail.transfer.unlimitedHint")}</div>
+                  <div className="ltr-field max-h-24 overflow-y-auto">
+                    {p.unlimited.map((u) => `${u.username} (${u.reason})`).join(" · ")}
+                  </div>
+                </div>
+              )}
               {p.conflicts.length > 0 && (
                 <div className="rounded-md bg-warning/10 p-2 text-[11px] text-warning">
                   <div className="mb-1 font-semibold">{t("panel.userDetail.transfer.conflictsHint")}</div>
@@ -284,6 +293,7 @@ function TransferProgress({
     moved_no_record: t("panel.userDetail.transfer.result.moved_no_record"),
     failed: t("panel.userDetail.transfer.result.failed"),
     conflict: t("panel.userDetail.transfer.result.conflict"),
+    unlimited: t("panel.userDetail.transfer.result.unlimited"),
   };
 
   return (

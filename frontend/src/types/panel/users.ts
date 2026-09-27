@@ -122,6 +122,11 @@ export interface PanelTransferConflictRow {
   owner_id: number;
 }
 
+export interface PanelTransferUnlimitedRow {
+  username: string;
+  reason: string;
+}
+
 export interface PanelTransferPreviewResponse extends PanelEnvelope {
   target_admin?: string | null;
   total_users: number;
@@ -131,9 +136,10 @@ export interface PanelTransferPreviewResponse extends PanelEnvelope {
   already_linked: number;
   conflicts: PanelTransferConflictRow[];
   conflicts_total: number;
+  unlimited_total: number;
+  unlimited: PanelTransferUnlimitedRow[];
   active_used_traffic: number;
   active_data_limit: number;
-  active_unlimited: number;
 }
 
 export interface PanelTransferStartRequest extends PanelTransferPreviewRequest {
@@ -148,8 +154,14 @@ export interface PanelTransferStatusRequest extends PanelAuthRequest {
   job_id: string;
 }
 
-/** moved | moved_linked | moved_no_record | failed | conflict */
-export type PanelTransferResult = "moved" | "moved_linked" | "moved_no_record" | "failed" | "conflict";
+/** moved | moved_linked | moved_no_record | failed | conflict | unlimited */
+export type PanelTransferResult =
+  | "moved"
+  | "moved_linked"
+  | "moved_no_record"
+  | "failed"
+  | "conflict"
+  | "unlimited";
 
 export interface PanelTransferResultRow {
   username: string;

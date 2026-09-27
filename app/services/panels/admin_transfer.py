@@ -4,7 +4,8 @@ The flow is split into read-only steps (access check, admin list, preview) and a
 background job that changes ownership on the panel with ``bulk_set_owner`` and
 creates one ``Service`` row per moved user for the target Telegram id.
 
-Only users whose panel status is ``active`` are moved. The source admin itself is
+Only users whose panel status is ``active`` and that have both a data limit and an
+expiry date are moved; unlimited users are skipped. The source admin itself is
 never modified. Users already recorded in the bot for a different Telegram id are
 skipped and reported as conflicts, so no existing service changes hands silently.
 """
@@ -46,7 +47,7 @@ _MAX_CONFLICTS_PREVIEW = 200
 
 ACTIVE_STATUS = "active"
 
-TransferResult = Literal["moved", "moved_linked", "moved_no_record", "failed", "conflict"]
+TransferResult = Literal["moved", "moved_linked", "moved_no_record", "failed", "conflict", "unlimited"]
 JobState = Literal["running", "done", "error"]
 
 
@@ -146,6 +147,19 @@ def _timestamp(value: Any) -> int | None:
     return parsed or None
 
 
+def _unlimited_reason(user: Any) -> str | None:
+    """Why a user cannot be moved into the bot: no data limit and/or no expiry."""
+    no_volume = int(getattr(user, "data_limit", 0) or 0) <= 0
+    no_expiry = _timestamp(getattr(user, "expire", None)) is None
+    if no_volume and no_expiry:
+        return "unlimited volume and time"
+    if no_volume:
+        return "unlimited volume"
+    if no_expiry:
+        return "unlimited time"
+    return None
+
+
 def _reset_strategy(user: Any) -> str:
     raw = getattr(user, "data_limit_reset_strategy", None)
     return str(getattr(raw, "value", raw) or "no_reset")
@@ -207,9 +221,10 @@ class TransferPreview:
     already_linked: int
     conflicts: list[dict[str, Any]]
     conflicts_total: int
+    unlimited_total: int
+    unlimited: list[dict[str, Any]]
     active_used_traffic: int
     active_data_limit: int
-    active_unlimited: int
 
 
 def _validate_admins(source_admin: str, target_admin: str) -> tuple[str, str]:
@@ -252,8 +267,12 @@ async def build_preview(
 
     will_create = already_linked = 0
     conflicts: list[dict[str, Any]] = []
-    used = limit = unlimited = 0
+    unlimited: list[dict[str, Any]] = []
+    used = limit = 0
     for user in active:
+        if reason := _unlimited_reason(user):
+            unlimited.append({"username": str(user.username), "reason": reason})
+            continue
         row = existing.get(str(user.username))
         if row is None:
             will_create += 1
@@ -263,11 +282,7 @@ async def build_preview(
             conflicts.append({"username": str(user.username), "owner_id": int(row.id or 0)})
             continue
         used += int(getattr(user, "used_traffic", 0) or 0)
-        data_limit = int(getattr(user, "data_limit", 0) or 0)
-        if data_limit > 0:
-            limit += data_limit
-        else:
-            unlimited += 1
+        limit += int(getattr(user, "data_limit", 0) or 0)
 
     return TransferPreview(
         target_admin=target,
@@ -278,9 +293,10 @@ async def build_preview(
         already_linked=already_linked,
         conflicts=conflicts[:_MAX_CONFLICTS_PREVIEW],
         conflicts_total=len(conflicts),
+        unlimited_total=len(unlimited),
+        unlimited=unlimited[:_MAX_CONFLICTS_PREVIEW],
         active_used_traffic=used,
         active_data_limit=limit,
-        active_unlimited=unlimited,
     )
 
 
@@ -465,6 +481,10 @@ async def _execute(panel, job: TransferJob) -> None:
     existing = await _existing_services(job.panel_code, [str(user.username) for user in active])
     to_move: list[Any] = []
     for user in active:
+        if reason := _unlimited_reason(user):
+            job.rows.append(TransferRow(str(user.username), int(user.id), "unlimited", reason))
+            job.processed += 1
+            continue
         row = existing.get(str(user.username))
         if row is not None and int(row.id or 0) != job.telegram_id:
             job.rows.append(
@@ -503,7 +523,9 @@ async def _execute(panel, job: TransferJob) -> None:
     job.phase = "verify"
     try:
         remaining = await fetch_admin_users(panel, job.source_admin)
-        job.remaining_active_on_source = sum(1 for user in remaining if _status(user) == ACTIVE_STATUS)
+        job.remaining_active_on_source = sum(
+            1 for user in remaining if _status(user) == ACTIVE_STATUS and _unlimited_reason(user) is None
+        )
     except Exception as exc:
         log.warning("admin transfer: verification fetch failed: %s", format_exception_message(exc))
     job.phase = "done"
@@ -538,9 +560,10 @@ def _summary_lines(job: TransferJob) -> list[str]:
         f"⚠️ <b>منتقل شد ولی ثبت در ربات ناموفق:</b> {counts.get('moved_no_record', 0)}",
         f"❌ <b>ناموفق:</b> {counts.get('failed', 0)}",
         f"🚫 <b>تداخل (متعلق به کاربر دیگر):</b> {counts.get('conflict', 0)}",
+        f"♾ <b>حجم یا زمان نامحدود (منتقل نشد):</b> {counts.get('unlimited', 0)}",
     ]
     if job.remaining_active_on_source is not None:
-        lines.append(f"🔎 <b>اکتیو باقی‌مانده روی مبدأ:</b> {job.remaining_active_on_source}")
+        lines.append(f"🔎 <b>قابل انتقال باقی‌مانده روی مبدأ:</b> {job.remaining_active_on_source}")
     if job.error:
         lines.append(f"🛑 <b>خطا:</b> {job.error}")
     return lines
