@@ -97,6 +97,20 @@ def status_label(status: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _parse_error(data: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Read the error code/message from either the documented `detail` or the live `error` envelope."""
+    for field in ("error", "detail"):
+        value = data.get(field)
+        if isinstance(value, dict):
+            return value.get("code"), value.get("message")
+        if isinstance(value, str):
+            return None, value
+        if isinstance(value, list) and value:
+            first = value[0]
+            return None, first.get("msg") if isinstance(first, dict) else str(first)
+    return None, data.get("message") if isinstance(data.get("message"), str) else None
+
+
 class TonPaysClient:
     def __init__(self, api_key: str, mode: str):
         self.api_key = api_key
@@ -115,17 +129,26 @@ class TonPaysClient:
             data = response.json()
         except ValueError:
             data = {}
-        if response.status_code >= 400:
-            detail = data.get("detail") if isinstance(data, dict) else None
-            code = detail.get("code") if isinstance(detail, dict) else None
-            text = detail.get("message") if isinstance(detail, dict) else detail if isinstance(detail, str) else None
+        if not isinstance(data, dict):
+            data = {}
+        if response.status_code >= 400 or data.get("success") is False:
+            code, text = _parse_error(data)
             if code is None and response.status_code == 404:
                 code = "INVOICE_NOT_FOUND"
-            logger.warning("TonPays %s %s -> %s %s", method, path, response.status_code, code or text)
-            raise TonPaysError(
-                ERROR_MESSAGES.get(code or "", text or "خطا در درگاه TonPays."), code, response.status_code
+            logger.warning(
+                "TonPays %s %s -> %s %s %s | body=%s",
+                method,
+                path,
+                response.status_code,
+                code,
+                text,
+                response.text[:500],
             )
-        return data if isinstance(data, dict) else {}
+            fallback = f"خطا در درگاه TonPays (HTTP {response.status_code}{f': {text}' if text else ''})."
+            raise TonPaysError(ERROR_MESSAGES.get(code or "", fallback), code, response.status_code)
+        # Live API wraps errors as {"success": false, "error": {...}}; accept a {"data": {...}} success wrapper too.
+        payload = data.get("data")
+        return payload if isinstance(payload, dict) and "invoice_id" not in data else data
 
     async def create_invoice(self, *, amount: int, order_id: str, buyer_chat_id: int) -> dict[str, Any]:
         body: dict[str, Any] = {"amount": int(amount), "order_id": order_id, "buyer_chat_id": int(buyer_chat_id)}
@@ -133,7 +156,19 @@ class TonPaysClient:
         if url:
             body["callback_url"] = url
         path = "/api/custom/v1/invoices/telegram/create" if self.mode == MODE_CUSTOM else "/api/v1/invoices/create"
-        return await self._request("POST", path, json=body)
+        # Optional fields TonPays may reject; drop the rejected one and retry once (the poller covers a missing webhook).
+        optional = {"INVALID_CALLBACK_URL": "callback_url"}
+        if self.mode == MODE_STANDARD:
+            optional["INVALID_BUYER_CHAT_ID"] = "buyer_chat_id"
+        try:
+            return await self._request("POST", path, json=body)
+        except TonPaysError as e:
+            field = optional.get(e.code or "")
+            if not field or field not in body:
+                raise
+            logger.warning("TonPays rejected %s (%s); retrying without it", field, e.code)
+            body.pop(field)
+            return await self._request("POST", path, json=body)
 
     async def check(self, invoice_id: str) -> dict[str, Any]:
         prefix = "/api/custom/v1" if self.mode == MODE_CUSTOM else "/api/v1"

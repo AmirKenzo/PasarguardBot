@@ -39,6 +39,8 @@ async def tonpays_callback(request: Request) -> WebhookResponse:
         payload = json.loads(await request.body())
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON payload") from None
+    if isinstance(payload, dict) and isinstance(payload.get("data"), dict) and "invoice_id" not in payload:
+        payload = payload["data"]
     invoice_id = str(payload.get("invoice_id") or "").strip() if isinstance(payload, dict) else ""
     if not invoice_id:
         raise HTTPException(status_code=400, detail="invoice_id missing")
