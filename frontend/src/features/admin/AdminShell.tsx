@@ -9,6 +9,7 @@ import {
   Boxes,
   ChevronDown,
   CreditCard,
+  Gem,
   Gift,
   Keyboard,
   LayoutDashboard,
@@ -112,6 +113,7 @@ const navGroups = (t: TFunction): NavGroup[] => [
             label: t("panel.settings.paymentsAndWallet"),
             icon: CreditCard,
           },
+          { to: "/panel/settings?section=tonpays", label: t("panel.settings.tonpaysTab"), icon: Gem },
           {
             to: "/panel/settings?section=purchase_settings",
             label: t("panel.settings.buyAndRenew"),

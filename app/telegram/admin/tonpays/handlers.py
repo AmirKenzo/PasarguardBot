@@ -8,6 +8,8 @@ from telethon.tl.custom import Message
 from app.db.crud.settings import SettingsManager
 from app.services.payments.tonpays import test_connection
 from app.services.payments.tonpays_config import (
+    DISCLAIMER,
+    DISCLAIMER_SHORT,
     MODE_CUSTOM,
     MODE_STANDARD,
     api_key_for,
@@ -49,6 +51,7 @@ def _menu_text(settings) -> str:
             else "⚠️ WEBAPP_URL با https تنظیم نشده؛ تأیید فقط با استعلام دوره‌ای انجام می‌شود."
         )
         + "\n\nکلید را از پنل فروشگاه TonPays (تنظیمات ← کلید API) بردارید."
+        + f"\n\n<b>{DISCLAIMER}</b>"
     )
 
 
@@ -112,6 +115,8 @@ async def tonpays_admin_callback(event: events.CallbackQuery.Event):
 
     if action == "toggle":
         await manager.update_setting(settings.id, tonpays_enabled=not settings.tonpays_enabled)
+        if not settings.tonpays_enabled:
+            await event.answer(DISCLAIMER_SHORT, alert=True)
     elif action == "mode":
         new_mode = MODE_STANDARD if gateway_mode(settings) == MODE_CUSTOM else MODE_CUSTOM
         await manager.update_setting(settings.id, tonpays_mode=new_mode)

@@ -81,10 +81,11 @@ ERROR_MESSAGES = {
 class TonPaysError(Exception):
     """A TonPays API or flow error with a user-facing Persian message."""
 
-    def __init__(self, message: str, code: str | None = None):
+    def __init__(self, message: str, code: str | None = None, status: int | None = None):
         super().__init__(message)
         self.code = code
         self.message = message
+        self.status = status
 
 
 def status_label(status: str | None) -> str:
@@ -117,9 +118,13 @@ class TonPaysClient:
         if response.status_code >= 400:
             detail = data.get("detail") if isinstance(data, dict) else None
             code = detail.get("code") if isinstance(detail, dict) else None
-            text = detail.get("message") if isinstance(detail, dict) else None
+            text = detail.get("message") if isinstance(detail, dict) else detail if isinstance(detail, str) else None
+            if code is None and response.status_code == 404:
+                code = "INVOICE_NOT_FOUND"
             logger.warning("TonPays %s %s -> %s %s", method, path, response.status_code, code or text)
-            raise TonPaysError(ERROR_MESSAGES.get(code or "", text or "خطا در درگاه TonPays."), code)
+            raise TonPaysError(
+                ERROR_MESSAGES.get(code or "", text or "خطا در درگاه TonPays."), code, response.status_code
+            )
         return data if isinstance(data, dict) else {}
 
     async def create_invoice(self, *, amount: int, order_id: str, buyer_chat_id: int) -> dict[str, Any]:

@@ -9,6 +9,17 @@ from config import WEBAPP_URL
 MODE_STANDARD = "standard"
 MODE_CUSTOM = "custom"
 
+DISCLAIMER = (
+    "⚠️ درگاه TonPays یک سرویس شخص ثالث است. نویسندهٔ ربات هیچ مسئولیتی در قبال این درگاه ندارد "
+    "و امنیت یا اعتبار آن را، چه الان و چه در آینده، تأیید یا رد نمی‌کند.\n"
+    "قبل از استفادهٔ جدی، درگاه را با مبالغ کم تست کنید؛ مسئولیت هرگونه ضرر یا از دست رفتن وجه با خودتان است."
+)
+# Telegram callback alerts are capped at 200 characters.
+DISCLAIMER_SHORT = (
+    "⚠️ TonPays سرویس شخص ثالث است و نویسندهٔ ربات اعتبار آن را تأیید یا رد نمی‌کند. "
+    "اول با مبالغ کم تست کنید؛ مسئولیت ضرر احتمالی با خودتان است."
+)
+
 
 def gateway_mode(settings) -> str:
     mode = str(getattr(settings, "tonpays_mode", MODE_STANDARD) or MODE_STANDARD)
