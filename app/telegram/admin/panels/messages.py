@@ -31,6 +31,8 @@ from app.services.panels.groups import (
     cache_panel_groups,
 )
 from app.services.panels.settings import (
+    MAX_EXPIRED_GRACE_DAYS,
+    MIN_EXPIRED_GRACE_DAYS,
     add_time_plan_to_feature_settings,
     add_volume_plan_to_feature_settings,
     get_panel_time_plan,
@@ -44,6 +46,7 @@ from app.services.panels.settings import (
 from app.telegram.admin.manage_user.service import delete_message
 from app.telegram.admin.panels.service import (
     _is_number,
+    build_panel_expired_delete_content,
     build_panel_test_settings_content,
     display_panels,
     mutate_panel_feature_settings,
@@ -816,6 +819,27 @@ async def panel_admin_message_handler(event: Message):
             await event.respond(text, parse_mode="html", buttons=buttons)
         else:
             await event.respond("❌ لطفاً فقط عدد وارد کنید. مثال: 3 یا 7")
+        return
+
+    if step == "expired_grace_days" and msg:
+        if not msg.isdigit() or not MIN_EXPIRED_GRACE_DAYS <= int(msg) <= MAX_EXPIRED_GRACE_DAYS:
+            await event.respond(
+                f"❌ لطفاً یک عدد بین {MIN_EXPIRED_GRACE_DAYS} تا {MAX_EXPIRED_GRACE_DAYS} وارد کنید. مثال: 7"
+            )
+            return
+        grace_days = int(msg)
+        panel_code = int(await get_data(event.sender_id, "expired_grace_days"))
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.respond("❌ پنل یافت نشد!")
+            return
+        await PanelsManager().update_panel(panel_code, expired_grace_days=grace_days)
+        await event.respond(f"✅ مهلت حذف سرویس‌های منقضی به {grace_days} روز تغییر یافت.")
+        await clear_user(event.sender_id)
+        await set_step(event.sender_id, "panel")
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        text, buttons = build_panel_expired_delete_content(panel)
+        await event.respond(text, parse_mode="html", buttons=buttons)
         return
 
     if step == "waiting_single_config_links" and msg:

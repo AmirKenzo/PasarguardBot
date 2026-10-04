@@ -91,6 +91,8 @@ class PanelRenewalSettingsPayload(BaseModel):
     auto_renew_enabled: bool | None = None
     webhook_notifications_enabled: bool | None = None
     renew_volume_remaining_mode: bool | None = None
+    expired_auto_delete_enabled: bool | None = None
+    expired_grace_days: int | None = Field(None, ge=1, le=365)
 
 
 class PanelSalesSettingsPayload(BaseModel):

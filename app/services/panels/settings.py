@@ -59,9 +59,16 @@ DEFAULT_TEST_SETTINGS: dict[str, Any] = {
     "duration_days": 3,
 }
 
-DEFAULT_RENEWAL_SETTINGS: dict[str, bool] = {
+DEFAULT_EXPIRED_GRACE_DAYS = 3
+MIN_EXPIRED_GRACE_DAYS = 1
+MAX_EXPIRED_GRACE_DAYS = 365
+
+DEFAULT_RENEWAL_SETTINGS: dict[str, Any] = {
     "webhook_notifications_enabled": False,
     "renew_volume_remaining_mode": False,
+    # Paid services are removed from panel and bot this many days after expiry.
+    "expired_auto_delete_enabled": True,
+    "expired_grace_days": DEFAULT_EXPIRED_GRACE_DAYS,
 }
 
 
@@ -125,6 +132,8 @@ LEGACY_FIELD_TO_JSON: dict[str, tuple[str, str]] = {
     "test_duration_days": ("test_settings", "duration_days"),
     "webhook_notifications_enabled": ("renewal_settings", "webhook_notifications_enabled"),
     "renew_volume_remaining_mode": ("renewal_settings", "renew_volume_remaining_mode"),
+    "expired_auto_delete_enabled": ("renewal_settings", "expired_auto_delete_enabled"),
+    "expired_grace_days": ("renewal_settings", "expired_grace_days"),
 }
 
 
@@ -818,6 +827,23 @@ def panel_webhook_notifications_enabled(panel) -> bool:
 
 def panel_renew_volume_remaining_mode(panel) -> bool:
     return bool(renewal_settings(panel).get("renew_volume_remaining_mode", False))
+
+
+def panel_expired_auto_delete_enabled(panel) -> bool:
+    return bool(renewal_settings(panel).get("expired_auto_delete_enabled", True))
+
+
+def normalize_expired_grace_days(value: Any) -> int:
+    """Clamp a grace-days value into the allowed range, falling back to the default."""
+    try:
+        days = int(value)
+    except TypeError, ValueError:
+        return DEFAULT_EXPIRED_GRACE_DAYS
+    return max(MIN_EXPIRED_GRACE_DAYS, min(MAX_EXPIRED_GRACE_DAYS, days))
+
+
+def panel_expired_grace_days(panel) -> int:
+    return normalize_expired_grace_days(renewal_settings(panel).get("expired_grace_days"))
 
 
 def panel_display_mode(panel) -> str:

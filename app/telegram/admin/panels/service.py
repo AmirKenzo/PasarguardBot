@@ -19,6 +19,8 @@ from app.services.panels.settings import (
     is_custom_buy_ready,
     is_reseller_capacity_ready,
     panel_custom_buy_settings,
+    panel_expired_auto_delete_enabled,
+    panel_expired_grace_days,
     panel_reseller_capacity_settings,
     panel_reseller_sale_flag,
     panel_shop_sale_flag,
@@ -116,6 +118,34 @@ async def build_panel_test_settings_content(panel) -> tuple[str, list]:
     else:
         buttons.append([Button.inline("🆓 ارائهٔ تست از این پنل", data=f"panel_set_test_server:{panel_code}")])
     buttons.append([Button.inline("🔙 برگشت", data=f"panel_info:{panel_code}")])
+    return text, buttons
+
+
+def build_panel_expired_delete_content(panel) -> tuple[str, list]:
+    enabled = panel_expired_auto_delete_enabled(panel)
+    grace_days = panel_expired_grace_days(panel)
+    if enabled:
+        status_line = f"🗑 <b>وضعیت:</b> فعال ✅ — {grace_days} روز بعد از انقضا حذف می‌شود"
+    else:
+        status_line = "🗑 <b>وضعیت:</b> خاموش ❌ — سرویس‌های منقضی حذف نمی‌شوند"
+    text = (
+        f"<b>🗑 حذف خودکار سرویس‌های منقضی</b>\n\n"
+        f"{status_line}\n\n"
+        f"سرویس‌های پولی این پنل بعد از انقضا و گذشت مهلت تعیین‌شده، از پنل و ربات حذف می‌شوند.\n"
+        f"کاربر هنگام انقضا از مهلت باقی‌مانده مطلع می‌شود.\n"
+        f"سرویس‌های تست شامل این تنظیم نیستند و بلافاصله بعد از انقضا حذف می‌شوند."
+    )
+    panel_code = panel.code
+    buttons = [
+        [
+            Button.inline(
+                "❌ خاموش کردن حذف خودکار" if enabled else "✅ روشن کردن حذف خودکار",
+                data=f"panel_expired_delete_toggle:{panel_code}",
+            )
+        ],
+        [Button.inline(f"⏳ مهلت حذف: {grace_days} روز", data=f"panel_expired_grace:{panel_code}")],
+        [Button.inline("🔙 برگشت", data=f"panel_info:{panel_code}")],
+    ]
     return text, buttons
 
 

@@ -65,6 +65,7 @@ from app.services.panels.settings import (
     panel_custom_buy_settings,
     panel_default_group_ids,
     panel_display_mode,
+    panel_expired_grace_days,
     panel_node_prefixes,
     panel_reseller_button_settings,
     panel_reseller_capacity_settings,
@@ -272,7 +273,9 @@ async def get_panel_settings(payload: PanelCodeRequest, request: Request) -> Pan
                 volume_gb=panel_test_volume_gb(panel),
                 duration_days=panel_test_duration_days(panel),
             ),
-            renewal=PanelRenewalSettingsPayload(**renewal_settings(panel)),
+            renewal=PanelRenewalSettingsPayload(
+                **{**renewal_settings(panel), "expired_grace_days": panel_expired_grace_days(panel)}
+            ),
             sales=PanelSalesSettingsPayload(**panel_sales_settings(panel)),
             custom_buy=PanelCustomBuySettingsPayload(**panel_custom_buy_settings(panel)),
             reseller_capacity=PanelResellerCapacitySettingsPayload(**panel_reseller_capacity_settings(panel)),

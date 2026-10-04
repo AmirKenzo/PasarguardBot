@@ -10,7 +10,11 @@ from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import set_user_status
 from app.logger import LogTag, LogType, get_logger
 from app.services.billing.renewal import require_panel_userid
-from app.services.panels.settings import panel_webhook_notifications_enabled
+from app.services.panels.settings import (
+    panel_expired_auto_delete_enabled,
+    panel_expired_grace_days,
+    panel_webhook_notifications_enabled,
+)
 from app.telegram.shared.utils.logging import send_log_message
 from app.utils.formatting.dates import timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
@@ -101,19 +105,39 @@ async def cleanup_expired_test_services():
 
 async def cleanup_expired_paid_services(panel_codes: list[int], current_time: int) -> int:
     """
-    Delete paid services expired 3+ days ago from panel and DB (all panels).
-    Runs regardless of webhook so expired users are always cleaned.
+    Delete paid services whose per-panel grace period after expiry has ended, from panel and DB.
+    Panels with auto-delete disabled are skipped. Runs regardless of webhook.
     """
     if not panel_codes:
         return 0
     all_panels = await PanelsManager().get_all_panels()
-    panels_by_code = {p.code: p for p in all_panels if p.code in set(panel_codes)}
+    wanted = set(panel_codes)
+    panels_by_grace: dict[int, dict] = {}
+    for panel in all_panels:
+        if panel.code in wanted and panel_expired_auto_delete_enabled(panel):
+            panels_by_grace.setdefault(panel_expired_grace_days(panel), {})[panel.code] = panel
+    deletions = 0
+    for grace_days, panels_by_code in panels_by_grace.items():
+        deletions += await _cleanup_expired_paid_services_for_grace(panels_by_code, current_time, grace_days)
+    if deletions:
+        logger.info(f"{LogTag.JOB} cleanup_expired_paid_services | deleted={deletions}")
+    return deletions
+
+
+async def _cleanup_expired_paid_services_for_grace(panels_by_code: dict, current_time: int, grace_days: int) -> int:
+    """Delete paid services of panels sharing the same grace period."""
+    panel_codes = list(panels_by_code)
     service_crud = ServiceCRUD()
     batch_size = 500
     deletions = 0
     while True:
         # Always first page while deleting — advancing a cursor can skip failed deletes.
-        batch = await service_crud.get_services_expired_grace_period_batch(panel_codes, current_time, limit=batch_size)
+        batch = await service_crud.get_services_expired_grace_period_batch(
+            panel_codes,
+            current_time,
+            limit=batch_size,
+            grace_seconds=grace_days * 86400,
+        )
         if not batch:
             break
         codes_to_delete: list[int] = []
@@ -147,14 +171,14 @@ async def cleanup_expired_paid_services(panel_codes: list[int], current_time: in
                     f"📋 <b>کد سرویس:</b> <code>{service.code}</code>\n"
                     f"👤 <b>نام کانفیگ:</b> <code>{service.username}</code>\n\n"
                     f"⚠️ <b>توضیحات:</b>\n"
-                    f"سرویس شما به دلیل انقضای زمان و عدم تمدید پس از 3 روز از ربات حذف شد.\n\n"
+                    f"سرویس شما به دلیل انقضای زمان و عدم تمدید پس از {grace_days} روز از ربات حذف شد.\n\n"
                     f"💡 برای خرید سرویس جدید، از منوی اصلی ربات استفاده کنید.\n\n"
                     f"<b>#service_deleted_{service.code}</b>"
                 ),
                 parse_mode="html",
             )
             log_parts = [
-                "✅ یک کانفیگ به دلیل انقضا پس از 3 روز حذف شد.\n\n",
+                f"✅ یک کانفیگ به دلیل انقضا پس از {grace_days} روز حذف شد.\n\n",
                 f"◾️ کد سرویس: <code>{service.code}</code>\n",
                 f"◾️ شناسه کاربر: <code>{service.id}</code>\n",
                 f"◾️ اسم کانفیگ: <code>{service.username}</code>\n",
@@ -188,8 +212,6 @@ async def cleanup_expired_paid_services(panel_codes: list[int], current_time: in
             await send_log_message(LogType.OTHER, message="".join(log_parts), parse_mode="html")
         if len(batch) < batch_size:
             break
-    if deletions:
-        logger.info(f"{LogTag.JOB} cleanup_expired_paid_services | deleted={deletions}")
     return deletions
 
 
@@ -205,7 +227,7 @@ async def handle_service_expiration():
     panels_without_webhook = [p for p in all_panels if not panel_webhook_notifications_enabled(p)]
     all_panel_codes = [p.code for p in all_panels]
 
-    # Always run cleanup: test services + paid services expired 3+ days (all panels, regardless of webhook)
+    # Always run cleanup: test services + paid services past their panel grace period (regardless of webhook)
     await cleanup_expired_test_services()
     cleanup_deletions = await cleanup_expired_paid_services(all_panel_codes, current_time)
 
@@ -218,6 +240,7 @@ async def handle_service_expiration():
         return
 
     panel_codes_without_webhook = [p.code for p in panels_without_webhook]
+    panels_without_webhook_by_code = {p.code: p for p in panels_without_webhook}
     logger.debug(f"{LogTag.JOB} handle_service_expiration: {len(panels_without_webhook)} panels without webhooks")
 
     expiry_notifications = 0
@@ -295,14 +318,20 @@ async def handle_service_expiration():
                 and service.expiration_time <= current_time
                 and service.warning == 0
             ):
-                days_remaining = 3
+                service_panel = panels_without_webhook_by_code.get(service.in_panel)
+                delete_note = ""
+                if service_panel is None or panel_expired_auto_delete_enabled(service_panel):
+                    days_remaining = panel_expired_grace_days(service_panel)
+                    delete_note = (
+                        f"<b>⚠️ نکته: اگر در {days_remaining} روز آینده تمدید نکنید، سرویس شما حذف خواهد شد.</b>\n"
+                    )
                 warn_text = (
                     f"<b>#اطلاع_رسانی</b>\n\n"
                     f"<b>#⃣ کد سرویس(در ربات): {service.code}</b>\n"
                     f"<b>🔷 اسم کانفیگ: {service.username}</b>\n"
                     f"<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n"
                     f"<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n"
-                    f"<b>⚠️ نکته: اگر در {days_remaining} روز آینده تمدید نکنید، سرویس شما حذف خواهد شد.</b>\n\n"
+                    f"{delete_note}\n"
                     f"<b>#notification_{service.code}</b>"
                 )
                 if await _notify_user(service.id, warn_text, parse_mode="html"):

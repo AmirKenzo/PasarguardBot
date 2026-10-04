@@ -554,13 +554,21 @@ class ServiceCRUD:
         after_code: int | None = None,
     ):
         """Get services in batches for expiration checking (keyset pagination)."""
-        del current_time, offset  # kept for call-site compatibility
+        del offset  # kept for call-site compatibility
         try:
             async with Session() as session:
                 filters = [
                     Service.in_panel.in_(panel_codes),
                     Service.expiration_time.isnot(None),
                     Service.expiration_time <= expiring_time,
+                    # Only rows still owed a notice; expired services may be kept for long grace periods.
+                    or_(
+                        and_(Service.expiration_time > current_time, Service.expire_notified.isnot(True)),
+                        and_(
+                            Service.expiration_time <= current_time,
+                            or_(Service.warning.is_(None), Service.warning == 0),
+                        ),
+                    ),
                 ]
                 if after_expiration_time is not None and after_code is not None:
                     filters.append(
@@ -633,15 +641,16 @@ class ServiceCRUD:
         *,
         after_expiration_time: int | None = None,
         after_code: int | None = None,
+        grace_seconds: int = 259200,
     ):
-        """Get paid services expired 3+ days ago (grace period ended) for cleanup from DB and panel."""
+        """Get paid services whose post-expiry grace period ended, for cleanup from DB and panel."""
         del offset
         try:
             async with Session() as session:
                 filters = [
                     Service.in_panel.in_(panel_codes),
                     Service.expiration_time.isnot(None),
-                    (Service.expiration_time + 259200) <= current_time,
+                    Service.expiration_time <= current_time - grace_seconds,
                     or_(Service.is_test.is_(None), Service.is_test == False),  # noqa: E712
                 ]
                 if after_expiration_time is not None and after_code is not None:
