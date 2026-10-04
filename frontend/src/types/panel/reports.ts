@@ -16,6 +16,11 @@ export interface PanelReportTotals {
   test_services: number;
   manual_approved_sum: number;
   auto_approved_sum: number;
+  crypto_approved_sum?: number;
+  stars_approved_sum?: number;
+  tonpays_approved_sum?: number;
+  /** Paid top-ups from every gateway. */
+  total_revenue?: number;
   pending_sum: number;
   pending_count: number;
 }

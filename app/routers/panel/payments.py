@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime
 
 from fastapi import APIRouter, Request
 
@@ -35,6 +34,7 @@ from app.models.panel.payments import (
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.billing import payment_stats
 from app.services.payments.tonpays import test_connection
 from app.services.payments.tonpays_config import (
     api_key_for,
@@ -221,8 +221,7 @@ async def rule_delete(payload: PanelRuleDeleteRequest, request: Request) -> Acti
 
 
 def _start_of_today() -> int:
-    now = datetime.now()
-    return int(datetime(now.year, now.month, now.day).timestamp())
+    return int(payment_stats.tehran_day_start().timestamp())
 
 
 @router.post("/panel/payments/tonpays", response_model=PanelTonPaysResponse)

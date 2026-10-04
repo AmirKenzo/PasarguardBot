@@ -191,7 +191,9 @@
       "copyFailed": "کپی انجام نشد",
       "done": "متوجه شدم",
       "genericError": "ساخت کلید API با خطا مواجه شد"
-    }
+    },
+    "stars": "استارز",
+    "tonpays": "TonPays"
   },
   "balanceHub": {
     "title": "کیف پول",
@@ -478,7 +480,8 @@
     "expired": "رد/منقضی",
     "manual_card": "کارت به کارت دستی",
     "crypto": "تراکنش ارزی ({{currency}})",
-    "tonpays": "پرداخت آنلاین (TonPays)"
+    "tonpays": "پرداخت آنلاین (TonPays)",
+    "stars": "پرداخت با استارز"
   },
   "common": {
     "loading": "در حال بارگذاری...",
@@ -737,7 +740,9 @@
       "statPending": "در انتظار بررسی",
       "statApproved7d": "تأییدشده (۷ روز)",
       "statRejected7d": "ردشده (۷ روز)",
-      "statVolume7d": "حجم تأییدشده (۷ روز)"
+      "statVolume7d": "حجم تأییدشده (۷ روز)",
+      "methodStars": "استارز",
+      "methodTonpays": "TonPays"
     },
     "pwa": {
       "tab": "PWA",
@@ -1336,7 +1341,10 @@
       "invoiceCount": "{{count}} فاکتور",
       "trialCount": "تست: {{count}}",
       "totalRevenue": "درآمد کل",
-      "period": "بازه زمانی"
+      "period": "بازه زمانی",
+      "cryptoTopUp": "شارژ ارزی",
+      "starsTopUp": "شارژ استارز",
+      "tonpaysTopUp": "شارژ TonPays"
     },
     "texts": {
       "bannerUrl": "آدرس بنر",

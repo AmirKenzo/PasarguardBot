@@ -59,6 +59,8 @@ export interface TransactionStats {
 export interface TransactionStatsSummary {
   manual: TransactionStats;
   crypto: TransactionStats;
+  stars?: TransactionStats;
+  tonpays?: TransactionStats;
 }
 
 export interface DiscountInfo {

@@ -191,7 +191,9 @@
       "copyFailed": "Copy failed",
       "done": "Done",
       "genericError": "Failed to generate the API key"
-    }
+    },
+    "stars": "Stars",
+    "tonpays": "TonPays"
   },
   "balanceHub": {
     "title": "Wallet",
@@ -478,7 +480,8 @@
     "expired": "Rejected/Expired",
     "manual_card": "Manual Card Deposit",
     "crypto": "Crypto Transaction ({{currency}})",
-    "tonpays": "Online payment (TonPays)"
+    "tonpays": "Online payment (TonPays)",
+    "stars": "Stars payment"
   },
   "common": {
     "loading": "Loading...",
@@ -737,7 +740,9 @@
       "statPending": "Awaiting review",
       "statApproved7d": "Approved (7d)",
       "statRejected7d": "Rejected (7d)",
-      "statVolume7d": "Approved volume (7d)"
+      "statVolume7d": "Approved volume (7d)",
+      "methodStars": "Stars",
+      "methodTonpays": "TonPays"
     },
     "pwa": {
       "tab": "PWA",
@@ -1336,7 +1341,10 @@
       "invoiceCount": "{{count}} invoices",
       "trialCount": "Trials: {{count}}",
       "totalRevenue": "Total revenue",
-      "period": "Time range"
+      "period": "Time range",
+      "cryptoTopUp": "Crypto top-up",
+      "starsTopUp": "Stars top-up",
+      "tonpaysTopUp": "TonPays top-up"
     },
     "texts": {
       "bannerUrl": "Banner URL",

@@ -8,6 +8,7 @@ from telethon.tl import types
 from app import CustomMarkdown
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.transactions import TransactionCRUD
+from app.services.billing import payment_stats
 from app.services.telegram.rich_message import rt as _rt, rt_bold as _rt_bold
 from app.utils.text.markdown import bold, code
 
@@ -23,6 +24,26 @@ _TOP_VIEWS: tuple[tuple[str, str], ...] = (
     ("recharge", "🔢 شارژ"),
     ("config", "📦 کانفیگ"),
 )
+
+
+async def _top_by_amount(since: int | None, limit: int) -> list[tuple[int, int, int]]:
+    """Top-ups from every gateway ranked by amount: [(user_id, total, count)]."""
+    return await payment_stats.top_users(since, by="amount", limit=limit)
+
+
+async def _top_by_count(since: int | None, limit: int) -> list[tuple[int, int, int]]:
+    """Top-ups from every gateway ranked by count: [(user_id, count, total)]."""
+    rows = await payment_stats.top_users(since, by="count", limit=limit)
+    return [(uid, cnt, total) for uid, total, cnt in rows]
+
+
+async def _most_today(since: int) -> tuple[int, int] | None:
+    rows = await payment_stats.top_users(since, by="amount", limit=1)
+    return (rows[0][0], rows[0][1]) if rows else None
+
+
+def _today_start_ts() -> int:
+    return int(payment_stats.tehran_day_start().timestamp())
 
 
 def _fmt_ts(ts: int) -> str:
@@ -44,12 +65,10 @@ def _section(emoji: str, title: str) -> list[str]:
 
 async def build_top_customers_message(view: str = "today") -> tuple[str, list]:
     """Build top customers text. Views: today, spend, recharge, config."""
-    now = datetime.utcnow()
-    today_start = datetime(now.year, now.month, now.day)
-    today_ts = int(today_start.timestamp())
+    today_ts = _today_start_ts()
 
     if view == "spend":
-        top = await tx_crud.get_top_customers_by_spend(10)
+        top = await _top_by_amount(None, 10)
         lines = [f"🏆 {bold('برترین مشتریان — مبلغ خرید کل')}", code(_DIVIDER)]
         if not top:
             lines.append("  • داده‌ای موجود نیست")
@@ -58,7 +77,7 @@ async def build_top_customers_message(view: str = "today") -> tuple[str, list]:
                 lines.append(_rank_line(i, uid, f"{code(f'{total:,}')} تومان · {cnt} شارژ"))
 
     elif view == "recharge":
-        top = await tx_crud.get_top_customers_by_tx_count(10)
+        top = await _top_by_count(None, 10)
         lines = [f"🏆 {bold('برترین مشتریان — تعداد شارژ')}", code(_DIVIDER)]
         if not top:
             lines.append("  • داده‌ای موجود نیست")
@@ -84,10 +103,10 @@ async def build_top_customers_message(view: str = "today") -> tuple[str, list]:
             oldest,
             newest,
         ) = await asyncio.gather(
-            tx_crud.get_top_spenders_today(today_ts, 5),
-            tx_crud.get_top_recharge_today(today_ts, 5),
+            _top_by_amount(today_ts, 5),
+            _top_by_count(today_ts, 5),
             service_crud.get_today_config_stats(today_ts, 5),
-            tx_crud.get_most_spender_today(today_ts),
+            _most_today(today_ts),
             tx_crud.get_oldest_customer(),
             tx_crud.get_newest_customer(),
         )
@@ -213,9 +232,7 @@ def top_view_button_rows(active: str) -> list[types.PageBlockButtonRow]:
 
 async def top_customers_rich_blocks(view: str = "today") -> list:
     """Native Bot API 10.3 rich message blocks for stats:top (tables + in-body tab buttons)."""
-    now = datetime.utcnow()
-    today_start = datetime(now.year, now.month, now.day)
-    today_ts = int(today_start.timestamp())
+    today_ts = _today_start_ts()
 
     heading = {
         "spend": "🏆 برترین مشتریان — مبلغ خرید کل",
@@ -226,11 +243,11 @@ async def top_customers_rich_blocks(view: str = "today") -> list:
     blocks: list = [types.PageBlockParagraph(_rt_bold(heading)), types.PageBlockDivider()]
 
     if view == "spend":
-        top = await tx_crud.get_top_customers_by_spend(10)
+        top = await _top_by_amount(None, 10)
         blocks.append(_spend_table(top, "💰 مبلغ خرید کل"))
 
     elif view == "recharge":
-        top = await tx_crud.get_top_customers_by_tx_count(10)
+        top = await _top_by_count(None, 10)
         blocks.append(_recharge_table(top, "🔢 تعداد شارژ"))
 
     elif view == "config":
@@ -246,10 +263,10 @@ async def top_customers_rich_blocks(view: str = "today") -> list:
             oldest,
             newest,
         ) = await asyncio.gather(
-            tx_crud.get_top_spenders_today(today_ts, 5),
-            tx_crud.get_top_recharge_today(today_ts, 5),
+            _top_by_amount(today_ts, 5),
+            _top_by_count(today_ts, 5),
             service_crud.get_today_config_stats(today_ts, 5),
-            tx_crud.get_most_spender_today(today_ts),
+            _most_today(today_ts),
             tx_crud.get_oldest_customer(),
             tx_crud.get_newest_customer(),
         )

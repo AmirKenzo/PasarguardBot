@@ -6,12 +6,14 @@ import {
   Copy,
   CreditCard,
   Download,
+  Gem,
   HelpCircle,
   KeyRound,
   LogOut,
   Percent,
   Phone,
   ShieldCheck,
+  Star,
   Users,
   Wallet,
 } from "lucide-react";
@@ -190,6 +192,12 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-2">
               <TxStat icon={CreditCard} label={t("profile.manual")} count={tx.manual.count} total={tx.manual.total_amount} />
               <TxStat icon={Wallet} label={t("profile.crypto")} count={tx.crypto.count} total={tx.crypto.total_amount} />
+              {!!tx.stars?.count && (
+                <TxStat icon={Star} label={t("profile.stars")} count={tx.stars.count} total={tx.stars.total_amount} />
+              )}
+              {!!tx.tonpays?.count && (
+                <TxStat icon={Gem} label={t("profile.tonpays")} count={tx.tonpays.count} total={tx.tonpays.total_amount} />
+              )}
             </div>
           </Card>
 

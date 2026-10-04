@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter
 
 from app.db.crud.cryptopayments import get_user_all_crypto_transactions
+from app.db.crud.stars_transactions import StarsTransactionCRUD
 from app.db.crud.tonpays_invoices import OPEN_STATUSES, TonPaysInvoiceCRUD
 from app.db.crud.transactions import TransactionCRUD
 from app.models.webapp import WebAppTransactionsRequest, WebAppTransactionsResponse
@@ -23,10 +24,11 @@ async def get_webapp_transactions(request: WebAppTransactionsRequest) -> WebAppT
         limit = request.limit
 
         tx_crud = TransactionCRUD()
-        card_txs, crypto_txs, tonpays_txs = await asyncio.gather(
+        card_txs, crypto_txs, tonpays_txs, stars_txs = await asyncio.gather(
             tx_crud.get_user_all_transactions(user_id),
             get_user_all_crypto_transactions(user_id),
             TonPaysInvoiceCRUD().list_for_user(user_id),
+            StarsTransactionCRUD().get_user_all_transactions(user_id),
         )
 
         transactions: list[dict[str, Any]] = []
@@ -70,6 +72,20 @@ async def get_webapp_transactions(request: WebAppTransactionsRequest) -> WebAppT
                     "status": tonpays_status,
                     "created_at": int(tx.created_at or 0),
                     "emoji": "💎",
+                }
+            )
+
+        for tx in stars_txs:
+            stars_status = {"approved": "approved", "pending": "pending"}.get(tx.status, "rejected")
+            transactions.append(
+                {
+                    "id": f"stars_{tx.id}",
+                    "type_key": "stars",
+                    "currency": None,
+                    "amount": int(tx.amount or 0),
+                    "status": stars_status,
+                    "created_at": int(tx.created_at or 0),
+                    "emoji": "⭐",
                 }
             )
 

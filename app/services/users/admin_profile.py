@@ -5,10 +5,9 @@ from datetime import datetime
 
 from telethon import Button
 
-from app.db.crud.cryptopayments import get_user_crypto_stats
 from app.db.crud.services import ServiceCRUD
-from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD, get_user_status, safe_mode_admin_label, user_safe_mode_value
+from app.services.billing import payment_stats
 from app.telegram.state import get_step
 from app.telegram.state.store import get_all_user_state
 
@@ -36,28 +35,32 @@ async def build_user_step_admin_lines(user_id: int) -> str:
     return "\n".join(lines) + "\n"
 
 
+_PAYMENT_LINE_LABELS: tuple[tuple[str, str], ...] = (
+    ("manual", "💳 کارت به کارت دستی"),
+    ("crypto", "💰 تراکنش‌های ارزی"),
+    ("stars", "⭐ استارز"),
+    ("tonpays", "💎 TonPays"),
+)
+
+
 async def display_user_info_admin(event, user_id_to_check):
     """Render the admin user-info panel."""
     (
         reduser,
-        manual_stats,
-        auto_stats,
-        crypto_stats,
+        payments,
         user_services,
         step_lines,
     ) = await asyncio.gather(
         UserCRUD().read_user(user_id=user_id_to_check),
-        TransactionCRUD().get_user_transaction_stats(user_id_to_check, "manual"),
-        TransactionCRUD().get_user_transaction_stats(user_id_to_check, "auto"),
-        get_user_crypto_stats(user_id_to_check),
+        payment_stats.method_totals(user_id=user_id_to_check),
         ServiceCRUD().get_services_reverse(user_id_to_check),
         build_user_step_admin_lines(user_id_to_check),
     )
     if not reduser:
         await event.answer("کاربر یافت نشد.", alert=True)
         return
-    total_purchases = manual_stats["count"] + auto_stats["count"] + crypto_stats["count"]
-    total_amount_spent = manual_stats["total_amount"] + auto_stats["total_amount"] + crypto_stats["total_amount"]
+    total_purchases = payments["total"]["count"]
+    total_amount_spent = payments["total"]["total_amount"]
 
     active_services = [service for service in user_services if service.enable]
     total_volume = sum(service.package_size or 0 for service in user_services)
@@ -89,18 +92,10 @@ async def display_user_info_admin(event, user_id_to_check):
         buttons.insert(1, [reset_test_button])
 
     transaction_details = ""
-    if manual_stats["count"] > 0:
-        transaction_details += (
-            f"💳 کارت به کارت دستی: {manual_stats['count']} عدد - {manual_stats['total_amount']:,} تومان\n"
-        )
-    if auto_stats["count"] > 0:
-        transaction_details += (
-            f"💳 کارت به کارت معمولی: {auto_stats['count']} عدد - {auto_stats['total_amount']:,} تومان\n"
-        )
-    if crypto_stats["count"] > 0:
-        transaction_details += (
-            f"💰 تراکنش‌های ارزی: {crypto_stats['count']} عدد - {crypto_stats['total_amount']:,} تومان\n"
-        )
+    for method, label in _PAYMENT_LINE_LABELS:
+        item = payments[method]
+        if item["count"] > 0:
+            transaction_details += f"{label}: {item['count']} عدد - {item['total_amount']:,} تومان\n"
 
     if not transaction_details:
         transaction_details = "هیچ تراکنش موفقی ثبت نشده\n"
