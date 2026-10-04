@@ -1,6 +1,7 @@
 """Balance and wallet inline buttons."""
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
+from app.db.crud.referral import ReferralManager
 from app.services.payments.tonpays_config import is_ready as tonpays_ready
 from app.telegram.admin.settings_payment.texts import is_manual_card_visible
 
@@ -96,12 +97,13 @@ async def create_inline_cartbcard(settings, user=None) -> list:
         )
         buttons.append([styled_callback_button(disabled_text, b"no_action", disabled_style)])
 
-    referral_text, referral_style = await _get_keyboard_button_config(
-        keyboard_crud,
-        "in.balance.referral",
-        KEYBOARD_BUTTON_DEFAULTS["in.balance.referral"],
-    )
-    buttons.append([styled_callback_button(referral_text, b"referral_invite_friends", referral_style)])
+    if await ReferralManager().is_referral_enabled():
+        referral_text, referral_style = await _get_keyboard_button_config(
+            keyboard_crud,
+            "in.balance.referral",
+            KEYBOARD_BUTTON_DEFAULTS["in.balance.referral"],
+        )
+        buttons.append([styled_callback_button(referral_text, b"referral_invite_friends", referral_style)])
     buttons.append([await balance_back_home_button()])
 
     return buttons
