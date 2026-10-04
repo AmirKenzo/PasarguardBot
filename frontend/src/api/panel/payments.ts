@@ -7,6 +7,9 @@ import type {
   PanelRuleCreateRequest,
   PanelRuleDeleteRequest,
   PanelRuleToggleRequest,
+  PanelTonPaysResponse,
+  PanelTonPaysSaveRequest,
+  PanelTonPaysTestRequest,
   PanelWalletCreateRequest,
   PanelWalletDeleteRequest,
 } from "../../types/panel";
@@ -46,4 +49,16 @@ export function toggleRule(body: PanelRuleToggleRequest) {
 
 export function deleteRule(body: PanelRuleDeleteRequest) {
   return panelPost<ActionResponse>("/payments/rules/delete", body);
+}
+
+export function getTonPays(body: PanelAuthRequest) {
+  return panelPost<PanelTonPaysResponse>("/payments/tonpays", body);
+}
+
+export function saveTonPays(body: PanelTonPaysSaveRequest) {
+  return panelPost<ActionResponse>("/payments/tonpays/save", body);
+}
+
+export function testTonPays(body: PanelTonPaysTestRequest) {
+  return panelPost<ActionResponse>("/payments/tonpays/test", body);
 }

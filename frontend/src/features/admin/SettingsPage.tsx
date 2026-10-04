@@ -4,33 +4,16 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, ErrorState, Input, SegmentedControl, Skeleton, Tabs } from "../../components/ui";
 import type { TabItem } from "../../components/ui";
 import { panelSettingsApi } from "../../api/panel";
-import type { PanelSettingSection, PanelSettingValue } from "../../types/panel";
+import type { PanelSettingValue } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
 import { IconPickerField, SectionCard, Toggle } from "./components";
 import { PwaSettingsSection } from "./PwaSettingsSection";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { AlertTriangle, CreditCard, Gem, ShoppingCart, SlidersHorizontal, Smartphone, Users, Wrench } from "lucide-react";
+import { CreditCard, ShoppingCart, SlidersHorizontal, Smartphone, Users, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const PWA_TAB = "pwa";
-// TonPays keys live in payment_settings server-side but get their own tab here.
-const TONPAYS_TAB = "tonpays";
-const TONPAYS_PREFIX = "tonpays_";
-
-function splitTonPaysSection(sections: PanelSettingSection[]): PanelSettingSection[] {
-  const result: PanelSettingSection[] = [];
-  for (const section of sections) {
-    if (section.key !== "payment_settings") {
-      result.push(section);
-      continue;
-    }
-    const tonpays = section.fields.filter((field) => field.key.startsWith(TONPAYS_PREFIX));
-    result.push({ ...section, fields: section.fields.filter((field) => !field.key.startsWith(TONPAYS_PREFIX)) });
-    if (tonpays.length) result.push({ key: TONPAYS_TAB, fields: tonpays });
-  }
-  return result;
-}
 
 // These pick from a fixed set of emoji, so they get an icon-grid picker instead
 // of a text pill row or a dropdown — see IconPickerField.
@@ -39,7 +22,6 @@ const ICON_PICKER_FIELDS = new Set(["start_reaction_emoji", "start_effect_id"]);
 const sectionTitles = (t: TFunction): Record<string, string> => ({
   core_settings: t("panel.settings.core"),
   payment_settings: t("panel.settings.paymentsAndWallet"),
-  [TONPAYS_TAB]: t("panel.settings.tonpaysTab"),
   purchase_settings: t("panel.settings.buyAndRenew"),
   service_tools_settings: t("panel.settings.serviceTools"),
   reseller_settings: t("panel.common.reseller"),
@@ -48,7 +30,6 @@ const sectionTitles = (t: TFunction): Record<string, string> => ({
 const sectionIcons: Record<string, LucideIcon> = {
   core_settings: SlidersHorizontal,
   payment_settings: CreditCard,
-  [TONPAYS_TAB]: Gem,
   purchase_settings: ShoppingCart,
   service_tools_settings: Wrench,
   reseller_settings: Users,
@@ -91,14 +72,6 @@ const labels = (t: TFunction): Record<string, string> => ({
   arz_trx: t("panel.settings.tronPrice"),
   arz_ton: t("panel.settings.tonPrice"),
   arz_pol: t("panel.settings.polPrice"),
-  tonpays_enabled: t("panel.settings.tonpaysEnabled"),
-  tonpays_mode: t("panel.settings.tonpaysMode"),
-  tonpays_api_key: t("panel.settings.tonpaysApiKey"),
-  tonpays_custom_key: t("panel.settings.tonpaysCustomKey"),
-  tonpays_deposit_min: t("panel.settings.tonpaysMin"),
-  tonpays_deposit_max: t("panel.settings.tonpaysMax"),
-  tonpays_bonus_enabled: t("panel.settings.tonpaysBonus"),
-  tonpays_bonus_percent: t("panel.settings.tonpaysBonusPercent"),
   extension_mode: t("panel.settings.renewService"),
   upg_mode: t("panel.settings.serviceUpgrade"),
   tamdid_mode: t("panel.settings.extraVolume"),
@@ -138,7 +111,6 @@ export default function AdminSettingsPage() {
   };
 
   const query = usePanelQuery(["settings"], (auth) => panelSettingsApi.getSettings(auth));
-  const sections = query.data ? splitTonPaysSection(query.data.sections) : [];
   const save = usePanelAction(panelSettingsApi.saveSettings, { invalidate: [["settings"], ["keyboard"]] });
 
   useEffect(() => {
@@ -155,7 +127,7 @@ export default function AdminSettingsPage() {
   // actually switches the active tab instead of being silently ignored.
   useEffect(() => {
     if (!query.data) return;
-    const validKeys = new Set([...splitTonPaysSection(query.data.sections).map((s) => s.key), PWA_TAB]);
+    const validKeys = new Set([...query.data.sections.map((s) => s.key), PWA_TAB]);
     const fromUrl = searchParams.get("section");
     if (fromUrl && validKeys.has(fromUrl)) {
       setActiveSectionState(fromUrl);
@@ -184,7 +156,7 @@ export default function AdminSettingsPage() {
   }
 
   const tabItems: TabItem[] = [
-    ...sections.map((item) => ({
+    ...query.data.sections.map((item) => ({
       value: item.key,
       label: sectionTitles(t)[item.key] || item.key,
       icon: sectionIcons[item.key],
@@ -204,7 +176,7 @@ export default function AdminSettingsPage() {
     );
   }
 
-  const section = sections.find((item) => item.key === activeSection) || sections[0];
+  const section = query.data.sections.find((item) => item.key === activeSection) || query.data.sections[0];
   if (!section) {
     return <Skeleton className="h-64 w-full" />;
   }
@@ -242,22 +214,6 @@ export default function AdminSettingsPage() {
           </Button>
         }
       >
-        {section.key === TONPAYS_TAB && (
-          <div className="mb-4 space-y-3">
-            <div className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger/10 p-3">
-              <AlertTriangle size={15} className="mt-0.5 shrink-0 text-danger" />
-              <p className="text-xs font-semibold leading-relaxed text-danger">{t("panel.settings.tonpaysDisclaimer")}</p>
-            </div>
-            <div className="space-y-1.5 rounded-md border border-border bg-surface-2 p-3 text-xs leading-relaxed text-muted">
-              <p>{t("panel.settings.tonpaysHelpModes")}</p>
-              <p>{t("panel.settings.tonpaysHelpKeys")}</p>
-              <p>{t("panel.settings.tonpaysHelpWebhook")}</p>
-              <code className="ltr-field block break-all rounded bg-surface px-2 py-1 text-[11px] text-primary" dir="ltr">
-                {`${window.location.origin}/api/payments/tonpays/callback`}
-              </code>
-            </div>
-          </div>
-        )}
         {toggles.length > 0 && (
           <div className="grid gap-1 sm:grid-cols-2">
             {toggles.map((field) => (

@@ -60,10 +60,6 @@ SELECT_FIELD_OPTIONS: dict[str, list[tuple[str, str]]] = {
     ],
     "start_reaction_emoji": [("", "خاموش"), *((emoji, emoji) for emoji in START_REACTION_EMOJIS)],
     "start_effect_id": [("0", "خاموش"), *((effect_id, emoji) for effect_id, emoji in START_MESSAGE_EFFECTS)],
-    "tonpays_mode": [
-        ("standard", "معمولی (پرداخت در ربات TonPays)"),
-        ("custom", "کاستوم (کارت داخل همین ربات)"),
-    ],
     "api_key_login_mode": [
         ("none", "غیرفعال"),
         ("phone_verified", "فقط دارای شماره ثبت‌شده"),
@@ -80,7 +76,23 @@ SELECT_FIELD_CASTERS: dict[str, Callable[[str], Any]] = {
 READONLY_FIELDS: frozenset[str] = frozenset({"arz_usd", "arz_trx", "arz_ton"})
 
 
-HIDDEN_FIELDS: frozenset[str] = frozenset({"pwa_app_name", "pwa_short_name", "pwa_description", "pwa_icon_updated_at"})
+HIDDEN_FIELDS: frozenset[str] = frozenset(
+    {
+        "pwa_app_name",
+        "pwa_short_name",
+        "pwa_description",
+        "pwa_icon_updated_at",
+        # Managed from the TonPays tab of the payments page.
+        "tonpays_enabled",
+        "tonpays_mode",
+        "tonpays_api_key",
+        "tonpays_custom_key",
+        "tonpays_deposit_min",
+        "tonpays_deposit_max",
+        "tonpays_bonus_enabled",
+        "tonpays_bonus_percent",
+    }
+)
 
 TEXT_FIELD_KEYS: frozenset[str] = frozenset(
     {

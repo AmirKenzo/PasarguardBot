@@ -140,3 +140,31 @@ class TonPaysInvoiceCRUD:
         except SQLAlchemyError as e:
             logger.error("TonPays approve_and_credit failed for %s: %s", local_id, e)
             return None
+
+
+async def tonpays_stats_since(since: int) -> dict[str, int]:
+    """Gateway numbers for the admin dashboard: paid/failed since `since`, plus currently open."""
+    async with Session() as session:
+        paid = await session.execute(
+            select(func.count(), func.coalesce(func.sum(TonPaysInvoice.amount), 0)).where(
+                TonPaysInvoice.status == "completed", TonPaysInvoice.paid_at >= since
+            )
+        )
+        paid_count, paid_amount = paid.one()
+        open_count = await session.execute(
+            select(func.count()).select_from(TonPaysInvoice).where(TonPaysInvoice.status.in_(OPEN_STATUSES))
+        )
+        failed = await session.execute(
+            select(func.count())
+            .select_from(TonPaysInvoice)
+            .where(
+                TonPaysInvoice.status.in_(("rejected", "expired", "canceled")),
+                TonPaysInvoice.updated_at >= since,
+            )
+        )
+        return {
+            "paid_today": int(paid_count or 0),
+            "amount_today": int(paid_amount or 0),
+            "open_invoices": int(open_count.scalar() or 0),
+            "failed_today": int(failed.scalar() or 0),
+        }

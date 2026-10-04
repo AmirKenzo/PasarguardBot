@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from datetime import datetime
 
 from fastapi import APIRouter, Request
 
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
+from app.db.crud.settings import SettingsManager
+from app.db.crud.tonpays_invoices import tonpays_stats_since
 from app.db.crud.wallets import WalletCRUD
 from app.models.panel.common import ActionResponse, PanelRequest
 from app.models.panel.payments import (
@@ -20,6 +24,10 @@ from app.models.panel.payments import (
     PanelRuleCreateRequest,
     PanelRuleDeleteRequest,
     PanelRuleToggleRequest,
+    PanelTonPaysResponse,
+    PanelTonPaysSaveRequest,
+    PanelTonPaysStats,
+    PanelTonPaysTestRequest,
     PanelWalletCreateRequest,
     PanelWalletDeleteRequest,
     PanelWalletRow,
@@ -27,6 +35,15 @@ from app.models.panel.payments import (
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.payments.tonpays import test_connection
+from app.services.payments.tonpays_config import (
+    api_key_for,
+    callback_url,
+    deposit_limits,
+    gateway_mode,
+    is_ready,
+    mask_key,
+)
 
 router = APIRouter()
 
@@ -199,5 +216,99 @@ async def rule_delete(payload: PanelRuleDeleteRequest, request: Request) -> Acti
         if not ok:
             return ActionResponse(ok=False, error="قانونی با این شناسه پیدا نشد.")
         return ActionResponse(message="قانون حذف شد.")
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+def _start_of_today() -> int:
+    now = datetime.now()
+    return int(datetime(now.year, now.month, now.day).timestamp())
+
+
+@router.post("/panel/payments/tonpays", response_model=PanelTonPaysResponse)
+async def tonpays_overview(payload: PanelRequest, request: Request) -> PanelTonPaysResponse:
+    async def handle(_: PanelActor) -> PanelTonPaysResponse:
+        settings = await SettingsManager().get_settings()
+        if settings is None:
+            return PanelTonPaysResponse(ok=False, error="تنظیمات ربات هنوز ساخته نشده است.")
+        api_key = api_key_for(settings, "standard")
+        custom_key = api_key_for(settings, "custom")
+        deposit_min, deposit_max = deposit_limits(settings)
+        return PanelTonPaysResponse(
+            enabled=bool(settings.tonpays_enabled),
+            mode=gateway_mode(settings),
+            api_key_masked=mask_key(api_key) if api_key else "",
+            custom_key_masked=mask_key(custom_key) if custom_key else "",
+            has_api_key=bool(api_key),
+            has_custom_key=bool(custom_key),
+            ready=is_ready(settings),
+            deposit_min=deposit_min,
+            deposit_max=deposit_max,
+            bonus_enabled=bool(settings.tonpays_bonus_enabled),
+            bonus_percent=int(settings.tonpays_bonus_percent or 0),
+            webhook_url=callback_url(),
+            stats=PanelTonPaysStats(**await tonpays_stats_since(_start_of_today())),
+        )
+
+    return await guard.run(payload, request, PanelTonPaysResponse, handle)
+
+
+@router.post("/panel/payments/tonpays/save", response_model=ActionResponse)
+async def tonpays_save(payload: PanelTonPaysSaveRequest, request: Request) -> ActionResponse:
+    async def handle(actor: PanelActor) -> ActionResponse:
+        manager = SettingsManager()
+        settings = await manager.get_settings()
+        if settings is None:
+            return ActionResponse(ok=False, error="تنظیمات ربات هنوز ساخته نشده است.")
+        updates: dict = {}
+        if payload.enabled is not None:
+            updates["tonpays_enabled"] = payload.enabled
+        if payload.mode is not None:
+            updates["tonpays_mode"] = payload.mode
+        if payload.clear_api_key:
+            updates["tonpays_api_key"] = ""
+        elif payload.api_key.strip():
+            updates["tonpays_api_key"] = payload.api_key.strip()
+        if payload.clear_custom_key:
+            updates["tonpays_custom_key"] = ""
+        elif payload.custom_key.strip():
+            updates["tonpays_custom_key"] = payload.custom_key.strip()
+        current_min, current_max = deposit_limits(settings)
+        new_min = payload.deposit_min if payload.deposit_min is not None else current_min
+        new_max = payload.deposit_max if payload.deposit_max is not None else current_max
+        if new_max < new_min:
+            return ActionResponse(ok=False, error="حداکثر مبلغ باید بیشتر از حداقل باشد.")
+        updates["tonpays_deposit_min"] = new_min
+        updates["tonpays_deposit_max"] = new_max
+        if payload.bonus_enabled is not None:
+            updates["tonpays_bonus_enabled"] = payload.bonus_enabled
+        if payload.bonus_percent is not None:
+            updates["tonpays_bonus_percent"] = payload.bonus_percent
+        await manager.update_setting(settings.id, **updates)
+        await _log(
+            actor,
+            "tonpays_settings_update",
+            target_type="settings",
+            target_id="tonpays",
+            detail={key: value for key, value in updates.items() if not key.endswith("_key")},
+        )
+        return ActionResponse(message="تنظیمات TonPays ذخیره شد.")
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/payments/tonpays/test", response_model=ActionResponse)
+async def tonpays_test(payload: PanelTonPaysTestRequest, request: Request) -> ActionResponse:
+    async def handle(_: PanelActor) -> ActionResponse:
+        key = payload.api_key.strip()
+        if not key:
+            settings = await SettingsManager().get_settings()
+            key = api_key_for(settings, payload.mode) if settings else ""
+        if not key:
+            return ActionResponse(ok=False, error="کلید این نوع درگاه ثبت نشده است.")
+        started = time.monotonic()
+        ok, message = await test_connection(key, payload.mode)
+        elapsed = int((time.monotonic() - started) * 1000)
+        return ActionResponse(ok=ok, message=f"{message} ({elapsed}ms)" if ok else None, error=None if ok else message)
 
     return await guard.run(payload, request, ActionResponse, handle)

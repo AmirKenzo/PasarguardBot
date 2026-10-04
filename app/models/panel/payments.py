@@ -69,3 +69,48 @@ class PanelRuleToggleRequest(PanelRequest):
 
 class PanelRuleDeleteRequest(PanelRequest):
     rule_id: int
+
+
+class PanelTonPaysStats(BaseModel):
+    paid_today: int = 0
+    amount_today: int = 0
+    open_invoices: int = 0
+    failed_today: int = 0
+
+
+class PanelTonPaysResponse(PanelResponse):
+    enabled: bool = False
+    mode: str = "standard"
+    api_key_masked: str = ""
+    custom_key_masked: str = ""
+    has_api_key: bool = False
+    has_custom_key: bool = False
+    ready: bool = False
+    deposit_min: int = 0
+    deposit_max: int = 0
+    bonus_enabled: bool = False
+    bonus_percent: int = 0
+    webhook_url: str | None = None
+    stats: PanelTonPaysStats = Field(default_factory=PanelTonPaysStats)
+
+
+class PanelTonPaysSaveRequest(PanelRequest):
+    """Empty key fields keep the stored key; `clear_*` removes it."""
+
+    enabled: bool | None = None
+    mode: str | None = Field(None, pattern="^(standard|custom)$")
+    api_key: str = Field("", max_length=256)
+    custom_key: str = Field("", max_length=256)
+    clear_api_key: bool = False
+    clear_custom_key: bool = False
+    deposit_min: int | None = Field(None, ge=0)
+    deposit_max: int | None = Field(None, ge=0)
+    bonus_enabled: bool | None = None
+    bonus_percent: int | None = Field(None, ge=0, le=100)
+
+
+class PanelTonPaysTestRequest(PanelRequest):
+    """Test the given key, or the stored key for `mode` when `api_key` is empty."""
+
+    mode: str = Field("standard", pattern="^(standard|custom)$")
+    api_key: str = Field("", max_length=256)
