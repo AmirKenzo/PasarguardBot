@@ -60,6 +60,10 @@ SELECT_FIELD_OPTIONS: dict[str, list[tuple[str, str]]] = {
     ],
     "start_reaction_emoji": [("", "خاموش"), *((emoji, emoji) for emoji in START_REACTION_EMOJIS)],
     "start_effect_id": [("0", "خاموش"), *((effect_id, emoji) for effect_id, emoji in START_MESSAGE_EFFECTS)],
+    "tonpays_mode": [
+        ("standard", "معمولی (پرداخت در ربات TonPays)"),
+        ("custom", "کاستوم (کارت داخل همین ربات)"),
+    ],
     "api_key_login_mode": [
         ("none", "غیرفعال"),
         ("phone_verified", "فقط دارای شماره ثبت‌شده"),
@@ -79,7 +83,16 @@ READONLY_FIELDS: frozenset[str] = frozenset({"arz_usd", "arz_trx", "arz_ton"})
 HIDDEN_FIELDS: frozenset[str] = frozenset({"pwa_app_name", "pwa_short_name", "pwa_description", "pwa_icon_updated_at"})
 
 TEXT_FIELD_KEYS: frozenset[str] = frozenset(
-    {"avalai_api_key", "avalai_system_prompt", "instagram_api_token", "cart_num", "cart_name", "tetra_api_key"}
+    {
+        "avalai_api_key",
+        "avalai_system_prompt",
+        "instagram_api_token",
+        "cart_num",
+        "cart_name",
+        "tetra_api_key",
+        "tonpays_api_key",
+        "tonpays_custom_key",
+    }
 )
 
 

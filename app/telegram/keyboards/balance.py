@@ -1,6 +1,7 @@
 """Balance and wallet inline buttons."""
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
+from app.services.payments.tonpays_config import is_ready as tonpays_ready
 from app.telegram.admin.settings_payment.texts import is_manual_card_visible
 
 from .common import _get_keyboard_button_config, styled_callback_button
@@ -41,6 +42,20 @@ async def create_inline_cartbcard(settings, user=None) -> list:
                     b"StarsPayment",
                     bonus_enabled=settings.stars_bonus_enabled,
                     bonus_percent=settings.stars_bonus_percent,
+                )
+            ]
+        )
+
+    if settings and tonpays_ready(settings):
+        buttons.append(
+            [
+                await _balance_inline_button(
+                    keyboard_crud,
+                    "in.balance.tonpays",
+                    KEYBOARD_BUTTON_DEFAULTS["in.balance.tonpays"],
+                    b"TonPaysPayment",
+                    bonus_enabled=settings.tonpays_bonus_enabled,
+                    bonus_percent=settings.tonpays_bonus_percent,
                 )
             ]
         )

@@ -27,6 +27,7 @@ from app.routers.webapp.buy import router as buy_router
 from app.routers.webapp.pwa import router as pwa_router
 from app.routers.webapp.renew import router as renew_router
 from app.routers.webapp.services import router as services_router
+from app.routers.webapp.tonpays import router as tonpays_router
 from app.routers.webapp.transactions import router as transactions_router
 from app.routers.webapp.upgrade import router as upgrade_router
 from app.routers.webapp.usage_chart import router as usage_chart_router
@@ -44,6 +45,7 @@ webapp_router.include_router(usage_chart_router)
 webapp_router.include_router(renew_router)
 webapp_router.include_router(buy_router)
 webapp_router.include_router(balance_router)
+webapp_router.include_router(tonpays_router)
 webapp_router.include_router(transactions_router)
 webapp_router.include_router(upgrade_router)
 webapp_router.include_router(pwa_router)

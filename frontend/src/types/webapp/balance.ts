@@ -22,6 +22,11 @@ export interface BalanceMethodsResponse {
   arz_ton: number;
   arz_pol: number;
   phone_verify_required: boolean;
+  tonpays_enabled: boolean;
+  tonpays_mode: TonPaysMode;
+  tonpays_deposit_min: number;
+  tonpays_deposit_max: number;
+  tonpays_bonus_percent: number;
   error?: string | null;
 }
 
@@ -79,5 +84,29 @@ export interface BalanceDepositStarsResponse {
   usd_rate_irt?: number | null;
   star_price_irt?: number | null;
   invoice_url?: string | null;
+  error?: string | null;
+}
+
+export type TonPaysMode = "standard" | "custom";
+
+export interface TonPaysInvoice {
+  id: number;
+  invoice_id?: string | null;
+  mode: TonPaysMode;
+  amount: number;
+  final_amount?: number | null;
+  status: string;
+  status_label: string;
+  invoice_url?: string | null;
+  web_invoice_url?: string | null;
+  card_number?: string | null;
+  card_name?: string | null;
+  receipt_sent: boolean;
+}
+
+export interface BalanceTonPaysInvoiceResponse {
+  ok: boolean;
+  message?: string | null;
+  invoice?: TonPaysInvoice | null;
   error?: string | null;
 }

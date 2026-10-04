@@ -8,6 +8,7 @@ from app.jobs.payments import (
     ManualCardProcessor,
     POLProcessor,
     StarsExpiryProcessor,
+    TonPaysProcessor,
     TONProcessor,
     TRXProcessor,
     USDTNetworksProcessor,
@@ -24,6 +25,7 @@ ton_processor = TONProcessor()
 stars_expiry_processor = StarsExpiryProcessor()
 usdt_networks_processor = USDTNetworksProcessor()
 pol_processor = POLProcessor()
+tonpays_processor = TonPaysProcessor()
 
 
 async def auto_confirm_job():
@@ -72,6 +74,14 @@ async def pol_checking():
     await pol_processor.check_payments()
     elapsed = time.time() - start_time
     logger.debug(f"{LogTag.JOB} pol_checking completed: {elapsed:.2f}s")
+
+
+async def tonpays_checking():
+    start_time = time.time()
+    logger.debug("%s tonpays_checking started", LogTag.JOB)
+    await tonpays_processor.check_payments()
+    elapsed = time.time() - start_time
+    logger.debug(f"{LogTag.JOB} tonpays_checking completed: {elapsed:.2f}s")
 
 
 async def expire_star_transactions() -> None:

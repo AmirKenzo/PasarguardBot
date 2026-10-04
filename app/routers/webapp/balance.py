@@ -29,6 +29,11 @@ from app.models.webapp import (
     BalancePhoneRequestResponse,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.services.payments.tonpays_config import (
+    deposit_limits as tonpays_limits,
+    gateway_mode as tonpays_mode,
+    is_ready as tonpays_ready,
+)
 from app.services.pricing.crypto_amounts import (
     calculate_pol_amount_with_tax,
     calculate_ton_amount_with_tax,
@@ -97,6 +102,13 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
             arz_ton=int(getattr(settings, "arz_ton", 0) or 0),
             arz_pol=int(getattr(settings, "arz_pol", 0) or 0),
             phone_verify_required=phone_verify_required,
+            tonpays_enabled=tonpays_ready(settings),
+            tonpays_mode=tonpays_mode(settings),
+            tonpays_deposit_min=tonpays_limits(settings)[0],
+            tonpays_deposit_max=tonpays_limits(settings)[1],
+            tonpays_bonus_percent=int(getattr(settings, "tonpays_bonus_percent", 0) or 0)
+            if getattr(settings, "tonpays_bonus_enabled", False)
+            else 0,
         )
     except ValueError as e:
         return BalanceMethodsResponse(ok=False, error=str(e))

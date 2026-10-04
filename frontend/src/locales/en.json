@@ -205,6 +205,9 @@
     "cryptoPay": "Crypto Payment",
     "starsPay": "Pay with Stars",
     "starsPayDesc": "Direct payment inside Telegram",
+    "tonpaysPay": "Online payment (TonPays)",
+    "tonpaysDesc": "Pay in the TonPays bot, confirmed automatically",
+    "tonpaysCustomDesc": "Card transfer with automatic confirmation",
     "bonus": " • {{percent}}% bonus"
   },
   "cryptoDeposit": {
@@ -268,6 +271,24 @@
     "starPrice": "Price per Star",
     "openInvoice": "Open Stars Invoice",
     "submitButton": "Create Invoice & Pay"
+  },
+  "tonpaysDeposit": {
+    "title": "Online payment (TonPays)",
+    "submitButton": "Create invoice",
+    "chargeAmount": "Top-up amount",
+    "payableAmount": "Amount to pay",
+    "exactAmountWarning": "Pay exactly {{amount}} toman; any other amount will not be confirmed.",
+    "payButton": "Pay in TonPays",
+    "checkButton": "Check payment",
+    "autoCheckNote": "Payment status is checked automatically every few seconds.",
+    "changeCard": "Change card",
+    "receiptSent": "Receipt sent and waiting for confirmation.",
+    "receiptWaiting": "Receipt sent and waiting for confirmation.",
+    "paidTitle": "Payment confirmed",
+    "paidDesc": "Your wallet balance has been topped up.",
+    "paidToast": "Payment confirmed and balance topped up",
+    "statusToast": "Invoice status: {{status}}",
+    "newInvoice": "Create a new invoice"
   },
   "extendTime": {
     "title": "Extend Time",
@@ -450,7 +471,8 @@
     "rejected": "Rejected",
     "expired": "Rejected/Expired",
     "manual_card": "Manual Card Deposit",
-    "crypto": "Crypto Transaction ({{currency}})"
+    "crypto": "Crypto Transaction ({{currency}})",
+    "tonpays": "Online payment (TonPays)"
   },
   "common": {
     "loading": "Loading...",
@@ -764,6 +786,14 @@
       "tronPrice": "TRX price",
       "tonPrice": "TON price",
       "polPrice": "POL price",
+      "tonpaysEnabled": "TonPays gateway",
+      "tonpaysMode": "TonPays gateway type",
+      "tonpaysApiKey": "TonPays standard API key",
+      "tonpaysCustomKey": "TonPays custom gateway Telegram key",
+      "tonpaysMin": "TonPays minimum top-up (toman)",
+      "tonpaysMax": "TonPays maximum top-up (toman)",
+      "tonpaysBonus": "TonPays top-up bonus",
+      "tonpaysBonusPercent": "TonPays bonus percentage",
       "usdPrice": "USD price",
       "clientList": "Client list",
       "subLink": "Subscription link",

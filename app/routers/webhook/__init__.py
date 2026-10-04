@@ -11,11 +11,13 @@ from fastapi import APIRouter, HTTPException, Request
 from app.logger import get_logger
 from app.models.router_models import WebhookResponse
 from app.routers.webhook.processor import process_webhook_events
+from app.routers.webhook.tonpays import router as tonpays_router
 from app.utils.security.secrets_cache import get_webhook_secret
 
 logger = get_logger(__name__)
 
 webhook_router = APIRouter()
+webhook_router.include_router(tonpays_router)
 
 
 def _log_background_webhook_failure(task: asyncio.Task) -> None:

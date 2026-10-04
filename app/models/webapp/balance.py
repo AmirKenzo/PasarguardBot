@@ -31,6 +31,11 @@ class BalanceMethodsResponse(BaseModel):
     arz_ton: int = 0
     arz_pol: int = 0
     phone_verify_required: bool = False
+    tonpays_enabled: bool = False
+    tonpays_mode: str = "standard"
+    tonpays_deposit_min: int = 0
+    tonpays_deposit_max: int = 0
+    tonpays_bonus_percent: int = 0
     error: str | None = None
 
 
@@ -105,4 +110,47 @@ class BalanceDepositStarsResponse(BaseModel):
     usd_rate_irt: int | None = None
     star_price_irt: float | None = None
     invoice_url: str | None = None
+    error: str | None = None
+
+
+class BalanceTonPaysDepositRequest(BaseModel):
+    """TonPays deposit: amount in toman."""
+
+    amount: int = Field(..., ge=1)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceTonPaysInvoiceRequest(BaseModel):
+    """Act on one of the caller's TonPays invoices by its local id."""
+
+    invoice: int = Field(..., ge=1)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceTonPaysOpenRequest(BaseModel):
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class TonPaysInvoiceView(BaseModel):
+    id: int
+    invoice_id: str | None = None
+    mode: str
+    amount: int
+    final_amount: int | None = None
+    status: str
+    status_label: str
+    invoice_url: str | None = None
+    web_invoice_url: str | None = None
+    card_number: str | None = None
+    card_name: str | None = None
+    receipt_sent: bool = False
+
+
+class BalanceTonPaysInvoiceResponse(BaseModel):
+    ok: bool
+    message: str | None = None
+    invoice: TonPaysInvoiceView | None = None
     error: str | None = None

@@ -205,6 +205,9 @@
     "cryptoPay": "پرداخت ارزی",
     "starsPay": "پرداخت با استارز",
     "starsPayDesc": "پرداخت مستقیم داخل تلگرام",
+    "tonpaysPay": "پرداخت آنلاین (TonPays)",
+    "tonpaysDesc": "پرداخت در ربات TonPays و تأیید خودکار",
+    "tonpaysCustomDesc": "کارت به کارت با تأیید خودکار",
     "bonus": " • بونوس {{percent}}%"
   },
   "cryptoDeposit": {
@@ -268,6 +271,24 @@
     "starPrice": "قیمت هر استارز",
     "openInvoice": "باز کردن فاکتور استارز",
     "submitButton": "ساخت فاکتور و پرداخت"
+  },
+  "tonpaysDeposit": {
+    "title": "پرداخت آنلاین (TonPays)",
+    "submitButton": "ساخت فاکتور",
+    "chargeAmount": "مبلغ شارژ",
+    "payableAmount": "مبلغ قابل پرداخت",
+    "exactAmountWarning": "دقیقاً مبلغ {{amount}} تومان را پرداخت کنید؛ با مبلغ دیگر پرداخت تأیید نمی‌شود.",
+    "payButton": "پرداخت در TonPays",
+    "checkButton": "بررسی پرداخت",
+    "autoCheckNote": "وضعیت پرداخت هر چند ثانیه خودکار بررسی می‌شود.",
+    "changeCard": "تعویض کارت",
+    "receiptSent": "فیش ارسال شد و در انتظار تأیید است.",
+    "receiptWaiting": "فیش ارسال شده و در انتظار تأیید است.",
+    "paidTitle": "پرداخت تأیید شد",
+    "paidDesc": "موجودی کیف پول شارژ شد.",
+    "paidToast": "پرداخت تأیید شد و موجودی شارژ شد",
+    "statusToast": "وضعیت فاکتور: {{status}}",
+    "newInvoice": "ساخت فاکتور جدید"
   },
   "extendTime": {
     "title": "افزایش زمان",
@@ -450,7 +471,8 @@
     "rejected": "رد شده",
     "expired": "رد/منقضی",
     "manual_card": "کارت به کارت دستی",
-    "crypto": "تراکنش ارزی ({{currency}})"
+    "crypto": "تراکنش ارزی ({{currency}})",
+    "tonpays": "پرداخت آنلاین (TonPays)"
   },
   "common": {
     "loading": "در حال بارگذاری...",
@@ -764,6 +786,14 @@
       "tronPrice": "قیمت ترون",
       "tonPrice": "قیمت تون",
       "polPrice": "قیمت پالیگان",
+      "tonpaysEnabled": "درگاه TonPays",
+      "tonpaysMode": "نوع درگاه TonPays",
+      "tonpaysApiKey": "کلید API معمولی TonPays",
+      "tonpaysCustomKey": "کلید تلگرام درگاه کاستوم TonPays",
+      "tonpaysMin": "حداقل شارژ TonPays (تومان)",
+      "tonpaysMax": "حداکثر شارژ TonPays (تومان)",
+      "tonpaysBonus": "بونوس شارژ TonPays",
+      "tonpaysBonusPercent": "درصد بونوس TonPays",
       "usdPrice": "قیمت دلار",
       "clientList": "لیست کلاینت‌ها",
       "subLink": "لینک ساب",

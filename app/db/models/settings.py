@@ -59,6 +59,14 @@ DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
     "arz_trx": 0,
     "arz_ton": 0,
     "arz_pol": 0,
+    "tonpays_enabled": False,
+    "tonpays_mode": "standard",
+    "tonpays_api_key": "",
+    "tonpays_custom_key": "",
+    "tonpays_deposit_min": 50000,
+    "tonpays_deposit_max": 10000000,
+    "tonpays_bonus_enabled": False,
+    "tonpays_bonus_percent": 0,
 }
 
 DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {
