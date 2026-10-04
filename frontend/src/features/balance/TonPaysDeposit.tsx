@@ -153,15 +153,34 @@ export default function TonPaysDeposit() {
             <p>
               {t("tonpaysDeposit.chargeAmount")}: {formatToman(invoice.amount)}
             </p>
-            <p>
-              {t("tonpaysDeposit.payableAmount")}: <span className="font-medium text-text">{formatToman(payable)}</span>
-            </p>
+            <div className="rounded-md border border-border p-3">
+              <p className="mb-1">{t("tonpaysDeposit.payableAmount")}:</p>
+              <p className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-text">
+                  {formatNumber(payable * 10)} {t("tonpaysDeposit.rial")}
+                </span>
+                <Button variant="secondary" size="sm" onClick={() => void copyToClipboard(String(payable * 10))}>
+                  {t("tonpaysDeposit.copyRial")}
+                </Button>
+              </p>
+              <p className="mt-1 flex items-center justify-between gap-2">
+                <span className="font-semibold text-text">{formatToman(payable)}</span>
+                <Button variant="secondary" size="sm" onClick={() => void copyToClipboard(String(payable))}>
+                  {t("tonpaysDeposit.copyToman")}
+                </Button>
+              </p>
+            </div>
           </div>
 
           {isOpen && (
             <>
               <p className="rounded-md bg-warning/10 p-3 text-xs font-medium text-warning">
-                {t("tonpaysDeposit.exactAmountWarning", { amount: formatNumber(payable) })}
+                {t("tonpaysDeposit.exactAmountWarning", {
+                  rial: formatNumber(payable * 10),
+                  toman: formatNumber(payable),
+                })}
+                <br />
+                {t("tonpaysDeposit.bankUnitHint")}
               </p>
 
               {invoice.mode === "custom" ? (

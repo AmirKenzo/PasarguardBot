@@ -53,10 +53,14 @@ def invoice_text(invoice: TonPaysInvoice) -> str:
         "- -",
         f"➿ شماره فاکتور: <code>{invoice.invoice_id}</code>",
         f"<b>💵 مبلغ شارژ:</b> <code>{int(invoice.amount):,}</code> <b>تومان</b>",
-        f"<b>💰 مبلغ قابل پرداخت:</b> <code>{final_amount:,}</code> <b>تومان</b>",
+        "<b>💰 مبلغ قابل پرداخت:</b>",
+        f"   <code>{final_amount * 10:,}</code> <b>ریال</b>",
+        f"   <code>{final_amount:,}</code> <b>تومان</b>",
         f"<b>📌 وضعیت:</b> {status_label(invoice.status)}",
         "",
-        f"⚠️ <b>دقیقاً مبلغ {final_amount:,} تومان را پرداخت کنید؛ با مبلغ دیگر پرداخت تأیید نمی‌شود.</b>",
+        f"⚠️ <b>دقیقاً مبلغ {final_amount * 10:,} ریال ({final_amount:,} تومان) را پرداخت کنید؛ "
+        "با مبلغ دیگر پرداخت تأیید نمی‌شود.</b>",
+        "ℹ️ برخی بانک‌ها (مثل ویپاد) مبلغ را به تومان نشان می‌دهند؛ مبلغ را بر اساس واحد بانک خودتان وارد کنید.",
     ]
     if invoice.mode == MODE_CUSTOM:
         lines += [
