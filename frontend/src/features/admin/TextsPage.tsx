@@ -9,6 +9,13 @@ import { ConfirmButton, SectionCard, SelectField, Toolbar } from "./components";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
+// The bot reads texts with lang="fa", so an empty language would save a text the bot never shows.
+const TEXT_LANGUAGES = [
+  { value: "fa", label: "فارسی (fa)" },
+  { value: "en", label: "English (en)" },
+];
+const DEFAULT_TEXT_LANGUAGE = "fa";
+
 const positionLabels = (t: TFunction): Record<string, string> => ({
   "": t("panel.texts.noBanner"),
   top: t("panel.texts.bannerAbove"),
@@ -88,7 +95,7 @@ function TextEditor({
   const { t } = useTranslation();
   const [draft, setDraft] = useState({
     value: entry.value || "",
-    lang: entry.lang || "",
+    lang: entry.lang || DEFAULT_TEXT_LANGUAGE,
     banner_url: entry.banner_url || "",
     banner_position: entry.banner_position || "",
   });
@@ -152,10 +159,9 @@ function TextEditor({
               value={draft.banner_position}
               onChange={(event) => setDraft({ ...draft, banner_position: event.target.value })}
             />
-            <Input
+            <SelectField
               label={t("panel.texts.language")}
-              ltr
-              maxLength={10}
+              options={TEXT_LANGUAGES}
               value={draft.lang}
               onChange={(event) => setDraft({ ...draft, lang: event.target.value })}
             />
@@ -167,7 +173,7 @@ function TextEditor({
                 size="sm"
                 variant="danger"
                 message={t("panel.texts.resetConfirm")}
-                onConfirm={() => remove.mutate({ key: entry.key, lang: draft.lang })}
+                onConfirm={() => remove.mutate({ key: entry.key, lang: entry.lang || "" })}
               >
                 {t("panel.common.restoreDefaults")}
               </ConfirmButton>
