@@ -298,7 +298,7 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
                 int(settings.arz_trx or 0), amount, reserved_amounts=reserved
             )
         elif currency == "usdt":
-            wallet = await WalletCRUD().get_wallet_by_type("USDT-TRC20")
+            wallet = await WalletCRUD().get_wallet_by_type("USDT")
             amount_crypto = await calculate_usdt_amount_with_tax(
                 int(settings.arz_usd or 0), amount, reserved_amounts=reserved
             )

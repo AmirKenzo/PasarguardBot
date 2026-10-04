@@ -27,9 +27,11 @@ def register_all_jobs() -> None:
     from app.jobs.payments.transactions import (
         auto_confirm_job,
         expire_star_transactions,
+        pol_checking,
         ton_checking,
         trx_checking,
         usdt_checking,
+        usdt_networks_checking,
     )
     from app.jobs.prices import get_prices_and_update
     from app.jobs.reseller.billing import run_reseller_billing
@@ -47,6 +49,8 @@ def register_all_jobs() -> None:
         (trx_checking, "interval", {"seconds": 60}, "trx_checking"),
         (usdt_checking, "interval", {"seconds": 60}, "usdt_checking"),
         (ton_checking, "interval", {"seconds": 60}, "ton_checking"),
+        (usdt_networks_checking, "interval", {"seconds": 60}, "usdt_networks_checking"),
+        (pol_checking, "interval", {"seconds": 60}, "pol_checking"),
         (expire_star_transactions, "interval", {"seconds": 60}, "expire_star_transactions"),
         (run_reseller_billing, "interval", {"seconds": 60}, "reseller_billing"),
         (run_reseller_low_balance_warning, "interval", {"minutes": 5}, "reseller_low_balance_warning"),
