@@ -11,10 +11,8 @@ from urllib.parse import parse_qsl
 from fastapi import APIRouter, Request
 
 from app import Kenzo
-from app.db.crud.cryptopayments import get_user_crypto_stats
 from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.settings import SettingsManager
-from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD, add_user
 from app.logger import LogType, get_logger
 from app.models.webapp import (
@@ -38,6 +36,7 @@ from app.routers.webapp.state import (
     revoke_session_token,
     revoked_tokens,
 )
+from app.services.billing import payment_stats
 from app.services.send_queue import enqueue
 from app.utils.formatting.conversions import to_unix_timestamp
 from app.utils.formatting.dates import Time_Date
@@ -128,23 +127,11 @@ def _convert_decimals(obj: Any) -> Any:
 async def _get_transaction_stats(user_id: int) -> dict[str, Any]:
     """Get user's transaction statistics."""
 
-    default_stats = {
-        "manual": {"count": 0, "total_amount": 0},
-        "crypto": {"count": 0, "total_amount": 0},
-    }
+    default_stats = {method: {"count": 0, "total_amount": 0} for method in payment_stats.METHODS}
 
     try:
-        transaction_crud = TransactionCRUD()
-
-        manual_stats, crypto_stats = await asyncio.gather(
-            transaction_crud.get_user_transaction_stats(user_id, "manual"),
-            get_user_crypto_stats(user_id),
-        )
-
-        return {
-            "manual": _convert_decimals(manual_stats),
-            "crypto": _convert_decimals(crypto_stats),
-        }
+        totals = await payment_stats.method_totals(user_id=user_id)
+        return {method: totals[method] for method in payment_stats.METHODS}
     except Exception as e:
         logger.error("Error getting transaction stats: %s", e)
         return default_stats

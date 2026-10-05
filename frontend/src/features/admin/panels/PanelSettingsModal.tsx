@@ -518,6 +518,27 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                   />
                   <Hint>{t("panel.panels.volumeRenewModeHint")}</Hint>
                 </div>
+                <div className="h-px bg-border/60" />
+                <Toggle
+                  checked={draft.renewal.expired_auto_delete_enabled}
+                  onChange={(checked) =>
+                    setDraft({ ...draft, renewal: { ...draft.renewal, expired_auto_delete_enabled: checked } })
+                  }
+                  label={t("panel.panels.expiredAutoDelete")}
+                  hint={t("panel.panels.expiredAutoDeleteHint")}
+                />
+                <div>
+                  <Input
+                    label={t("panel.panels.expiredGraceDays")}
+                    inputMode="numeric"
+                    disabled={!draft.renewal.expired_auto_delete_enabled}
+                    value={draft.renewal.expired_grace_days}
+                    onChange={(e) =>
+                      setDraft({ ...draft, renewal: { ...draft.renewal, expired_grace_days: Number(e.target.value) } })
+                    }
+                  />
+                  <Hint>{t("panel.panels.expiredGraceDaysHint")}</Hint>
+                </div>
               </div>
             )}
 

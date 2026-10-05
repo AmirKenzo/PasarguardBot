@@ -85,6 +85,8 @@ export interface PanelRenewalSettings {
   auto_renew_enabled: boolean;
   webhook_notifications_enabled: boolean;
   renew_volume_remaining_mode: boolean;
+  expired_auto_delete_enabled: boolean;
+  expired_grace_days: number;
 }
 
 export interface PanelSalesSettings {

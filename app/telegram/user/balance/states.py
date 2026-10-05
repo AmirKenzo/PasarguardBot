@@ -14,6 +14,8 @@ STEP_CRYPTO_USDT_BEP20_2 = "CryptoPayments_USDT_BEP20_2"
 STEP_CRYPTO_TON_2 = "CryptoPayments_TON_2"
 STEP_CRYPTO_POL_2 = "CryptoPayments_POL_2"
 STEP_STARS_2 = "StarsPayment_2"
+STEP_TONPAYS_2 = "TonPaysPayment_2"
+STEP_TONPAYS_RECEIPT = "TonPaysPayment_receipt"
 STEP_CONF_NUMBER = "conf_number"
 STEP_HOME = "home"
 STEP_START = "start"
@@ -31,6 +33,8 @@ BALANCE_FLOW_CANCEL_STEPS = frozenset(
         STEP_CRYPTO_TON_2,
         STEP_CRYPTO_POL_2,
         STEP_STARS_2,
+        STEP_TONPAYS_2,
+        STEP_TONPAYS_RECEIPT,
     }
 )
 
@@ -46,6 +50,10 @@ CALLBACK_CRYPTO_USDT_BEP20 = "CryptoPayments_USDT_BEP20"
 CALLBACK_CRYPTO_TON = "CryptoPayments_TON"
 CALLBACK_CRYPTO_POL = "CryptoPayments_POL"
 CALLBACK_STARS = "StarsPayment"
+CALLBACK_TONPAYS = "TonPaysPayment"
+CALLBACK_TONPAYS_CHECK_PREFIX = "tonpays_check:"
+CALLBACK_TONPAYS_CARD_PREFIX = "tonpays_card:"
+CALLBACK_TONPAYS_RECEIPT_PREFIX = "tonpays_receipt:"
 CALLBACK_CART_PAYMENT = "cart_payment"
 CALLBACK_CART_PAYMENT_SENDPHOTO = "cart_payment_sendphoto"
 CALLBACK_FLOW_CANCEL = "balance_flow_cancel"

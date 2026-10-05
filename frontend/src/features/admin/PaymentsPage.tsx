@@ -1,17 +1,32 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { CreditCard, Gem, Wallet } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Badge, Button, ErrorState, Input, Skeleton } from "../../components/ui";
+import { Badge, Button, ErrorState, Input, Skeleton, Tabs } from "../../components/ui";
+import type { TabItem } from "../../components/ui";
 import { panelPaymentsApi } from "../../api/panel";
 import type { PanelAutoApproveRuleRow, PanelCardRow, PanelWalletRow } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
 import { ConfirmButton, DataTable, SectionCard, SelectField, Toggle } from "./components";
 import type { Column } from "./components";
 import { useTranslation } from "react-i18next";
+import TonPaysTab from "./TonPaysTab";
 
 const INVALIDATE = [["payments"]];
+const SECTIONS = ["crypto", "manual", "tonpays"] as const;
+type Section = (typeof SECTIONS)[number];
 
 export default function AdminPaymentsPage() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromUrl = searchParams.get("section");
+  const section: Section = SECTIONS.includes(fromUrl as Section) ? (fromUrl as Section) : "crypto";
+  const setSection = (value: string) =>
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("section", value);
+      return next;
+    });
   const query = usePanelQuery(["payments"], (auth) => panelPaymentsApi.getPayments(auth));
 
   const createWallet = usePanelAction(panelPaymentsApi.createWallet, { invalidate: INVALIDATE });
@@ -27,6 +42,28 @@ export default function AdminPaymentsPage() {
   const [card, setCard] = useState({ number: "", name: "", active: true });
   const [rule, setRule] = useState({ min: "0", max: "", delay: "30" });
 
+  const tabItems: TabItem[] = [
+    { value: "crypto", label: t("panel.payments.tabCrypto"), icon: Wallet },
+    { value: "manual", label: t("panel.payments.tabManual"), icon: CreditCard },
+    { value: "tonpays", label: t("panel.payments.tabTonPays"), icon: Gem },
+  ];
+  const header = (
+    <>
+      <PageHeader title={t("panel.common.paymentGateways")} subtitle={t("panel.payments.subtitle")} />
+      <div className="mb-4">
+        <Tabs items={tabItems} value={section} onChange={setSection} />
+      </div>
+    </>
+  );
+
+  if (section === "tonpays") {
+    return (
+      <>
+        {header}
+        <TonPaysTab />
+      </>
+    );
+  }
   if (query.isLoading) {
     return <Skeleton className="h-64 w-full" />;
   }
@@ -131,8 +168,9 @@ export default function AdminPaymentsPage() {
 
   return (
     <>
-      <PageHeader title={t("panel.common.paymentGateways")} subtitle={t("panel.payments.subtitle")} />
+      {header}
 
+      {section === "crypto" && (
       <SectionCard title={t("panel.payments.cryptoWallets")}>
         <DataTable columns={walletColumns} rows={wallets} rowKey={(row) => row.id} emptyTitle={t("panel.payments.walletsEmpty")} />
         {availableTypes.length > 0 && (
@@ -171,7 +209,10 @@ export default function AdminPaymentsPage() {
           </div>
         )}
       </SectionCard>
+      )}
 
+      {section === "manual" && (
+      <>
       <SectionCard title={t("panel.payments.manualCards")}>
         <DataTable columns={cardColumns} rows={cards} rowKey={(row) => row.id} emptyTitle={t("panel.payments.cardsEmpty")} />
         <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
@@ -250,6 +291,8 @@ export default function AdminPaymentsPage() {
           </div>
         </div>
       </SectionCard>
+      </>
+      )}
     </>
   );
 }

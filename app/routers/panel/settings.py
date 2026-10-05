@@ -76,10 +76,35 @@ SELECT_FIELD_CASTERS: dict[str, Callable[[str], Any]] = {
 READONLY_FIELDS: frozenset[str] = frozenset({"arz_usd", "arz_trx", "arz_ton"})
 
 
-HIDDEN_FIELDS: frozenset[str] = frozenset({"pwa_app_name", "pwa_short_name", "pwa_description", "pwa_icon_updated_at"})
+HIDDEN_FIELDS: frozenset[str] = frozenset(
+    {
+        "pwa_app_name",
+        "pwa_short_name",
+        "pwa_description",
+        "pwa_icon_updated_at",
+        # Managed from the TonPays tab of the payments page.
+        "tonpays_enabled",
+        "tonpays_mode",
+        "tonpays_api_key",
+        "tonpays_custom_key",
+        "tonpays_deposit_min",
+        "tonpays_deposit_max",
+        "tonpays_bonus_enabled",
+        "tonpays_bonus_percent",
+    }
+)
 
 TEXT_FIELD_KEYS: frozenset[str] = frozenset(
-    {"avalai_api_key", "avalai_system_prompt", "instagram_api_token", "cart_num", "cart_name", "tetra_api_key"}
+    {
+        "avalai_api_key",
+        "avalai_system_prompt",
+        "instagram_api_token",
+        "cart_num",
+        "cart_name",
+        "tetra_api_key",
+        "tonpays_api_key",
+        "tonpays_custom_key",
+    }
 )
 
 

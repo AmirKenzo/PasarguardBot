@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 
 from fastapi import APIRouter, Request
 
@@ -19,6 +18,7 @@ from app.models.panel.reports import (
 )
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.billing import payment_stats
 
 router = APIRouter()
 
@@ -26,8 +26,7 @@ DAY = 86400
 
 
 def _period_start(period: str) -> int:
-    now = int(time.time())
-    today = now - (now % DAY)
+    today = int(payment_stats.tehran_day_start().timestamp())
     if period == "3d":
         return today - 2 * DAY
     if period == "week":
@@ -64,13 +63,14 @@ async def reports(payload: PanelReportsRequest, request: Request) -> PanelReport
         transactions = TransactionCRUD()
         services = ServiceCRUD()
 
-        top_recharge, top_spenders, top_configs, breakdown, service_stats, new_users = await asyncio.gather(
-            transactions.get_top_recharge_today(start, limit=10),
-            transactions.get_top_spenders_today(start, limit=10),
+        top_recharge, top_spenders, top_configs, breakdown, service_stats, new_users, paid = await asyncio.gather(
+            payment_stats.top_users(start or None, by="count", limit=10),
+            payment_stats.top_users(start or None, by="amount", limit=10),
             services.get_top_customers_by_config_count(limit=10),
             transactions.get_breakdown(start),
             services.get_period_stats(start),
             UserCRUD().count_since(start),
+            payment_stats.method_totals(start or None),
         )
 
         return PanelReportsResponse(
@@ -80,14 +80,17 @@ async def reports(payload: PanelReportsRequest, request: Request) -> PanelReport
                 new_users=int(new_users or 0),
                 services_sold=int(service_stats.get("paid_period", 0)),
                 test_services=int(service_stats.get("test_period", 0)),
-                manual_approved_sum=int(breakdown.get("manual_approved_sum", 0)),
+                manual_approved_sum=paid["manual"]["total_amount"],
                 auto_approved_sum=int(breakdown.get("auto_approved_sum", 0)),
+                crypto_approved_sum=paid["crypto"]["total_amount"],
+                stars_approved_sum=paid["stars"]["total_amount"],
+                tonpays_approved_sum=paid["tonpays"]["total_amount"],
+                total_revenue=paid["total"]["total_amount"],
                 pending_sum=int(breakdown.get("manual_pending_total_sum", 0)),
                 pending_count=int(breakdown.get("manual_pending_total_count", 0)),
             ),
-            # get_top_recharge_today returns (user_id, tx_count, total_amount)
-            top_recharge=_ranked(top_recharge, amount_index=2, count_index=1),
-            # get_top_spenders_today returns (user_id, total_amount, tx_count)
+            # payment_stats.top_users returns (user_id, total_amount, count), every gateway
+            top_recharge=_ranked(top_recharge, amount_index=1, count_index=2),
             top_spenders=_ranked(top_spenders, amount_index=1, count_index=2),
             # get_top_customers_by_config_count returns (user_id, service_count)
             top_service_counts=[

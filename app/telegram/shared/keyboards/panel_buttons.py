@@ -9,6 +9,8 @@ from app.services.panels.auth import panel_auth_type_label
 from app.services.panels.settings import (
     panel_button_enabled,
     panel_display_mode,
+    panel_expired_auto_delete_enabled,
+    panel_expired_grace_days,
     panel_renew_volume_remaining_mode,
     panel_reseller_button_enabled,
     panel_reseller_sale_flag,
@@ -177,6 +179,9 @@ def build_panel_admin_settings_buttons(panel: Any) -> list:
     renew_vol_short = "باقی+ریست" if renew_vol else "جمعی"
     display_mode = panel_display_mode(panel)
     display_short = "⏰ زمان" if display_mode == "duration_first" else "📋 کلاسیک"
+    expired_delete_short = (
+        f"{panel_expired_grace_days(panel)} روز" if panel_expired_auto_delete_enabled(panel) else "خاموش"
+    )
 
     rows = [
         [Button.inline("🎨 استایل دکمه (خرید / لیست)", data=f"edit_panel_display:{code}")],
@@ -201,6 +206,7 @@ def build_panel_admin_settings_buttons(panel: Any) -> list:
         ],
         [Button.inline("🌐 پیشوند نود", data=f"panel_node_prefixes:{code}")],
         [Button.inline("🧪 تنظیمات تست", data=f"panel_test_settings:{code}")],
+        [Button.inline(f"🗑 حذف خودکار منقضی‌ها ({expired_delete_short})", data=f"panel_expired_delete:{code}")],
         [Button.inline("🧩 خرید دلخواه (حجم/زمان)", data=f"panel_custom_buy:{code}")],
         [Button.inline("👥 خرید ظرفیت کاربر (نمایندگی)", data=f"panel_reseller_capacity:{code}")],
         [

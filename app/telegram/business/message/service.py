@@ -154,22 +154,20 @@ async def _handle_info_command(bm, event, msg: str) -> None:
 
         # Optional transaction stats — skip entirely if CRUD/method missing
         try:
-            from app.db.crud.transactions import TransactionCRUD
+            from app.services.billing import payment_stats
 
-            transaction_crud = TransactionCRUD()
-            if hasattr(transaction_crud, "get_user_transaction_stats"):
-                manual_stats = await transaction_crud.get_user_transaction_stats(user_id, "manual")
-                auto_stats = await transaction_crud.get_user_transaction_stats(user_id, "auto")
-                total_purchases = int(manual_stats.get("count", 0)) + int(auto_stats.get("count", 0))
-                total_amount_spent = int(manual_stats.get("total_amount", 0)) + int(auto_stats.get("total_amount", 0))
-                lines.append("")
-                lines.append("📊 آمار تراکنش‌ها:")
-                if int(manual_stats.get("count", 0)) > 0:
+            payments = await payment_stats.method_totals(user_id=user_id)
+            lines.append("")
+            lines.append("📊 آمار تراکنش‌ها:")
+            for method in payment_stats.METHODS:
+                item = payments[method]
+                if item["count"] > 0:
                     lines.append(
-                        f"💳 کارت به کارت دستی: {manual_stats['count']} عدد - {manual_stats['total_amount']:,} تومان"
+                        f"💳 {payment_stats.METHOD_LABELS_FA[method]}: "
+                        f"{item['count']} عدد - {item['total_amount']:,} تومان"
                     )
-                lines.append(f"🛒 مجموع خرید موفق: {total_purchases} عدد")
-                lines.append(f"💳 مجموع مبلغ خرید شده: {total_amount_spent:,} تومان")
+            lines.append(f"🛒 مجموع خرید موفق: {payments['total']['count']} عدد")
+            lines.append(f"💳 مجموع مبلغ خرید شده: {payments['total']['total_amount']:,} تومان")
         except Exception:
             pass
 

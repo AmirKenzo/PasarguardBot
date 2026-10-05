@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from bisect import bisect_right
 from typing import Any
 
 from sqlalchemy import BigInteger, String, case, cast, func, literal, or_, select, union_all
@@ -17,8 +18,11 @@ from app.db.models.reseller_accounts import ResellerAccount
 from app.db.models.reseller_billing_snapshots import ResellerBillingSnapshot
 from app.db.models.reseller_plans import ResellerPlan
 from app.db.models.services import Service
+from app.db.models.stars_transaction import StarsTransaction
+from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
 from app.db.models.user import User
+from app.services.billing import payment_stats
 
 INACTIVE_STATUSES = ("ban", "BlockedBot", "DeleteAccount")
 # Status the bot writes when a deposit is approved.
@@ -42,7 +46,7 @@ def pages_for(total: int, per_page: int) -> int:
 
 async def dashboard_stats() -> dict[str, Any]:
     now = int(time.time())
-    today_start = now - (now % DAY)
+    today_start = int(payment_stats.tehran_day_start().timestamp())
     async with Session() as session:
         users_total = int((await session.execute(select(func.count()).select_from(User))).scalar() or 0)
         users_blocked = int(
@@ -72,26 +76,6 @@ async def dashboard_stats() -> dict[str, Any]:
         )
         services_expired = max(0, services_total - services_active)
 
-        income_today = int(
-            (
-                await session.execute(
-                    select(func.coalesce(func.sum(Transaction.amount), 0)).where(
-                        Transaction.status == APPROVED_STATUS, Transaction.created_at >= today_start
-                    )
-                )
-            ).scalar()
-            or 0
-        )
-        income_month = int(
-            (
-                await session.execute(
-                    select(func.coalesce(func.sum(Transaction.amount), 0)).where(
-                        Transaction.status == APPROVED_STATUS, Transaction.created_at >= now - 30 * DAY
-                    )
-                )
-            ).scalar()
-            or 0
-        )
         pending_tx = int(
             (
                 await session.execute(
@@ -111,6 +95,10 @@ async def dashboard_stats() -> dict[str, Any]:
             ).scalar()
             or 0
         )
+
+    # Income counts paid top-ups from every gateway, by payment time.
+    income_today = (await payment_stats.method_totals(today_start))["total"]["total_amount"]
+    income_month = (await payment_stats.method_totals(now - 30 * DAY))["total"]["total_amount"]
 
     return {
         "users_total": users_total,
@@ -145,37 +133,20 @@ async def sidebar_badges() -> dict[str, int]:
 
 
 async def daily_series(days: int = 14) -> list[dict[str, Any]]:
-    """Per-day revenue and signup counts for the dashboard chart."""
-    now = int(time.time())
-    today_start = now - (now % DAY)
-    start = today_start - (days - 1) * DAY
-    out: list[dict[str, Any]] = []
+    """Per-day (Tehran calendar) revenue from every gateway and signup counts for the dashboard chart."""
+    boundaries = payment_stats.tehran_day_boundaries(days)
+    revenue = await payment_stats.bucket_revenue(boundaries)
     async with Session() as session:
-        tx_rows = (
-            await session.execute(
-                select(Transaction.created_at, Transaction.amount).where(
-                    Transaction.status == APPROVED_STATUS, Transaction.created_at >= start
-                )
-            )
+        user_rows = (
+            await session.execute(select(User.time_s).where(User.time_s >= boundaries[0], User.time_s < boundaries[-1]))
         ).all()
-        user_rows = (await session.execute(select(User.time_s).where(User.time_s >= start))).all()
 
-    revenue: dict[int, int] = {}
-    for created_at, amount in tx_rows:
-        bucket = int(created_at) - (int(created_at) % DAY)
-        revenue[bucket] = revenue.get(bucket, 0) + int(amount or 0)
-
-    signups: dict[int, int] = {}
+    signups = [0] * days
     for (time_s,) in user_rows:
-        if not time_s:
-            continue
-        bucket = int(time_s) - (int(time_s) % DAY)
-        signups[bucket] = signups.get(bucket, 0) + 1
+        if time_s:
+            signups[bisect_right(boundaries, int(time_s)) - 1] += 1
 
-    for index in range(days):
-        bucket = start + index * DAY
-        out.append({"ts": bucket, "revenue": revenue.get(bucket, 0), "signups": signups.get(bucket, 0)})
-    return out
+    return [{"ts": boundaries[index], "revenue": revenue[index], "signups": signups[index]} for index in range(days)]
 
 
 # --------------------------------------------------------------------------- #
@@ -325,6 +296,45 @@ def _crypto_branch():
     )
 
 
+def _stars_branch():
+    normalized_status = case(
+        (StarsTransaction.status == "approved", "approved"),
+        (StarsTransaction.status == "pending", "pending"),
+        else_="expired",
+    )
+    return select(
+        cast(StarsTransaction.id, String).label("raw_id"),
+        literal("stars").label("source"),
+        literal("stars").label("method"),
+        StarsTransaction.user_id.label("user_id"),
+        cast(StarsTransaction.amount, BigInteger).label("amount"),
+        normalized_status.label("status"),
+        StarsTransaction.created_at.label("created_at"),
+    )
+
+
+def _tonpays_branch():
+    normalized_status = case(
+        (TonPaysInvoice.status == "completed", "approved"),
+        (TonPaysInvoice.status.in_(("pending", "processing", "need_action")), "pending"),
+        (TonPaysInvoice.status == "rejected", "rejected"),
+        else_="expired",
+    )
+    return select(
+        cast(TonPaysInvoice.id, String).label("raw_id"),
+        literal("tonpays").label("source"),
+        literal("tonpays").label("method"),
+        TonPaysInvoice.user_id.label("user_id"),
+        cast(TonPaysInvoice.amount, BigInteger).label("amount"),
+        normalized_status.label("status"),
+        TonPaysInvoice.created_at.label("created_at"),
+    )
+
+
+def _unified(name: str):
+    return union_all(_tx_branch(), _crypto_branch(), _stars_branch(), _tonpays_branch()).subquery(name)
+
+
 async def list_unified_transactions(
     *,
     tx_id: str = "",
@@ -336,13 +346,13 @@ async def list_unified_transactions(
     page: int = 1,
     per_page: int = 25,
 ) -> tuple[list[Any], int]:
-    """Every payment method in one feed: manual card-to-card + crypto.
+    """Every payment method in one feed: card-to-card, crypto, Stars and TonPays.
 
     Only manual-card rows are ever actionable (crypto confirms itself) — that
     distinction is made by the caller from ``method``/``status``, not here.
     """
     offset, limit = _page_bounds(page, per_page)
-    combined = union_all(_tx_branch(), _crypto_branch()).subquery("unified_tx")
+    combined = _unified("unified_tx")
 
     conditions = []
     if tx_id.strip():
@@ -372,7 +382,7 @@ async def list_unified_transactions(
 
 async def transaction_stats() -> dict[str, int]:
     """Numbers for the transactions page's stat tiles."""
-    combined = union_all(_tx_branch(), _crypto_branch()).subquery("unified_tx_stats")
+    combined = _unified("unified_tx_stats")
     week_ago = int(time.time()) - 7 * DAY
 
     async with Session() as session:
@@ -382,16 +392,6 @@ async def transaction_stats() -> dict[str, int]:
                     select(func.count())
                     .select_from(Transaction)
                     .where(Transaction.status == "pending", Transaction.method == "manual")
-                )
-            ).scalar()
-            or 0
-        )
-        approved_7d = int(
-            (
-                await session.execute(
-                    select(func.count())
-                    .select_from(combined)
-                    .where(combined.c.status == "approved", combined.c.created_at >= week_ago)
                 )
             ).scalar()
             or 0
@@ -406,16 +406,10 @@ async def transaction_stats() -> dict[str, int]:
             ).scalar()
             or 0
         )
-        approved_volume_7d = int(
-            (
-                await session.execute(
-                    select(func.coalesce(func.sum(combined.c.amount), 0)).where(
-                        combined.c.status == "approved", combined.c.created_at >= week_ago
-                    )
-                )
-            ).scalar()
-            or 0
-        )
+
+    paid_7d = (await payment_stats.method_totals(week_ago))["total"]
+    approved_7d = paid_7d["count"]
+    approved_volume_7d = paid_7d["total_amount"]
 
     return {
         "pending": pending,

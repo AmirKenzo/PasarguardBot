@@ -14,7 +14,11 @@ from app.logger import LogType, get_logger
 from app.models.router_models import WebhookEvent
 from app.routers.webhook.helpers import find_service_by_username
 from app.services.billing.renewal import require_panel_userid
-from app.services.panels.settings import panel_webhook_notifications_enabled
+from app.services.panels.settings import (
+    panel_expired_auto_delete_enabled,
+    panel_expired_grace_days,
+    panel_webhook_notifications_enabled,
+)
 from app.telegram.shared.utils.logging import send_log_message
 from app.utils.text.bot_texts import get_bot_text
 
@@ -69,20 +73,38 @@ async def handle_user_expired(event: WebhookEvent) -> None:
         await send_log_message(LogType.OTHER, message=log_msg, parse_mode="html")
         return
 
-    message_template = await get_bot_text(
-        key="webhook_notification_expired",
-        default=(
-            "<b>#اطلاع_رسانی</b>\n\n"
-            "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
-            "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
-            "<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n"
-            "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n"
-            "<b>⚠️ نکته: اگر در 3 روز آینده تمدید نکنید، سرویس شما حذف خواهد شد.</b>\n\n"
-            "<b>#notification_{service_code}</b>"
-        ),
-        lang="fa",
+    if panel_expired_auto_delete_enabled(panel):
+        message_template = await get_bot_text(
+            key="webhook_notification_expired",
+            default=(
+                "<b>#اطلاع_رسانی</b>\n\n"
+                "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
+                "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
+                "<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n"
+                "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n"
+                "<b>⚠️ نکته: اگر در {grace_days} روز آینده تمدید نکنید، سرویس شما حذف خواهد شد.</b>\n\n"
+                "<b>#notification_{service_code}</b>"
+            ),
+            lang="fa",
+        )
+    else:
+        message_template = await get_bot_text(
+            key="webhook_notification_expired_no_delete",
+            default=(
+                "<b>#اطلاع_رسانی</b>\n\n"
+                "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
+                "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
+                "<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n"
+                "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
+                "<b>#notification_{service_code}</b>"
+            ),
+            lang="fa",
+        )
+    message = (
+        message_template.replace("{service_code}", str(service.code))
+        .replace("{config_name}", service.username)
+        .replace("{grace_days}", str(panel_expired_grace_days(panel)))
     )
-    message = message_template.replace("{service_code}", str(service.code)).replace("{config_name}", service.username)
 
     try:
         await Kenzo.send_message(service.id, message, parse_mode="html")

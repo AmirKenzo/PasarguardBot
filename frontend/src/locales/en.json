@@ -191,7 +191,9 @@
       "copyFailed": "Copy failed",
       "done": "Done",
       "genericError": "Failed to generate the API key"
-    }
+    },
+    "stars": "Stars",
+    "tonpays": "TonPays"
   },
   "balanceHub": {
     "title": "Wallet",
@@ -205,6 +207,9 @@
     "cryptoPay": "Crypto Payment",
     "starsPay": "Pay with Stars",
     "starsPayDesc": "Direct payment inside Telegram",
+    "tonpaysPay": "Online payment (TonPays)",
+    "tonpaysDesc": "Pay in the TonPays bot, confirmed automatically",
+    "tonpaysCustomDesc": "Card transfer with automatic confirmation",
     "bonus": " • {{percent}}% bonus"
   },
   "cryptoDeposit": {
@@ -268,6 +273,30 @@
     "starPrice": "Price per Star",
     "openInvoice": "Open Stars Invoice",
     "submitButton": "Create Invoice & Pay"
+  },
+  "tonpaysDeposit": {
+    "title": "Online payment (TonPays)",
+    "submitButton": "Create invoice",
+    "chargeAmount": "Top-up amount",
+    "payableAmount": "Amount to pay",
+    "exactAmountWarning": "Pay exactly {{rial}} rial ({{toman}} toman); any other amount will not be confirmed.",
+    "bankUnitHint": "Some banks (like Wepod) show amounts in toman; enter the amount in your bank's unit.",
+    "rial": "rial",
+    "copyRial": "Copy rial amount",
+    "copyToman": "Copy toman amount",
+    "payButton": "Pay in TonPays",
+    "checkButton": "Check payment",
+    "autoCheckNote": "Payment status is checked automatically every few seconds.",
+    "changeCard": "Change card",
+    "receiptSent": "Receipt sent and waiting for confirmation.",
+    "receiptWaiting": "Receipt sent and waiting for confirmation.",
+    "paidTitle": "Payment confirmed",
+    "paidDesc": "Your wallet balance has been topped up.",
+    "paidToast": "Payment confirmed and balance topped up",
+    "statusToast": "Invoice status: {{status}}",
+    "newInvoice": "Create a new invoice",
+    "copyCard": "Copy card",
+    "copied": "Copied"
   },
   "extendTime": {
     "title": "Extend Time",
@@ -450,7 +479,9 @@
     "rejected": "Rejected",
     "expired": "Rejected/Expired",
     "manual_card": "Manual Card Deposit",
-    "crypto": "Crypto Transaction ({{currency}})"
+    "crypto": "Crypto Transaction ({{currency}})",
+    "tonpays": "Online payment (TonPays)",
+    "stars": "Stars payment"
   },
   "common": {
     "loading": "Loading...",
@@ -709,7 +740,9 @@
       "statPending": "Awaiting review",
       "statApproved7d": "Approved (7d)",
       "statRejected7d": "Rejected (7d)",
-      "statVolume7d": "Approved volume (7d)"
+      "statVolume7d": "Approved volume (7d)",
+      "methodStars": "Stars",
+      "methodTonpays": "TonPays"
     },
     "pwa": {
       "tab": "PWA",
@@ -764,6 +797,7 @@
       "tronPrice": "TRX price",
       "tonPrice": "TON price",
       "polPrice": "POL price",
+      "tonpaysDisclaimer": "⚠️ TonPays is a third-party service. The bot's author takes no responsibility for it and neither endorses nor rejects its safety or reliability, now or in the future. Test it with small amounts before relying on it; any loss of funds is your own responsibility.",
       "usdPrice": "USD price",
       "clientList": "Client list",
       "subLink": "Subscription link",
@@ -1040,7 +1074,10 @@
       "cryptoWallets": "Crypto wallets",
       "delayMinutes": "{{count}} minutes",
       "txRange": "{{from}} to {{to}}",
-      "walletDeleteConfirm": "Delete the {{type}} wallet?"
+      "walletDeleteConfirm": "Delete the {{type}} wallet?",
+      "tabCrypto": "Crypto wallets",
+      "tabManual": "Manual card transfer",
+      "tabTonPays": "TonPays"
     },
     "resellers": {
       "noCap": "No cap",
@@ -1088,7 +1125,6 @@
       "editTitle": "Edit panel {{name}}",
       "trialEnabled": "Offer a trial from this panel",
       "trialHint": "Every panel with this on offers its own trial; when more than one does, the user picks.",
-
       "trialActiveBadge": "Trial active",
       "viewInfo": "Panel & server info",
       "quickEdit": "Quick edit",
@@ -1097,7 +1133,6 @@
       "nameEmojiHint": "The name shown on buttons; you can type an emoji right into the name text here too.",
       "enabledHint": "Enabled: users can buy configs from this panel. Disabled: the panel is hidden from the shop.",
       "settingsTitle": "Full settings — {{name}}",
-
       "infoSpecTitle": "Panel details",
       "shopSaleStatus": "Shop sale",
       "resellerSaleStatus": "Reseller sale",
@@ -1115,7 +1150,6 @@
       "usersExpired": "Expired",
       "download": "Total download",
       "upload": "Total upload",
-
       "tab": {
         "style": "Button style",
         "buttons": "Service buttons",
@@ -1125,7 +1159,6 @@
         "features": "Features",
         "reseller": "Reseller"
       },
-
       "styleTabHint": "The text, color, and Telegram Premium icon of the button users see when buying a service and in the panel status list. Appearance only — it has no effect on the panel's technical behavior.",
       "stylePreview": "Button preview",
       "buttonText": "Button text",
@@ -1139,7 +1172,6 @@
       "premiumIconHint": "The Telegram Premium custom emoji's numeric ID — only usable with a Telegram Premium account.",
       "clearIcon": "Clear icon",
       "resetStyle": "Reset to panel name",
-
       "buttonsTabHint": "The buttons a user sees on the \"My services\" page for this config. Each toggle's current state is written next to it so it's clear what turning it on/off does.",
       "btn": {
         "time": "⏰ Buy time",
@@ -1173,7 +1205,6 @@
         "deleteService": "Let the user delete this service directly.",
         "autoRenew": "Lets the user turn on auto-renew for this config from \"My services\", picking a plan."
       },
-
       "rsBtn": {
         "credentials": "🔑 Show login credentials",
         "changePassword": "🔐 Change password",
@@ -1192,7 +1223,6 @@
         "buyCapacity": "Let the reseller buy more user capacity themself.",
         "delete": "Let the reseller fully delete their own reseller account."
       },
-
       "defaultGroups": "Default groups",
       "defaultGroupsHint": "The group(s) a new user is assigned to when a config is created on this panel; the list is read live from the panel itself.",
       "userLimit": "Service cap for this panel",
@@ -1212,18 +1242,19 @@
       "addPrefix": "Add",
       "showPrefixes": "Show prefix in the location list",
       "showPrefixesHint": "Also show the prefix above when displaying the location name to the user.",
-
       "trialTabHint": "Lets each user get one free trial account from this panel before buying.",
-
       "renewalTabHint": "\"Auto-renew\" is a service button — turn it on/off from the \"Service buttons\" tab. This tab only sets the notification method and volume-renewal behavior.",
       "webhookMethod": "Usage notification method",
       "webhookMethodHint": "Webhook: low-volume/expiry alerts straight from the panel's own event — lighter and more precise. Off: the bot polls the panel periodically via cron.",
       "webhookWarning": "If turned on, the webhook must also be set up inside the PasarGuard panel itself — otherwise no notifications are sent to users at all.",
       "volumeRenewMode": "Volume renewal mode",
+      "expiredAutoDelete": "Auto-delete expired services",
+      "expiredAutoDeleteHint": "Paid services of this panel are removed from the panel and the bot once the grace period after expiry ends. Trial services are not affected.",
+      "expiredGraceDays": "Grace period after expiry (days)",
+      "expiredGraceDaysHint": "Between 1 and 365 days. Users are told about this period when their service expires.",
       "volumeCumulative": "➕ Cumulative",
       "volumeReset": "Remaining + reset",
       "volumeRenewModeHint": "Cumulative: total volume + plan volume, usage is not reset. Remaining+reset: remaining volume + plan volume, usage resets to zero. If your webhook is usage-percent based, \"Remaining+reset\" is recommended.",
-
       "shopSale": "🛒 Buy service",
       "shopSaleHint": "Show this panel in the regular config-buying list for users.",
       "customBuy": "🧩 Custom purchase (free volume/duration)",
@@ -1234,7 +1265,6 @@
       "customMinGb": "Minimum volume (GB)",
       "customMaxGb": "Maximum volume (GB)",
       "customMinDays": "Minimum duration (days)",
-
       "resellerTabHint": "Everything about selling and managing this panel's reseller accounts, kept separate from single-service sale settings.",
       "resellerSale": "🏢 Reseller sale enabled",
       "resellerSaleHint": "Whether this panel's reseller access can be sold/handed out to other users.",
@@ -1311,7 +1341,10 @@
       "invoiceCount": "{{count}} invoices",
       "trialCount": "Trials: {{count}}",
       "totalRevenue": "Total revenue",
-      "period": "Time range"
+      "period": "Time range",
+      "cryptoTopUp": "Crypto top-up",
+      "starsTopUp": "Stars top-up",
+      "tonpaysTopUp": "TonPays top-up"
     },
     "texts": {
       "bannerUrl": "Banner URL",
@@ -1460,6 +1493,49 @@
         "downloadCsv": "Download CSV report",
         "newTransfer": "New transfer"
       }
+    },
+    "tonpays": {
+      "title": "TonPays gateway",
+      "enabled": "Gateway enabled",
+      "statusActive": "Active",
+      "statusNoKey": "No key",
+      "statusOff": "Off",
+      "modeStandard": "Standard type",
+      "modeCustom": "Custom type",
+      "keySet": "Key set",
+      "keyMissing": "No key for this type",
+      "paidToday": "Paid today",
+      "amountToday": "Amount today",
+      "openInvoices": "Open invoices",
+      "failedToday": "Rejected or expired today",
+      "connection": "Connection",
+      "connectionHint": "Gateway type and API keys",
+      "gatewayType": "Gateway type",
+      "standard": "Standard",
+      "custom": "Custom",
+      "standardHint": "Users pay inside the TonPays bot.",
+      "customHint": "The card is shown inside this bot and users send the receipt here.",
+      "apiKey": "Standard API key",
+      "customKey": "Custom gateway Telegram key",
+      "keyPlaceholder": "Paste the key from your TonPays store panel",
+      "keyKeepHint": "Current key: {{masked}} — enter a new key to replace it; leave empty to keep it.",
+      "keyEmptyHint": "No key saved yet.",
+      "testConnection": "Test connection",
+      "connected": "Connected",
+      "notConnected": "Couldn't connect",
+      "rules": "Top-up rules",
+      "rulesHint": "Amount range, bonus and webhook",
+      "minAmount": "Minimum amount (toman)",
+      "maxAmount": "Maximum amount (toman)",
+      "bonus": "Top-up bonus",
+      "bonusHint": "Extra percent on the top-up amount",
+      "webhook": "Webhook URL",
+      "copy": "Copy",
+      "copied": "Copied",
+      "noWebhook": "WEBAPP_URL isn't https; payments are confirmed only by the per-minute check.",
+      "webhookHint": "Register this URL in the TonPays panel so payments are confirmed instantly.",
+      "rangeError": "Maximum must be at least the minimum.",
+      "save": "Save changes"
     }
   }
 }

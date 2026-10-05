@@ -1,4 +1,4 @@
-import { Calendar, Coins, CreditCard, Package, User, Users, Zap } from "lucide-react";
+import { Calendar, Coins, CreditCard, Gem, Package, Star, User, Users, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { ErrorState, Skeleton } from "../../components/ui";
@@ -28,7 +28,8 @@ export default function AdminReportsPage() {
   const query = usePanelQuery(["reports", period], (auth) => panelReportsApi.getReports({ ...auth, period }));
 
   const totals = query.data?.totals;
-  const totalRevenue = totals ? totals.manual_approved_sum + totals.auto_approved_sum : 0;
+  // total_revenue covers every gateway; the fallback keeps older backends working.
+  const totalRevenue = totals ? (totals.total_revenue ?? totals.manual_approved_sum + totals.auto_approved_sum) : 0;
 
   return (
     <>
@@ -86,7 +87,9 @@ export default function AdminReportsPage() {
             tone="primary"
           />
           <StatTile dense icon={CreditCard} label={t("panel.reports.cardTopUp")} value={formatToman(totals.manual_approved_sum)} />
-          <StatTile dense icon={Zap} label={t("panel.reports.automaticTopUp")} value={formatToman(totals.auto_approved_sum)} />
+          <StatTile dense icon={Wallet} label={t("panel.reports.cryptoTopUp")} value={formatToman(totals.crypto_approved_sum ?? 0)} />
+          <StatTile dense icon={Star} label={t("panel.reports.starsTopUp")} value={formatToman(totals.stars_approved_sum ?? 0)} />
+          <StatTile dense icon={Gem} label={t("panel.reports.tonpaysTopUp")} value={formatToman(totals.tonpays_approved_sum ?? 0)} />
           <StatTile
             dense
             label={t("panel.common.awaitingApproval")}

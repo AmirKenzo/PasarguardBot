@@ -66,3 +66,46 @@ export interface PanelRuleToggleRequest extends PanelAuthRequest {
 export interface PanelRuleDeleteRequest extends PanelAuthRequest {
   rule_id: number;
 }
+
+export type PanelTonPaysMode = "standard" | "custom";
+
+export interface PanelTonPaysStats {
+  paid_today: number;
+  amount_today: number;
+  open_invoices: number;
+  failed_today: number;
+}
+
+export interface PanelTonPaysResponse extends PanelEnvelope {
+  enabled: boolean;
+  mode: PanelTonPaysMode;
+  api_key_masked: string;
+  custom_key_masked: string;
+  has_api_key: boolean;
+  has_custom_key: boolean;
+  ready: boolean;
+  deposit_min: number;
+  deposit_max: number;
+  bonus_enabled: boolean;
+  bonus_percent: number;
+  webhook_url?: string | null;
+  stats: PanelTonPaysStats;
+}
+
+export interface PanelTonPaysSaveRequest extends PanelAuthRequest {
+  enabled?: boolean;
+  mode?: PanelTonPaysMode;
+  api_key?: string;
+  custom_key?: string;
+  clear_api_key?: boolean;
+  clear_custom_key?: boolean;
+  deposit_min?: number;
+  deposit_max?: number;
+  bonus_enabled?: boolean;
+  bonus_percent?: number;
+}
+
+export interface PanelTonPaysTestRequest extends PanelAuthRequest {
+  mode: PanelTonPaysMode;
+  api_key?: string;
+}

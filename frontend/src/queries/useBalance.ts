@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { balanceApi } from "../api/webapp";
-import type { CryptoCurrency } from "../types/webapp";
+import type { AuthPayload } from "../api/webapp/client";
+import type { BalanceTonPaysInvoiceResponse, CryptoCurrency } from "../types/webapp";
 import { useWebAppAuth } from "../hooks/useWebAppAuth";
 
 export function useBalanceMethodsQuery() {
@@ -79,4 +80,47 @@ export function useDepositStarsMutation() {
       void queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
   });
+}
+
+export function useOpenTonPaysInvoiceQuery(enabled: boolean) {
+  const { auth, ready } = useWebAppAuth();
+
+  return useQuery({
+    queryKey: ["tonpays-open"],
+    queryFn: () => balanceApi.getOpenTonPaysInvoice(auth!),
+    enabled: enabled && ready && auth != null,
+  });
+}
+
+function useTonPaysAction<TArgs>(
+  fn: (auth: AuthPayload, args: TArgs) => Promise<BalanceTonPaysInvoiceResponse>
+) {
+  const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (args: TArgs) => fn(auth!, args),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useDepositTonPaysMutation() {
+  return useTonPaysAction((auth, amount: number) => balanceApi.depositTonPays(auth, amount));
+}
+
+export function useCheckTonPaysMutation() {
+  return useTonPaysAction((auth, invoice: number) => balanceApi.checkTonPaysInvoice(auth, invoice));
+}
+
+export function useChangeTonPaysCardMutation() {
+  return useTonPaysAction((auth, invoice: number) => balanceApi.changeTonPaysCard(auth, invoice));
+}
+
+export function useSendTonPaysReceiptMutation() {
+  return useTonPaysAction((auth, args: { invoice: number; file: File }) =>
+    balanceApi.sendTonPaysReceipt(auth, args.invoice, args.file)
+  );
 }

@@ -9,6 +9,7 @@ import {
   Boxes,
   ChevronDown,
   CreditCard,
+  Gem,
   Gift,
   Keyboard,
   LayoutDashboard,
@@ -25,6 +26,7 @@ import {
   Store,
   Tags,
   Users,
+  Wallet,
   Wrench,
   X,
 } from "lucide-react";
@@ -85,7 +87,16 @@ const navGroups = (t: TFunction): NavGroup[] => [
       { to: "/panel/panels", label: t("panel.common.panels"), icon: Server },
       { to: "/panel/resellers", label: t("panel.common.resellers"), icon: Store },
       { to: "/panel/reseller-plans", label: t("panel.common.resellerPlans"), icon: Tags },
-      { to: "/panel/payments", label: t("panel.common.paymentGateways"), icon: CreditCard },
+      {
+        to: "/panel/payments",
+        label: t("panel.common.paymentGateways"),
+        icon: CreditCard,
+        children: [
+          { to: "/panel/payments?section=crypto", label: t("panel.payments.tabCrypto"), icon: Wallet },
+          { to: "/panel/payments?section=manual", label: t("panel.payments.tabManual"), icon: CreditCard },
+          { to: "/panel/payments?section=tonpays", label: t("panel.payments.tabTonPays"), icon: Gem },
+        ],
+      },
     ],
   },
   {

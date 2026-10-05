@@ -28,6 +28,7 @@ def btn_cardtocard_settings(settings=None):
         [Button.inline(text="🏷 حداقل شارژ نمایندگی", data="set_reseller_min_wallet")],
         [Button.inline(text="🎁 تنظیمات بونوس", data="bonus_settings_menu")],
         [Button.inline(text="💼 مدیریت کیف پول‌ها", data="wallet_management")],
+        [Button.inline(text="💎 درگاه TonPays", data="tonpays_admin")],
     ]
 
 

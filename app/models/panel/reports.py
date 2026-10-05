@@ -22,6 +22,10 @@ class PanelReportTotals(BaseModel):
     test_services: int = 0
     manual_approved_sum: int = 0
     auto_approved_sum: int = 0
+    crypto_approved_sum: int = 0
+    stars_approved_sum: int = 0
+    tonpays_approved_sum: int = 0
+    total_revenue: int = 0
     pending_sum: int = 0
     pending_count: int = 0
 

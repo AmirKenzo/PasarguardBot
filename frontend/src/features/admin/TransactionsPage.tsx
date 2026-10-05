@@ -9,6 +9,8 @@ import {
   Check,
   Coins,
   CreditCard,
+  Gem,
+  Star,
   Eye,
   Filter,
   Maximize,
@@ -35,6 +37,8 @@ import type { TFunction } from "i18next";
 const METHOD_ICONS: Record<string, LucideIcon> = {
   manual_card: CreditCard,
   crypto: Coins,
+  stars: Star,
+  tonpays: Gem,
 };
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "muted" | "primary"> = {
@@ -56,6 +60,8 @@ const TAB_ACTIVE_CLASSES: Record<"success" | "warning" | "danger" | "muted" | "p
 const methodLabels = (t: TFunction): Record<string, string> => ({
   manual_card: t("panel.transactions.methodManualCard"),
   crypto: t("panel.transactions.methodCrypto"),
+  stars: t("panel.transactions.methodStars"),
+  tonpays: t("panel.transactions.methodTonpays"),
 });
 
 const statusLabels = (t: TFunction): Record<string, string> => ({
@@ -81,6 +87,8 @@ const methodOptions = (t: TFunction) => [
   { value: "", label: t("panel.common.all"), icon: Filter },
   { value: "manual_card", label: t("panel.transactions.methodManualCard"), icon: CreditCard },
   { value: "crypto", label: t("panel.transactions.methodCrypto"), icon: Coins },
+  { value: "stars", label: t("panel.transactions.methodStars"), icon: Star },
+  { value: "tonpays", label: t("panel.transactions.methodTonpays"), icon: Gem },
 ];
 
 const dayOptions = (t: TFunction) => [

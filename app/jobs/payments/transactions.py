@@ -6,9 +6,12 @@ import time
 
 from app.jobs.payments import (
     ManualCardProcessor,
+    POLProcessor,
     StarsExpiryProcessor,
+    TonPaysProcessor,
     TONProcessor,
     TRXProcessor,
+    USDTNetworksProcessor,
     USDTProcessor,
 )
 from app.logger import LogTag, get_logger
@@ -20,6 +23,9 @@ trx_processor = TRXProcessor()
 usdt_processor = USDTProcessor()
 ton_processor = TONProcessor()
 stars_expiry_processor = StarsExpiryProcessor()
+usdt_networks_processor = USDTNetworksProcessor()
+pol_processor = POLProcessor()
+tonpays_processor = TonPaysProcessor()
 
 
 async def auto_confirm_job():
@@ -52,6 +58,30 @@ async def ton_checking():
     await ton_processor.check_payments()
     elapsed = time.time() - start_time
     logger.debug(f"{LogTag.JOB} ton_checking completed: {elapsed:.2f}s")
+
+
+async def usdt_networks_checking():
+    start_time = time.time()
+    logger.debug("%s usdt_networks_checking started", LogTag.JOB)
+    await usdt_networks_processor.check_payments()
+    elapsed = time.time() - start_time
+    logger.debug(f"{LogTag.JOB} usdt_networks_checking completed: {elapsed:.2f}s")
+
+
+async def pol_checking():
+    start_time = time.time()
+    logger.debug("%s pol_checking started", LogTag.JOB)
+    await pol_processor.check_payments()
+    elapsed = time.time() - start_time
+    logger.debug(f"{LogTag.JOB} pol_checking completed: {elapsed:.2f}s")
+
+
+async def tonpays_checking():
+    start_time = time.time()
+    logger.debug("%s tonpays_checking started", LogTag.JOB)
+    await tonpays_processor.check_payments()
+    elapsed = time.time() - start_time
+    logger.debug(f"{LogTag.JOB} tonpays_checking completed: {elapsed:.2f}s")
 
 
 async def expire_star_transactions() -> None:

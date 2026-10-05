@@ -23,6 +23,7 @@ from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.logger.tags import LogTag
+from app.services.billing import payment_stats
 from app.services.telegram.rich_message import rt as _rt, rt_bold as _rt_bold
 from app.telegram.admin.info_bot.states import (
     HIDDEN_LINK,
@@ -265,6 +266,58 @@ def _collect_system_metrics() -> dict:
         }
 
 
+async def _sales_buckets(ts: dict) -> dict:
+    """Paid top-ups from every gateway, bucketed by Tehran day (same keys the main stats page renders)."""
+    tomorrow_ts = ts["today_ts"] + 86400
+    week, day_3, day_2, yesterday, today = await payment_stats.bucket_revenue(
+        [
+            ts["week_ts"],
+            ts["three_days_ago_ts"],
+            ts["two_days_ago_ts"],
+            ts["yesterday_ts"],
+            ts["today_ts"],
+            tomorrow_ts,
+        ]
+    )
+    return {
+        "sales_today": today,
+        "sales_yesterday": yesterday,
+        "sales_2d_ago": day_2,
+        "sales_3d_ago": day_3,
+        "sales_7d": week + day_3 + day_2 + yesterday + today,
+    }
+
+
+def _revenue_totals(payload: dict) -> tuple[int, int]:
+    """(total sales, total transactions) across all gateways; falls back for payloads cached before `methods`."""
+    methods = payload.get("methods")
+    if methods:
+        total = methods.get("total", {})
+        return int(total.get("total_amount", 0) or 0), int(total.get("count", 0) or 0)
+    b = payload["breakdown"]
+    cr = payload["crypto"]
+    return (
+        b["manual_approved_sum"] + b["auto_approved_sum"] + int(cr.get("total_amount", 0) or 0),
+        b["manual_approved_count"] + b["auto_approved_count"] + int(cr.get("count", 0) or 0),
+    )
+
+
+def _online_gateway_rows(payload: dict) -> list[tuple[str, int, int]]:
+    """Gateways outside card-to-card and crypto (Stars, TonPays) as (label, count, amount)."""
+    methods = payload.get("methods") or {}
+    rows = []
+    for method, emoji in (("stars", "⭐"), ("tonpays", "💎")):
+        item = methods.get(method) or {}
+        rows.append(
+            (
+                f"{emoji} {payment_stats.METHOD_LABELS_FA[method]}",
+                int(item.get("count", 0) or 0),
+                int(item.get("total_amount", 0) or 0),
+            )
+        )
+    return rows
+
+
 async def main_payload(force: bool = False) -> dict:
     async def _produce() -> dict:
         ts = _stats_timestamps()
@@ -278,7 +331,7 @@ async def main_payload(force: bool = False) -> dict:
                 day_4_ts=ts["day_4_ts"],
                 today_ts=ts["today_ts"],
             ),
-            tx_crud.get_dashboard_sales(ts),
+            _sales_buckets(ts),
             tx_crud.get_pending_manual_summary(),
             referral_crud.get_dashboard_stats(ts),
         )
@@ -467,10 +520,11 @@ async def _revenue_payload(period: str, force: bool = False) -> dict:
         end = period_range["end_ts"]
         settings = await SettingsManager().get_settings()
         arz_usd = int(getattr(settings, "arz_usd", 0) or 0)
-        breakdown, crypto, referral = await asyncio.gather(
+        breakdown, crypto, referral, methods = await asyncio.gather(
             tx_crud.get_breakdown(start, end),
             get_crypto_period_breakdown(start, end) if period != "all" else get_global_crypto_breakdown(),
             referral_crud.get_period_stats(start, end) if period != "all" else referral_crud.get_period_stats(0),
+            payment_stats.method_totals(start or None, end),
         )
         return {
             "updated_at": _now_utc().isoformat(),
@@ -480,6 +534,7 @@ async def _revenue_payload(period: str, force: bool = False) -> dict:
             "breakdown": breakdown,
             "crypto": crypto,
             "referral": referral,
+            "methods": methods,
         }
 
     return await _cached_json(f"stats:revenue:{period}", _produce, force=force)
@@ -501,8 +556,7 @@ def _revenue_text(payload: dict) -> str:
             return f"{emoji} {bold(title)}: —"
         return f"{emoji} {bold(title)}: {code(f'{count:,}')} تراکنش · {code(f'{amount:,}')} تومان"
 
-    total_sales = b["manual_approved_sum"] + b["auto_approved_sum"] + int(cr.get("total_amount", 0) or 0)
-    total_tx = b["manual_approved_count"] + b["auto_approved_count"] + int(cr.get("count", 0) or 0)
+    total_sales, total_tx = _revenue_totals(payload)
 
     lines = [
         f"💰 {bold('گزارش مالی')} — {label}",
@@ -533,6 +587,12 @@ def _revenue_text(payload: dict) -> str:
             lines.append(f"🔹 {bold(arz)}: {code(vol_str)} {arz} · {code(f'{irt:,}')} TOMAN · ${code(f'{usd:,.2f}')}")
         lines.append(f"💵 {bold('جمع دلاری ارزها:')} ${code(f'{crypto_usd_total:,.2f}')}")
 
+    if payload.get("methods"):
+        lines.append("")
+        lines.append(f"🌐 {bold('درگاه‌های آنلاین')}")
+        for title, count, amount in _online_gateway_rows(payload):
+            lines.append(_line("", title, count, amount).lstrip())
+
     ref_count = int(ref.get("count", 0) or 0)
     ref_sum = int(ref.get("reward_sum", 0) or 0)
     if ref_count:
@@ -555,10 +615,7 @@ def _revenue_text(payload: dict) -> str:
 
 
 def _revenue_summary_table(payload: dict) -> types.PageBlockTable:
-    b = payload["breakdown"]
-    cr = payload["crypto"]
-    total_sales = b["manual_approved_sum"] + b["auto_approved_sum"] + int(cr.get("total_amount", 0) or 0)
-    total_tx = b["manual_approved_count"] + b["auto_approved_count"] + int(cr.get("count", 0) or 0)
+    total_sales, total_tx = _revenue_totals(payload)
     rows = [
         ("💵 کل فروش بازه", f"{total_sales:,} تومان"),
         ("🧾 تعداد تراکنش", f"{total_tx:,}"),
@@ -653,6 +710,35 @@ def _revenue_crypto_table(payload: dict) -> types.PageBlockTable | None:
     return types.PageBlockTable(title=_rt("💎 ارز دیجیتال"), bordered=True, compact=True, rows=rows)
 
 
+def _revenue_online_table(payload: dict) -> types.PageBlockTable | None:
+    if not payload.get("methods"):
+        return None
+    return types.PageBlockTable(
+        title=_rt("🌐 درگاه‌های آنلاین"),
+        bordered=True,
+        compact=True,
+        rows=[
+            types.PageTableRow(
+                cells=[
+                    types.PageTableCell(text=_rt("درگاه"), header=True),
+                    types.PageTableCell(text=_rt("تعداد"), header=True),
+                    types.PageTableCell(text=_rt("مبلغ (تومان)"), header=True),
+                ]
+            ),
+            *(
+                types.PageTableRow(
+                    cells=[
+                        types.PageTableCell(text=_rt(label)),
+                        types.PageTableCell(text=_rt(f"{count:,}")),
+                        types.PageTableCell(text=_rt(f"{amount:,}")),
+                    ]
+                )
+                for label, count, amount in _online_gateway_rows(payload)
+            ),
+        ],
+    )
+
+
 def _revenue_referral_table(payload: dict) -> types.PageBlockTable | None:
     ref = payload.get("referral", {})
     ref_count = int(ref.get("count", 0) or 0)
@@ -718,6 +804,11 @@ def revenue_rich_blocks(payload: dict) -> list:
     if crypto_table is not None:
         blocks.append(types.PageBlockDivider())
         blocks.append(crypto_table)
+
+    online_table = _revenue_online_table(payload)
+    if online_table is not None:
+        blocks.append(types.PageBlockDivider())
+        blocks.append(online_table)
 
     referral_table = _revenue_referral_table(payload)
     if referral_table is not None:

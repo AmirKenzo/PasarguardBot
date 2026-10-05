@@ -41,6 +41,8 @@ from app.services.panels.groups import (
     summarize_selected_groups,
 )
 from app.services.panels.settings import (
+    MAX_EXPIRED_GRACE_DAYS,
+    MIN_EXPIRED_GRACE_DAYS,
     delete_time_plan_from_feature_settings,
     delete_volume_plan_from_feature_settings,
     get_panel_time_plan,
@@ -51,6 +53,7 @@ from app.services.panels.settings import (
     panel_custom_buy_settings,
     panel_default_group_ids,
     panel_display_mode,
+    panel_expired_auto_delete_enabled,
     panel_node_prefixes,
     panel_renew_volume_remaining_mode,
     panel_reseller_button_settings,
@@ -74,6 +77,7 @@ from app.services.subscriptions.links import resolve_subscription_link_mode
 from app.telegram.admin.discounts import show_discount_codes
 from app.telegram.admin.panels import states
 from app.telegram.admin.panels.service import (
+    build_panel_expired_delete_content,
     build_panel_summary_block,
     build_panel_test_settings_content,
     display_panels,
@@ -1398,6 +1402,45 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             )
             server_status = "وضعیت سرور در حال بررسی است..."
             await update_panel_buttons(event, panel, info_string, server_status)
+
+    elif data.startswith("panel_expired_delete:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        text, buttons = build_panel_expired_delete_content(panel)
+        with contextlib.suppress(MessageNotModifiedError):
+            await event.edit(text, parse_mode="html", buttons=buttons)
+
+    elif data.startswith("panel_expired_delete_toggle:"):
+        panel_code = int(data.split(":")[1])
+        panel_manager = PanelsManager()
+        panel = await panel_manager.get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        new_status = not panel_expired_auto_delete_enabled(panel)
+        await panel_manager.update_panel(panel_code, expired_auto_delete_enabled=new_status)
+        await event.answer("✅ حذف خودکار روشن شد." if new_status else "✅ حذف خودکار خاموش شد.", alert=True)
+        panel = await panel_manager.get_panel_by_code(panel_code)
+        text, buttons = build_panel_expired_delete_content(panel)
+        with contextlib.suppress(MessageNotModifiedError):
+            await event.edit(text, parse_mode="html", buttons=buttons)
+
+    elif data.startswith("panel_expired_grace:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        await set_data(event.sender_id, "expired_grace_days", str(panel_code))
+        await set_step(event.sender_id, "expired_grace_days")
+        await event.edit(
+            f"⏳ مهلت حذف بعد از انقضا را به روز وارد کنید ({MIN_EXPIRED_GRACE_DAYS} تا {MAX_EXPIRED_GRACE_DAYS}):"
+            "\n\nمثال: 3 یا 7 یا 30",
+            buttons=[[Button.inline("❌ انصراف", data=f"panel_expired_delete:{panel_code}")]],
+        )
 
     elif data.startswith("panel_settings_help:"):
         parts = data.split(":")
