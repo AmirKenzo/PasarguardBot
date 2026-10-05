@@ -1,0 +1,49 @@
+# git-cliff configuration — generates release notes from Conventional Commits.
+# Docs: https://git-cliff.org/docs/configuration
+
+[changelog]
+header = ""
+body = """
+## What's Changed{% if version %} in {{ version }}{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope and commit.scope != "deps" %}**{{ commit.scope }}**: {% endif %}{{ commit.message | split(pat="\n") | first | upper_first | trim }}
+{%- endfor %}
+{% endfor %}
+{%- set repo = get_env(name="GITHUB_REPOSITORY", default="") %}
+{%- if repo and previous.version and version %}
+**Full Changelog**: https://github.com/{{ repo }}/compare/{{ previous.version }}...{{ version }}
+{% endif %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = true
+filter_commits = false
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+topo_order = false
+sort_commits = "oldest"
+
+# Shorten dependabot subjects: "Bump the x group across 1 directory with 6 updates" -> "Bump the x group (6 updates)".
+commit_preprocessors = [
+  { pattern = ' across 1 directory with ([0-9]+) updates', replace = " ($1 updates)" },
+  { pattern = ' in the github-actions group across 1 directory', replace = "" },
+]
+
+# The HTML comments control section order; they are stripped from the output.
+commit_parsers = [
+  { message = "^bump to", skip = true },
+  { message = "^Merge", skip = true },
+  { message = "^feat", group = "<!-- 0 -->✨ Features" },
+  { message = "^fix", group = "<!-- 1 -->🐛 Fixes" },
+  { message = "^perf", group = "<!-- 2 -->⚡ Performance" },
+  { message = "^refactor", group = "<!-- 3 -->♻️ Refactors" },
+  { message = "^docs", group = "<!-- 4 -->📝 Documentation" },
+  { message = "^chore\\(deps\\)", group = "<!-- 5 -->📦 Dependencies" },
+  { message = "^(chore|ci|build|style|test)", skip = true },
+]
