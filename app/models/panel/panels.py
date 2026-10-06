@@ -126,6 +126,22 @@ class PanelResellerButtonSettingsPayload(BaseModel):
     delete: bool | None = None
 
 
+class PanelVolumeUpgradePlanPayload(BaseModel):
+    """Extra-volume add-on plan. ``id`` is null for a plan created in the web panel."""
+
+    id: int | None = Field(None, ge=1)
+    storage_gb: float = Field(..., gt=0)
+    price: int = Field(..., ge=0)
+
+
+class PanelTimeUpgradePlanPayload(BaseModel):
+    """Extra-time add-on plan. ``id`` is null for a plan created in the web panel."""
+
+    id: int | None = Field(None, ge=1)
+    duration_days: int = Field(..., gt=0)
+    price: int = Field(..., ge=0)
+
+
 class PanelSettingsResponse(PanelResponse):
     code: int
     buttons: PanelButtonSettingsPayload = Field(default_factory=PanelButtonSettingsPayload)
@@ -138,6 +154,8 @@ class PanelSettingsResponse(PanelResponse):
         default_factory=PanelResellerCapacitySettingsPayload
     )
     reseller_buttons: PanelResellerButtonSettingsPayload = Field(default_factory=PanelResellerButtonSettingsPayload)
+    volume_plans: list[PanelVolumeUpgradePlanPayload] = Field(default_factory=list)
+    time_plans: list[PanelTimeUpgradePlanPayload] = Field(default_factory=list)
 
 
 class PanelSettingsSaveRequest(PanelRequest):
@@ -150,6 +168,8 @@ class PanelSettingsSaveRequest(PanelRequest):
     custom_buy: PanelCustomBuySettingsPayload | None = None
     reseller_capacity: PanelResellerCapacitySettingsPayload | None = None
     reseller_buttons: PanelResellerButtonSettingsPayload | None = None
+    volume_plans: list[PanelVolumeUpgradePlanPayload] | None = Field(None, max_length=50)
+    time_plans: list[PanelTimeUpgradePlanPayload] | None = Field(None, max_length=50)
 
 
 class PanelStatusResponse(PanelResponse):

@@ -120,6 +120,20 @@ export interface PanelResellerButtonSettings {
   delete: boolean;
 }
 
+/** Extra-volume add-on plan; `id` is null for a plan not saved yet. */
+export interface PanelVolumeUpgradePlan {
+  id: number | null;
+  storage_gb: number;
+  price: number;
+}
+
+/** Extra-time add-on plan; `id` is null for a plan not saved yet. */
+export interface PanelTimeUpgradePlan {
+  id: number | null;
+  duration_days: number;
+  price: number;
+}
+
 export interface PanelDetailSettingsResponse extends PanelEnvelope {
   code: number;
   buttons: PanelButtonSettings;
@@ -130,6 +144,8 @@ export interface PanelDetailSettingsResponse extends PanelEnvelope {
   custom_buy: PanelCustomBuySettings;
   reseller_capacity: PanelResellerCapacitySettings;
   reseller_buttons: PanelResellerButtonSettings;
+  volume_plans: PanelVolumeUpgradePlan[];
+  time_plans: PanelTimeUpgradePlan[];
 }
 
 /** Every group is optional — only send the groups that changed. */
@@ -143,6 +159,9 @@ export interface PanelDetailSettingsSaveRequest extends PanelAuthRequest {
   custom_buy?: Partial<PanelCustomBuySettings>;
   reseller_capacity?: Partial<PanelResellerCapacitySettings>;
   reseller_buttons?: Partial<PanelResellerButtonSettings>;
+  /** Replaces the whole list when present. */
+  volume_plans?: PanelVolumeUpgradePlan[];
+  time_plans?: PanelTimeUpgradePlan[];
 }
 
 export interface PanelStatusResponse extends PanelEnvelope {

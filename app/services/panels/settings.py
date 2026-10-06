@@ -417,6 +417,53 @@ def panel_sales_settings_from_feature(settings: dict[str, Any]) -> dict[str, boo
     }
 
 
+def _replace_upgrade_plans(
+    existing: list[dict[str, Any]],
+    incoming: list[dict[str, Any]],
+    value_key: str,
+) -> list[dict[str, Any]]:
+    """Replace a plan list, keeping per-plan button customizations of plans whose id is kept."""
+    by_id = {int(plan["id"]): plan for plan in existing}
+    next_id = next_upgrade_plan_id(existing)
+    result: list[dict[str, Any]] = []
+    used_ids: set[int] = set()
+    for item in incoming:
+        plan_id = int(item.get("id") or 0)
+        if plan_id in by_id and plan_id not in used_ids:
+            plan = dict(by_id[plan_id])
+        else:
+            plan_id = next_id
+            next_id += 1
+            plan = {"id": plan_id}
+        used_ids.add(plan_id)
+        plan[value_key] = item[value_key]
+        plan["price"] = int(item["price"])
+        result.append(plan)
+    return result
+
+
+def replace_service_upgrade_plans(
+    feature: dict[str, Any],
+    *,
+    volume_plans: list[dict[str, Any]] | None = None,
+    time_plans: list[dict[str, Any]] | None = None,
+) -> None:
+    """Overwrite the extra-volume / extra-time plan lists; ``None`` leaves a list untouched."""
+    namespace = feature.get(FEATURE_SERVICE_UPGRADE)
+    namespace = dict(namespace) if isinstance(namespace, dict) else {}
+    if volume_plans is not None:
+        existing = [plan for plan in map(_normalize_volume_upgrade_plan, namespace.get("volume_plans") or []) if plan]
+        namespace["volume_plans"] = _replace_upgrade_plans(existing, volume_plans, "storage_gb")
+    if time_plans is not None:
+        existing = [plan for plan in map(_normalize_time_upgrade_plan, namespace.get("time_plans") or []) if plan]
+        namespace["time_plans"] = _replace_upgrade_plans(existing, time_plans, "duration_days")
+    compact = _compact_service_upgrade_namespace(namespace)
+    if compact:
+        feature[FEATURE_SERVICE_UPGRADE] = compact
+    else:
+        feature.pop(FEATURE_SERVICE_UPGRADE, None)
+
+
 def apply_feature_settings_patch(
     panel,
     *,
@@ -424,9 +471,13 @@ def apply_feature_settings_patch(
     custom_buy: dict[str, Any] | None = None,
     reseller_capacity: dict[str, Any] | None = None,
     reseller_buttons: dict[str, Any] | None = None,
+    volume_plans: list[dict[str, Any]] | None = None,
+    time_plans: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
 
     feature = feature_settings(panel)
+    if volume_plans is not None or time_plans is not None:
+        replace_service_upgrade_plans(feature, volume_plans=volume_plans, time_plans=time_plans)
     if sales:
         feature[FEATURE_SALES] = {**panel_sales_settings_from_feature(feature), **sales}
     if custom_buy:

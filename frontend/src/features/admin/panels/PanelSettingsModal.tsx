@@ -5,11 +5,16 @@ import {
   AlertTriangle,
   Building2,
   Check,
+  Clock,
+  Database,
   Gift,
   LayoutGrid,
+  PackagePlus,
   Palette,
+  Plus,
   RefreshCw,
   Sparkles,
+  Trash2,
   Users,
   X as XIcon,
 } from "lucide-react";
@@ -25,10 +30,12 @@ import type {
   PanelResellerButtonSettings,
   PanelDetailSettingsResponse,
   PanelDetailSettingsSaveRequest,
+  PanelTimeUpgradePlan,
+  PanelVolumeUpgradePlan,
 } from "../../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../../queries/usePanelApi";
 
-type TabKey = "style" | "buttons" | "subscription" | "trial" | "renewal" | "features" | "reseller";
+type TabKey = "style" | "buttons" | "subscription" | "trial" | "renewal" | "addons" | "features" | "reseller";
 
 const STYLE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
   primary: { bg: "rgba(59,130,246,0.16)", fg: "#93C5FD", border: "rgba(59,130,246,0.4)" },
@@ -75,6 +82,133 @@ function Hint({ children }: { children: ReactNode }) {
   return <p className="mt-1.5 text-xs leading-relaxed text-muted">{children}</p>;
 }
 
+/** Editable add-on plan row; values stay strings so partial input like "2." is not lost. */
+interface PlanRow {
+  key: string;
+  id: number | null;
+  value: string;
+  price: string;
+}
+
+let planRowSeq = 0;
+const newRowKey = () => `plan-row-${++planRowSeq}`;
+
+function volumeRows(plans: PanelVolumeUpgradePlan[]): PlanRow[] {
+  return plans.map((p) => ({ key: newRowKey(), id: p.id, value: String(p.storage_gb), price: String(p.price) }));
+}
+
+function timeRows(plans: PanelTimeUpgradePlan[]): PlanRow[] {
+  return plans.map((p) => ({ key: newRowKey(), id: p.id, value: String(p.duration_days), price: String(p.price) }));
+}
+
+function planValueValid(row: PlanRow, integer: boolean): boolean {
+  const value = Number(row.value);
+  return row.value.trim() !== "" && Number.isFinite(value) && value > 0 && (!integer || Number.isInteger(value));
+}
+
+function planPriceValid(row: PlanRow): boolean {
+  return /^\d+$/.test(row.price.trim());
+}
+
+function planRowsValid(rows: PlanRow[], integer: boolean): boolean {
+  return rows.every((row) => planValueValid(row, integer) && planPriceValid(row));
+}
+
+interface PlanListEditorProps {
+  title: string;
+  hint: string;
+  icon: LucideIcon;
+  valueLabel: string;
+  addLabel: string;
+  integer: boolean;
+  rows: PlanRow[];
+  showErrors: boolean;
+  onChange: (rows: PlanRow[]) => void;
+}
+
+function PlanListEditor({
+  title,
+  hint,
+  icon: Icon,
+  valueLabel,
+  addLabel,
+  integer,
+  rows,
+  showErrors,
+  onChange,
+}: PlanListEditorProps) {
+  const { t } = useTranslation();
+  const update = (key: string, patch: Partial<PlanRow>) =>
+    onChange(rows.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div>
+          <p className="flex items-center gap-1.5 text-sm font-semibold">
+            <Icon size={15} className="text-primary" />
+            {title}
+          </p>
+          <Hint>{hint}</Hint>
+        </div>
+        <span className="shrink-0 rounded-md bg-primary/12 px-2 py-0.5 text-xs font-medium text-primary">
+          {t("panel.panels.planCount", { count: rows.length })}
+        </span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="mb-3 rounded-md border border-dashed border-border p-3 text-center text-xs text-muted">
+          {t("panel.panels.noPlans")}
+        </p>
+      ) : (
+        <div className="mb-3 space-y-2">
+          {rows.map((row) => (
+            <div key={row.key} className="flex items-start gap-2">
+              <div className="grid flex-1 grid-cols-2 gap-2">
+                <Input
+                  dense
+                  label={valueLabel}
+                  inputMode={integer ? "numeric" : "decimal"}
+                  value={row.value}
+                  error={showErrors && !planValueValid(row, integer) ? t("panel.panels.planValueInvalid") : null}
+                  onChange={(e) =>
+                    update(row.key, { value: e.target.value.replace(integer ? /\D/g : /[^\d.]/g, "") })
+                  }
+                />
+                <Input
+                  dense
+                  label={t("panel.panels.planPrice")}
+                  inputMode="numeric"
+                  value={row.price}
+                  error={showErrors && !planPriceValid(row) ? t("panel.panels.planPriceInvalid") : null}
+                  onChange={(e) => update(row.key, { price: e.target.value.replace(/\D/g, "") })}
+                />
+              </div>
+              <button
+                type="button"
+                aria-label={t("panel.panels.removePlan")}
+                title={t("panel.panels.removePlan")}
+                className="mt-6 rounded-md border border-border p-2 text-danger hover:bg-danger/10"
+                onClick={() => onChange(rows.filter((r) => r.key !== row.key))}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <Button
+        size="sm"
+        variant="secondary"
+        fullWidth
+        onClick={() => onChange([...rows, { key: newRowKey(), id: null, value: "", price: "" }])}
+      >
+        <Plus size={14} />
+        {addLabel}
+      </Button>
+    </div>
+  );
+}
+
 export interface PanelSettingsModalProps {
   code: number | null;
   name?: string;
@@ -88,6 +222,9 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
   const [styleDraft, setStyleDraft] = useState<PanelButtonStyleResponse | null>(null);
   const [originalIconId, setOriginalIconId] = useState<string | null | undefined>(null);
   const [newPrefixDraft, setNewPrefixDraft] = useState("");
+  const [volumePlanRows, setVolumePlanRows] = useState<PlanRow[]>([]);
+  const [timePlanRows, setTimePlanRows] = useState<PlanRow[]>([]);
+  const [showPlanErrors, setShowPlanErrors] = useState(false);
 
   const settingsQuery = usePanelQuery(
     ["panel-settings", code],
@@ -106,7 +243,12 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
   );
 
   useEffect(() => {
-    if (settingsQuery.data) setDraft(settingsQuery.data);
+    if (settingsQuery.data) {
+      setDraft(settingsQuery.data);
+      setVolumePlanRows(volumeRows(settingsQuery.data.volume_plans ?? []));
+      setTimePlanRows(timeRows(settingsQuery.data.time_plans ?? []));
+      setShowPlanErrors(false);
+    }
   }, [settingsQuery.data]);
   useEffect(() => {
     if (styleQuery.data) {
@@ -120,6 +262,9 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
       setDraft(null);
       setStyleDraft(null);
       setNewPrefixDraft("");
+      setVolumePlanRows([]);
+      setTimePlanRows([]);
+      setShowPlanErrors(false);
     }
   }, [code]);
 
@@ -132,6 +277,11 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
 
   const handleSave = () => {
     if (!draft || !code) return;
+    if (!planRowsValid(volumePlanRows, false) || !planRowsValid(timePlanRows, true)) {
+      setShowPlanErrors(true);
+      setActiveTab("addons");
+      return;
+    }
     const payload: PanelDetailSettingsSaveRequest = {
       code,
       buttons: draft.buttons,
@@ -142,6 +292,16 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
       custom_buy: draft.custom_buy,
       reseller_capacity: draft.reseller_capacity,
       reseller_buttons: draft.reseller_buttons,
+      volume_plans: volumePlanRows.map((row) => ({
+        id: row.id,
+        storage_gb: Number(row.value),
+        price: Number(row.price),
+      })),
+      time_plans: timePlanRows.map((row) => ({
+        id: row.id,
+        duration_days: Number(row.value),
+        price: Number(row.price),
+      })),
     };
     saveSettings.mutate(payload);
     const styleChanged =
@@ -171,6 +331,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
     { key: "subscription", label: t("panel.panels.tab.subscription"), icon: Users },
     { key: "trial", label: t("panel.panels.tab.trial"), icon: Gift },
     { key: "renewal", label: t("panel.panels.tab.renewal"), icon: RefreshCw },
+    { key: "addons", label: t("panel.panels.tab.addons"), icon: PackagePlus },
     { key: "features", label: t("panel.panels.tab.features"), icon: Sparkles },
     { key: "reseller", label: t("panel.panels.tab.reseller"), icon: Building2 },
   ];
@@ -539,6 +700,43 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                   />
                   <Hint>{t("panel.panels.expiredGraceDaysHint")}</Hint>
                 </div>
+              </div>
+            )}
+
+            {activeTab === "addons" && (
+              <div className="space-y-4">
+                <p className="text-xs leading-relaxed text-muted">{t("panel.panels.addonsTabHint")}</p>
+                {showPlanErrors && (
+                  <div className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger/10 p-3">
+                    <AlertTriangle size={15} className="mt-0.5 shrink-0 text-danger" />
+                    <p className="text-xs font-semibold leading-relaxed text-danger">{t("panel.panels.plansInvalid")}</p>
+                  </div>
+                )}
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <PlanListEditor
+                    title={t("panel.panels.volumePlans")}
+                    hint={t("panel.panels.volumePlansHint")}
+                    icon={Database}
+                    valueLabel={t("panel.panels.planVolumeGb")}
+                    addLabel={t("panel.panels.addVolumePlan")}
+                    integer={false}
+                    rows={volumePlanRows}
+                    showErrors={showPlanErrors}
+                    onChange={setVolumePlanRows}
+                  />
+                  <PlanListEditor
+                    title={t("panel.panels.timePlans")}
+                    hint={t("panel.panels.timePlansHint")}
+                    icon={Clock}
+                    valueLabel={t("panel.panels.planDurationDays")}
+                    addLabel={t("panel.panels.addTimePlan")}
+                    integer
+                    rows={timePlanRows}
+                    showErrors={showPlanErrors}
+                    onChange={setTimePlanRows}
+                  />
+                </div>
+                <Hint>{t("panel.panels.planButtonsKept")}</Hint>
               </div>
             )}
 

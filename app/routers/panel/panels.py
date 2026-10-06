@@ -43,7 +43,9 @@ from app.models.panel.panels import (
     PanelStatusResponse,
     PanelSubscriptionSettingsPayload,
     PanelTestResponse,
+    PanelTimeUpgradePlanPayload,
     PanelTrialSettingsPayload,
+    PanelVolumeUpgradePlanPayload,
 )
 from app.panel import audit, mutations, queries
 from app.routers.panel import guard
@@ -78,7 +80,9 @@ from app.services.panels.settings import (
     panel_test_duration_days,
     panel_test_flag,
     panel_test_volume_gb,
+    panel_time_plans,
     panel_user_limit,
+    panel_volume_plans,
     renewal_settings,
 )
 from app.telegram.shared.keyboards.panel_buttons import panel_display_keyboard_key
@@ -280,6 +284,14 @@ async def get_panel_settings(payload: PanelCodeRequest, request: Request) -> Pan
             custom_buy=PanelCustomBuySettingsPayload(**panel_custom_buy_settings(panel)),
             reseller_capacity=PanelResellerCapacitySettingsPayload(**panel_reseller_capacity_settings(panel)),
             reseller_buttons=PanelResellerButtonSettingsPayload(**panel_reseller_button_settings(panel)),
+            volume_plans=[
+                PanelVolumeUpgradePlanPayload(id=plan["id"], storage_gb=plan["storage_gb"], price=plan["price"])
+                for plan in panel_volume_plans(panel)
+            ],
+            time_plans=[
+                PanelTimeUpgradePlanPayload(id=plan["id"], duration_days=plan["duration_days"], price=plan["price"])
+                for plan in panel_time_plans(panel)
+            ],
         )
 
     return await guard.run(payload, request, PanelSettingsResponse, handle)
@@ -302,7 +314,14 @@ async def save_panel_settings(payload: PanelSettingsSaveRequest, request: Reques
         if payload.renewal is not None:
             values["renewal_settings"] = payload.renewal.model_dump(exclude_none=True)
 
-        if payload.sales or payload.custom_buy or payload.reseller_capacity or payload.reseller_buttons:
+        plans_changed = payload.volume_plans is not None or payload.time_plans is not None
+        if (
+            payload.sales
+            or payload.custom_buy
+            or payload.reseller_capacity
+            or payload.reseller_buttons
+            or plans_changed
+        ):
             values["feature_settings"] = apply_feature_settings_patch(
                 panel,
                 sales=payload.sales.model_dump(exclude_none=True) if payload.sales else None,
@@ -312,6 +331,12 @@ async def save_panel_settings(payload: PanelSettingsSaveRequest, request: Reques
                 ),
                 reseller_buttons=(
                     payload.reseller_buttons.model_dump(exclude_none=True) if payload.reseller_buttons else None
+                ),
+                volume_plans=(
+                    [plan.model_dump() for plan in payload.volume_plans] if payload.volume_plans is not None else None
+                ),
+                time_plans=(
+                    [plan.model_dump() for plan in payload.time_plans] if payload.time_plans is not None else None
                 ),
             )
 
