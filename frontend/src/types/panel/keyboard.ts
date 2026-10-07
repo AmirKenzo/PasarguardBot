@@ -11,6 +11,8 @@ export interface PanelKeyboardButton {
   default_text?: string | null;
   text?: string | null;
   style?: string | null;
+  /** Colour the bot uses while `style` is unset (null). */
+  default_style?: string | null;
   default_icon?: number | null;
   icon?: number | null;
   hidden: boolean;

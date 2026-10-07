@@ -13,6 +13,7 @@ SECTION_PREFIXES: tuple[tuple[str, str], ...] = (
     ("in.ms.", "my_services"),
     ("in.balance.", "balance"),
     ("in.buy.", "buy"),
+    ("in.rs.", "reseller"),
 )
 OTHER_SECTION = "other"
 
@@ -24,6 +25,8 @@ class PanelKeyboardButton(BaseModel):
     default_text: str | None = None
     text: str | None = None
     style: str | None = None
+    # Colour the bot uses while ``style`` is unset (null).
+    default_style: str | None = None
     default_icon: int | None = None
     icon: int | None = None
     hidden: bool = False

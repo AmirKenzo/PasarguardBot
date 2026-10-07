@@ -88,7 +88,7 @@ async def keyboard_overview(payload: PanelRequest, request: Request) -> PanelKey
         entries = []
         for key in known:
             row = buttons.get(key)
-            _default_style, default_icon = KEYBOARD_BUTTON_DEFAULT_STYLES.get(key, (None, None))
+            default_style, default_icon = KEYBOARD_BUTTON_DEFAULT_STYLES.get(key, (None, None))
             entries.append(
                 PanelKeyboardButton(
                     key=key,
@@ -97,6 +97,7 @@ async def keyboard_overview(payload: PanelRequest, request: Request) -> PanelKey
                     default_text=_default_text(key),
                     text=unglass_text(row.button_text) if row and row.button_text else None,
                     style=row.button_style if row is not None else None,
+                    default_style=default_style,
                     default_icon=default_icon,
                     icon=row.button_icon if row else None,
                     hidden=bool(row is not None and getattr(row, "hidden", False)),
