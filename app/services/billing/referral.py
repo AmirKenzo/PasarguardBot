@@ -3,7 +3,7 @@ import hmac
 
 from config import BOT_TOKEN
 
-_SIGNATURE_LENGTH = 12
+_SIGNATURE_LENGTH=12
 _PREFIX = "ref_"
 
 
