@@ -26,13 +26,14 @@ export const blockedLabels = (t: TFunction): Record<string, string> => ({
   uptime_disabled: t("panel.keyboard.blockedUptime"),
 });
 
+/** Colours offered per button; "none" is the default and means no colour. */
+export const COLOUR_OPTIONS = ["none", "primary", "success", "danger"] as const;
+
 export const styleLabels = (t: TFunction): Record<string, string> => ({
-  "": t("panel.common.default"),
+  none: t("panel.common.default"),
   primary: t("panel.common.blue"),
   success: t("panel.common.green"),
   danger: t("panel.common.red"),
-  glass: t("panel.keyboard.glass"),
-  none: t("panel.keyboard.noColour"),
 });
 
 /** Chip classes per rendered colour, shared by the preview and the editors. */
@@ -44,14 +45,12 @@ export const STYLE_CLASSES: Record<string, string> = {
   "": "border-border bg-surface-2 text-text",
 };
 
-/** Swatch colour for the colour picker; "" keeps the built-in default. */
+/** Swatch colour for the colour picker. */
 export const SWATCH_CLASSES: Record<string, string> = {
-  "": "bg-gradient-to-br from-primary/60 to-success/60",
+  none: "bg-surface-2 ring-1 ring-inset ring-border",
   primary: "bg-primary",
   success: "bg-success",
   danger: "bg-danger",
-  glass: "bg-white/20 ring-1 ring-inset ring-white/40",
-  none: "bg-surface-2 ring-1 ring-inset ring-border",
 };
 
 /**
@@ -61,11 +60,7 @@ export const SWATCH_CLASSES: Record<string, string> = {
 export function renderedStyle(button: PanelKeyboardButton | undefined, glassMode = false, draftStyle?: string): string {
   if (!button) return "";
   if (glassMode && button.in_home) return "glass";
-  if (draftStyle !== undefined) {
-    if (draftStyle === "none") return "";
-    if (draftStyle === "") return button.style == null ? button.default_style || "" : button.style;
-    return draftStyle;
-  }
+  if (draftStyle !== undefined) return draftStyle === "none" ? "" : draftStyle;
   if (button.style == null) return button.default_style || "";
   return button.style;
 }
@@ -74,9 +69,13 @@ export function buttonLabel(button: PanelKeyboardButton | undefined, fallback = 
   return button?.text || button?.default_text || button?.title || fallback;
 }
 
-/** Draft value for the colour picker, mirroring what the save endpoint expects. */
+/**
+ * Picker value for the colour the button shows today. Anything outside the
+ * offered colours (unset, cleared, legacy glass) reads as "none".
+ */
 export function styleDraftOf(button: PanelKeyboardButton): string {
-  return button.style === "" ? "none" : button.style || "";
+  const style = button.style == null ? button.default_style : button.style;
+  return (COLOUR_OPTIONS as readonly string[]).includes(style || "") ? (style as string) : "none";
 }
 
 export function isCustomized(button: PanelKeyboardButton): boolean {

@@ -8,6 +8,7 @@ import { usePanelAction } from "../../../queries/usePanelApi";
 import {
   blockedLabels,
   ButtonChip,
+  COLOUR_OPTIONS,
   buttonLabel,
   INVALIDATE,
   isCustomized,
@@ -107,7 +108,6 @@ export function ButtonsTab({ data, focusKey, onFocusHandled }: ButtonsTabProps) 
                   <ButtonRow
                     key={button.key}
                     button={button}
-                    styles={data.style_options}
                     glassMode={data.glass_mode}
                     open={openKey === button.key}
                     onToggle={() => setOpenKey(openKey === button.key ? null : button.key)}
@@ -124,13 +124,11 @@ export function ButtonsTab({ data, focusKey, onFocusHandled }: ButtonsTabProps) 
 
 function ButtonRow({
   button,
-  styles,
   glassMode,
   open,
   onToggle,
 }: {
   button: PanelKeyboardButton;
-  styles: string[];
   glassMode: boolean;
   open: boolean;
   onToggle: () => void;
@@ -160,19 +158,17 @@ function ButtonRow({
           <ChevronDown size={16} className={`text-muted transition-transform ${open ? "rotate-180" : ""}`} />
         </div>
       </button>
-      {open && <ButtonEditor button={button} styles={styles} glassMode={glassMode} onSaved={onToggle} />}
+      {open && <ButtonEditor button={button} glassMode={glassMode} onSaved={onToggle} />}
     </div>
   );
 }
 
 function ButtonEditor({
   button,
-  styles,
   glassMode,
   onSaved,
 }: {
   button: PanelKeyboardButton;
-  styles: string[];
   glassMode: boolean;
   onSaved: () => void;
 }) {
@@ -227,18 +223,18 @@ function ButtonEditor({
       <div>
         <span className="mb-1.5 block text-sm text-muted">{t("panel.keyboard.colour")}</span>
         <div className="flex flex-wrap gap-2">
-          {styles.map((value) => {
+          {COLOUR_OPTIONS.map((value) => {
             const active = draft.style === value;
             return (
               <button
-                key={value || "default"}
+                key={value}
                 type="button"
                 onClick={() => setDraft({ ...draft, style: value })}
                 className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   active ? "border-primary/50 bg-primary/10 text-text" : "border-border text-muted hover:text-text"
                 }`}
               >
-                <span className={`h-3.5 w-3.5 rounded-full ${SWATCH_CLASSES[value] ?? SWATCH_CLASSES.none}`} />
+                <span className={`h-3.5 w-3.5 rounded-full ${SWATCH_CLASSES[value]}`} />
                 {labelsByStyle[value] || value}
                 {active && <Check size={12} className="text-primary" />}
               </button>
@@ -262,7 +258,7 @@ function ButtonEditor({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setDraft({ text: "", style: "", icon: defaultIcon })}
+            onClick={() => setDraft({ text: "", style: "none", icon: defaultIcon })}
             title={t("panel.keyboard.resetButtonHint")}
           >
             <RotateCcw size={14} />
