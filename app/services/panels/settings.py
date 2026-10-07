@@ -264,7 +264,7 @@ def panel_custom_buy_enabled(panel) -> bool:
 
 
 def calculate_custom_buy_price(*, price_per_gb: int, price_per_day: int, storage_gb: float, duration_days: int) -> int:
-    return round(float(storage_gb) * int(price_per_gb) + int(duration_days) * int(price_per_day))
+    return round(float(storage_gb) * int(price_per_gb) - int(duration_days) * int(price_per_day))
 
 
 def calculate_custom_buy_price_from_settings(settings: dict[str, Any], *, storage_gb: float, duration_days: int) -> int:
