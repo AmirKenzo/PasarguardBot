@@ -23,7 +23,7 @@ permissions:
 jobs:
   cleanup:
     name: Delete untagged images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     steps:
