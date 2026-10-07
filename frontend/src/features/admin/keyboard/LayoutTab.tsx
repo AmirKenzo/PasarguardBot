@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   closestCenter,
   DndContext,
+  pointerWithin,
   DragOverlay,
   KeyboardSensor,
   MouseSensor,
@@ -80,6 +81,7 @@ export function LayoutTab({
   const [selected, setSelected] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragSourceRow, setDragSourceRow] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   const buttonsByKey = useMemo(
     () => new Map<string, PanelKeyboardButton>(data.buttons.map((button) => [button.key, button])),
@@ -96,16 +98,17 @@ export function LayoutTab({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Rows only collide with rows; buttons collide with buttons, empty rows and the new-row zone.
+  // Rows only collide with rows. A button prefers the button or zone under the
+  // pointer, then the row under it (drop at its end), then the nearest button.
   const collisionDetection: CollisionDetection = (args) => {
-    const draggingRow = isRowId(String(args.active.id));
-    const droppableContainers = args.droppableContainers.filter((container) => {
-      const id = String(container.id);
-      if (draggingRow) return isRowId(id);
-      if (!isRowId(id)) return true;
-      return rows.find((row) => row.id === id)?.keys.length === 0;
-    });
-    return closestCenter({ ...args, droppableContainers });
+    const rowTargets = args.droppableContainers.filter((container) => isRowId(String(container.id)));
+    if (isRowId(String(args.active.id))) return closestCenter({ ...args, droppableContainers: rowTargets });
+    const buttonTargets = args.droppableContainers.filter((container) => !isRowId(String(container.id)));
+    const underPointer = pointerWithin({ ...args, droppableContainers: buttonTargets });
+    if (underPointer.length > 0) return underPointer;
+    const rowUnderPointer = pointerWithin({ ...args, droppableContainers: rowTargets });
+    if (rowUnderPointer.length > 0) return rowUnderPointer;
+    return closestCenter({ ...args, droppableContainers: buttonTargets });
   };
 
   const toggleHidden = (key: string) =>
@@ -139,35 +142,22 @@ export function LayoutTab({
     if (!isRowId(id)) setSelected(id);
   }
 
-  // Moving a button into another row happens while dragging so the gap follows the finger.
-  function handleDragOver({ active, over }: DragOverEvent) {
-    if (!over) return;
-    const activeKey = String(active.id);
-    const overId = String(over.id);
-    if (isRowId(activeKey) || overId === NEW_ROW_ZONE) return;
-    const from = rowOf(activeKey);
-    const to = rowOf(overId);
-    if (!from || !to || from.id === to.id) return;
-    const overIndex = to.keys.indexOf(overId);
-    const insertAt = overIndex >= 0 ? overIndex : to.keys.length;
-    onRowsChange(
-      rows.map((row) => {
-        if (row.id === from.id) return { ...row, keys: row.keys.filter((key) => key !== activeKey) };
-        if (row.id === to.id) {
-          const keys = [...row.keys];
-          keys.splice(insertAt, 0, activeKey);
-          return { ...row, keys };
-        }
-        return row;
-      })
-    );
+  // Only track the target while dragging. Moving the button mid-drag reshapes
+  // the rows under the pointer and can bounce it between rows forever.
+  function handleDragOver({ over }: DragOverEvent) {
+    setOverId(over ? String(over.id) : null);
+  }
+
+  function clearDrag() {
+    setActiveId(null);
+    setDragSourceRow(null);
+    setOverId(null);
   }
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     const activeKey = String(active.id);
     const source = dragSourceRow;
-    setActiveId(null);
-    setDragSourceRow(null);
+    clearDrag();
     if (!over) return;
     const overId = String(over.id);
 
@@ -185,13 +175,24 @@ export function LayoutTab({
         { id: newRowId(), keys: [activeKey] },
       ];
     } else {
-      const row = rowOf(activeKey);
-      if (row && row.keys.includes(overId)) {
-        const from = row.keys.indexOf(activeKey);
-        const to = row.keys.indexOf(overId);
-        if (from !== to) {
-          next = rows.map((item) => (item.id === row.id ? { ...item, keys: arrayMove(item.keys, from, to) } : item));
+      const from = rowOf(activeKey);
+      const to = rowOf(overId);
+      if (!from || !to) return;
+      if (from.id === to.id) {
+        const fromIndex = from.keys.indexOf(activeKey);
+        const toIndex = to.keys.indexOf(overId);
+        if (toIndex >= 0 && fromIndex !== toIndex) {
+          next = rows.map((row) => (row.id === from.id ? { ...row, keys: arrayMove(row.keys, fromIndex, toIndex) } : row));
         }
+      } else {
+        const overIndex = to.keys.indexOf(overId);
+        next = rows.map((row) => {
+          if (row.id === from.id) return { ...row, keys: row.keys.filter((key) => key !== activeKey) };
+          if (row.id !== to.id) return row;
+          const keys = [...row.keys];
+          keys.splice(overIndex >= 0 ? overIndex : keys.length, 0, activeKey);
+          return { ...row, keys };
+        });
       }
     }
     // Drop the row the button came from only if dragging emptied it.
@@ -201,6 +202,10 @@ export function LayoutTab({
   const selectedButton = selected ? buttonsByKey.get(selected) : undefined;
   const selectedHidden = selected ? hidden.includes(selected) : false;
   const activeIsRow = activeId ? isRowId(activeId) : false;
+  // Row a dragged button would land in, when it is not the row it came from.
+  const targetRowId =
+    activeId && !activeIsRow && overId && overId !== NEW_ROW_ZONE ? (rowOf(overId)?.id ?? null) : null;
+  const crossRowTarget = targetRowId && targetRowId !== dragSourceRow ? targetRowId : null;
 
   const editor = (
     <div className="rounded-xl border border-border bg-surface p-3 sm:p-4">
@@ -233,10 +238,7 @@ export function LayoutTab({
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => {
-          setActiveId(null);
-          setDragSourceRow(null);
-        }}
+        onDragCancel={clearDrag}
       >
         <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
@@ -246,6 +248,7 @@ export function LayoutTab({
                 id={row.id}
                 index={index}
                 empty={row.keys.length === 0}
+                dropTarget={crossRowTarget === row.id}
                 emptyLabel={t("panel.keyboard.emptyRowHint")}
               >
                 <SortableContext items={row.keys} strategy={horizontalListSortingStrategy}>
@@ -257,6 +260,7 @@ export function LayoutTab({
                       hidden={hidden.includes(key)}
                       blocked={Boolean(buttonsByKey.get(key)?.blocked)}
                       selected={selected === key}
+                      insertBefore={crossRowTarget === row.id && overId === key}
                       onSelect={() => setSelected(selected === key ? null : key)}
                     />
                   ))}
@@ -331,12 +335,14 @@ function SortableRow({
   id,
   index,
   empty,
+  dropTarget,
   emptyLabel,
   children,
 }: {
   id: string;
   index: number;
   empty: boolean;
+  dropTarget: boolean;
   emptyLabel: string;
   children: ReactNode;
 }) {
@@ -348,7 +354,11 @@ function SortableRow({
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={`flex items-stretch gap-1.5 rounded-lg border bg-surface-2/60 p-1.5 ${
-        isDragging ? "z-10 border-primary/50 opacity-80 shadow-lg" : isOver ? "border-primary/40" : "border-border"
+        isDragging
+          ? "z-10 border-primary/50 opacity-80 shadow-lg"
+          : dropTarget || isOver
+            ? "border-primary/60 bg-primary/10"
+            : "border-border"
       }`}
     >
       <button
@@ -377,6 +387,7 @@ function SortableChip({
   hidden,
   blocked,
   selected,
+  insertBefore,
   onSelect,
 }: {
   id: string;
@@ -384,6 +395,7 @@ function SortableChip({
   hidden: boolean;
   blocked: boolean;
   selected: boolean;
+  insertBefore: boolean;
   onSelect: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -397,7 +409,9 @@ function SortableChip({
       onClick={onSelect}
       className={`flex min-w-0 flex-1 select-none items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-xs font-medium transition-colors sm:text-sm ${
         hidden ? "border-dashed border-border bg-transparent text-muted" : "border-border bg-surface text-text"
-      } ${selected ? "ring-2 ring-primary/60" : ""} ${isDragging ? "opacity-30" : "hover:border-primary/40"}`}
+      } ${selected ? "ring-2 ring-primary/60" : ""} ${
+        insertBefore ? "outline-dashed outline-2 outline-offset-2 outline-primary" : ""
+      } ${isDragging ? "opacity-30" : "hover:border-primary/40"}`}
     >
       <span className="truncate">{label}</span>
       {blocked && <AlertTriangle size={13} className="shrink-0 text-warning" />}
