@@ -100,7 +100,7 @@ export function ButtonChip({
       } ${className}`}
     >
       {icon && <span aria-hidden>✨</span>}
-      <span className="truncate">{style === "glass" ? `[ ${label} ]` : label}</span>
+      <span dir="auto" className="truncate">{style === "glass" ? `[ ${label} ]` : label}</span>
     </span>
   );
 }

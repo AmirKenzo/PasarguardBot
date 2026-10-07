@@ -241,7 +241,8 @@ export function LayoutTab({
         onDragCancel={clearDrag}
       >
         <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
+          {/* Telegram lays keyboard rows out left to right in every language. */}
+          <div dir="ltr" className="space-y-2">
             {rows.map((row, index) => (
               <SortableRow
                 key={row.id}
@@ -273,7 +274,7 @@ export function LayoutTab({
         <DragOverlay>
           {activeId && !activeIsRow ? (
             <div className="flex items-center justify-center rounded-lg border border-primary/50 bg-surface px-3 py-2 text-sm font-medium text-text shadow-lg">
-              {buttonLabel(buttonsByKey.get(activeId), activeId)}
+              <span dir="auto">{buttonLabel(buttonsByKey.get(activeId), activeId)}</span>
             </div>
           ) : null}
         </DragOverlay>
@@ -289,11 +290,11 @@ export function LayoutTab({
             <ActionButton label={t("panel.keyboard.rowDown")} onClick={() => move(selected, "down")}>
               <ArrowDown size={14} />
             </ActionButton>
-            <ActionButton label={t("panel.keyboard.moveRight")} onClick={() => move(selected, "start")}>
-              <ArrowRight size={14} />
-            </ActionButton>
-            <ActionButton label={t("panel.keyboard.moveLeft")} onClick={() => move(selected, "end")}>
+            <ActionButton label={t("panel.keyboard.moveLeft")} onClick={() => move(selected, "start")}>
               <ArrowLeft size={14} />
+            </ActionButton>
+            <ActionButton label={t("panel.keyboard.moveRight")} onClick={() => move(selected, "end")}>
+              <ArrowRight size={14} />
             </ActionButton>
             <ActionButton
               label={selectedHidden ? t("panel.keyboard.showToUser") : t("panel.keyboard.hideFromUser")}
@@ -375,7 +376,7 @@ function SortableRow({
       </button>
       <div className="flex min-h-[40px] min-w-0 flex-1 gap-1.5">
         {children}
-        {empty && <p className="flex flex-1 items-center justify-center px-2 text-center text-xs text-muted">{emptyLabel}</p>}
+        {empty && <p dir="auto" className="flex flex-1 items-center justify-center px-2 text-center text-xs text-muted">{emptyLabel}</p>}
       </div>
     </div>
   );
@@ -413,7 +414,7 @@ function SortableChip({
         insertBefore ? "outline-dashed outline-2 outline-offset-2 outline-primary" : ""
       } ${isDragging ? "opacity-30" : "hover:border-primary/40"}`}
     >
-      <span className="truncate">{label}</span>
+      <span dir="auto" className="truncate">{label}</span>
       {blocked && <AlertTriangle size={13} className="shrink-0 text-warning" />}
       {hidden && <EyeOff size={13} className="shrink-0" />}
     </button>
@@ -483,7 +484,7 @@ function KeyboardPreview({
         {visible.length === 0 ? (
           <p className="py-6 text-center text-xs text-muted">{t("panel.keyboard.previewEmpty")}</p>
         ) : (
-          <div className="space-y-1.5">
+          <div dir="ltr" className="space-y-1.5">
             {visible.map((keys, index) => (
               <div key={index} className="flex gap-1.5">
                 {keys.map((key) => {
