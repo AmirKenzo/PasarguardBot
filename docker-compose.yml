@@ -30,6 +30,7 @@ services:
       - "127.0.0.1:6162:3306"
     volumes:
       - ${PASARGUARDBOT_CONFIG_DIR:-.}/data/mariadb:/var/lib/mysql
+    stop_grace_period: 120s
     healthcheck:
       test:
         [
@@ -37,9 +38,9 @@ services:
           "mariadb-admin ping -h 127.0.0.1 -u root --password=$$MARIADB_ROOT_PASSWORD --silent",
         ]
       interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
+      timeout: 10s
+      retries: 30
+      start_period: 300s
     networks:
       - pasarguardbot
 
