@@ -1,5 +1,6 @@
-name: Python quality
+name: Python lint
 
+# Reusable: Ruff lint and format check, then a compile pass over the sources.
 on:
   workflow_call:
 
@@ -7,7 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  quality:
+  lint:
+    name: Python · lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,14 +25,14 @@ jobs:
         with:
           python-version-file: pyproject.toml
 
-      - name: Sync Ruff (dev group only)
+      - name: Install Ruff (dev group only)
         run: uv sync --frozen --only-group dev --no-install-project
 
       - name: Ruff check
-        run: uv run --no-sync ruff check
+        run: uv run --no-sync ruff check --output-format=github
 
       - name: Ruff format
         run: uv run --no-sync ruff format --check
 
-      - name: Compile Python sources
+      - name: Compile sources
         run: python -m compileall -q app main.py config.py

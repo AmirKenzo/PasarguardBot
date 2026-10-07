@@ -95,6 +95,12 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# -ra: list skips and failures at the end; strict: typos in markers or config fail the run.
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+markers = [
+    "unit: fast tests with no database or network (tests/unit)",
+    "integration: tests against an in-memory database (tests/integration)",
+]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [

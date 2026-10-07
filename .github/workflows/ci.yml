@@ -1,26 +1,48 @@
 name: CI
 
+# Checks every pull request into dev and every push to dev. A push to dev that
+# passes publishes the :dev image (plus :sha-<commit>, which a release promotes).
+# main never runs CI: it only fast-forwards to commits that already passed here.
+#
+# "Run workflow" on any branch builds a preview image tagged with the branch name,
+# e.g. feature/login -> :feature-login, for trying a feature on a test server.
 on:
-  push:
-    branches:
-      - dev
-      - main
   pull_request:
     branches:
       - dev
-      - main
+  push:
+    branches:
+      - dev
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  python:
-    uses: ./.github/workflows/python-quality.yml
+  lint:
+    uses: ./.github/workflows/reusable-python-lint.yml
+
+  tests:
+    uses: ./.github/workflows/reusable-python-tests.yml
 
   frontend:
-    uses: ./.github/workflows/frontend-quality.yml
+    uses: ./.github/workflows/reusable-frontend-build.yml
+
+  image:
+    needs: [lint, tests, frontend]
+    # Pull requests are only checked; images come from dev or a manual run.
+    if: ${{ github.event_name != 'pull_request' }}
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    uses: ./.github/workflows/reusable-docker-image.yml
+    with:
+      tags: |
+        type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+        type=ref,event=branch,enable=${{ github.ref != 'refs/heads/dev' }}
+      version: ${{ github.ref == 'refs/heads/dev' && 'dev' || github.ref_name }}

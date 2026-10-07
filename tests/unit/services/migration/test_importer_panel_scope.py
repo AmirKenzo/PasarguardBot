@@ -1,3 +1,5 @@
+"""Migration importer: duplicate username checks stay scoped to the target panel."""
+
 from types import SimpleNamespace
 
 from app.db.crud.services import ServiceCRUD

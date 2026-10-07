@@ -1,46 +1,27 @@
-"""Focused tests for the owner-scoped Telegram service search."""
+"""Owner-scoped service search in ServiceCRUD against an in-memory SQLite database.
+
+The CRUD module is loaded with fake ``app`` packages around it, so only the
+search query code and the Service model take part.
+"""
 
 from __future__ import annotations
 
-import importlib.util
 import logging
 import sys
 import types
-from pathlib import Path
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-
-def _load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
+from tests.support.modules import load_module_from_path
 
 
 def _package(name: str) -> types.ModuleType:
     module = types.ModuleType(name)
     module.__path__ = []
     return module
-
-
-@pytest.fixture
-def search_helpers(monkeypatch):
-    module_name = "service_search_helpers_under_test"
-    monkeypatch.delitem(sys.modules, module_name, raising=False)
-    module = _load_module(
-        module_name,
-        PROJECT_ROOT / "app/telegram/user/services/search.py",
-    )
-    yield module
-    sys.modules.pop(module_name, None)
 
 
 @pytest_asyncio.fixture
@@ -84,15 +65,9 @@ async def service_db(monkeypatch):
     fake_conversions.as_int = as_int
     monkeypatch.setitem(sys.modules, "app.utils.formatting.conversions", fake_conversions)
 
-    service_model = _load_module(
-        "app.db.models.services",
-        PROJECT_ROOT / "app/db/models/services.py",
-    )
+    service_model = load_module_from_path("app.db.models.services", "app/db/models/services.py")
     crud_module_name = "service_search_crud_under_test"
-    crud = _load_module(
-        crud_module_name,
-        PROJECT_ROOT / "app/db/crud/services.py",
-    )
+    crud = load_module_from_path(crud_module_name, "app/db/crud/services.py")
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -111,21 +86,6 @@ async def _insert_services(session_factory, service_model, rows: list[dict]) -> 
     async with session_factory() as session:
         session.add_all(service_model(**row) for row in rows)
         await session.commit()
-
-
-def test_search_query_normalizes_at_sign_whitespace_and_persian_digits(search_helpers) -> None:
-    assert search_helpers.normalize_service_search_query("  @TeSt_۱۲٣  ") == "TeSt_123"
-    assert search_helpers.normalize_service_search_query("  ١٢ ٣٤  ") == "1234"
-
-
-def test_search_query_rejects_empty_and_oversized_values(search_helpers) -> None:
-    query, error = search_helpers.validate_service_search_query("  @  ")
-    assert query is None
-    assert "خالی" in error
-
-    query, error = search_helpers.validate_service_search_query("a" * 129)
-    assert query is None
-    assert "128" in error
 
 
 @pytest.mark.asyncio

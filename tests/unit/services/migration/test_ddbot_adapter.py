@@ -1,3 +1,5 @@
+"""DDBot export adapter: registration and parsing of users, panels and services."""
+
 from datetime import UTC, datetime
 
 from app.services.migration.ddbot import DDBotAdapter

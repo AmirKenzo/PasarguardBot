@@ -1,16 +1,94 @@
 name: Release
 
+# Pushing a version tag on main ships the image CI already built and checked on
+# dev for that exact commit: no rebuild, the same digest just gains the release
+# tags. Then the GitHub release is published with notes generated from commits.
+#
+# Tag a commit that has been pushed to dev (main fast-forwards from dev, so the
+# tip of main always qualifies). A tag on any other commit stops at "verify".
 on:
   push:
     tags:
       - "v[0-9]*.[0-9]*.[0-9]*"
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
-  contents: write
+  contents: read
+
+env:
+  IMAGE: ghcr.io/amirkenzo/pasarguardbot
 
 jobs:
-  release:
+  promote:
+    name: Promote tested image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.promote.outputs.digest }}
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Verify the commit was built on dev
+        id: source
+        run: |
+          source="${IMAGE}:sha-${GITHUB_SHA::7}"
+          if ! docker buildx imagetools inspect "$source" > /dev/null 2>&1; then
+            echo "::error title=No tested image::${source} does not exist. Push ${GITHUB_SHA::7} to dev, wait for CI to pass, then tag it again."
+            exit 1
+          fi
+          echo "ref=$source" >> "$GITHUB_OUTPUT"
+
+      - name: Release tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Add release tags to the tested image
+        id: promote
+        env:
+          SOURCE: ${{ steps.source.outputs.ref }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          args=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && args+=(--tag "$tag")
+          done <<< "$TAGS"
+          docker buildx imagetools create "${args[@]}" "$SOURCE"
+          digest="$(docker buildx imagetools inspect "$SOURCE" --format '{{json .Manifest}}' | jq -r .digest)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Promoted \`$SOURCE\`"
+            echo '```'
+            echo "$TAGS"
+            echo '```'
+            echo "Digest: \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: GitHub release
+    needs: promote
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -19,13 +97,25 @@ jobs:
           fetch-depth: 0
 
       - name: Generate release notes
-        id: cliff
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
           args: --latest --strip header
         env:
           OUTPUT: RELEASE_NOTES.md
+
+      - name: Add image details
+        env:
+          DIGEST: ${{ needs.promote.outputs.digest }}
+        run: |
+          {
+            echo
+            echo "### Docker image"
+            echo '```'
+            echo "docker pull ${IMAGE}:${GITHUB_REF_NAME#v}"
+            echo '```'
+            echo "Digest: \`${DIGEST}\`"
+          } >> RELEASE_NOTES.md
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3

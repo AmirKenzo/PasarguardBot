@@ -1,0 +1,39 @@
+name: Registry cleanup
+
+# Every :dev push leaves the previous image untagged in GHCR. This removes those
+# untagged leftovers (and broken partial uploads) weekly. Tagged images, i.e.
+# releases, :dev, sha-* and branch previews, are never touched.
+on:
+  schedule:
+    - cron: "30 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Only list what would be deleted"
+        type: boolean
+        default: true
+
+concurrency:
+  group: registry-cleanup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Delete untagged images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Clean up GHCR
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          package: pasarguardbot
+          delete-untagged: true
+          delete-ghost-images: true
+          delete-partial-images: true
+          older-than: 7 days
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run || false }}
