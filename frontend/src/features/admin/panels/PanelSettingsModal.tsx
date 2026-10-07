@@ -91,7 +91,7 @@ interface PlanRow {
 }
 
 let planRowSeq = 0;
-const newRowKey = () => `plan-row-${++planRowSeq}`;
+const newRowKey = (): string => ++planRowSeq;
 
 function volumeRows(plans: PanelVolumeUpgradePlan[]): PlanRow[] {
   return plans.map((p) => ({ key: newRowKey(), id: p.id, value: String(p.storage_gb), price: String(p.price) }));
