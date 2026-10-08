@@ -7,7 +7,8 @@ acceptable for the current single-process deployment.
 
 import time as time_module
 from asyncio import Lock
-from collections import defaultdict
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from typing import Any
 
@@ -19,8 +20,21 @@ revoked_tokens: dict[str, float] = {}
 api_key_login_failures: dict[str, list[float]] = {}
 otp_start_history: dict[str, list[float]] = {}
 otp_failure_history: dict[str, list[float]] = {}
-# Per-service lock to prevent concurrent double-renewal
-renew_confirm_locks: defaultdict[int, Lock] = defaultdict(Lock)
+renew_confirm_locks: dict[int, list] = {}
+
+
+@asynccontextmanager
+async def renew_confirm_lock(code: int) -> AsyncIterator[None]:
+    entry = renew_confirm_locks.setdefault(code, [Lock(), 0])
+    entry[1] += 1
+    try:
+        async with entry[0]:
+            yield
+    finally:
+        entry[1] -= 1
+        if entry[1] == 0 and renew_confirm_locks.get(code) is entry:
+            del renew_confirm_locks[code]
+
 
 # Request-scoped auth extracted from secure headers by middleware.
 # Tuple: (session_token | None, init_data | None)

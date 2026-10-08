@@ -18,7 +18,7 @@ from app.models.webapp import (
 )
 from app.routers.webapp.auth import authenticate_user
 from app.routers.webapp.services import ensure_service_action
-from app.routers.webapp.state import renew_confirm_locks
+from app.routers.webapp.state import renew_confirm_lock
 from app.services.billing.renewal import PaidRenewalError, execute_paid_service_renewal, require_panel_userid
 from app.services.send_queue import enqueue
 from app.utils.formatting.dates import Time_Date
@@ -103,7 +103,15 @@ async def get_renew_options(request: WebAppRenewOptionsRequest) -> WebAppRenewOp
 async def confirm_renew(request: WebAppRenewConfirmRequest) -> WebAppRenewConfirmResponse:
     """Confirm renewal: deduct balance, apply discount if provided, update service."""
 
-    async with renew_confirm_locks[int(request.code)]:
+    try:
+        user_id = await authenticate_user(init_data=request.init_data, session_token=request.session_token)
+        found, service = await ServiceCRUD().get_service(request.code)
+    except Exception as e:
+        return WebAppRenewConfirmResponse(ok=False, error=str(e))
+    if not found or not service or int(service.id) != user_id:
+        return WebAppRenewConfirmResponse(ok=False, error="سرویس یافت نشد")
+
+    async with renew_confirm_lock(int(request.code)):
         return await _confirm_renew_locked(request)
 
 
