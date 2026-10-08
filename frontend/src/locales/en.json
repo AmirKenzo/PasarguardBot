@@ -141,7 +141,7 @@
     "faq2Title": "How do I renew a service?",
     "faq2Body": "Open the details page of any service and choose Renew. Your wallet balance must be sufficient. If enabled, auto-renew can also be configured from the same page.",
     "faq3Title": "Wallet top-up methods",
-    "faq3Body": "Manual card-to-card (with receipt upload), automatic card-to-card (SMS verification), crypto payment (TRX/USDT/TON), and the Tetrapay gateway are available in the Wallet section. Active methods vary based on bot settings.",
+    "faq3Body": "Manual card-to-card (with receipt upload), automatic card-to-card (SMS verification), and crypto payment (TRX/USDT/TON) are available in the Wallet section. Active methods vary based on bot settings.",
     "faq4Title": "Buying a new service",
     "faq4Body": "From the Buy menu, choose your desired panel and plan. Your active discount (if any) is applied during checkout. After payment, the service is added to your services list.",
     "faq5Title": "Where can I see transactions?",

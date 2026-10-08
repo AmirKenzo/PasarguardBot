@@ -96,12 +96,8 @@ HIDDEN_FIELDS: frozenset[str] = frozenset(
 
 TEXT_FIELD_KEYS: frozenset[str] = frozenset(
     {
-        "avalai_api_key",
-        "avalai_system_prompt",
-        "instagram_api_token",
         "cart_num",
         "cart_name",
-        "tetra_api_key",
         "tonpays_api_key",
         "tonpays_custom_key",
     }
