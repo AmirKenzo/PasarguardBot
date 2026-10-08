@@ -25,6 +25,7 @@ REDIS_DIRECT_PAY_READY = "direct_pay_ready"
 REDIS_DIRECT_PAY_ACTIVE = "direct_pay_active"
 REDIS_DIRECT_PAY_AMOUNT = "direct_pay_amount"
 REDIS_DIRECT_PAY_KIND = "direct_pay_kind"
+REDIS_DIRECT_PAY_PAYLOAD = "direct_pay_payload"
 REDIS_MABLAGH = "mablagh"
 
 INSUFFICIENT_BALANCE_DEFAULT = (
@@ -110,11 +111,15 @@ async def mark_direct_pay_ready(
     volume: str = "",
 ) -> None:
     await asyncio.gather(
+        set_data(user_id, "direct_pay_product_label", product_label or ""),
+        set_data(user_id, "direct_pay_volume", volume or ""),
+    )
+    payload = await build_payload_from_session(user_id, kind)
+    await asyncio.gather(
         set_data(user_id, REDIS_DIRECT_PAY_READY, "1"),
         set_data(user_id, REDIS_DIRECT_PAY_KIND, kind),
         set_data(user_id, REDIS_DIRECT_PAY_AMOUNT, int(amount)),
-        set_data(user_id, "direct_pay_product_label", product_label or ""),
-        set_data(user_id, "direct_pay_volume", volume or ""),
+        set_data(user_id, REDIS_DIRECT_PAY_PAYLOAD, payload),
     )
 
 
@@ -307,15 +312,25 @@ async def build_renew_payload_from_session(user_id: int) -> dict[str, Any]:
     }
 
 
+async def build_payload_from_session(user_id: int, kind: str) -> dict[str, Any]:
+    """Snapshot the current purchase session for the given direct-pay kind."""
+    if kind == direct_pay_store.KIND_VPN:
+        return await build_vpn_payload_from_session(user_id)
+    if kind == direct_pay_store.KIND_RESELLER:
+        return await build_reseller_payload_from_session(user_id)
+    return await build_renew_payload_from_session(user_id)
+
+
 async def start_direct_pay_topup(event) -> bool:
     """Persist pending purchase/renew to Redis and open payment-method menu with prefilled amount."""
     user_id = event.sender_id
-    ready, kind, required_raw = await asyncio.gather(
+    ready, kind, required_raw, payload = await asyncio.gather(
         get_data(user_id, REDIS_DIRECT_PAY_READY),
         get_data(user_id, REDIS_DIRECT_PAY_KIND),
         get_data(user_id, REDIS_DIRECT_PAY_AMOUNT),
+        get_data(user_id, REDIS_DIRECT_PAY_PAYLOAD),
     )
-    if not ready or not kind or required_raw is None:
+    if not ready or not kind or required_raw is None or not isinstance(payload, dict):
         return False
 
     if kind == direct_pay_store.KIND_RENEW:
@@ -333,13 +348,6 @@ async def start_direct_pay_topup(event) -> bool:
     shortfall = max(required - balance, 0)
     if shortfall <= 0:
         return False
-
-    if kind == direct_pay_store.KIND_VPN:
-        payload = await build_vpn_payload_from_session(user_id)
-    elif kind == direct_pay_store.KIND_RESELLER:
-        payload = await build_reseller_payload_from_session(user_id)
-    else:
-        payload = await build_renew_payload_from_session(user_id)
 
     product_label = str(payload.get("product_label") or "")
     volume = str(payload.get("volume") or "")
