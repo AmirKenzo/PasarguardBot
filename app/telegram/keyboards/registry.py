@@ -14,6 +14,7 @@ KEYBOARD_BUTTON_TITLES = {
     "bt.menu_advanced_settings": "تنظیمات پیشرفته",
     "bt.menu_admin_panel": "پنل مدیریت",
     "bt.menu_miniapp": "ورود به اپلیکیشن",
+    "bt.menu_miniapp_open": "دکمه شیشه‌ای باز کردن اپلیکیشن",
     "in.ms.change_sub": "تغییر ساب",
     "in.ms.change_link": "تغییر لینک",
     "in.ms.copy_link": "کپی لینک",
@@ -90,6 +91,7 @@ KEYBOARD_BUTTON_DEFAULTS = {
     "bt.menu_advanced_settings": "⚙️ تنظیمات پیشرفته",
     "bt.menu_admin_panel": "⚙️ پنل مدیریت",
     "bt.menu_miniapp": "🚀 ورود به اپلیکیشن",
+    "bt.menu_miniapp_open": "🚀 باز کردن اپلیکیشن",
     "in.ms.change_sub": "🔗 تغییر ساب",
     "in.ms.change_link": "🔗 تغییر لینک",
     "in.ms.copy_link": "🔗 کپی لینک",
@@ -153,6 +155,8 @@ KEYBOARD_BUTTON_DEFAULTS = {
 
 
 KEYBOARD_BUTTON_DEFAULT_STYLES = {
+    "bt.menu_miniapp": ("primary", None),
+    "bt.menu_miniapp_open": ("primary", None),
     "bt.menu_my_services": ("primary", 5895443668663275064),
     "bt.menu_buy_service": ("success", 5373052667671093676),
     "in.buy.custom": ("primary", None),

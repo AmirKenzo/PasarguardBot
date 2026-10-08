@@ -38,7 +38,7 @@ def miniapp_ready() -> bool:
     return WEBAPP_URL.startswith("https://")
 
 
-async def send_miniapp_launcher(event, *, label: str, intro: str, panel: bool = False) -> bool:
+async def send_miniapp_launcher(event, *, label: str, intro: str, panel: bool = False, style=None) -> bool:
     """Reply with an inline web-view button, or explain why there isn't one."""
     if not WEBAPP_URL:
         await event.reply(MINIAPP_NOT_CONFIGURED)
@@ -47,7 +47,9 @@ async def send_miniapp_launcher(event, *, label: str, intro: str, panel: bool = 
         await event.reply(MINIAPP_NEEDS_HTTPS)
         return False
 
-    buttons = ReplyInlineMarkup([KeyboardInlineButtonRow([styled_webview_button(label, miniapp_url(panel=panel))])])
+    buttons = ReplyInlineMarkup(
+        [KeyboardInlineButtonRow([styled_webview_button(label, miniapp_url(panel=panel), style)])]
+    )
     try:
         await event.reply(intro, buttons=buttons)
     except ButtonUrlInvalidError:

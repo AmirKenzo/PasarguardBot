@@ -104,6 +104,9 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                 ],
                 [await _keyboard_admin_button(keyboard_crud, "bt.menu_advanced_settings", 1)],
                 [await _keyboard_admin_button(keyboard_crud, "bt.menu_admin_panel", 1)],
+                [Button.inline("📋 ━━━━ مینی‌اپ ━━━━", data="no_action")],
+                [await _keyboard_admin_button(keyboard_crud, "bt.menu_miniapp", 1)],
+                [await _keyboard_admin_button(keyboard_crud, "bt.menu_miniapp_open", 1)],
             ]
         )
 
