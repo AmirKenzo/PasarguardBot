@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import hmac
-import json
 import secrets
 import time
 from typing import Any
 
-from app.utils.security.crypto import decrypt_data
 from app.utils.security.secrets_cache import get_crypto_key
 from config import BOT_TOKEN
 
@@ -127,30 +124,19 @@ def _parse_hmac_session_token(token: str) -> tuple[bool, str | None, dict[str, A
     return True, None, {"uid": uid, "exp": exp, "ver": int(ver_s)}
 
 
-def _parse_legacy_session_token(token: str) -> tuple[bool, str | None, dict[str, Any] | None]:
-    """Decrypt and parse legacy AES-CFB session tokens (predate session_version; ver=0)."""
-    try:
-        data = json.loads(decrypt_data(token))
-        uid = int(data.get("uid", 0))
-        exp = int(data.get("exp", 0))
-        if not uid:
-            return False, "توکن نامعتبر است", None
-        if exp < int(time.time()):
-            return False, "نشست منقضی شده است", None
-        return True, None, {"uid": uid, "exp": exp, "ver": 0}
-    except Exception:
-        return False, "توکن نامعتبر است", None
-
-
 def parse_session_token(token: str) -> tuple[bool, str | None, dict[str, Any] | None]:
-    """Parse session token; prefers HMAC, falls back to legacy AES tokens."""
+    """Parse an HMAC session token.
+
+    Legacy AES tokens are no longer accepted: decrypting them ran a costly key
+    derivation for any unauthenticated string.
+    """
     token = (token or "").strip()
     if not token:
         return False, "توکن نامعتبر است", None
     hmac_result = _parse_hmac_session_token(token)
-    if hmac_result is not None:
-        return hmac_result
-    return _parse_legacy_session_token(token)
+    if hmac_result is None:
+        return False, "توکن نامعتبر است", None
+    return hmac_result
 
 
 def maybe_renew_session_token(token: str) -> str | None:
@@ -159,7 +145,7 @@ def maybe_renew_session_token(token: str) -> str | None:
     Returns a freshly-signed token (same uid/session_version, full TTL) when
     ``token`` is valid and older than the renewal grace period. Returns
     ``None`` when there is nothing to do -- token is still fresh, invalid,
-    expired, or a legacy (non-HMAC) token, so the caller should keep using
+    expired, or not an HMAC token, so the caller should keep using
     what it already has.
     """
     result = _parse_hmac_session_token(token)
@@ -175,11 +161,5 @@ def maybe_renew_session_token(token: str) -> str | None:
 
 
 async def parse_session_token_async(token: str) -> tuple[bool, str | None, dict[str, Any] | None]:
-    """Async parse: HMAC stays on-loop; legacy AES decrypt runs in a worker thread."""
-    token = (token or "").strip()
-    if not token:
-        return False, "توکن نامعتبر است", None
-    hmac_result = _parse_hmac_session_token(token)
-    if hmac_result is not None:
-        return hmac_result
-    return await asyncio.to_thread(_parse_legacy_session_token, token)
+    """Async wrapper kept for callers; HMAC parsing is cheap and runs on-loop."""
+    return parse_session_token(token)
