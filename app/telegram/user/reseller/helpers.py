@@ -19,7 +19,7 @@ from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_billing_snapshots import ResellerBillingSnapshotCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.crud.settings import SettingsManager
-from app.db.crud.user import UserCRUD, update_Money
+from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import get_logger
 from app.services.billing.direct_pay_flow import (
     build_insufficient_balance_message,
@@ -306,10 +306,22 @@ async def create_reseller_purchase_for_user(
             await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
         return False, "discount_unavailable"
 
+    new_amount = await debit_Money_if_sufficient(user_id=user_id, amount=int(amount))
+    if new_amount is None:
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
+        msg = "‼️ موجودی کیف پول شما کافی نیست."
+        if event is not None:
+            await event.answer(msg, alert=True)
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "insufficient_balance"
+
     start_time = time.time()
     try:
         created = await create_reseller_admin(panel, admin_payload)
     except Exception as e:
+        await update_Money(user_id=user_id, Money=int(amount))
         if discount_code:
             await DiscountCodeManager().release_discount_use(discount_code)
         if not isinstance(e, HTTPStatusError):
@@ -326,7 +338,6 @@ async def create_reseller_purchase_for_user(
     expiration = compute_reseller_expiration(plan)
     billing_state = await build_initial_billing_state(plan, amount)
 
-    new_amount = await update_Money(user_id=user_id, Money=-int(amount))
     await ResellerAccountCRUD().create_account(
         code=account_code,
         telegram_id=user_id,

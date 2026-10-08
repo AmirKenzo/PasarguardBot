@@ -20,7 +20,7 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
-from app.db.crud.user import UserCRUD, update_Money
+from app.db.crud.user import UserCRUD
 from app.logger import LogType, get_logger
 from app.services.billing.direct_pay_flow import (
     build_insufficient_balance_message,
@@ -532,12 +532,19 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         else:
             try:
                 panel = await PanelsManager().get_panel_by_code(code=panelcode)
-                get_User = await PasarguardAPI(panel.base_url).get_user_by_id(
-                    user_id=require_panel_userid(serv_msg), token=panel.cookie
-                )
-                new_hajm = await apply_panel_user_renewal(panel, require_panel_userid(serv_msg), get_User, plan)
 
-                # await ServiceCRUD().update_service(code=ConfigID, package_size=int(new_hajm))
+                async def _renew_on_panel():
+                    get_User = await PasarguardAPI(panel.base_url).get_user_by_id(
+                        user_id=require_panel_userid(serv_msg), token=panel.cookie
+                    )
+                    return await apply_panel_user_renewal(panel, require_panel_userid(serv_msg), get_User, plan)
+
+                charged = await charge_then_apply(event.sender_id, int(plan.price), _renew_on_panel)
+                if charged is None:
+                    await event.answer("‼️ موجودی کیف پول شما کافی نیست.", alert=True)
+                    return
+                new_hajm, new_Amount = charged
+
                 await ServiceCRUD().update_service(
                     code=ConfigID,
                     package_size=int(new_hajm),
@@ -548,8 +555,6 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     expire_notified=False,
                     ip_limit=plan.ip_limit if plan and hasattr(plan, "ip_limit") else 0,
                 )
-
-                new_Amount = await update_Money(user_id=event.sender_id, Money=-int(plan.price))
 
                 # Prepare plan name with IP limit
                 plan_name = convert_storage(
@@ -699,12 +704,21 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     await event.answer("❌ ظرفیت استفاده از این کد تخفیف تمام شده است.", alert=True)
                 if claimed:
                     panel = await PanelsManager().get_panel_by_code(code=panelcode)
-                    get_User = await PasarguardAPI(panel.base_url).get_user_by_id(
-                        user_id=require_panel_userid(serv_msg), token=panel.cookie
-                    )
-                    new_hajm = await apply_panel_user_renewal(panel, require_panel_userid(serv_msg), get_User, plan)
-                    panel = await PanelsManager().get_panel_by_code(code=panelcode)
-                    # await ServiceCRUD().update_service(code=ConfigID, package_size=int(new_hajm))
+
+                    async def _renew_on_panel():
+                        get_User = await PasarguardAPI(panel.base_url).get_user_by_id(
+                            user_id=require_panel_userid(serv_msg), token=panel.cookie
+                        )
+                        return await apply_panel_user_renewal(panel, require_panel_userid(serv_msg), get_User, plan)
+
+                    charged = await charge_then_apply(event.sender_id, int(new_price), _renew_on_panel)
+                    if charged is None:
+                        await DiscountCodeManager().release_discount_use(code_takhfif)
+                        await event.answer("‼️ موجودی کیف پول شما کافی نیست.", alert=True)
+                        return
+                    new_hajm, new_Amount = charged
+                    delivered = True
+
                     await ServiceCRUD().update_service(
                         code=ConfigID,
                         package_size=int(new_hajm),
@@ -715,9 +729,6 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                         expire_notified=False,
                         ip_limit=plan.ip_limit if plan and hasattr(plan, "ip_limit") else 0,
                     )
-
-                    new_Amount = await update_Money(user_id=event.sender_id, Money=-int(new_price))
-                    delivered = True
 
                     # Prepare plan name with IP limit
                     plan_name = convert_storage(

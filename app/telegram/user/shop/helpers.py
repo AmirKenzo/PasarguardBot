@@ -18,7 +18,7 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
-from app.db.crud.user import UserCRUD, update_Money
+from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import LogType, get_logger
 from app.services.billing.direct_pay_flow import (
     build_insufficient_balance_message,
@@ -481,9 +481,20 @@ async def create_vpn_purchase_for_user(
         else:
             await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
         return False, "discount_unavailable"
+    new_amount = await debit_Money_if_sufficient(user_id=user_id, amount=int(amount))
+    if new_amount is None:
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
+        msg = "‼️ موجودی کیف پول شما کافی نیست."
+        if event is not None:
+            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "insufficient_balance"
     try:
         added_user = await PasarguardAPI(panel.base_url).add_user(user=new_user, token=panel.cookie)
     except Exception as e:
+        await update_Money(user_id=user_id, Money=int(amount))
         if discount_code:
             await DiscountCodeManager().release_discount_use(discount_code)
         if isinstance(e, HTTPStatusError) and is_panel_username_conflict(e):
@@ -523,7 +534,6 @@ async def create_vpn_purchase_for_user(
     qr_file = create_qr_code(text=f"{primary_subscription_url}", filename=f"{code_service}.png")
     if event is not None:
         await event.delete()
-    new_amount = await update_Money(user_id=user_id, Money=-int(amount))
     ip_limit_text = format_ip_limit(getattr(plan, "ip_limit", 0))
     volume_text = convert_storage(
         float(gig), getattr(plan, "plan_type", None), getattr(plan, "data_limit_reset_strategy", None)
