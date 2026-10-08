@@ -27,6 +27,15 @@ webapp_auth_headers: ContextVar[tuple[str | None, str | None]] = ContextVar(
     default=(None, None),
 )
 
+verified_session_tokens: ContextVar[set[str] | None] = ContextVar("verified_session_tokens", default=None)
+
+
+def mark_session_verified(token: str) -> None:
+    holder = verified_session_tokens.get()
+    if holder is not None:
+        holder.add(token)
+
+
 _auth_state_last_prune = 0.0
 _AUTH_STATE_PRUNE_INTERVAL_SEC = 60.0
 _REVOKED_TOKEN_TTL_SEC = 86400.0

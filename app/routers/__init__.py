@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from app.routers.webapp.state import webapp_auth_headers
+from app.routers.webapp.state import verified_session_tokens, webapp_auth_headers
 from app.utils.security import maybe_renew_session_token
 from app.version import VERSIONS
 
@@ -56,11 +56,14 @@ class WebAppAuthHeaderMiddleware(BaseHTTPMiddleware):
             session = request.headers.get("x-session-token") or _extract_bearer(request.headers.get("authorization"))
             init_data = request.headers.get("x-telegram-init-data")
             token = webapp_auth_headers.set((session or None, init_data or None))
+            verified: set[str] = set()
+            verified_token = verified_session_tokens.set(verified)
             try:
                 response = await call_next(request)
             finally:
+                verified_session_tokens.reset(verified_token)
                 webapp_auth_headers.reset(token)
-            if session:
+            if session and session in verified:
                 renewed = maybe_renew_session_token(session)
                 if renewed:
                     response.headers["X-Session-Token"] = renewed

@@ -29,6 +29,7 @@ from app.models.webapp import (
 from app.routers.webapp.state import (
     get_header_auth,
     is_api_key_login_blocked,
+    mark_session_verified,
     otp_key,
     otp_sessions,
     prune_auth_state,
@@ -247,6 +248,7 @@ async def authenticate_user(
         uid = int(payload["uid"])
         if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
             raise ValueError("نشست منقضی شده است. دوباره وارد شوید")
+        mark_session_verified(session_token)
         return uid
 
     raise ValueError("اطلاعات ناقص است")
@@ -433,6 +435,7 @@ async def get_webapp_info_session(
     uid = int(payload["uid"])  # type: ignore
     if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
         return WebAppInfoResponse(ok=False, error="نشست منقضی شده است. دوباره وارد شوید")
+    mark_session_verified(token)
     try:
         payload = await build_user_payload_no_services(int(uid))
         payload["session_token"] = token
@@ -443,7 +446,11 @@ async def get_webapp_info_session(
 
 @router.post("/webapp/logout", response_model=WebAppChangeResponse)
 async def logout(req: LogoutRequest) -> WebAppChangeResponse:
-    """Revoke a session token so it can no longer be used."""
+    """Revoke a session token and every token renewed from it.
+
+    Bumping ``session_version`` is persisted, so it also outlives restarts and the
+    in-memory revocation list (which only covers this exact token for a day).
+    """
     try:
         token, _ = _merge_request_auth(session_token=req.session_token)
         if not token:
@@ -452,6 +459,9 @@ async def logout(req: LogoutRequest) -> WebAppChangeResponse:
         if not ok or not payload:
             return WebAppChangeResponse(ok=False, error=err or "توکن نامعتبر است")
         revoke_session_token(token)
+        uid = int(payload["uid"])
+        if int(payload.get("ver", 0)) == await UserCRUD().get_session_version(uid):
+            await UserCRUD().bump_session_version(uid)
         return WebAppChangeResponse(ok=True)
     except Exception as e:
         return WebAppChangeResponse(ok=False, error=str(e))
