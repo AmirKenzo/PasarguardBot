@@ -164,6 +164,13 @@ class ManualAutoApproveRuleCRUD:
         return f"⏳ **تایید:** فقط دستی | 📈 تراکنش موفق: `{successful_count}`"
 
 
+WEBAPP_RECEIPT_TAG = "#WebApp"
+
+
+def is_webapp_receipt_log(text: str | None) -> bool:
+    return bool(text) and WEBAPP_RECEIPT_TAG in text.split("\n", 1)[0]
+
+
 async def build_manual_card_log_caption(
     *,
     user_id: int,
@@ -177,8 +184,12 @@ async def build_manual_card_log_caption(
     extra_line: str | None = None,
     created_at: int | None = None,
     completed_at: int | None = None,
+    from_webapp: bool = False,
 ) -> str:
-    """Full manual-card log caption (same fields as receipt / admin approve)."""
+    """Full manual-card log caption (same fields as receipt / admin approve).
+
+    ``from_webapp`` keeps the Mini App tag when the log message is rebuilt on review.
+    """
     if reduser is None:
         reduser = await UserCRUD().read_user(user_id)
 
@@ -208,7 +219,8 @@ async def build_manual_card_log_caption(
     if new_balance is not None and total is not None:
         wallet_before = new_balance - total
 
-    log_message = f"💳 #کارت_به_کارت\n{header}\n{user_info}\n"
+    source_tag = f" {WEBAPP_RECEIPT_TAG}" if from_webapp else ""
+    log_message = f"💳 #کارت_به_کارت{source_tag}\n{header}\n{user_info}\n"
     if created_at is not None and completed_at is not None:
         duration = _format_review_duration(completed_at - created_at)
         log_message += f"⏱ **مدت بررسی:** {duration}\n"

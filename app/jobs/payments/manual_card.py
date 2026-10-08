@@ -7,7 +7,7 @@ from datetime import datetime
 from telethon import Button
 
 from app import Kenzo
-from app.db.crud.manual_auto_approve_rules import build_manual_card_log_caption
+from app.db.crud.manual_auto_approve_rules import build_manual_card_log_caption, is_webapp_receipt_log
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD
@@ -60,6 +60,10 @@ class ManualCardProcessor(BasePaymentProcessor):
                     )
                 if tx.message_id and tx.message_chat_id:
                     reduser = await UserCRUD().read_user(tx.user_id)
+                    try:
+                        current = await Kenzo.get_messages(tx.message_chat_id, ids=tx.message_id)
+                    except Exception:
+                        current = None
                     log_text = await build_manual_card_log_caption(
                         user_id=tx.user_id,
                         amount=int(tx.amount),
@@ -71,6 +75,7 @@ class ManualCardProcessor(BasePaymentProcessor):
                         bonus_percent=settings.manual_bonus_percent,
                         created_at=tx.created_at,
                         completed_at=result["completed_at"],
+                        from_webapp=is_webapp_receipt_log(getattr(current, "message", None)),
                     )
                     await Kenzo.edit_message(
                         tx.message_chat_id,

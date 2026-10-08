@@ -10,7 +10,7 @@ from app import Kenzo
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.cryptopayments import CryptoPaymentsCRUD, add_order_crypto_payment, count_pending_orders
 from app.db.crud.log_channels import LogChannelManager
-from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
+from app.db.crud.manual_auto_approve_rules import WEBAPP_RECEIPT_TAG, ManualAutoApproveRuleCRUD
 from app.db.crud.receipt_hash import ReceiptHashCRUD, compute_receipt_phash
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
@@ -188,7 +188,7 @@ async def _log_duplicate_receipt(user_id: int, amount: int, content: bytes, file
     if not target:
         return
     user_record = await UserCRUD().read_user(user_id)
-    lines = [f"{DUPLICATE_RECEIPT_LOG_HEADER}👤 **شناسه کاربر:** `{user_id}` #وب‌اپ"]
+    lines = [f"{DUPLICATE_RECEIPT_LOG_HEADER}👤 **شناسه کاربر:** `{user_id}` {WEBAPP_RECEIPT_TAG}"]
     if user_record and getattr(user_record, "number", None):
         lines.append(f"🔢 **شماره تلفن:** {user_record.number}")
     lines.append(f"🛡️ **مبلغ وارد شده** `{int(amount):,}` تومان")
@@ -280,7 +280,7 @@ async def deposit_manual_receipt(
         user_info += f"\n🛡️ **مبلغ واریزی:** `{amount:,}` تومان"
         user_info += f"\n{auto_status}"
         user_info += f"\n📊 **دستی:** تایید `{manual_approved}` | رد `{manual_rejected}`"
-        log_message = f"💳 #کارت_به_کارت #وب‌اپ\n{user_info}"
+        log_message = f"💳 #کارت_به_کارت {WEBAPP_RECEIPT_TAG}\n{user_info}"
         buttons = transaction_review_buttons(tx.id)
         target = await LogChannelManager().get_log_channel_destination(LogType.MANUAL_CARD.value)
         if target:

@@ -6,7 +6,11 @@ from telethon import events
 
 from app import Kenzo
 from app.db.crud.cards import ManualCardManager
-from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD, build_manual_card_log_caption
+from app.db.crud.manual_auto_approve_rules import (
+    ManualAutoApproveRuleCRUD,
+    build_manual_card_log_caption,
+    is_webapp_receipt_log,
+)
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD, get_Money
@@ -280,6 +284,15 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         await _refresh_gateway_settings_view(event, settings)
 
 
+async def _review_message_is_webapp(event: events.CallbackQuery.Event) -> bool:
+    """Whether the receipt log being reviewed was posted by the Mini App."""
+    try:
+        message = await event.get_message()
+    except Exception:
+        return False
+    return is_webapp_receipt_log(getattr(message, "message", None))
+
+
 async def callback_transaction_review(event: events.CallbackQuery.Event):
     data = event.data.decode("utf-8")
 
@@ -306,6 +319,7 @@ async def callback_transaction_review(event: events.CallbackQuery.Event):
             bonus_percent=settings.manual_bonus_percent,
             created_at=tx.created_at,
             completed_at=result["completed_at"],
+            from_webapp=await _review_message_is_webapp(event),
         )
         await event.edit(admin_message, buttons=keyboards.tx_review_result_button(approved=True))
         fulfilled = await try_fulfill_after_manual_credit(tx_id)
@@ -347,6 +361,7 @@ async def callback_transaction_review(event: events.CallbackQuery.Event):
             reduser=reduser,
             created_at=tx.created_at,
             completed_at=completed_at,
+            from_webapp=await _review_message_is_webapp(event),
         )
         await event.edit(admin_message, buttons=keyboards.tx_review_result_button(approved=False))
         user_message = await _get_manual_card_custom_text(
