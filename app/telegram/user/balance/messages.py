@@ -14,7 +14,13 @@ from telethon.tl.custom import Message
 
 from app import Kenzo
 from app.db.crud.cards import ManualCardManager
-from app.db.crud.cryptopayments import CryptoPaymentsCRUD, add_order_crypto_payment, count_pending_orders
+from app.db.crud.cryptopayments import (
+    CryptoPaymentsCRUD,
+    add_order_crypto_payment,
+    allocate_order_id,
+    count_pending_orders,
+    set_order_msg_id,
+)
 from app.db.crud.keyboards import get_button_text
 from app.db.crud.log_channels import LogChannelManager
 from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
@@ -641,7 +647,11 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
         await set_step(event.sender_id, states.STEP_HOME)
         return
 
-    order = random.randint(55555, 999999)
+    order = await allocate_order_id()
+    if order is None:
+        await event.respond(texts.CRYPTO_INVOICE_CREATE_FAILED, buttons=await bhome_buttons(event.sender_id, lang))
+        await set_step(event.sender_id, states.STEP_HOME)
+        return
     arz_lower = arz.lower()
     reserved = {str(p.amount) for p in await CryptoPaymentsCRUD().get_pending_by_arz(arz_lower)}
     open_wallet_url: str | None = None
@@ -873,6 +883,20 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
     respond = getattr(event, "respond", None)
     if respond is None:
         return
+
+    saved = await add_order_crypto_payment(
+        order_id=order,
+        user_id=event.sender_id,
+        arz=arz_lower,
+        amount=crypto_amount,
+        amount_irt=amount,
+        createtime=Time_Date()["stamp"],
+    )
+    if not saved.get("success"):
+        await event.respond(texts.CRYPTO_INVOICE_CREATE_FAILED, buttons=await bhome_buttons(event.sender_id, lang))
+        await set_step(event.sender_id, states.STEP_HOME)
+        return
+
     await event.respond("⏳", buttons=await bhome_buttons(event.sender_id, "fa"))
     invoice = await event.respond(
         message_text,
@@ -880,16 +904,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
         buttons=keyboards.crypto_copy_markup(crypto_amount, wallet_key, open_url=open_wallet_url),
         parse_mode="html",
     )
-
-    await add_order_crypto_payment(
-        order_id=order,
-        user_id=event.sender_id,
-        arz=arz_lower,
-        amount=crypto_amount,
-        amount_irt=amount,
-        createtime=Time_Date()["stamp"],
-        msg_id=invoice.id,
-    )
+    await set_order_msg_id(order, invoice.id)
     if await is_direct_pay_active(event.sender_id) or await get_pending_for_user(event.sender_id):
         await link_crypto_order(int(event.sender_id), int(order))
         await clear_user(event.sender_id)

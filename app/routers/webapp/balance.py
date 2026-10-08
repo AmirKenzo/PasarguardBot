@@ -8,7 +8,12 @@ from fastapi import APIRouter, File, Form, UploadFile
 
 from app import Kenzo
 from app.db.crud.cards import ManualCardManager
-from app.db.crud.cryptopayments import CryptoPaymentsCRUD, add_order_crypto_payment, count_pending_orders
+from app.db.crud.cryptopayments import (
+    CryptoPaymentsCRUD,
+    add_order_crypto_payment,
+    allocate_order_id,
+    count_pending_orders,
+)
 from app.db.crud.log_channels import LogChannelManager
 from app.db.crud.manual_auto_approve_rules import WEBAPP_RECEIPT_TAG, ManualAutoApproveRuleCRUD
 from app.db.crud.receipt_hash import ReceiptHashCRUD, compute_receipt_phash
@@ -340,7 +345,9 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
                 ok=False,
                 error="بیش از سه فاکتور در انتظار دارید. ابتدا فاکتورهای قبلی را پرداخت کنید.",
             )
-        order_id = random.randint(55555, 999999)
+        order_id = await allocate_order_id()
+        if order_id is None:
+            return BalanceDepositCryptoResponse(ok=False, error="ساخت فاکتور انجام نشد. لطفاً دوباره تلاش کنید.")
         reserved = {str(p.amount) for p in await CryptoPaymentsCRUD().get_pending_by_arz(currency)}
         if currency == "trx":
             wallet = await WalletCRUD().get_wallet_by_type("TRX")
@@ -377,7 +384,7 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
                 ok=False,
                 error=f"کیف پول {currency.upper()} در سیستم ثبت نشده است.",
             )
-        await add_order_crypto_payment(
+        saved = await add_order_crypto_payment(
             order_id=order_id,
             user_id=user_id,
             arz=currency,
@@ -386,6 +393,8 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
             createtime=Time_Date()["stamp"],
             msg_id=None,
         )
+        if not saved.get("success"):
+            return BalanceDepositCryptoResponse(ok=False, error="ساخت فاکتور انجام نشد. لطفاً دوباره تلاش کنید.")
 
         await enqueue(
             message=(

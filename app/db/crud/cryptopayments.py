@@ -1,4 +1,6 @@
-from sqlalchemy import Float, cast, func
+import secrets
+
+from sqlalchemy import Float, cast, func, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
@@ -63,6 +65,37 @@ class CryptoPaymentsCRUD:
                 return payment, int(user.amount or 0)
         except SQLAlchemyError:
             return None
+
+
+ORDER_ID_MIN = 55555
+ORDER_ID_MAX = 999999
+
+
+async def allocate_order_id(attempts: int = 20) -> int | None:
+    """Pick a random invoice number that no stored invoice (of any status) uses yet."""
+    try:
+        async with Session() as session:
+            for _ in range(attempts):
+                order_id = ORDER_ID_MIN + secrets.randbelow(ORDER_ID_MAX - ORDER_ID_MIN + 1)
+                taken = await session.execute(
+                    select(CryptoPayments.order_id).where(CryptoPayments.order_id == order_id)
+                )
+                if taken.scalar_one_or_none() is None:
+                    return order_id
+    except SQLAlchemyError:
+        return None
+    return None
+
+
+async def set_order_msg_id(order_id: int, msg_id: int) -> None:
+    try:
+        async with Session() as session:
+            await session.execute(
+                update(CryptoPayments).where(CryptoPayments.order_id == order_id).values(msg_id=msg_id)
+            )
+            await session.commit()
+    except SQLAlchemyError:
+        return
 
 
 async def add_order_crypto_payment(order_id, user_id, arz, amount, amount_irt, createtime, msg_id=None):
