@@ -2,8 +2,9 @@
 
 import asyncio
 import contextlib
+import hmac
 import json
-import random
+import secrets
 import time as time_module
 from typing import Any
 from urllib.parse import parse_qsl
@@ -27,15 +28,19 @@ from app.models.webapp import (
     WebAppUserData,
 )
 from app.routers.webapp.state import (
+    clear_otp_failures,
     get_header_auth,
     is_api_key_login_blocked,
+    is_otp_locked,
     mark_session_verified,
     otp_key,
     otp_sessions,
     prune_auth_state,
     record_api_key_login_failure,
+    record_otp_failure,
     revoke_session_token,
     revoked_tokens,
+    try_register_otp_start,
 )
 from app.services.billing import payment_stats
 from app.services.send_queue import enqueue
@@ -282,17 +287,22 @@ async def get_webapp_info(request: Request) -> WebAppInfoResponse:
         return WebAppInfoResponse(ok=False, error=str(e))
 
 
+_OTP_THROTTLED_ERROR = "تعداد درخواست‌ها زیاد است. چند دقیقه بعد دوباره تلاش کنید"
+
+
 @router.post("/webapp/otp/start", response_model=WebAppChangeResponse)
-async def start_phone_login(req: PhoneLoginStartRequest) -> WebAppChangeResponse:
+async def start_phone_login(req: PhoneLoginStartRequest, request: Request) -> WebAppChangeResponse:
     """Start phone login: generate OTP and send via Telegram bot."""
     try:
         prune_auth_state()
         user = await UserCRUD().get_user_by_phone(req.phone)
+        key = otp_key(str(user.number or req.phone) if user else str(req.phone).strip())
+        if not try_register_otp_start(key, f"otp-ip:{_client_ip(request)}"):
+            return WebAppChangeResponse(ok=False, error=_OTP_THROTTLED_ERROR)
         if not user:
             return WebAppChangeResponse(ok=False, error="شماره پیدا نشد یا کاربر ربات را شروع نکرده است")
 
-        code = f"{random.randint(0, 999999):06d}"
-        key = otp_key(str(user.number or req.phone))
+        code = f"{secrets.randbelow(1_000_000):06d}"
         otp_sessions[key] = {
             "code": code,
             "user_id": int(user.id),
@@ -317,6 +327,10 @@ async def verify_phone_login(req: PhoneLoginVerifyRequest) -> WebAppInfoResponse
         key = otp_key(str(user.number or req.phone))
         sess = otp_sessions.get(key)
         now = int(time_module.time())
+        if is_otp_locked(key):
+            otp_sessions.pop(key, None)
+            return WebAppInfoResponse(ok=False, error=_OTP_THROTTLED_ERROR)
+
         if not sess or sess.get("exp", 0) < now:
             otp_sessions.pop(key, None)
             return WebAppInfoResponse(ok=False, error="کد منقضی شده است. دوباره تلاش کنید")
@@ -325,11 +339,13 @@ async def verify_phone_login(req: PhoneLoginVerifyRequest) -> WebAppInfoResponse
             otp_sessions.pop(key, None)
             return WebAppInfoResponse(ok=False, error="تعداد تلاش‌ها زیاد است. دوباره تلاش کنید")
 
-        if str(sess.get("code")) != str(req.code).strip():
+        if not hmac.compare_digest(str(sess.get("code")).encode(), str(req.code).strip().encode()):
             sess["attempts"] = int(sess.get("attempts", 0)) + 1
+            record_otp_failure(key)
             return WebAppInfoResponse(ok=False, error="کد وارد شده نادرست است")
 
         otp_sessions.pop(key, None)
+        clear_otp_failures(key)
         version = await UserCRUD().get_session_version(int(sess["user_id"]))
         token = create_session_token(int(sess["user_id"]), session_version=version)
         payload = await build_user_payload_no_services(int(user.id), user_record=user)

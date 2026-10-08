@@ -17,6 +17,8 @@ otp_sessions: dict[str, dict[str, Any]] = {}
 revoked_tokens: dict[str, float] = {}
 # In-memory failed API key login attempts per client IP, for basic brute-force throttling.
 api_key_login_failures: dict[str, list[float]] = {}
+otp_start_history: dict[str, list[float]] = {}
+otp_failure_history: dict[str, list[float]] = {}
 # Per-service lock to prevent concurrent double-renewal
 renew_confirm_locks: defaultdict[int, Lock] = defaultdict(Lock)
 
@@ -41,6 +43,11 @@ _AUTH_STATE_PRUNE_INTERVAL_SEC = 60.0
 _REVOKED_TOKEN_TTL_SEC = 86400.0
 _API_KEY_LOGIN_WINDOW_SEC = 300.0
 _API_KEY_LOGIN_MAX_ATTEMPTS = 10
+OTP_START_WINDOW_SEC = 900.0
+OTP_MAX_STARTS_PER_PHONE = 3
+OTP_MAX_STARTS_PER_IP = 10
+OTP_FAILURE_WINDOW_SEC = 3600.0
+OTP_MAX_FAILURES_PER_PHONE = 10
 
 
 def prune_auth_state(now: float | None = None) -> None:
@@ -63,6 +70,49 @@ def prune_auth_state(now: float | None = None) -> None:
     ]
     for ip in stale_ips:
         api_key_login_failures.pop(ip, None)
+    _prune_history(otp_start_history, OTP_START_WINDOW_SEC, now)
+    _prune_history(otp_failure_history, OTP_FAILURE_WINDOW_SEC, now)
+
+
+def _prune_history(history: dict[str, list[float]], window: float, now: float) -> None:
+    stale = [key for key, stamps in history.items() if not stamps or now - max(stamps) > window]
+    for key in stale:
+        history.pop(key, None)
+
+
+def _recent(history: dict[str, list[float]], key: str, window: float, now: float) -> list[float]:
+    stamps = [t for t in history.get(key, []) if now - t < window]
+    history[key] = stamps
+    return stamps
+
+
+def is_otp_locked(phone_key: str, now: float | None = None) -> bool:
+    """True when this phone has too many wrong OTP guesses in the failure window."""
+    now = time_module.time() if now is None else now
+    return len(_recent(otp_failure_history, phone_key, OTP_FAILURE_WINDOW_SEC, now)) >= OTP_MAX_FAILURES_PER_PHONE
+
+
+def try_register_otp_start(phone_key: str, ip_key: str, now: float | None = None) -> bool:
+    """Record an OTP request if the phone and IP are under their limits; return False when throttled."""
+    now = time_module.time() if now is None else now
+    if is_otp_locked(phone_key, now):
+        return False
+    phone_starts = _recent(otp_start_history, phone_key, OTP_START_WINDOW_SEC, now)
+    ip_starts = _recent(otp_start_history, ip_key, OTP_START_WINDOW_SEC, now)
+    if len(phone_starts) >= OTP_MAX_STARTS_PER_PHONE or len(ip_starts) >= OTP_MAX_STARTS_PER_IP:
+        return False
+    phone_starts.append(now)
+    ip_starts.append(now)
+    return True
+
+
+def record_otp_failure(phone_key: str, now: float | None = None) -> None:
+    now = time_module.time() if now is None else now
+    _recent(otp_failure_history, phone_key, OTP_FAILURE_WINDOW_SEC, now).append(now)
+
+
+def clear_otp_failures(phone_key: str) -> None:
+    otp_failure_history.pop(phone_key, None)
 
 
 def revoke_session_token(token: str) -> None:
