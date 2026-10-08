@@ -85,6 +85,30 @@ async def _fetch_trx_transactions(client, base_url, headers, address_wallet, sta
     return transactions_found
 
 
+_NATIVE_TRX_TOKEN_ID = "_"
+_TRANSFER_CONTRACT_TYPE = 1
+
+
+def is_native_trx_transfer(transaction: dict) -> bool:
+    """True only for a successful native TRX transfer.
+
+    TronScan reports TRC10 tokens with the same ``amount`` field and no contract
+    ``address``, so the token id is the only reliable marker: native TRX is ``"_"``.
+    """
+    contract_type = transaction.get("contractType")
+    if contract_type is not None and int(contract_type) != _TRANSFER_CONTRACT_TYPE:
+        return False
+    contract_ret = transaction.get("contractRet")
+    if contract_ret is not None and contract_ret != "SUCCESS":
+        return False
+    if transaction.get("revert") is True:
+        return False
+    token_info = transaction.get("tokenInfo")
+    if isinstance(token_info, dict):
+        return str(token_info.get("tokenId")) == _NATIVE_TRX_TOKEN_ID
+    return token_info is None and contract_type is not None
+
+
 async def _extract_transaction_amount(transaction, decimals=6):
     amount = (
         transaction.get("amount")
@@ -337,11 +361,7 @@ class TRXProcessor(BasePaymentProcessor):
                         logger.error("Error processing TRX payment %s: %s", payment.order_id, e)
 
     async def _validate_transaction(self, transaction, payment_amount, address_wallet):
-        token_info = transaction.get("tokenInfo")
-        is_native_trx = not token_info or (
-            isinstance(token_info, dict) and (not token_info.get("address") or token_info.get("symbol") == "TRX")
-        )
-        if not is_native_trx:
+        if not is_native_trx_transfer(transaction):
             return False
         amount_in_trx = await _extract_transaction_amount(transaction, decimals=6)
         if amount_in_trx is None:
