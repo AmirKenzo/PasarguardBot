@@ -141,6 +141,14 @@ async def get_user_status(user_id: int) -> str | None:
     return status
 
 
+async def is_user_banned(user_id: int) -> bool:
+    return await get_user_status(user_id) == "ban"
+
+
+def invalidate_user_status(user_id: int) -> None:
+    _invalidate_status_local(user_id)
+
+
 async def clear_reactivatable_status(user_id: int) -> str | None:
     """Clear BlockedBot/DeleteAccount when user interacts with the bot again. Keeps `ban`."""
     async with Session() as session:

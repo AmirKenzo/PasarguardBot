@@ -13,6 +13,7 @@ from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
 from app.db.crud.receipt_hash import ReceiptHashCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
+from app.db.crud.user import invalidate_user_status
 from app.db.models.discount_codes import DiscountCode
 from app.db.models.panels import Panels
 from app.db.models.plans import Plan
@@ -101,6 +102,7 @@ async def set_user_block(ctx: PanelActor, user_id: int, blocked: bool, *, notify
             stmt = update(User).where(User.id == user_id, User.status == "ban").values(status=None)
         await session.execute(stmt)
         await session.commit()
+    invalidate_user_status(user_id)
     await _audit(ctx, "user_block" if blocked else "user_unblock", target_type="user", target_id=user_id)
     if notify:
         await notify_user(

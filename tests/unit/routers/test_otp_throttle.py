@@ -33,7 +33,12 @@ def bot(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         sent.append(code)
 
     monkeypatch.setattr(auth_module.UserCRUD, "get_user_by_phone", get_user_by_phone)
+
+    async def not_banned(user_id: int) -> bool:
+        return False
+
     monkeypatch.setattr(auth_module, "_send_telegram_code", send_code)
+    monkeypatch.setattr(auth_module, "is_user_banned", not_banned)
     return sent
 
 

@@ -14,7 +14,7 @@ from fastapi import APIRouter, Request
 from app import Kenzo
 from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.settings import SettingsManager
-from app.db.crud.user import UserCRUD, add_user
+from app.db.crud.user import UserCRUD, add_user, is_user_banned
 from app.logger import LogType, get_logger
 from app.models.webapp import (
     ApiKeyGenerateRequest,
@@ -217,6 +217,14 @@ def _client_ip(request: Request) -> str:
     return (getattr(client, "host", "") or "unknown")[:64]
 
 
+_BANNED_ERROR = "دسترسی شما مسدود شده است"
+
+
+async def _ensure_not_banned(user_id: int) -> None:
+    if await is_user_banned(int(user_id)):
+        raise ValueError(_BANNED_ERROR)
+
+
 def _merge_request_auth(
     *,
     init_data: str | None = None,
@@ -241,7 +249,9 @@ async def authenticate_user(
             raise ValueError(error)
 
         user_data = json.loads(params.get("user"))
-        return user_data.get("id")
+        user_id = user_data.get("id")
+        await _ensure_not_banned(user_id)
+        return user_id
 
     if session_token:
         prune_auth_state()
@@ -253,6 +263,7 @@ async def authenticate_user(
         uid = int(payload["uid"])
         if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
             raise ValueError("نشست منقضی شده است. دوباره وارد شوید")
+        await _ensure_not_banned(uid)
         mark_session_verified(session_token)
         return uid
 
@@ -277,6 +288,7 @@ async def get_webapp_info(request: Request) -> WebAppInfoResponse:
 
         user_data = json.loads(user_json)
         user_id = int(user_data.get("id"))
+        await _ensure_not_banned(user_id)
 
         telegram_user = WebAppUserData(**user_data)
 
@@ -301,6 +313,8 @@ async def start_phone_login(req: PhoneLoginStartRequest, request: Request) -> We
             return WebAppChangeResponse(ok=False, error=_OTP_THROTTLED_ERROR)
         if not user:
             return WebAppChangeResponse(ok=False, error="شماره پیدا نشد یا کاربر ربات را شروع نکرده است")
+
+        await _ensure_not_banned(int(user.id))
 
         code = f"{secrets.randbelow(1_000_000):06d}"
         otp_sessions[key] = {
@@ -346,6 +360,7 @@ async def verify_phone_login(req: PhoneLoginVerifyRequest) -> WebAppInfoResponse
 
         otp_sessions.pop(key, None)
         clear_otp_failures(key)
+        await _ensure_not_banned(int(sess["user_id"]))
         version = await UserCRUD().get_session_version(int(sess["user_id"]))
         token = create_session_token(int(sess["user_id"]), session_version=version)
         payload = await build_user_payload_no_services(int(user.id), user_record=user)
@@ -379,6 +394,7 @@ async def login_with_api_key(req: ApiKeyLoginRequest, request: Request) -> WebAp
         if not user:
             record_api_key_login_failure(client_ip)
             return WebAppInfoResponse(ok=False, error="کلید API نامعتبر است")
+        await _ensure_not_banned(int(user.id))
 
         version = await UserCRUD().get_session_version(int(user.id))
         token = create_session_token(int(user.id), session_version=version)
@@ -451,6 +467,8 @@ async def get_webapp_info_session(
     uid = int(payload["uid"])  # type: ignore
     if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
         return WebAppInfoResponse(ok=False, error="نشست منقضی شده است. دوباره وارد شوید")
+    if await is_user_banned(uid):
+        return WebAppInfoResponse(ok=False, error=_BANNED_ERROR)
     mark_session_verified(token)
     try:
         payload = await build_user_payload_no_services(int(uid))
