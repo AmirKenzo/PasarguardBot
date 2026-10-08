@@ -255,8 +255,17 @@ class WebAppPurchaseService:
         )
         panel_userid = getattr(added_user, "id", None)
         single_links_text = await get_selected_single_config_links_text(panel, panel_userid)
+        if price.discount_code and not await self.discounts.claim_discount_use(price.discount_code, user_id):
+            if panel_userid is not None:
+                try:
+                    await api.remove_user_by_id(user_id=panel_userid, token=panel.cookie)
+                except Exception as cleanup_error:
+                    logger.error("Failed to cleanup panel user after discount claim failure: %s", cleanup_error)
+            return {"ok": False, "error": "ظرفیت استفاده از این کد تخفیف تمام شده است."}
         new_balance = await debit_Money_if_sufficient(user_id=user_id, amount=price.final_price)
         if new_balance is None:
+            if price.discount_code:
+                await self.discounts.release_discount_use(price.discount_code)
             if panel_userid is not None:
                 try:
                     await api.remove_user_by_id(user_id=panel_userid, token=panel.cookie)
@@ -280,6 +289,8 @@ class WebAppPurchaseService:
         )
         if not service_ok:
             await update_Money(user_id=user_id, Money=int(price.final_price))
+            if price.discount_code:
+                await self.discounts.release_discount_use(price.discount_code)
             if panel_userid is not None:
                 try:
                     await api.remove_user_by_id(user_id=panel_userid, token=panel.cookie)
@@ -292,9 +303,6 @@ class WebAppPurchaseService:
                 service_msg,
             )
             return {"ok": False, "error": "ثبت سرویس در دیتابیس ناموفق بود. مبلغ به کیف پول برگشت."}
-
-        if price.discount_code:
-            await self.discounts.update_discount_usage(price.discount_code)
 
         try:
             fresh_user = await self.users.read_user(user_id)

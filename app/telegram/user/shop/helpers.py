@@ -474,10 +474,19 @@ async def create_vpn_purchase_for_user(
         data_limit_reset_strategy=reset_strategy,
         hwid_limit=ip_limit if ip_limit > 0 else None,
     )
+    if discount_code and not await DiscountCodeManager().claim_discount_use(discount_code, user_id):
+        msg = "ظرفیت استفاده از این کد تخفیف تمام شده است."
+        if event is not None:
+            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "discount_unavailable"
     try:
         added_user = await PasarguardAPI(panel.base_url).add_user(user=new_user, token=panel.cookie)
-    except HTTPStatusError as e:
-        if is_panel_username_conflict(e):
+    except Exception as e:
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
+        if isinstance(e, HTTPStatusError) and is_panel_username_conflict(e):
             if event is not None:
                 await handle_buy_username_conflict(event, username)
             else:
@@ -568,9 +577,6 @@ async def create_vpn_purchase_for_user(
         f"💵 موجودی جدید کاربر: `{new_amount:,}` تومان\n."
         f"🔗 لینک کانفیگ:\n{subscription_links_text}"
     )
-
-    if discount_code:
-        await DiscountCodeManager().update_discount_usage(code=discount_code)
 
     try:
         user = await UserCRUD().read_user(user_id)

@@ -691,11 +691,13 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                 await event.edit(message, buttons=await create_balance_button(event.sender_id))
 
         else:
+            claimed = False
+            delivered = False
             try:
-                status, _res = await DiscountCodeManager().validate_discount_code(
-                    code=code_takhfif, user_id=event.sender_id
-                )
-                if status:
+                claimed = await DiscountCodeManager().claim_discount_use(code_takhfif, event.sender_id)
+                if not claimed:
+                    await event.answer("❌ ظرفیت استفاده از این کد تخفیف تمام شده است.", alert=True)
+                if claimed:
                     panel = await PanelsManager().get_panel_by_code(code=panelcode)
                     get_User = await PasarguardAPI(panel.base_url).get_user_by_id(
                         user_id=require_panel_userid(serv_msg), token=panel.cookie
@@ -715,6 +717,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     )
 
                     new_Amount = await update_Money(user_id=event.sender_id, Money=-int(new_price))
+                    delivered = True
 
                     # Prepare plan name with IP limit
                     plan_name = convert_storage(
@@ -786,9 +789,10 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     await event.edit(txt, buttons=inline_service)
                     await send_log_message(LogType.OTHER, message=log_text)
                     await clear_user(event.sender_id)
-                    await DiscountCodeManager().update_discount_usage(code=code_takhfif)
 
             except Exception as e:
+                if claimed and not delivered:
+                    await DiscountCodeManager().release_discount_use(code_takhfif)
                 logger.error(str(e))
 
     elif data.startswith("PrevService") or data.startswith("NextService"):

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import desc, func, select, update
+from sqlalchemy import desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.db.base import AsyncSessionLocal as Session
@@ -89,28 +89,59 @@ class DiscountCodeManager:
         """Extend a discount code expiration by 30 days."""
         return await self.extend_discount(code, seconds=86400 * 30)
 
-    async def update_discount_usage(self, code):
-        """Increment the usage counter for a discount code."""
+    async def claim_discount_use(self, code: str, user_id: int | None = None) -> bool:
+        """Atomically reserve one use of a discount code; False if it is invalid, expired or used up.
+
+        The checks run inside the UPDATE, so concurrent purchases cannot all pass a separate
+        validity check and exceed ``usage_limit``. Call ``release_discount_use`` if the
+        purchase fails after a successful claim.
+        """
+        now = int(datetime.now().timestamp())
         try:
             async with Session() as session:
                 result = await session.execute(
                     update(DiscountCode)
-                    .where(DiscountCode.code == code)
+                    .where(
+                        DiscountCode.code == code,
+                        or_(
+                            DiscountCode.usage_limit.is_(None),
+                            func.coalesce(DiscountCode.times_used, 0) < DiscountCode.usage_limit,
+                        ),
+                        or_(DiscountCode.expiration_date.is_(None), DiscountCode.expiration_date >= now),
+                        or_(DiscountCode.is_public.is_(True), DiscountCode.user_id == user_id),
+                    )
                     .values(times_used=func.coalesce(DiscountCode.times_used, 0) + 1)
-                    .returning(DiscountCode.times_used, DiscountCode.usage_limit)
+                    .execution_options(synchronize_session=False)
                 )
-                row = result.first()
-                if row is None:
-                    log.debug("Discount code not found code=%s", code)
-                    return
+                if result.rowcount != 1:
+                    await session.rollback()
+                    return False
+                row = (
+                    await session.execute(
+                        select(DiscountCode.times_used, DiscountCode.usage_limit).where(DiscountCode.code == code)
+                    )
+                ).first()
                 await session.commit()
-                times_used, usage_limit = row
-                if usage_limit is not None and times_used is not None and times_used >= usage_limit:
-                    await clear_sticky_for_code(code)
-                log.debug("Discount usage updated code=%s", code)
-
         except Exception as e:
-            log.error("Discount usage update failed: %s", e)
+            log.error("Discount claim failed code=%s: %s", code, e)
+            return False
+        if row is not None and row.usage_limit is not None and int(row.times_used or 0) >= int(row.usage_limit):
+            await clear_sticky_for_code(code)
+        return True
+
+    async def release_discount_use(self, code: str) -> None:
+        """Give back a use reserved by ``claim_discount_use`` when the purchase did not complete."""
+        try:
+            async with Session() as session:
+                await session.execute(
+                    update(DiscountCode)
+                    .where(DiscountCode.code == code, func.coalesce(DiscountCode.times_used, 0) > 0)
+                    .values(times_used=func.coalesce(DiscountCode.times_used, 0) - 1)
+                    .execution_options(synchronize_session=False)
+                )
+                await session.commit()
+        except Exception as e:
+            log.error("Discount release failed code=%s: %s", code, e)
 
     async def get_code_whith_user_id(self, user_id):
         """Return the discount code assigned to a user, if any."""

@@ -81,10 +81,8 @@ async def create_vpn_renew_for_user(
         return False, "panel_not_found"
 
     price = int(amount)
-    if discount_code:
-        status, _res = await DiscountCodeManager().validate_discount_code(code=discount_code, user_id=user_id)
-        if not status:
-            discount_code = None
+    if discount_code and not await DiscountCodeManager().claim_discount_use(discount_code, user_id):
+        discount_code = None
 
     try:
         panel_user = await PasarguardAPI(panel.base_url).get_user_by_id(
@@ -99,14 +97,15 @@ async def create_vpn_renew_for_user(
             panel_user=panel_user,
         )
     except PaidRenewalError as exc:
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
         logger.warning("direct_pay renew paid error user=%s: %s", user_id, exc)
         return False, str(exc)
     except Exception as exc:
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
         logger.exception("direct_pay renew error user=%s: %s", user_id, exc)
         return False, str(exc)
-
-    if discount_code:
-        await DiscountCodeManager().update_discount_usage(code=discount_code)
 
     gig = float(plan.storage)
     plan_name = convert_storage(

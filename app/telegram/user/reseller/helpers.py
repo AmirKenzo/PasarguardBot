@@ -298,10 +298,22 @@ async def create_reseller_purchase_for_user(
         max_users=plan.max_users,
     )
 
+    if discount_code and not await DiscountCodeManager().claim_discount_use(discount_code, user_id):
+        msg = "ظرفیت استفاده از این کد تخفیف تمام شده است."
+        if event is not None:
+            await event.answer(msg, alert=True)
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "discount_unavailable"
+
     start_time = time.time()
     try:
         created = await create_reseller_admin(panel, admin_payload)
-    except HTTPStatusError as e:
+    except Exception as e:
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
+        if not isinstance(e, HTTPStatusError):
+            raise
         logger.error("create_reseller_admin failed: %s", e.response.text)
         msg = "خطا در ساخت ادمین پنل. لطفاً با پشتیبانی تماس بگیرید."
         if event is not None:
@@ -332,9 +344,6 @@ async def create_reseller_purchase_for_user(
         status="active",
         billing_state=json.dumps(billing_state, ensure_ascii=False),
     )
-
-    if discount_code:
-        await DiscountCodeManager().update_discount_usage(code=discount_code)
 
     panel_url = get_panel_login_url(panel)
     volume_text = ""

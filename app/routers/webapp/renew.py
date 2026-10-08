@@ -123,6 +123,7 @@ async def _confirm_renew_locked(request: WebAppRenewConfirmRequest) -> WebAppRen
             return WebAppRenewConfirmResponse(ok=False, error="پلن یافت نشد")
 
         price = int(plan.price)
+        discount_code = ""
         if request.discount_code and request.discount_code.strip():
             status, res = await DiscountCodeManager().validate_discount_code(
                 code=request.discount_code.strip(), user_id=user_id
@@ -132,6 +133,7 @@ async def _confirm_renew_locked(request: WebAppRenewConfirmRequest) -> WebAppRen
             if status and res and hasattr(res, "discount_percentage"):
                 pct = int(res.discount_percentage or 0)
                 price = max(0, int(plan.price) - (int(plan.price) * pct // 100))
+                discount_code = request.discount_code.strip()
 
         user = await UserCRUD().read_user(user_id)
         balance = int(user.amount or 0)
@@ -152,6 +154,9 @@ async def _confirm_renew_locked(request: WebAppRenewConfirmRequest) -> WebAppRen
         except Exception:
             return WebAppRenewConfirmResponse(ok=False, error="خطا در ارتباط با پنل")
 
+        if discount_code and not await DiscountCodeManager().claim_discount_use(discount_code, user_id):
+            return WebAppRenewConfirmResponse(ok=False, error="ظرفیت استفاده از این کد تخفیف تمام شده است.")
+
         try:
             new_hajm, new_balance = await execute_paid_service_renewal(
                 serv_msg,
@@ -161,16 +166,17 @@ async def _confirm_renew_locked(request: WebAppRenewConfirmRequest) -> WebAppRen
                 panel_user=get_User,
             )
         except PaidRenewalError as exc:
+            if discount_code:
+                await DiscountCodeManager().release_discount_use(discount_code)
             return WebAppRenewConfirmResponse(ok=False, error=str(exc))
         except Exception:
+            if discount_code:
+                await DiscountCodeManager().release_discount_use(discount_code)
             logger.exception("renew panel/db failed for service=%s", request.code)
             return WebAppRenewConfirmResponse(
                 ok=False,
                 error="خطا در اعمال تمدید روی پنل. موجودی به کیف پول بازگردانده شد.",
             )
-
-        if request.discount_code and request.discount_code.strip():
-            await DiscountCodeManager().update_discount_usage(request.discount_code.strip())
 
         await enqueue(
             message=(

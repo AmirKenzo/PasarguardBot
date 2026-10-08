@@ -88,9 +88,14 @@ async def renew_reseller_account(
     else:
         account_expire = account.expiration_time
 
+    if discount_code and not await DiscountCodeManager().claim_discount_use(discount_code, telegram_id):
+        return False, "ظرفیت استفاده از این کد تخفیف تمام شده است."
+
     # Debit first (atomic), then mutate panel/DB; refund on failure.
     new_balance = await debit_Money_if_sufficient(user_id=telegram_id, amount=charge)
     if new_balance is None:
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
         return False, f"موجودی کافی نیست. نیاز: {charge:,} تومان"
 
     try:
@@ -110,11 +115,10 @@ async def renew_reseller_account(
             data_limit=new_account_limit,
             status="active",
         )
-
-        if discount_code:
-            await DiscountCodeManager().update_discount_usage(code=discount_code)
     except Exception as exc:
         refund_balance = await update_Money(user_id=telegram_id, Money=charge)
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
         log.warning(
             "Reseller renewal rolled back balance account=%s user=%s refund_balance=%s error=%s",
             account.code,
