@@ -30,6 +30,7 @@ class ReferralReward(Base):
     __table_args__ = (
         Index("ix_refrewards_referrer", "referrer_id"),
         Index("ix_refrewards_referred", "referred_id"),
+        Index("uq_refrewards_pair", "referrer_id", "referred_id", unique=True),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

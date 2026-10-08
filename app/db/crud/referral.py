@@ -1,7 +1,7 @@
 import time
 
 from sqlalchemy import case, func, update
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
 
 from app.db.base import AsyncSessionLocal as Session
@@ -293,6 +293,7 @@ class ReferralManager:
                         status="completed",
                     )
                 )
+                await session.flush()
                 if reward_amount:
                     await session.execute(
                         update(User)
@@ -307,6 +308,9 @@ class ReferralManager:
                     )
                 await session.commit()
                 return True, "Referral reward processed successfully"
+        except IntegrityError as e:
+            log.warning("Referral reward insert rejected for %s -> %s: %s", referrer_id, referred_id, e)
+            return False, "Referral already processed"
         except SQLAlchemyError as e:
             log.error("Error processing referral reward: %s", e)
             return False, "Failed to process referral reward"
