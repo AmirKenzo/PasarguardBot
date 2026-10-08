@@ -19,7 +19,7 @@ from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import LogType, get_logger
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.nodes import filter_nodes_by_plan_type, format_node_name_for_display
-from app.services.panels.settings import panel_default_group_ids, panel_display_mode
+from app.services.panels.settings import panel_default_group_ids, panel_display_mode, panel_shop_sale_enabled
 from app.services.purchase_report import send_purchase_report
 from app.services.send_queue import enqueue
 from app.services.subscriptions.links import format_subscription_links_for_message
@@ -94,7 +94,7 @@ class WebAppPurchaseService:
 
     async def get_buy_options(self) -> dict[str, Any]:
         settings = await self.settings.get_settings()
-        if settings and not getattr(settings, "sale_mode", True):
+        if not await self._sale_open(settings):
             return {"ok": False, "error": "فروش در حال حاضر غیرفعال است."}
 
         panels = await self.panels.get_available_panels()
@@ -118,8 +118,10 @@ class WebAppPurchaseService:
         }
 
     async def get_panel_plans(self, panel_code: int, duration: int | None = None) -> dict[str, Any]:
+        if not await self._sale_open():
+            return {"ok": False, "error": "فروش در حال حاضر غیرفعال است."}
         panel = await self.panels.get_panel_by_code(panel_code)
-        if not panel or not getattr(panel, "enable", False):
+        if not panel_shop_sale_enabled(panel):
             return {"ok": False, "error": "پنل یافت نشد یا غیرفعال است."}
         if await self.panels.is_panel_at_capacity(panel_code):
             return {"ok": False, "error": "ظرفیت این پنل تکمیل شده است."}
@@ -368,9 +370,15 @@ class WebAppPurchaseService:
             "ip_limit": int(getattr(plan, "ip_limit", 0) or 0),
         }
 
+    async def _sale_open(self, settings: Any = None) -> bool:
+        settings = settings if settings is not None else await self.settings.get_settings()
+        return not settings or bool(getattr(settings, "sale_mode", True))
+
     async def _get_panel_plan(self, panel_code: int, plan_id: int) -> tuple[Any, Any]:
+        if not await self._sale_open():
+            raise ValueError("فروش در حال حاضر غیرفعال است.")
         panel = await self.panels.get_panel_by_code(panel_code)
-        if not panel or not getattr(panel, "enable", False):
+        if not panel_shop_sale_enabled(panel):
             raise ValueError("پنل یافت نشد یا غیرفعال است.")
         if await self.panels.is_panel_at_capacity(panel_code):
             raise ValueError("ظرفیت این پنل تکمیل شده است.")

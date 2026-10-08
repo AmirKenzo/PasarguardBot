@@ -12,7 +12,7 @@ from app.models.webapp import (
     WebAppUsageChartSeriesItem,
 )
 from app.routers.webapp.auth import authenticate_user
-from app.routers.webapp.services import _resolve_owned_service
+from app.routers.webapp.services import _resolve_owned_service, ensure_service_action
 from app.services.billing.renewal import require_panel_userid
 from app.telegram.shared.utils.usage_chart import (
     CHART_SERIES_COLORS,
@@ -37,6 +37,7 @@ async def get_webapp_usage_chart(request: WebAppUsageChartRequest) -> WebAppUsag
             session_token=request.session_token,
         )
         service, panel = await _resolve_owned_service(request.code, user_id)
+        await ensure_service_action(service, panel, user_id, "usage_chart")
         days = request.days if request.days in PERIOD_OPTIONS else 7
         panel_userid = require_panel_userid(service)
 

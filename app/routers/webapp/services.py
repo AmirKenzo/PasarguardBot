@@ -309,6 +309,15 @@ async def _get_service_buttons(service: Any, panel: Any, user_id: int) -> dict[s
     }
 
 
+_ACTION_DISABLED_ERROR = "این قابلیت برای این سرویس غیرفعال است"
+
+
+async def ensure_service_action(service: Any, panel: Any, user_id: int, action: str) -> None:
+    buttons = await _get_service_buttons(service, panel, user_id)
+    if not buttons.get(action):
+        raise ValueError(_ACTION_DISABLED_ERROR)
+
+
 def _parse_client_update(update: Any) -> dict[str, Any]:
     ua = (getattr(update, "user_agent", None) or "").strip()
     ip_address = (
@@ -370,6 +379,7 @@ async def _change_user_link(service_code: int, user_id: int) -> None:
 
     if not panel:
         raise ValueError("پنل یافت نشد")
+    await ensure_service_action(service, panel, user_id, "change_link")
 
     marzban_api = PasarguardAPI(panel.base_url)
     revoked = await marzban_api.modify_user_by_id(
@@ -412,6 +422,7 @@ async def _change_user_subscription(service_code: int, user_id: int) -> str:
 
     if not panel:
         raise ValueError("پنل یافت نشد")
+    await ensure_service_action(service, panel, user_id, "change_sub")
 
     marzban_api = PasarguardAPI(panel.base_url)
     revoked_subscription = await marzban_api.revoke_user_subscription(username=service.username, token=panel.cookie)
@@ -543,6 +554,7 @@ async def get_webapp_service_clients(request: WebAppClientsRequest) -> WebAppCli
             session_token=request.session_token,
         )
         service, panel = await _resolve_owned_service(request.code, user_id)
+        await ensure_service_action(service, panel, user_id, "client_list")
         updates = await PasarguardAPI(panel.base_url).get_user_sub_update_list_by_username(
             username=service.username,
             token=panel.cookie,

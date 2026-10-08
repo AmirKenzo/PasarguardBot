@@ -29,7 +29,7 @@ from app.models.webapp import (
     WebAppTransferConfigResponse,
 )
 from app.routers.webapp.auth import authenticate_user
-from app.routers.webapp.services import _resolve_owned_service
+from app.routers.webapp.services import _resolve_owned_service, ensure_service_action
 from app.services.billing.renewal import require_panel_userid
 from app.services.billing.wallet_charge import charge_then_apply
 from app.services.panels.settings import (
@@ -52,6 +52,7 @@ async def get_extend_time_options(request: WebAppExtendTimeOptionsRequest) -> We
     try:
         user_id = await authenticate_user(init_data=request.init_data, session_token=request.session_token)
         service, panel = await _resolve_owned_service(request.code, user_id)
+        await ensure_service_action(service, panel, user_id, "extend_time")
         if getattr(service, "is_test", False) is True:
             return WebAppExtendTimeOptionsResponse(ok=False, error="سرویس‌های تست قابل تمدید نیستند")
 
@@ -78,6 +79,7 @@ async def confirm_extend_time(request: WebAppExtendTimeConfirmRequest) -> WebApp
     try:
         user_id = await authenticate_user(init_data=request.init_data, session_token=request.session_token)
         service, panel = await _resolve_owned_service(request.code, user_id)
+        await ensure_service_action(service, panel, user_id, "extend_time")
         if getattr(service, "is_test", False) is True:
             return WebAppExtendTimeConfirmResponse(ok=False, error="سرویس‌های تست قابل تمدید نیستند")
 
@@ -147,6 +149,7 @@ async def get_extra_volume_options(request: WebAppExtraVolumeOptionsRequest) -> 
     try:
         user_id = await authenticate_user(init_data=request.init_data, session_token=request.session_token)
         service, panel = await _resolve_owned_service(request.code, user_id)
+        await ensure_service_action(service, panel, user_id, "extra_volume")
         if getattr(service, "is_test", False) is True:
             return WebAppExtraVolumeOptionsResponse(ok=False, error="سرویس‌های تست قابل ارتقا نیستند")
 
@@ -182,6 +185,7 @@ async def confirm_extra_volume(request: WebAppExtraVolumeConfirmRequest) -> WebA
     try:
         user_id = await authenticate_user(init_data=request.init_data, session_token=request.session_token)
         service, panel = await _resolve_owned_service(request.code, user_id)
+        await ensure_service_action(service, panel, user_id, "extra_volume")
         if getattr(service, "is_test", False) is True:
             return WebAppExtraVolumeConfirmResponse(ok=False, error="سرویس‌های تست قابل ارتقا نیستند")
 
@@ -245,6 +249,7 @@ async def transfer_config(request: WebAppTransferConfigRequest) -> WebAppTransfe
     try:
         user_id = await authenticate_user(init_data=request.init_data, session_token=request.session_token)
         service, panel = await _resolve_owned_service(request.code, user_id)
+        await ensure_service_action(service, panel, user_id, "transfer_config")
 
         target_id = int(request.target_user_id)
         if target_id == user_id:

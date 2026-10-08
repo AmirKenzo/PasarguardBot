@@ -17,6 +17,7 @@ from app.models.webapp import (
     WebAppRenewOptionsResponse,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.services import ensure_service_action
 from app.routers.webapp.state import renew_confirm_locks
 from app.services.billing.renewal import PaidRenewalError, execute_paid_service_renewal, require_panel_userid
 from app.services.send_queue import enqueue
@@ -46,6 +47,7 @@ async def get_renew_options(request: WebAppRenewOptionsRequest) -> WebAppRenewOp
         panel = await PanelsManager().get_panel_by_code(service.in_panel)
         if not panel:
             return WebAppRenewOptionsResponse(ok=False, error="پنل یافت نشد")
+        await ensure_service_action(service, panel, user_id, "tamdid")
 
         panel_name = getattr(panel, "name", None) or "پنل"
         durations = await PlanManager().get_unique_durations(service.in_panel)
@@ -146,6 +148,7 @@ async def _confirm_renew_locked(request: WebAppRenewConfirmRequest) -> WebAppRen
         panel = await PanelsManager().get_panel_by_code(serv_msg.in_panel)
         if not panel:
             return WebAppRenewConfirmResponse(ok=False, error="پنل یافت نشد")
+        await ensure_service_action(serv_msg, panel, user_id, "tamdid")
 
         try:
             get_User = await PasarguardAPI(panel.base_url).get_user_by_id(
