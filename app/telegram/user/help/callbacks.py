@@ -9,6 +9,7 @@ from telethon.errors import MessageNotModifiedError
 
 from app.logger import get_logger
 from app.telegram.keyboards.help import get_help_buttons
+from app.telegram.keyboards.home import home_back_button
 from app.telegram.shared.utils.help_download import app_download_manager, ios_apps, processing_callbacks
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.rate_limit import debounce_callback
@@ -28,7 +29,7 @@ async def callback_back_to_help(event: events.CallbackQuery.Event):
             default="**تمام اموزش های ربات در این بخش میباشد\n🔰لطفا یکی از گزینه های زیر را انتخاب کنید🔰**",
             lang=lang,
         )
-        dynamic_buttons = await get_help_buttons(event.sender_id)
+        dynamic_buttons = [*await get_help_buttons(event.sender_id), [home_back_button()]]
         await event.edit(help_message_text, buttons=dynamic_buttons)
     except MessageNotModifiedError:
         await event.answer()

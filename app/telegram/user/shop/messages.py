@@ -71,16 +71,22 @@ async def buy_service_handler(event: Message):
 
     user_id = event.sender_id
     lang = await _user_lang(user_id)
+    is_callback = hasattr(event, "answer")
     setting = await SettingsManager().get_settings()
     if setting and not setting.sale_mode:
-        await event.respond("⛔️ فروش توسط ادمین بسته است.", buttons=await bhome_buttons(user_id, lang))
+        message = "⛔️ فروش توسط ادمین بسته است."
+        if is_callback:
+            await event.answer(message, alert=True)
+        else:
+            await event.respond(message, buttons=await bhome_buttons(user_id, lang))
         raise events.StopPropagation
 
     panel_manager = PanelsManager()
     panels = await panel_manager.get_available_panels()
 
-    remove_keyboard_msg = await event.respond("⏳", buttons=Button.clear())
-    await remove_keyboard_msg.delete()
+    if not is_callback:
+        remove_keyboard_msg = await event.respond("⏳", buttons=Button.clear())
+        await remove_keyboard_msg.delete()
 
     if setting and setting.single_panel_buy_mode and len(panels) == 1:
         await set_step(user_id, "selectService")
@@ -94,7 +100,10 @@ async def buy_service_handler(event: Message):
     service_rows = await build_buy_service_selection_rows(service_buttons)
     await set_step(user_id, "selectService")
     buy_intro = await _buy_intro_text(lang)
-    await Kenzo.send_message(entity=user_id, message=buy_intro, buttons=service_rows)
+    if is_callback:
+        await event.edit(buy_intro, buttons=service_rows)
+    else:
+        await Kenzo.send_message(entity=user_id, message=buy_intro, buttons=service_rows)
     raise events.StopPropagation
 
 

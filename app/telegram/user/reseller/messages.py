@@ -6,6 +6,7 @@ from telethon.tl.custom import Message
 from app.db.crud.keyboards import get_button_text
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.settings import SettingsManager
+from app.telegram.keyboards.home import home_back_button
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import delete_data, get_step, set_step
 from app.telegram.user.reseller import states
@@ -15,31 +16,44 @@ from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
 
 
 async def _send_my_resellers_list(event: Message) -> None:
+    is_callback = hasattr(event, "answer")
     accounts = await ResellerAccountCRUD().get_accounts_by_user(event.sender_id)
     if not accounts:
         settings = await SettingsManager().get_settings()
         buttons = []
         if settings and settings.reseller_sale_mode:
             buttons.append([Button.inline("🏢 خرید پنل نمایندگی", data="ResellerBuy_start")])
-        await event.respond(
-            await get_reseller_text(
-                "reseller_my_list_empty",
-                "**📋 نمایندگی‌های من**\n\nشما هنوز نمایندگی فعالی ندارید.",
-                event.sender_id,
-            ),
-            buttons=buttons or None,
+        if is_callback:
+            buttons.append([home_back_button()])
+        text = await get_reseller_text(
+            "reseller_my_list_empty",
+            "**📋 نمایندگی‌های من**\n\nشما هنوز نمایندگی فعالی ندارید.",
+            event.sender_id,
         )
+        if is_callback:
+            try:
+                await event.edit(text, buttons=buttons or None)
+                return
+            except Exception:
+                pass
+        await event.respond(text, buttons=buttons or None)
         return
 
-    await event.respond(
-        await get_reseller_text(
-            "reseller_my_list_intro",
-            f"**📋 نمایندگی‌های من** ({len(accounts)} مورد)\n\nیک نمایندگی را انتخاب کنید:",
-            event.sender_id,
-            count=str(len(accounts)),
-        ),
-        buttons=await build_my_resellers_list_buttons(accounts),
+    text = await get_reseller_text(
+        "reseller_my_list_intro",
+        f"**📋 نمایندگی‌های من** ({len(accounts)} مورد)\n\nیک نمایندگی را انتخاب کنید:",
+        event.sender_id,
+        count=str(len(accounts)),
     )
+    buttons = await build_my_resellers_list_buttons(accounts)
+    if is_callback:
+        buttons = [*buttons, [home_back_button()]]
+        try:
+            await event.edit(text, buttons=buttons)
+            return
+        except Exception:
+            pass
+    await event.respond(text, buttons=buttons)
 
 
 @bot_is_offline

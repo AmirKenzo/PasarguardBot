@@ -34,6 +34,7 @@ from app.telegram.keyboards.buy import (
     ms_sub_links_next_button,
     ms_sub_links_prev_button,
 )
+from app.telegram.keyboards.home import home_back_button
 from app.telegram.shared.utils.usage_chart import (
     build_day_detail_buttons,
     build_day_detail_message,
@@ -147,6 +148,8 @@ async def display_user_services(user_id, current_page, edit_message=False, origi
     if navigation_buttons:
         buttons.append(navigation_buttons)
     buttons.append([Button.inline("🔍 جستجوی سرویس", data=SERVICE_SEARCH_START_CALLBACK)])
+    if edit_message:
+        buttons.append([home_back_button()])
 
     if edit_message and original_event:
         await Kenzo.edit_message(

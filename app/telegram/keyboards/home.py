@@ -1,4 +1,6 @@
-"""Home reply keyboard builders."""
+"""Home keyboard builders — reply (physical) or inline ("glass") buttons."""
+
+import asyncio
 
 from telethon import Button
 from telethon.tl.types import KeyboardButtonRow, ReplyKeyboardMarkup
@@ -12,13 +14,38 @@ from app.services.panels.settings import panel_reseller_sale_enabled, panel_shop
 from app.services.panels.trials import trial_offered
 from config import ADMIN_ID, DISABLE_UPTIME_BUTTONS, LINK_UPTIME_BUTTONS, WEBAPP_URL
 
-from .common import _get_keyboard_button_config, styled_reply_button, styled_simple_webview_button
+from .common import (
+    _get_keyboard_button_config,
+    styled_callback_button,
+    styled_reply_button,
+    styled_simple_webview_button,
+)
 
 bhome = [
     [Button.text("🔑 سرویس های من", resize=True), Button.text("🛍 خرید سرویس")],
     [Button.text("🙍 پروفایل من"), Button.text("💰 افزایش موجودی")],
     [Button.text("☎️ پشتیبانی"), Button.text("📚 راهنما")],
 ]
+
+
+_HOME_BUTTON_SPECS: tuple[tuple[str, str, dict], ...] = (
+    ("bt.menu_my_services", "🔑 سرویس های من", {"default_style": "primary", "default_icon": 5895443668663275064}),
+    ("bt.menu_get_trial", "🎁 دریافت تست", {}),
+    (
+        "bt.menu_buy_service",
+        "🛍 خرید سرویس",
+        {"default_style": "success", "default_icon": 5373052667671093676},
+    ),
+    ("bt.menu_profile", "🙍 پروفایل من", {}),
+    ("bt.menu_add_balance", "💰 افزایش موجودی", {}),
+    ("bt.menu_support", "☎️ پشتیبانی", {}),
+    ("bt.menu_uptime", "🔋 وضعیت سرویس ها", {}),
+    ("bt.menu_help", "📚 راهنما", {}),
+    ("bt.menu_advanced_settings", "⚙️ تنظیمات پیشرفته", {}),
+    ("bt.menu_admin_panel", "⚙️ پنل مدیریت", {}),
+    ("bt.menu_buy_reseller", "🏢 خرید پنل نمایندگی", {"default_style": "success"}),
+    ("bt.menu_my_resellers", "📋 نمایندگی‌های من", {"default_style": "primary"}),
+)
 
 
 # Row layout used when the admin has not defined one in the web panel.
@@ -34,6 +61,21 @@ DEFAULT_HOME_LAYOUT: tuple[tuple[str, ...], ...] = (
 
 HOME_BUTTON_KEYS: tuple[str, ...] = tuple(key for row in DEFAULT_HOME_LAYOUT for key in row)
 
+# ``app.telegram.user.start.home_inline``.
+_INLINE_CALLBACK_KEYS: dict[str, str] = {
+    "bt.menu_get_trial": "trial",
+    "bt.menu_my_services": "services",
+    "bt.menu_buy_service": "buy_service",
+    "bt.menu_my_resellers": "my_resellers",
+    "bt.menu_buy_reseller": "buy_reseller",
+    "bt.menu_profile": "profile",
+    "bt.menu_add_balance": "add_balance",
+    "bt.menu_support": "support",
+    "bt.menu_help": "help",
+    "bt.menu_advanced_settings": "advanced_settings",
+    "bt.menu_admin_panel": "admin_panel",
+}
+
 
 def _home_menu_enabled(setting, attr: str) -> bool:
     """Return home-menu toggle value; missing settings default to ON."""
@@ -41,6 +83,11 @@ def _home_menu_enabled(setting, attr: str) -> bool:
     if setting is None:
         return default
     return bool(getattr(setting, attr, default))
+
+
+def home_back_button():
+    """Inline "back to home" button for glass-mode sub-screens (callback data `home.back`)."""
+    return styled_callback_button("🏠 بازگشت", "home.back")
 
 
 # Reason codes for a home button that cannot render whatever the admin's
@@ -107,101 +154,60 @@ def _layout_rows(layout: dict[str, tuple[int, int]]) -> list[tuple[str, ...]]:
 
 async def bhome_buttons(user_id, lang):
     keyboard_crud = KeyboardButtonCRUD()
+    await keyboard_crud.get_buttons_by_keys([key for key, _, _ in _HOME_BUTTON_SPECS])
 
-    menu_my_services, menu_my_services_style = await _get_keyboard_button_config(
-        keyboard_crud,
-        "bt.menu_my_services",
-        "🔑 سرویس های من",
-        default_style="primary",
-        default_icon=5895443668663275064,
-    )
-    menu_get_trial, menu_get_trial_style = await _get_keyboard_button_config(
-        keyboard_crud, "bt.menu_get_trial", "🎁 دریافت تست"
-    )
-    menu_buy_service, menu_buy_service_style = await _get_keyboard_button_config(
-        keyboard_crud,
-        "bt.menu_buy_service",
-        "🛍 خرید سرویس",
-        default_style="success",
-        default_icon=5373052667671093676,
-    )
+    configs = {}
+    for key, default, kwargs in _HOME_BUTTON_SPECS:
+        configs[key] = await _get_keyboard_button_config(keyboard_crud, key, default, **kwargs)
 
-    menu_profile, menu_profile_style = await _get_keyboard_button_config(
-        keyboard_crud, "bt.menu_profile", "🙍 پروفایل من"
+    user_data, setting = await asyncio.gather(
+        UserCRUD().read_user(user_id=user_id),
+        SettingsManager().get_settings(),
     )
-    menu_add_balance, menu_add_balance_style = await _get_keyboard_button_config(
-        keyboard_crud, "bt.menu_add_balance", "💰 افزایش موجودی"
-    )
+    inline_mode = bool(setting and setting.home_menu_inline_mode)
+    is_admin = user_id in ADMIN_ID
 
-    menu_support, menu_support_style = await _get_keyboard_button_config(keyboard_crud, "bt.menu_support", "☎️ پشتیبانی")
-    menu_uptime, menu_uptime_style = await _get_keyboard_button_config(
-        keyboard_crud, "bt.menu_uptime", "🔋 وضعیت سرویس ها"
-    )
-    menu_help, menu_help_style = await _get_keyboard_button_config(keyboard_crud, "bt.menu_help", "📚 راهنما")
-    menu_advanced_settings, menu_advanced_settings_style = await _get_keyboard_button_config(
-        keyboard_crud, "bt.menu_advanced_settings", "⚙️ تنظیمات پیشرفته"
-    )
-
-    menu_admin_panel, menu_admin_panel_style = await _get_keyboard_button_config(
-        keyboard_crud, "bt.menu_admin_panel", "⚙️ پنل مدیریت"
-    )
-    menu_buy_reseller, menu_buy_reseller_style = await _get_keyboard_button_config(
-        keyboard_crud,
-        "bt.menu_buy_reseller",
-        "🏢 خرید پنل نمایندگی",
-        default_style="success",
-    )
-    menu_my_resellers, menu_my_resellers_style = await _get_keyboard_button_config(
-        keyboard_crud,
-        "bt.menu_my_resellers",
-        "📋 نمایندگی‌های من",
-        default_style="primary",
-    )
-
-    setting = await SettingsManager().get_settings()
     if miniapp_only_active(setting):
         menu_miniapp, menu_miniapp_style = await _get_keyboard_button_config(
             keyboard_crud, "bt.menu_miniapp", "🚀 ورود به اپلیکیشن", default_style="primary"
         )
+        menu_admin_panel, menu_admin_panel_style = configs["bt.menu_admin_panel"]
         # A plain button, not a web-view one: Telegram opens a keyboard-button
         # web app "without sending user information" (keyboardButtonSimpleWebView),
         # so the mini app would land on its own login screen. Pressing this asks
         # the bot for an inline web-view button instead, which does carry the
         # Telegram sign-in.
         rows = [[styled_reply_button(menu_miniapp, menu_miniapp_style)]]
-        if user_id in ADMIN_ID:
+        if is_admin:
             rows.append([styled_reply_button(menu_admin_panel, menu_admin_panel_style)])
         return ReplyKeyboardMarkup([KeyboardButtonRow(row) for row in rows], resize=True)
 
-    user_data = await UserCRUD().read_user(user_id=user_id)
     conditions = await home_button_conditions()
     visible = {key: not reason for key, reason in conditions.items()}
     # Conditions that depend on who is looking.
     visible["bt.menu_get_trial"] = visible["bt.menu_get_trial"] and bool(user_data and user_data.tested == 0)
-    visible["bt.menu_admin_panel"] = user_id in ADMIN_ID
-    widgets = {
-        "bt.menu_get_trial": lambda: styled_reply_button(menu_get_trial, menu_get_trial_style),
-        "bt.menu_my_services": lambda: styled_reply_button(menu_my_services, menu_my_services_style),
-        "bt.menu_buy_service": lambda: styled_reply_button(menu_buy_service, menu_buy_service_style),
-        "bt.menu_my_resellers": lambda: styled_reply_button(menu_my_resellers, menu_my_resellers_style),
-        "bt.menu_buy_reseller": lambda: styled_reply_button(menu_buy_reseller, menu_buy_reseller_style),
-        "bt.menu_profile": lambda: styled_reply_button(menu_profile, menu_profile_style),
-        "bt.menu_add_balance": lambda: styled_reply_button(menu_add_balance, menu_add_balance_style),
-        "bt.menu_support": lambda: styled_reply_button(menu_support, menu_support_style),
-        "bt.menu_uptime": lambda: styled_simple_webview_button(menu_uptime, LINK_UPTIME_BUTTONS, menu_uptime_style),
-        "bt.menu_help": lambda: styled_reply_button(menu_help, menu_help_style),
-        "bt.menu_advanced_settings": lambda: styled_reply_button(menu_advanced_settings, menu_advanced_settings_style),
-        "bt.menu_admin_panel": lambda: styled_reply_button(menu_admin_panel, menu_admin_panel_style),
-    }
+    visible["bt.menu_admin_panel"] = is_admin
+
+    def widget(key: str):
+        text, style = configs[key]
+        if key == "bt.menu_uptime":
+            return styled_simple_webview_button(text, LINK_UPTIME_BUTTONS, style)
+        if inline_mode:
+            return styled_callback_button(text, f"home.{_INLINE_CALLBACK_KEYS[key]}", style)
+        return styled_reply_button(text, style)
 
     layout = await keyboard_crud.get_home_layout()
     hidden = await keyboard_crud.get_hidden_keys()
     keys_by_row = _layout_rows(layout) if layout else DEFAULT_HOME_LAYOUT
+    placed = {key for row in keys_by_row for key in row}
+    keys_by_row = [*keys_by_row, *((key,) for key in HOME_BUTTON_KEYS if key not in placed)]
 
     bhome: list[list] = []
     for row_keys in keys_by_row:
-        row = [widgets[key]() for key in row_keys if key not in hidden and visible.get(key) and key in widgets]
+        row = [widget(key) for key in row_keys if key not in hidden and visible.get(key) and key in configs]
         if row:
             bhome.append(row)
 
+    if inline_mode:
+        return bhome
     return ReplyKeyboardMarkup([KeyboardButtonRow(button) for button in bhome], resize=True)

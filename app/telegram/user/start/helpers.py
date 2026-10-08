@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from telethon import functions, types
+from telethon import Button, functions, types
 from telethon.tl.custom import Message
 
 from app import Kenzo
@@ -133,10 +133,18 @@ async def send_welcome_menu(event: Message, welcome_text: str, lang: str) -> Non
         except Exception as exc:
             logger.debug("Could not send reaction to message %s: %s", event.id, exc)
 
+    buttons = await bhome_buttons(event.sender_id, lang)
+    if isinstance(buttons, list):
+        try:
+            clear_msg = await Kenzo.send_message(entity=event.sender_id, message="⏳", buttons=Button.clear())
+            await clear_msg.delete()
+        except Exception as exc:
+            logger.debug("Could not clear stale reply keyboard for %s: %s", event.sender_id, exc)
+
     send_kwargs = {
         "entity": event.sender_id,
         "message": welcome_text,
-        "buttons": await bhome_buttons(event.sender_id, lang),
+        "buttons": buttons,
     }
     if reaction_on and effect_id:
         send_kwargs["message_effect_id"] = effect_id

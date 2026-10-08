@@ -3,6 +3,7 @@
 from telethon import events
 
 from app.db.crud.user import UserCRUD
+from app.telegram.keyboards.home import home_back_button
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.rate_limit import debounce_callback
 from app.telegram.state import set_step
@@ -17,7 +18,7 @@ async def callback_back_to_profile(event: events.CallbackQuery.Event):
     await set_step(user_id=user_id, step=states.STEP_MAIN)
     info = await UserCRUD().read_user(user_id)
     profile_message = await _build_profile_message(user_id, info)
-    await event.edit(profile_message)
+    await event.edit(profile_message, buttons=[[home_back_button()]])
 
 
 def register(client):

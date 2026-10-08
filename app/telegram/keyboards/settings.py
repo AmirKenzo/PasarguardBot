@@ -116,6 +116,7 @@ SETTINGS_MENU_SECTIONS = (
             SettingsMenuItem("راهنما", "help_mode", default=True),
             SettingsMenuItem("پشتیبانی", "support_mode", default=True),
             SettingsMenuItem("تنظیمات پیشرفته", "advanced_settings_mode", default=True, wide=True),
+            SettingsMenuItem("دکمه‌های شیشه‌ای صفحه اصلی", "home_menu_inline_mode", default=False, wide=True),
         ),
         columns=2,
     ),

@@ -8,6 +8,7 @@ from telethon.tl.custom import Message
 from app.db.crud.keyboards import get_button_text
 from app.db.crud.user import UserCRUD
 from app.telegram.keyboards.common import is_keyboard_config_step
+from app.telegram.keyboards.home import home_back_button
 from app.telegram.keyboards.user_settings import create_buttons_user_settings
 from app.telegram.shared.guards.channel_gate import ensure_channel_membership
 from app.telegram.shared.utils.maintenance import bot_is_offline
@@ -42,6 +43,7 @@ async def advanced_settings_handler(event: Message):
         raise events.StopPropagation
 
     lang = await _user_lang(event.sender_id)
+    is_callback = hasattr(event, "answer")
     user = await UserCRUD().read_user(event.sender_id)
     buttons = create_buttons_user_settings(user)
     adv_text = await get_bot_text(
@@ -49,7 +51,14 @@ async def advanced_settings_handler(event: Message):
         default="تنظیمات نمایش سرویس",
         lang=lang,
     )
-    await event.respond(adv_text, buttons=buttons)
+    if is_callback:
+        buttons = [*buttons, [home_back_button()]]
+        try:
+            await event.edit(adv_text, buttons=buttons)
+        except Exception:
+            await event.respond(adv_text, buttons=buttons)
+    else:
+        await event.respond(adv_text, buttons=buttons)
     await set_step(event.sender_id, "advanced_settings")
     raise events.StopPropagation
 

@@ -13,6 +13,7 @@ DEFAULT_HOME_MENU_SETTINGS: dict[str, Any] = {
     "help_mode": True,
     "support_mode": True,
     "advanced_settings_mode": True,
+    "home_menu_inline_mode": False,
 }
 
 DEFAULT_CORE_SETTINGS: dict[str, Any] = {

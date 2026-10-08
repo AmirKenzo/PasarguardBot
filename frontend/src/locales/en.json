@@ -772,6 +772,7 @@
       "directRenew": "Renew by direct payment",
       "core": "Core settings",
       "advancedUser": "Advanced user settings",
+      "homeMenuInlineMode": "Glass (inline) main-menu buttons",
       "cryptoMin": "Minimum crypto top-up (toman)",
       "manualMin": "Minimum manual top-up (toman)",
       "resellerMinBalance": "Minimum reseller balance (toman)",

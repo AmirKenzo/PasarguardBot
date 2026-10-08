@@ -50,7 +50,10 @@ async def my_services_handler(event: Message):
     await set_step(user_id=user_id, step="SelectService")
     await UserCRUD().update_user(user_id=user_id, page=1)
     current_page = await UserCRUD().read_user(user_id)
-    await helpers.display_user_services(user_id, current_page=current_page.page, original_event=event)
+    is_callback = hasattr(event, "answer")
+    await helpers.display_user_services(
+        user_id, current_page=current_page.page, edit_message=is_callback, original_event=event
+    )
     raise events.StopPropagation
 
 

@@ -7,7 +7,7 @@ from telethon.tl.custom import Message
 from app import Kenzo
 from app.db.crud.keyboards import get_button_text
 from app.telegram.keyboards.common import is_keyboard_config_step, is_wizard_step
-from app.telegram.keyboards.home import bhome_buttons
+from app.telegram.keyboards.home import bhome_buttons, home_back_button
 from app.telegram.shared.guards.channel_gate import ensure_channel_membership
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import get_step, set_step
@@ -38,10 +38,16 @@ async def support_menu(event: Message):
         default="👈🏻 جهت ارتباط به صورت مستقیم (مشکلات سرویس):\n📍 @AmirKenzoo\n\n🗯 سؤال، پیشنهاد، مشکل و یا انتقاد خودرا در قالب یک پیام متنی واحد به طور کامل ارسال کنید :",
         lang="fa",
     )
-    await event.respond(
-        support_text,
-        buttons=[Button.text(text="🏠 بازگشت", resize=True, single_use=True)],
-    )
+    if hasattr(event, "answer"):
+        try:
+            await event.edit(support_text, buttons=[[home_back_button()]])
+        except Exception:
+            await event.respond(support_text, buttons=[[home_back_button()]])
+    else:
+        await event.respond(
+            support_text,
+            buttons=[Button.text(text="🏠 بازگشت", resize=True, single_use=True)],
+        )
     await set_step(event.sender_id, "support")
     raise events.StopPropagation
 

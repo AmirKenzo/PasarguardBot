@@ -50,6 +50,7 @@ const labels = (t: TFunction): Record<string, string> => ({
   help_mode: t("panel.settings.showHelp"),
   support_mode: t("panel.settings.showSupport"),
   advanced_settings_mode: t("panel.settings.advancedUser"),
+  home_menu_inline_mode: t("panel.settings.homeMenuInlineMode"),
   premium_emoji_status: t("panel.common.premiumEmoji"),
   pay_mode: t("panel.settings.paymentEnabled"),
   pay_phone_verify: t("panel.settings.phoneRequiredForPayment"),

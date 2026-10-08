@@ -14,7 +14,7 @@ Routing ownership:
   global channel lock (callbacks + messages)   → middlewares/channel_join.py
 """
 
-from app.telegram.user.start import callbacks, messages
+from app.telegram.user.start import callbacks, home_inline, messages
 
 MODULE_NAME = "user.start"
 MODULE_ENABLED = True
@@ -30,4 +30,5 @@ def setup(client):
         return
     messages.register(client)
     callbacks.register(client)
+    home_inline.register(client)
     _registered_clients.add(client_id)
