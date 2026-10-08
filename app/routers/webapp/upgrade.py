@@ -12,7 +12,7 @@ from pasarguard import PasarguardAPI, UserModify
 from app import Kenzo
 from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD
-from app.db.crud.user import UserCRUD, update_Money
+from app.db.crud.user import UserCRUD
 from app.logger import LogType, get_logger
 from app.models.webapp import (
     TimePlanItem,
@@ -31,6 +31,7 @@ from app.models.webapp import (
 from app.routers.webapp.auth import authenticate_user
 from app.routers.webapp.services import _resolve_owned_service
 from app.services.billing.renewal import require_panel_userid
+from app.services.billing.wallet_charge import charge_then_apply
 from app.services.panels.settings import (
     get_panel_time_plan,
     get_panel_volume_plan,
@@ -87,22 +88,22 @@ async def confirm_extend_time(request: WebAppExtendTimeConfirmRequest) -> WebApp
         price = int(plan["price"])
         added_days = int(plan["duration_days"])
 
-        user = await UserCRUD().read_user(user_id)
-        balance = int(getattr(user, "amount", 0) or 0) if user else 0
-        if balance < price:
+        api = PasarguardAPI(panel.base_url)
+
+        async def _extend_on_panel():
+            panel_user = await api.get_user_by_id(user_id=require_panel_userid(service), token=panel.cookie)
+            new_expire = panel_user.expire + timedelta(days=added_days)
+            await api.modify_user_by_id(
+                user_id=require_panel_userid(service), user=UserModify(expire=new_expire), token=panel.cookie
+            )
+            return new_expire
+
+        charged = await charge_then_apply(user_id, price, _extend_on_panel)
+        if charged is None:
             return WebAppExtendTimeConfirmResponse(
                 ok=False, error="موجودی کیف پول کافی نیست. ابتدا موجودی خود را افزایش دهید."
             )
-
-        api = PasarguardAPI(panel.base_url)
-        panel_user = await api.get_user_by_id(user_id=require_panel_userid(service), token=panel.cookie)
-        new_time = panel_user.expire + timedelta(days=added_days)
-
-        await api.modify_user_by_id(
-            user_id=require_panel_userid(service), user=UserModify(expire=new_time), token=panel.cookie
-        )
-
-        new_balance = await update_Money(user_id=user_id, Money=-price)
+        new_time, new_balance = charged
         await ServiceCRUD().update_service(
             code=request.code,
             expiration_time=new_time.timestamp(),
@@ -191,22 +192,22 @@ async def confirm_extra_volume(request: WebAppExtraVolumeConfirmRequest) -> WebA
         price = int(plan["price"])
         added_bytes = gigabytes_to_bytes(float(plan["storage_gb"]))
 
-        user = await UserCRUD().read_user(user_id)
-        balance = int(getattr(user, "amount", 0) or 0) if user else 0
-        if balance < price:
+        api = PasarguardAPI(panel.base_url)
+
+        async def _add_volume_on_panel():
+            panel_user = await api.get_user_by_id(user_id=require_panel_userid(service), token=panel.cookie)
+            limit = int(panel_user.data_limit or 0) + added_bytes
+            await api.modify_user_by_id(
+                user_id=require_panel_userid(service), user=UserModify(data_limit=limit), token=panel.cookie
+            )
+            return limit
+
+        charged = await charge_then_apply(user_id, price, _add_volume_on_panel)
+        if charged is None:
             return WebAppExtraVolumeConfirmResponse(
                 ok=False, error="موجودی کیف پول کافی نیست. ابتدا موجودی خود را افزایش دهید."
             )
-
-        api = PasarguardAPI(panel.base_url)
-        panel_user = await api.get_user_by_id(user_id=require_panel_userid(service), token=panel.cookie)
-        new_limit = int(panel_user.data_limit or 0) + added_bytes
-
-        await api.modify_user_by_id(
-            user_id=require_panel_userid(service), user=UserModify(data_limit=new_limit), token=panel.cookie
-        )
-
-        new_balance = await update_Money(user_id=user_id, Money=-price)
+        new_limit, new_balance = charged
         await ServiceCRUD().update_service(code=request.code, package_size=new_limit, low_volume_notified=False)
 
         await enqueue(

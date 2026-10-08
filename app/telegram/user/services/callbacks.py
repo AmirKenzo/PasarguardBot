@@ -34,6 +34,7 @@ from app.services.billing.renewal import (
     preview_remaining_after_renewal,
     require_panel_userid,
 )
+from app.services.billing.wallet_charge import charge_then_apply
 from app.services.panels.config_links import fetch_user_config_links
 from app.services.panels.settings import (
     get_panel_time_plan,
@@ -1260,19 +1261,24 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         else:
             _, panel_id = await ServiceCRUD().get_service(code=service_code)
             InfoPanel = await PanelsManager().get_panel_by_code(panel_id.in_panel)
-            get_User: UserResponse = await PasarguardAPI(InfoPanel.base_url).get_user_by_id(
-                user_id=require_panel_userid(serv_msg), token=InfoPanel.cookie
-            )
-            old_limit = int(get_User.data_limit or 0)
-            new_hajm = old_limit + gigabytes_to_bytes(float(size))
 
-            addhajm = UserModify(data_limit=(int(new_hajm)))
+            async def _add_volume_on_panel():
+                get_User: UserResponse = await PasarguardAPI(InfoPanel.base_url).get_user_by_id(
+                    user_id=require_panel_userid(serv_msg), token=InfoPanel.cookie
+                )
+                hajm = int(get_User.data_limit or 0) + gigabytes_to_bytes(float(size))
+                await PasarguardAPI(InfoPanel.base_url).modify_user_by_id(
+                    user_id=require_panel_userid(serv_msg),
+                    user=UserModify(data_limit=int(hajm)),
+                    token=InfoPanel.cookie,
+                )
+                return hajm
 
-            await PasarguardAPI(InfoPanel.base_url).modify_user_by_id(
-                user_id=require_panel_userid(serv_msg), user=addhajm, token=InfoPanel.cookie
-            )
-
-            new_Amount = await update_Money(user_id=event.sender_id, Money=-int(price))
+            charged = await charge_then_apply(event.sender_id, price, _add_volume_on_panel)
+            if charged is None:
+                await event.answer("‼️ موجودی کیف پول شما کافی نیست.", alert=True)
+                return
+            new_hajm, new_Amount = charged
             await ServiceCRUD().update_service(
                 code=service_code,
                 package_size=int(new_hajm),
@@ -1363,19 +1369,22 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         else:
             _, panel_id = await ServiceCRUD().get_service(code=service_code)
             InfoPanel = await PanelsManager().get_panel_by_code(panel_id.in_panel)
-            get_User: UserResponse = await PasarguardAPI(InfoPanel.base_url).get_user_by_id(
-                user_id=require_panel_userid(serv_msg), token=InfoPanel.cookie
-            )
-            old_expire = get_User.expire
-            new_time = old_expire + timedelta(days=int(day_time))
 
-            addtime = UserModify(expire=new_time)
+            async def _extend_on_panel():
+                get_User: UserResponse = await PasarguardAPI(InfoPanel.base_url).get_user_by_id(
+                    user_id=require_panel_userid(serv_msg), token=InfoPanel.cookie
+                )
+                expire = get_User.expire + timedelta(days=int(day_time))
+                await PasarguardAPI(InfoPanel.base_url).modify_user_by_id(
+                    user_id=require_panel_userid(serv_msg), user=UserModify(expire=expire), token=InfoPanel.cookie
+                )
+                return expire
 
-            await PasarguardAPI(InfoPanel.base_url).modify_user_by_id(
-                user_id=require_panel_userid(serv_msg), user=addtime, token=InfoPanel.cookie
-            )
-
-            new_Amount = await update_Money(user_id=event.sender_id, Money=-int(price))
+            charged = await charge_then_apply(event.sender_id, price, _extend_on_panel)
+            if charged is None:
+                await event.answer("‼️ موجودی کیف پول شما کافی نیست.", alert=True)
+                return
+            new_time, new_Amount = charged
             await ServiceCRUD().update_service(
                 code=service_code,
                 expiration_time=new_time.timestamp(),
