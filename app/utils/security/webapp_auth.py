@@ -14,19 +14,31 @@ from config import BOT_TOKEN
 
 _SESSION_HMAC_KEY: bytes | None = None
 
+WEBAPP_INIT_DATA_MAX_AGE_SECONDS = 24 * 60 * 60
+_INIT_DATA_FUTURE_SKEW_SECONDS = 60
 
-def validate_webapp_data(params: dict[str, str]) -> tuple[bool, str | None]:
-    """Validate Telegram WebApp init data signature.
+
+def validate_webapp_data(
+    params: dict[str, str],
+    *,
+    max_age_seconds: int = WEBAPP_INIT_DATA_MAX_AGE_SECONDS,
+    now: int | None = None,
+) -> tuple[bool, str | None]:
+    """Validate Telegram WebApp init data signature and freshness.
 
     Parameters
     ----------
     params: dict
         Query parameters or parsed initData payload.
+    max_age_seconds: int
+        Reject payloads whose signed ``auth_date`` is older than this.
+    now: int | None
+        Current unix time (for tests); defaults to ``time.time()``.
 
     Returns
     -------
     tuple[bool, Optional[str]]
-        ``(True, None)`` if signature is valid, otherwise ``(False, error_message)``.
+        ``(True, None)`` if signature is valid and fresh, otherwise ``(False, error_message)``.
     """
     if "hash" not in params:
         return False, "hash یافت نشد"
@@ -39,6 +51,16 @@ def validate_webapp_data(params: dict[str, str]) -> tuple[bool, str | None]:
 
     if not hmac.compare_digest(expected_hash, hash_received):
         return False, "امضا معتبر نیست"
+
+    try:
+        auth_date = int(signed_params.get("auth_date") or 0)
+    except TypeError, ValueError:
+        auth_date = 0
+    current = int(time.time()) if now is None else int(now)
+    if auth_date <= 0 or auth_date > current + _INIT_DATA_FUTURE_SKEW_SECONDS:
+        return False, "تاریخ اعتبار اطلاعات ورود نامعتبر است"
+    if current - auth_date > max_age_seconds:
+        return False, "اطلاعات ورود منقضی شده است. مینی‌اپ را ببندید و دوباره باز کنید"
 
     return True, None
 
