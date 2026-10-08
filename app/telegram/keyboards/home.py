@@ -12,6 +12,7 @@ from app.db.crud.user import UserCRUD
 from app.db.models.settings import DEFAULT_HOME_MENU_SETTINGS
 from app.services.panels.settings import panel_reseller_sale_enabled, panel_shop_sale_enabled
 from app.services.panels.trials import trial_offered
+from app.telegram.shared.utils.miniapp import miniapp_url
 from config import ADMIN_ID, DISABLE_UPTIME_BUTTONS, LINK_UPTIME_BUTTONS, WEBAPP_URL
 
 from .common import (
@@ -19,6 +20,7 @@ from .common import (
     styled_callback_button,
     styled_reply_button,
     styled_simple_webview_button,
+    styled_webview_button,
 )
 
 bhome = [
@@ -45,11 +47,13 @@ _HOME_BUTTON_SPECS: tuple[tuple[str, str, dict], ...] = (
     ("bt.menu_admin_panel", "⚙️ پنل مدیریت", {}),
     ("bt.menu_buy_reseller", "🏢 خرید پنل نمایندگی", {"default_style": "success"}),
     ("bt.menu_my_resellers", "📋 نمایندگی‌های من", {"default_style": "primary"}),
+    ("bt.menu_miniapp", "🚀 ورود به اپلیکیشن", {"default_style": "primary"}),
 )
 
 
 # Row layout used when the admin has not defined one in the web panel.
 DEFAULT_HOME_LAYOUT: tuple[tuple[str, ...], ...] = (
+    ("bt.menu_miniapp",),
     ("bt.menu_get_trial",),
     ("bt.menu_my_services", "bt.menu_buy_service"),
     ("bt.menu_my_resellers", "bt.menu_buy_reseller"),
@@ -100,9 +104,32 @@ CONDITION_OK = ""
 MINIAPP_READY = WEBAPP_URL.startswith("https://")
 
 
+MINIAPP_MODE_OFF = "off"
+MINIAPP_MODE_ONLY = "only"
+MINIAPP_MODE_BUTTON = "button"
+MINIAPP_MODES: tuple[str, ...] = (MINIAPP_MODE_OFF, MINIAPP_MODE_ONLY, MINIAPP_MODE_BUTTON)
+
+
+def stored_miniapp_mode(setting) -> str:
+    """The admin's choice, whether or not the WebApp URL can honour it yet."""
+    if setting is None:
+        return MINIAPP_MODE_OFF
+    mode = str(getattr(setting, "miniapp_mode", MINIAPP_MODE_OFF) or MINIAPP_MODE_OFF)
+    if mode not in MINIAPP_MODES:
+        mode = MINIAPP_MODE_OFF
+    if mode == MINIAPP_MODE_OFF and bool(getattr(setting, "miniapp_only_mode", False)):
+        return MINIAPP_MODE_ONLY
+    return mode
+
+
+def miniapp_mode(setting) -> str:
+    """The mode in effect: anything but "off" needs an https WebApp URL."""
+    return stored_miniapp_mode(setting) if MINIAPP_READY else MINIAPP_MODE_OFF
+
+
 def miniapp_only_active(setting) -> bool:
     """Whether the bot should answer with the mini app instead of its own menu."""
-    return MINIAPP_READY and bool(setting and getattr(setting, "miniapp_only_mode", False))
+    return miniapp_mode(setting) == MINIAPP_MODE_ONLY
 
 
 async def home_button_conditions() -> dict[str, str]:
@@ -126,7 +153,10 @@ async def home_button_conditions() -> dict[str, str]:
     if miniapp_only_active(setting):
         # Every menu button is held back by the mode, not by its own switch; the
         # keyboard editor shows that rather than leaving the admin guessing.
-        return dict.fromkeys(HOME_BUTTON_KEYS, "miniapp_only") | {"bt.menu_admin_panel": CONDITION_OK}
+        return dict.fromkeys(HOME_BUTTON_KEYS, "miniapp_only") | {
+            "bt.menu_admin_panel": CONDITION_OK,
+            "bt.menu_miniapp": CONDITION_OK,
+        }
 
     return {
         "bt.menu_get_trial": gate(trial_ready, "trial_off"),
@@ -141,6 +171,7 @@ async def home_button_conditions() -> dict[str, str]:
         "bt.menu_help": gate(_home_menu_enabled(setting, "help_mode"), "setting_off"),
         "bt.menu_advanced_settings": gate(_home_menu_enabled(setting, "advanced_settings_mode"), "setting_off"),
         "bt.menu_admin_panel": CONDITION_OK,
+        "bt.menu_miniapp": gate(miniapp_mode(setting) == MINIAPP_MODE_BUTTON, "miniapp_off"),
     }
 
 
@@ -168,19 +199,12 @@ async def bhome_buttons(user_id, lang):
     is_admin = user_id in ADMIN_ID
 
     if miniapp_only_active(setting):
-        menu_miniapp, menu_miniapp_style = await _get_keyboard_button_config(
-            keyboard_crud, "bt.menu_miniapp", "🚀 ورود به اپلیکیشن", default_style="primary"
-        )
-        menu_admin_panel, menu_admin_panel_style = configs["bt.menu_admin_panel"]
-        # A plain button, not a web-view one: Telegram opens a keyboard-button
-        # web app "without sending user information" (keyboardButtonSimpleWebView),
-        # so the mini app would land on its own login screen. Pressing this asks
-        # the bot for an inline web-view button instead, which does carry the
-        # Telegram sign-in.
-        rows = [[styled_reply_button(menu_miniapp, menu_miniapp_style)]]
+        menu_miniapp, menu_miniapp_style = configs["bt.menu_miniapp"]
+        rows = [[styled_webview_button(menu_miniapp, miniapp_url(), menu_miniapp_style)]]
         if is_admin:
-            rows.append([styled_reply_button(menu_admin_panel, menu_admin_panel_style)])
-        return ReplyKeyboardMarkup([KeyboardButtonRow(row) for row in rows], resize=True)
+            menu_admin_panel, menu_admin_panel_style = configs["bt.menu_admin_panel"]
+            rows.append([styled_callback_button(menu_admin_panel, "home.admin_panel", menu_admin_panel_style)])
+        return rows
 
     conditions = await home_button_conditions()
     visible = {key: not reason for key, reason in conditions.items()}
@@ -193,6 +217,8 @@ async def bhome_buttons(user_id, lang):
         if key == "bt.menu_uptime":
             return styled_simple_webview_button(text, LINK_UPTIME_BUTTONS, style)
         if inline_mode:
+            if key == "bt.menu_miniapp":
+                return styled_webview_button(text, miniapp_url(), style)
             return styled_callback_button(text, f"home.{_INLINE_CALLBACK_KEYS[key]}", style)
         return styled_reply_button(text, style)
 

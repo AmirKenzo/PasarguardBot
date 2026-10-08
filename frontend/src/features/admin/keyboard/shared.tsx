@@ -22,6 +22,7 @@ export const blockedLabels = (t: TFunction): Record<string, string> => ({
   reseller_sale_off: t("panel.keyboard.blockedResellerOff"),
   trial_off: t("panel.keyboard.blockedTrialOff"),
   miniapp_only: t("panel.keyboard.blockedMiniappOnly"),
+  miniapp_off: t("panel.keyboard.blockedMiniappOff"),
   setting_off: t("panel.keyboard.blockedBySetting"),
   uptime_disabled: t("panel.keyboard.blockedUptime"),
 });
@@ -57,9 +58,8 @@ export const SWATCH_CLASSES: Record<string, string> = {
  * The colour Telegram will actually draw. A null style falls back to the
  * built-in default, an empty stored style means "no colour".
  */
-export function renderedStyle(button: PanelKeyboardButton | undefined, glassMode = false, draftStyle?: string): string {
+export function renderedStyle(button: PanelKeyboardButton | undefined, draftStyle?: string): string {
   if (!button) return "";
-  if (glassMode && button.in_home) return "glass";
   if (draftStyle !== undefined) return draftStyle === "none" ? "" : draftStyle;
   if (button.style == null) return button.default_style || "";
   return button.style;

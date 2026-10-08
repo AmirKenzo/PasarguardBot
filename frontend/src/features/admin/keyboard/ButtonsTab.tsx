@@ -108,7 +108,6 @@ export function ButtonsTab({ data, focusKey, onFocusHandled }: ButtonsTabProps) 
                   <ButtonRow
                     key={button.key}
                     button={button}
-                    glassMode={data.glass_mode}
                     open={openKey === button.key}
                     onToggle={() => setOpenKey(openKey === button.key ? null : button.key)}
                   />
@@ -124,12 +123,10 @@ export function ButtonsTab({ data, focusKey, onFocusHandled }: ButtonsTabProps) 
 
 function ButtonRow({
   button,
-  glassMode,
   open,
   onToggle,
 }: {
   button: PanelKeyboardButton;
-  glassMode: boolean;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -144,7 +141,7 @@ function ButtonRow({
       >
         <ButtonChip
           label={buttonLabel(button)}
-          style={renderedStyle(button, glassMode)}
+          style={renderedStyle(button)}
           icon={button.icon != null}
           className="max-w-[55%] shrink-0 sm:max-w-[260px]"
         />
@@ -158,18 +155,16 @@ function ButtonRow({
           <ChevronDown size={16} className={`text-muted transition-transform ${open ? "rotate-180" : ""}`} />
         </div>
       </button>
-      {open && <ButtonEditor button={button} glassMode={glassMode} onSaved={onToggle} />}
+      {open && <ButtonEditor button={button} onSaved={onToggle} />}
     </div>
   );
 }
 
 function ButtonEditor({
   button,
-  glassMode,
   onSaved,
 }: {
   button: PanelKeyboardButton;
-  glassMode: boolean;
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
@@ -196,7 +191,7 @@ function ButtonEditor({
         <span className="text-[11px] text-muted">{t("panel.keyboard.livePreview")}</span>
         <ButtonChip
           label={previewLabel}
-          style={renderedStyle(button, glassMode, draft.style)}
+          style={renderedStyle(button, draft.style)}
           icon={Boolean(draft.icon.trim())}
           className="max-w-full px-4 py-2 text-sm"
         />

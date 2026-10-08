@@ -317,7 +317,6 @@ export function LayoutTab({
 
       <div className="mt-3 space-y-1">
         <Hint>{t("panel.keyboard.layoutHint")}</Hint>
-        {data.glass_mode && <Hint>{t("panel.keyboard.glassModeOn")}</Hint>}
       </div>
     </div>
   );
@@ -326,7 +325,7 @@ export function LayoutTab({
     <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="order-2 lg:order-1">{editor}</div>
       <div className="order-1 lg:sticky lg:top-4 lg:order-2">
-        <KeyboardPreview rows={rows} hidden={hidden} buttonsByKey={buttonsByKey} glassMode={data.glass_mode} />
+        <KeyboardPreview rows={rows} hidden={hidden} buttonsByKey={buttonsByKey} />
       </div>
     </div>
   );
@@ -455,12 +454,10 @@ function KeyboardPreview({
   rows,
   hidden,
   buttonsByKey,
-  glassMode,
 }: {
   rows: LayoutRow[];
   hidden: string[];
   buttonsByKey: Map<string, PanelKeyboardButton>;
-  glassMode: boolean;
 }) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
@@ -493,7 +490,7 @@ function KeyboardPreview({
                     <ButtonChip
                       key={key}
                       label={buttonLabel(button, key)}
-                      style={renderedStyle(button, glassMode)}
+                      style={renderedStyle(button)}
                       className="flex-1"
                     />
                   );

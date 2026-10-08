@@ -9,6 +9,7 @@ from app.services.telegram.rich_message import rt as _rt, rt_bold as _rt_bold
 from app.telegram.user.start.helpers import is_start_reaction_enabled
 
 from .common import build_telegram_button_style, styled_callback_button
+from .home import stored_miniapp_mode
 
 logger = get_logger(__name__)
 
@@ -16,6 +17,14 @@ logger = get_logger(__name__)
 def sts_txt(value: bool) -> str:
     """Return ON/OFF emoji text for boolean values."""
     return "✅" if value else "❌"
+
+
+MINIAPP_MODE_FLOW = {"off": "button", "button": "only", "only": "off"}
+
+
+def get_miniapp_mode_text(mode: str | None) -> str:
+    """Persian label for the mini app mode setting."""
+    return {"off": "خاموش", "button": "دکمه در منو", "only": "فقط مینی‌اپ"}.get(mode or "off", "خاموش")
 
 
 def get_api_key_login_mode_text(mode):
@@ -61,8 +70,6 @@ SETTINGS_MENU_SECTIONS = (
             SettingsMenuItem("خرید تک‌پنل", "single_panel_buy_mode"),
             SettingsMenuItem("قفل کانال", "channel_lock"),
             SettingsMenuItem("ری‌اکشن استارت", "start_reaction", default=True, wide=True),
-            SettingsMenuItem("فقط مینی‌اپ (منوی ربات خاموش)", "miniapp_only_mode", wide=True),
-            SettingsMenuItem("دکمه‌های شیشه‌ای", "glass_buttons_mode", wide=True),
         ),
         separate_page=False,
     ),
@@ -282,6 +289,27 @@ def _settings_api_key_login_button(settings):
     )
 
 
+def _miniapp_mode_label(settings) -> str:
+    return f"🚀 مینی‌اپ: {get_miniapp_mode_text(stored_miniapp_mode(settings))}"
+
+
+def _settings_miniapp_mode_button(settings):
+    return styled_callback_button(
+        _miniapp_mode_label(settings),
+        b"settings.miniapp_mode",
+        _settings_state_style(stored_miniapp_mode(settings) != "off"),
+    )
+
+
+def _settings_rich_miniapp_mode_button(settings) -> types.PageButton:
+    enabled = stored_miniapp_mode(settings) != "off"
+    return types.PageButton(
+        text=_rt(_miniapp_mode_label(settings)),
+        type=types.InlineButtonTypeCallback(data=b"settings.miniapp_mode"),
+        style=types.RichButtonStyle(bg_success=True) if enabled else types.RichButtonStyle(bg_danger=True),
+    )
+
+
 async def create_buttons_settings(settings, section_key: str | None = None):
     logger.debug("Creating settings buttons")
 
@@ -289,6 +317,8 @@ async def create_buttons_settings(settings, section_key: str | None = None):
     section = get_settings_menu_section(section_key)
     if section is not None:
         await _append_settings_section(buttons, settings, section)
+        if section.key == "core":
+            buttons.append([_settings_miniapp_mode_button(settings)])
         if section.key == "api_access":
             buttons.append([_settings_api_key_login_button(settings)])
         buttons.append(_settings_nav_buttons(section.key))
@@ -300,6 +330,8 @@ async def create_buttons_settings(settings, section_key: str | None = None):
             continue
 
         await _append_settings_section(buttons, settings, section)
+        if section.key == "core":
+            buttons.append([_settings_miniapp_mode_button(settings)])
 
     return buttons
 
@@ -402,6 +434,8 @@ async def settings_menu_rich_blocks(settings, section_key: str | None = None) ->
             types.PageBlockDivider(),
         ]
         blocks.extend(await _settings_rich_section_rows(settings, section))
+        if section.key == "core":
+            blocks.append(types.PageBlockButtonRow(buttons=[_settings_rich_miniapp_mode_button(settings)]))
         if section.key == "api_access":
             blocks.append(types.PageBlockButtonRow(buttons=[_settings_rich_api_key_login_button(settings)]))
         blocks.append(types.PageBlockDivider())
@@ -437,6 +471,8 @@ async def settings_menu_rich_blocks(settings, section_key: str | None = None) ->
 
         blocks.append(types.PageBlockParagraph(_rt_bold(menu_section.title)))
         blocks.extend(await _settings_rich_section_rows(settings, menu_section))
+        if menu_section.key == "core":
+            blocks.append(types.PageBlockButtonRow(buttons=[_settings_rich_miniapp_mode_button(settings)]))
         blocks.append(types.PageBlockDivider())
 
     return blocks

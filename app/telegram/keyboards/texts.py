@@ -35,7 +35,6 @@ TEXT_SECTIONS = {
 TEXT_KEYS_CONFIG = {
     "start": [
         {"key": "start_message", "title": "پیام استارت", "placeholders": {}},
-        {"key": "miniapp_only_message", "title": "پیام حالت فقط مینی‌اپ", "placeholders": {}},
     ],
     "my_services": [
         {"key": "my_services_intro", "title": "متن معرفی سرویس‌های من", "placeholders": {}},

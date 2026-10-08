@@ -17,7 +17,7 @@ from app.services.billing.sticky_discount import (
     get_sticky_discount,
     parse_discount_start_param,
 )
-from app.telegram.keyboards.home import bhome_buttons, miniapp_only_active
+from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.guards.channel_gate import (
     CHANNEL_JOIN_MESSAGE,
     build_channel_join_buttons,
@@ -46,11 +46,6 @@ DEFAULT_START_MESSAGE = (
 )
 
 
-DEFAULT_MINIAPP_ONLY_MESSAGE = (
-    "**🚀 برای استفاده از سرویس، وارد اپلیکیشن شوید.**\nخرید، تمدید و مدیریت سرویس‌ها همه از همان‌جا انجام می‌شود."
-)
-
-
 def _core_setting(setting, key: str):
     """Read one core setting, falling back to its packaged default."""
     default = DEFAULT_CORE_SETTINGS.get(key)
@@ -63,14 +58,7 @@ async def get_user_lang(user_id: int) -> str:
 
 
 async def fetch_welcome_text(lang: str = BOT_LANGUAGE) -> str:
-    """The text that accompanies the home keyboard.
-
-    In mini-app-only mode the bot's menu is gone, so the usual "pick an option
-    below" wording would point at nothing; that mode gets its own text.
-    """
-    setting = await SettingsManager().get_settings()
-    if miniapp_only_active(setting):
-        return await get_bot_text(key="miniapp_only_message", default=DEFAULT_MINIAPP_ONLY_MESSAGE, lang=lang)
+    """The admin's start message; in mini-app-only mode it carries the app button."""
     return await get_bot_text(key="start_message", default=DEFAULT_START_MESSAGE, lang=lang)
 
 

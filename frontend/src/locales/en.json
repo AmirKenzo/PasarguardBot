@@ -813,11 +813,10 @@
       "paymentsAndWallet": "Payments and wallet",
       "trialPanelCode": "Trial service panel code",
       "copyLink": "Copy link",
-      "miniappOnly": "Mini app only (bot menu off)",
+      "miniappMode": "Mini app",
       "startReactionEmoji": "Start reaction emoji",
       "startEffectId": "Start message effect",
-      "readOnlyHint": "Updated automatically — not editable here",
-      "glassButtons": "Glassy buttons"
+      "readOnlyHint": "Updated automatically — not editable here"
     },
     "audit": {
       "broadcastResume": "Broadcast resumed",
@@ -910,7 +909,7 @@
       "mainMenuLayout": "Main menu layout",
       "key": "Key",
       "blockedMiniappOnly": "Mini-app-only mode is on, so the bot's menu is hidden",
-      "glassModeOn": "Glassy mode is on: every main-menu button is drawn with brackets. Turn it off in settings.",
+      "blockedMiniappOff": "Mini app mode is not set to \"button in main menu\" (or WEBAPP_URL is not https)",
       "reseller": "Reseller",
       "dragHint": "Drag and drop buttons (long-press on mobile). Use the handle to move a row, or tap a button for more actions.",
       "dropNewRow": "Drop here to start a new row",

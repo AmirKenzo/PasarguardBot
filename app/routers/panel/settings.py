@@ -20,11 +20,11 @@ from app.models.panel.settings import (
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
-from app.services.keyboard_glass import apply_glass_mode, glass_mode_active
 from app.telegram.admin.settings_payment.texts import (
     MANUAL_CARD_VISIBILITY_ALL,
     MANUAL_CARD_VISIBILITY_SAFE_MODE,
 )
+from app.telegram.keyboards.home import stored_miniapp_mode
 
 router = APIRouter()
 
@@ -65,6 +65,11 @@ SELECT_FIELD_OPTIONS: dict[str, list[tuple[str, str]]] = {
         ("phone_verified", "فقط دارای شماره ثبت‌شده"),
         ("all", "همه کاربران"),
     ],
+    "miniapp_mode": [
+        ("off", "خاموش"),
+        ("button", "دکمه در منوی اصلی"),
+        ("only", "فقط مینی‌اپ (منوی ربات خاموش)"),
+    ],
 }
 
 # Select values that must be cast back to a non-string type before storage.
@@ -82,6 +87,8 @@ HIDDEN_FIELDS: frozenset[str] = frozenset(
         "pwa_short_name",
         "pwa_description",
         "pwa_icon_updated_at",
+        # Legacy form of miniapp_mode, kept in step on save.
+        "miniapp_only_mode",
         # Managed from the TonPays tab of the payments page.
         "tonpays_enabled",
         "tonpays_mode",
@@ -124,7 +131,7 @@ def _field_type(key: str, default: Any) -> str:
 
 
 def _build_field(setting: Any, section: str, key: str, default: Any) -> PanelSettingField:
-    value = _current(setting, section, key, default)
+    value = stored_miniapp_mode(setting) if key == "miniapp_mode" else _current(setting, section, key, default)
     options = SELECT_FIELD_OPTIONS.get(key)
     select_options = None
     if options is not None:
@@ -211,17 +218,12 @@ async def save_settings(payload: PanelSettingsSaveRequest, request: Request) -> 
                 except ValueError:
                     return ActionResponse(ok=False, error=f"مقدار «{key}» عددی نیست.")
 
-        glass_before = glass_mode_active(setting)
+        if "miniapp_mode" in updates:
+            updates["miniapp_only_mode"] = updates["miniapp_mode"] == "only"
         if setting is None:
             await manager.add_setting(**updates)
         else:
             await manager.update_setting(setting.id, **updates)
-
-        # The glassy look is baked into the stored button labels, so flipping the
-        # switch has to rewrite them; nothing else here has work to do after the save.
-        glass_after = bool(updates.get("glass_buttons_mode", glass_before))
-        if glass_after != glass_before:
-            await apply_glass_mode(glass_after)
 
         await audit.record(
             actor_id=actor.user_id,

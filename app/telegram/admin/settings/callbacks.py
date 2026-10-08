@@ -10,7 +10,6 @@ from app.db.crud.help_buttons import HelpButtonCRUD
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
-from app.services.keyboard_glass import apply_glass_mode
 from app.services.telegram.rich_message import edit_native_rich_message
 from app.telegram.admin.settings import keyboards, states, texts
 from app.telegram.keyboards.customization import (
@@ -22,10 +21,13 @@ from app.telegram.keyboards.help import (
     create_help_buttons_config_ui,
     create_help_reorder_ui,
 )
+from app.telegram.keyboards.home import stored_miniapp_mode
 from app.telegram.keyboards.registry import KEYBOARD_BUTTON_TITLES, STYLE_LABELS
 from app.telegram.keyboards.settings import (
+    MINIAPP_MODE_FLOW,
     create_buttons_settings,
     get_api_key_login_mode_text,
+    get_miniapp_mode_text,
     get_settings_menu_item,
     get_settings_menu_section,
     get_settings_menu_text,
@@ -57,17 +59,6 @@ async def _edit_settings_menu(event: events.CallbackQuery.Event, settings, secti
         logger.warning("settings menu rich edit failed, falling back: %s", rich_exc)
         buttons = await create_buttons_settings(settings, section_key=section_key)
         await event.edit(get_settings_menu_text(section_key), buttons=buttons)
-
-
-async def _after_settings_toggle(setting_name: str, enabled: bool, toast: str) -> str:
-    """Side effects a toggle needs beyond writing the flag, plus what to say about them."""
-    if setting_name == "glass_buttons_mode":
-        # The look lives in the stored button labels, so the switch rewrites them.
-        changed = await apply_glass_mode(enabled)
-        return f"{toast} ({changed} دکمه)"
-    if setting_name == "miniapp_only_mode" and enabled and not miniapp_ready():
-        return f"{toast}\n⚠️ تا وقتی WEBAPP_URL با https نباشد، منوی عادی سر جایش می‌ماند."
-    return toast
 
 
 def settings_callback_filter(event: events.CallbackQuery.Event) -> bool:
@@ -110,6 +101,14 @@ async def callback_settings_toggle(event: events.CallbackQuery.Event):
             new_mode = texts.API_KEY_LOGIN_MODE_FLOW.get(current_mode, "none")
             await SettingsManager().update_setting(settings.id, api_key_login_mode=new_mode)
             toast = f"🔑 ورود با کلید API: {get_api_key_login_mode_text(new_mode)}"
+        elif setting_name == "miniapp_mode":
+            new_mode = MINIAPP_MODE_FLOW.get(stored_miniapp_mode(settings), "off")
+            await SettingsManager().update_setting(
+                settings.id, miniapp_mode=new_mode, miniapp_only_mode=new_mode == "only"
+            )
+            toast = f"🚀 مینی‌اپ: {get_miniapp_mode_text(new_mode)}"
+            if new_mode != "off" and not miniapp_ready():
+                toast += "\n⚠️ تا وقتی WEBAPP_URL با https نباشد، مینی‌اپ نمایش داده نمی‌شود."
         else:
             item = get_settings_menu_item(setting_name)
             if item is None:
@@ -126,7 +125,6 @@ async def callback_settings_toggle(event: events.CallbackQuery.Event):
                     update_kwargs["manual_card_visibility"] = None
                 await SettingsManager().update_setting(settings.id, **update_kwargs)
                 toast = f"{item.label}: {'❌ غیرفعال شد' if current_value else '✅ فعال شد'}"
-                toast = await _after_settings_toggle(setting_name, not current_value, toast)
     except Exception as e:
         await event.answer(f"خطا در به‌روزرسانی تنظیمات: {e!s}", alert=True)
         return
