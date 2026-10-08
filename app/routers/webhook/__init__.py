@@ -3,6 +3,7 @@ Webhook router for handling Marzban events.
 """
 
 import asyncio
+import hmac
 import json
 import logging
 
@@ -18,6 +19,17 @@ logger = get_logger(__name__)
 
 webhook_router = APIRouter()
 webhook_router.include_router(tonpays_router)
+
+
+# Credentials that must never reach the logs, even at DEBUG level.
+_REDACTED_HEADERS = frozenset({"x-webhook-secret", "authorization", "cookie", "x-api-key"})
+
+
+def _is_valid_secret(received: str | None, expected: str | None) -> bool:
+    """Constant-time comparison so response timing does not leak the secret."""
+    if not received or not expected:
+        return False
+    return hmac.compare_digest(received.encode("utf-8"), expected.encode("utf-8"))
 
 
 def _log_background_webhook_failure(task: asyncio.Task) -> None:
@@ -39,7 +51,8 @@ async def handle_webhook(request: Request) -> WebhookResponse:
             logger.debug("📥 WEBHOOK REQUEST RECEIVED")
             logger.debug("\n📋 HEADERS:")
             for header_name, header_value in request.headers.items():
-                logger.debug("  %s: %s", header_name, header_value)
+                shown = "***" if header_name.lower() in _REDACTED_HEADERS else header_value
+                logger.debug("  %s: %s", header_name, shown)
 
         # Check webhook secret
         signature = request.headers.get("x-webhook-secret")
@@ -50,7 +63,7 @@ async def handle_webhook(request: Request) -> WebhookResponse:
         if debug:
             logger.debug("\n🔐 Received header secret (masked)")
 
-        if signature != get_webhook_secret():
+        if not _is_valid_secret(signature, get_webhook_secret()):
             logger.info("❌ ERROR: Invalid shared secret")
             raise HTTPException(status_code=403, detail="Invalid shared secret")
 
