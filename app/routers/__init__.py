@@ -13,6 +13,7 @@ from starlette.responses import Response
 from app.routers.webapp.state import verified_session_tokens, webapp_auth_headers
 from app.utils.security import maybe_renew_session_token
 from app.version import VERSIONS
+from config import API_DOCS_ENABLED
 
 from .panel import panel_router
 from .webapp import serve_webapp, webapp_router
@@ -22,9 +23,9 @@ from .webhook import webhook_router
 api_app = FastAPI(
     title="PasarguardBot API",
     version=VERSIONS.app,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    docs_url="/docs" if API_DOCS_ENABLED else None,
+    redoc_url="/redoc" if API_DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if API_DOCS_ENABLED else None,
 )
 
 

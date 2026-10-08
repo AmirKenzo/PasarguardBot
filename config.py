@@ -54,6 +54,8 @@ TON_TESTNET_MODE = config("TON_TESTNET_MODE", default=None)
 
 GITHUB_TOKEN = config("GITHUB_TOKEN", default="")
 
+API_DOCS_ENABLED = config("API_DOCS_ENABLED", cast=bool, default=False)
+
 # Enable or disable FastAPI based on port configuration
 ENABLE_FASTAPI = FAST_API_PORT is not None
 
