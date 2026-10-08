@@ -1,5 +1,6 @@
 """Balance top-up methods and deposit flows: manual card, crypto and Telegram Stars."""
 
+import asyncio
 import random
 from io import BytesIO
 
@@ -10,6 +11,7 @@ from app.db.crud.cards import ManualCardManager
 from app.db.crud.cryptopayments import CryptoPaymentsCRUD, add_order_crypto_payment, count_pending_orders
 from app.db.crud.log_channels import LogChannelManager
 from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
+from app.db.crud.receipt_hash import ReceiptHashCRUD, compute_receipt_phash
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD
@@ -44,6 +46,7 @@ from app.services.send_queue import enqueue
 from app.telegram.state import set_step
 from app.telegram.user.balance import states
 from app.telegram.user.balance.keyboards import transaction_review_buttons
+from app.telegram.user.balance.texts import DUPLICATE_RECEIPT_LOG_HEADER
 from app.telegram.user.payment import create_star_invoice_link
 from app.telegram.user.payment.helpers import STAR_USD_PRICE
 from app.utils.formatting.dates import Time_Date
@@ -179,6 +182,31 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
         return BalanceDepositManualResponse(ok=False, error=str(e))
 
 
+async def _log_duplicate_receipt(user_id: int, amount: int, content: bytes, filename: str | None) -> None:
+    """Report a reused receipt image to the manual-card log channel (no transaction is created)."""
+    target = await LogChannelManager().get_log_channel_destination(LogType.MANUAL_CARD.value)
+    if not target:
+        return
+    user_record = await UserCRUD().read_user(user_id)
+    lines = [f"{DUPLICATE_RECEIPT_LOG_HEADER}👤 **شناسه کاربر:** `{user_id}` #وب‌اپ"]
+    if user_record and getattr(user_record, "number", None):
+        lines.append(f"🔢 **شماره تلفن:** {user_record.number}")
+    lines.append(f"🛡️ **مبلغ وارد شده** `{int(amount):,}` تومان")
+    lines.append("❌ **وضعیت:** رسید تکراری (hash قبلاً ثبت شده)")
+    photo_buf = BytesIO(content)
+    photo_buf.name = filename or "receipt.jpg"
+    try:
+        await Kenzo.send_file(
+            target["chat_id"],
+            photo_buf,
+            caption="\n".join(lines),
+            force_document=False,
+            reply_to=target.get("topic_id"),
+        )
+    except Exception as e:
+        logger.warning("Failed to log duplicate webapp receipt user=%s: %s", user_id, e)
+
+
 @router.post("/webapp/balance/deposit/manual/receipt", response_model=BalanceDepositManualReceiptResponse)
 async def deposit_manual_receipt(
     amount: int = Form(...),
@@ -218,7 +246,17 @@ async def deposit_manual_receipt(
         if not content or len(content) > 10 * 1024 * 1024:
             return BalanceDepositManualReceiptResponse(ok=False, error="حجم تصویر حداکثر ۱۰ مگابایت باشد")
 
+        phash = await asyncio.to_thread(compute_receipt_phash, content)
+        if phash and await ReceiptHashCRUD().try_insert(phash, int(user_id)) is None:
+            await _log_duplicate_receipt(user_id, amount, content, file.filename)
+            return BalanceDepositManualReceiptResponse(
+                ok=True,
+                message="رسید ارسال شد و در انتظار تایید پشتیبانی است.",
+            )
+
         tx = await TransactionCRUD().create(user_id=user_id, amount=amount, method="manual")
+        if phash:
+            await ReceiptHashCRUD().update_transaction_id(phash, tx.id)
         rule_crud = ManualAutoApproveRuleCRUD()
         matched_rule = await rule_crud.schedule_for_transaction(tx)
         tx = await TransactionCRUD().get(tx.id) or tx
