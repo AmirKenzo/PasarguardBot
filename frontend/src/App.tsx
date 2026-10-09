@@ -33,8 +33,7 @@ const AdminTransactionsPage = lazy(() => import("./features/admin/TransactionsPa
 const AdminPaymentsPage = lazy(() => import("./features/admin/PaymentsPage"));
 const AdminPanelsPage = lazy(() => import("./features/admin/PanelsPage"));
 const AdminPlansPage = lazy(() => import("./features/admin/PlansPage"));
-const AdminResellersPage = lazy(() => import("./features/admin/ResellersPage"));
-const AdminResellerPlansPage = lazy(() => import("./features/admin/ResellerPlansPage"));
+const AdminResellerHubPage = lazy(() => import("./features/admin/resellers/ResellerHubPage"));
 const AdminDiscountsPage = lazy(() => import("./features/admin/DiscountsPage"));
 const AdminReferralPage = lazy(() => import("./features/admin/ReferralPage"));
 const AdminBroadcastPage = lazy(() => import("./features/admin/BroadcastPage"));
@@ -155,8 +154,9 @@ export default function App() {
           <Route path="payments" element={<AdminPaymentsPage />} />
           <Route path="panels" element={<AdminPanelsPage />} />
           <Route path="plans" element={<AdminPlansPage />} />
-          <Route path="resellers" element={<AdminResellersPage />} />
-          <Route path="reseller-plans" element={<AdminResellerPlansPage />} />
+          <Route path="resellers" element={<AdminResellerHubPage />} />
+          {/* Old bookmark: plans used to be a page of their own. */}
+          <Route path="reseller-plans" element={<Navigate to="/panel/resellers?tab=plans" replace />} />
           <Route path="discounts" element={<AdminDiscountsPage />} />
           <Route path="referral" element={<AdminReferralPage />} />
           <Route path="broadcast" element={<AdminBroadcastPage />} />

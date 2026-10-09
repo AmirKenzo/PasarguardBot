@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
+  Bot,
   Boxes,
   ChevronDown,
   CreditCard,
@@ -55,6 +56,8 @@ interface NavItem {
   /** Shown as an expandable list under this item, so a section can be reached
    *  in one click instead of landing on the page and picking a tab there. */
   children?: NavSubItem[];
+  /** Planned section: listed so admins know it is coming, but not clickable. */
+  soon?: boolean;
 }
 
 interface NavGroup {
@@ -85,8 +88,6 @@ const navGroups = (t: TFunction): NavGroup[] => [
     title: t("panel.shell.groupInfrastructure"),
     items: [
       { to: "/panel/panels", label: t("panel.common.panels"), icon: Server },
-      { to: "/panel/resellers", label: t("panel.common.resellers"), icon: Store },
-      { to: "/panel/reseller-plans", label: t("panel.common.resellerPlans"), icon: Tags },
       {
         to: "/panel/payments",
         label: t("panel.common.paymentGateways"),
@@ -97,6 +98,24 @@ const navGroups = (t: TFunction): NavGroup[] => [
           { to: "/panel/payments?section=tonpays", label: t("panel.payments.tabTonPays"), icon: Gem },
         ],
       },
+    ],
+  },
+  {
+    title: t("panel.shell.groupResellers"),
+    items: [
+      {
+        to: "/panel/resellers",
+        label: t("panel.resellerHub.navPanel"),
+        icon: Store,
+        children: [
+          { to: "/panel/resellers?tab=overview", label: t("panel.resellerHub.tabs.overview"), icon: LayoutDashboard },
+          { to: "/panel/resellers?tab=accounts", label: t("panel.resellerHub.tabs.accounts"), icon: Users },
+          { to: "/panel/resellers?tab=plans", label: t("panel.resellerHub.tabs.plans"), icon: Tags },
+          { to: "/panel/resellers?tab=billing", label: t("panel.resellerHub.tabs.billing"), icon: Receipt },
+          { to: "/panel/resellers?tab=settings", label: t("panel.resellerHub.tabs.settings"), icon: SlidersHorizontal },
+        ],
+      },
+      { to: "/panel/resellers/bot", label: t("panel.resellerHub.navBot"), icon: Bot, soon: true },
     ],
   },
   {
@@ -133,7 +152,6 @@ const navGroups = (t: TFunction): NavGroup[] => [
             label: t("panel.settings.serviceTools"),
             icon: Wrench,
           },
-          { to: "/panel/settings?section=reseller_settings", label: t("panel.common.reseller"), icon: Users },
           { to: "/panel/settings?section=pwa", label: t("panel.pwa.tab"), icon: Smartphone },
         ],
       },
@@ -155,11 +173,18 @@ function BrandMark({ size = "lg" }: { size?: "lg" | "base" }) {
   );
 }
 
+/** Which sub-item a bare section URL (no query) shows. */
+const FIRST_SUB_VALUE: Record<string, string> = { "/panel/resellers": "overview" };
+
 function subItemActive(location: ReturnType<typeof useLocation>, subTo: string): boolean {
   const [path, query = ""] = subTo.split("?");
   if (location.pathname !== path) return false;
-  const wantSection = new URLSearchParams(query).get("section");
-  return new URLSearchParams(location.search).get("section") === wantSection;
+  const wanted = new URLSearchParams(query);
+  const current = new URLSearchParams(location.search);
+  // Sub-items are keyed by ?section= (settings, payments) or ?tab= (resellers); the
+  // first entry also stands for the bare page, which opens on it by default.
+  const key = wanted.has("tab") ? "tab" : "section";
+  return (current.get(key) ?? FIRST_SUB_VALUE[path]) === wanted.get(key);
 }
 
 function NavList({
@@ -190,6 +215,20 @@ function NavList({
               const hasChildren = !!item.children?.length;
               const onSection = hasChildren && location.pathname === item.to;
               const isOpen = expanded[item.to] ?? onSection;
+
+              if (item.soon) {
+                return (
+                  <div
+                    key={item.to}
+                    aria-disabled="true"
+                    className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium text-muted/60"
+                  >
+                    <item.icon size={16} strokeWidth={1.8} />
+                    <span className="flex-1 truncate">{item.label}</span>
+                    <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px]">{t("panel.resellerHub.soon")}</span>
+                  </div>
+                );
+              }
 
               if (hasChildren) {
                 const active = onSection || isOpen;

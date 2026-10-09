@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, ErrorState, Input, SegmentedControl, Skeleton, Tabs } from "../../components/ui";
 import type { TabItem } from "../../components/ui";
@@ -10,7 +10,7 @@ import { IconPickerField, SectionCard, Toggle } from "./components";
 import { PwaSettingsSection } from "./PwaSettingsSection";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { CreditCard, ShoppingCart, SlidersHorizontal, Smartphone, Users, Wrench } from "lucide-react";
+import { CreditCard, ShoppingCart, SlidersHorizontal, Smartphone, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const PWA_TAB = "pwa";
@@ -24,7 +24,6 @@ const sectionTitles = (t: TFunction): Record<string, string> => ({
   payment_settings: t("panel.settings.paymentsAndWallet"),
   purchase_settings: t("panel.settings.buyAndRenew"),
   service_tools_settings: t("panel.settings.serviceTools"),
-  reseller_settings: t("panel.common.reseller"),
 });
 
 const sectionIcons: Record<string, LucideIcon> = {
@@ -32,7 +31,6 @@ const sectionIcons: Record<string, LucideIcon> = {
   payment_settings: CreditCard,
   purchase_settings: ShoppingCart,
   service_tools_settings: Wrench,
-  reseller_settings: Users,
   [PWA_TAB]: Smartphone,
 };
 
@@ -90,8 +88,6 @@ const labels = (t: TFunction): Record<string, string> => ({
   transfer_config_mode: t("panel.settings.transferConfig"),
   info_mode: t("panel.settings.serviceInfo"),
   del_service_mode: t("panel.common.deleteService"),
-  reseller_sale_mode: t("panel.settings.resellerSales"),
-  reseller_min_wallet_balance: t("panel.settings.resellerMinBalance"),
   api_key_login_mode: t("panel.settings.apiKeyLoginMode"),
 });
 
@@ -148,6 +144,10 @@ export default function AdminSettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.data, searchParams]);
 
+  // Reseller settings moved to the reseller section; keep old links working.
+  if (searchParams.get("section") === "reseller_settings") {
+    return <Navigate to="/panel/resellers?tab=settings" replace />;
+  }
   if (query.isError) {
     return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
   }

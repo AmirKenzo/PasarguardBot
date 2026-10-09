@@ -101,6 +101,8 @@ HIDDEN_FIELDS: frozenset[str] = frozenset(
     }
 )
 
+HIDDEN_SECTIONS: frozenset[str] = frozenset({"reseller_settings"})
+
 TEXT_FIELD_KEYS: frozenset[str] = frozenset(
     {
         "cart_num",
@@ -180,6 +182,7 @@ async def read_settings(payload: PanelRequest, request: Request) -> PanelSetting
                     ],
                 )
                 for section, defaults in SETTINGS_SECTION_DEFAULTS.items()
+                if section not in HIDDEN_SECTIONS
             ],
         )
 

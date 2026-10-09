@@ -1,7 +1,74 @@
 /** Mirrors app/models/panel/resellers.py */
 import type { PagedRequest, PageMeta, PanelAuthRequest, PanelEnvelope, PanelOption } from "./common";
 
-export const RESELLER_STATUSES = ["active", "suspended", "expired"] as const;
+export const RESELLER_STATUSES = ["active", "paused", "suspended", "usage_capped", "admin_paused", "expired"] as const;
+
+// --------------------------------------------------------------------------- //
+//  Overview                                                                     //
+// --------------------------------------------------------------------------- //
+
+/** `payg` is hourly/usage billing, `sales` is purchases, renewals and capacity. */
+export interface PanelResellerRevenue {
+  payg: number;
+  sales: number;
+  total: number;
+}
+
+export interface PanelResellerDayPoint {
+  ts: number;
+  payg: number;
+  sales: number;
+}
+
+export interface PanelResellerRunwayRow {
+  telegram_id: number;
+  balance: number;
+  burn_per_hour: number;
+  hours_left?: number | null;
+  accounts: string[];
+}
+
+export interface PanelResellerExpiringRow {
+  code: number;
+  telegram_id: number;
+  username: string;
+  status: string;
+  expiration_time: number;
+  /** When an expired account is deleted from the panel. */
+  purge_at?: number | null;
+}
+
+export interface PanelResellerEventRow {
+  id: number;
+  kind: string;
+  title: string;
+  account_code?: number | null;
+  telegram_id?: number | null;
+  actor_id?: number | null;
+  actor_role?: string | null;
+  data: Record<string, unknown>;
+  created_at: number;
+}
+
+export interface PanelResellerOverviewResponse extends PanelEnvelope {
+  sale_enabled: boolean;
+  total: number;
+  by_status: Record<string, number>;
+  by_mode: Record<string, number>;
+  burn_per_hour: number;
+  revenue_today: PanelResellerRevenue;
+  revenue_7d: PanelResellerRevenue;
+  revenue_30d: PanelResellerRevenue;
+  series: PanelResellerDayPoint[];
+  low_runway_hours: number;
+  at_risk: PanelResellerRunwayRow[];
+  expiring: PanelResellerExpiringRow[];
+  recent_events: PanelResellerEventRow[];
+}
+
+// --------------------------------------------------------------------------- //
+//  Accounts                                                                     //
+// --------------------------------------------------------------------------- //
 
 export interface PanelResellerRow {
   code: number;
@@ -9,8 +76,11 @@ export interface PanelResellerRow {
   username?: string | null;
   panel_code?: number | null;
   panel?: string | null;
+  panel_admin_id?: number | null;
+  plan_id?: number | null;
   pricing_mode: string;
   purchased_volume?: number | null;
+  data_limit?: number | null;
   usage_cap_bytes?: number | null;
   max_users?: number | null;
   createtime?: number | null;
@@ -20,22 +90,45 @@ export interface PanelResellerRow {
 
 export interface PanelResellersRequest extends PagedRequest {
   q?: string;
-  /** empty | active | suspended | expired */
   status?: string;
+  panel_code?: number | null;
+  pricing_mode?: string;
 }
 
 export interface PanelResellersResponse extends PanelEnvelope {
   resellers: PanelResellerRow[];
   panels: PanelOption[];
   statuses: string[];
+  pricing_modes: string[];
   meta: PageMeta;
 }
 
 export interface PanelResellerSnapshotRow {
   id: number;
+  account_code?: number | null;
+  username?: string | null;
+  telegram_id?: number | null;
+  /** hourly | usage */
+  kind: string;
   used_traffic: number;
   billed_amount: number;
+  billed_minutes?: number | null;
   snapshot_at?: number | null;
+}
+
+export interface PanelResellerLive {
+  used_traffic: number;
+  data_limit: number;
+  total_users: number;
+  admin_status: string;
+  login_url: string;
+}
+
+export interface PanelResellerPlanBrief {
+  id: number;
+  pricing_mode: string;
+  name?: string | null;
+  rate: number;
 }
 
 export interface PanelResellerDetailRequest extends PanelAuthRequest {
@@ -44,23 +137,126 @@ export interface PanelResellerDetailRequest extends PanelAuthRequest {
 
 export interface PanelResellerDetailResponse extends PanelEnvelope {
   reseller?: PanelResellerRow | null;
+  plan?: PanelResellerPlanBrief | null;
+  live?: PanelResellerLive | null;
+  live_error?: string | null;
+  balance?: number | null;
+  billed_total?: number | null;
+  runway_hours?: number | null;
+  grace_days_left?: number | null;
+  actions: string[];
+  renew_plans: PanelResellerPlanBrief[];
   snapshots: PanelResellerSnapshotRow[];
+  events: PanelResellerEventRow[];
   statuses: string[];
 }
 
-export interface PanelResellerUpdateRequest extends PanelAuthRequest {
+export interface PanelResellerCodeRequest extends PanelAuthRequest {
   code: number;
-  status?: string;
-  /** Null removes the cap. */
-  usage_cap_gb?: number | null;
-  max_users?: number;
-  /** Days added to the current expiry. */
-  extend_days?: number;
 }
 
-export interface PanelResellerDeleteRequest extends PanelAuthRequest {
+export type PanelResellerDeleteRequest = PanelResellerCodeRequest;
+
+export interface PanelResellerRenewRequest extends PanelAuthRequest {
   code: number;
+  plan_id: number;
 }
+
+export interface PanelResellerExtendRequest extends PanelAuthRequest {
+  code: number;
+  days: number;
+}
+
+export interface PanelResellerUsageCapRequest extends PanelAuthRequest {
+  code: number;
+  /** Null or 0 removes the cap. */
+  usage_cap_gb: number | null;
+}
+
+export interface PanelResellerMaxUsersRequest extends PanelAuthRequest {
+  code: number;
+  max_users: number;
+}
+
+export interface PanelResellerPasswordResponse extends PanelEnvelope {
+  message?: string | null;
+  password?: string | null;
+}
+
+// --------------------------------------------------------------------------- //
+//  Ledger and events                                                            //
+// --------------------------------------------------------------------------- //
+
+export interface PanelResellerLedgerRequest extends PagedRequest {
+  account_code?: number | null;
+  telegram_id?: number | null;
+  since?: number | null;
+  until?: number | null;
+}
+
+export interface PanelResellerLedgerResponse extends PanelEnvelope {
+  rows: PanelResellerSnapshotRow[];
+  total_billed: number;
+  meta: PageMeta;
+}
+
+export interface PanelResellerEventsRequest extends PagedRequest {
+  account_code?: number | null;
+  telegram_id?: number | null;
+  kinds?: string[];
+}
+
+export interface PanelResellerEventsResponse extends PanelEnvelope {
+  events: PanelResellerEventRow[];
+  kinds: string[];
+  meta: PageMeta;
+}
+
+// --------------------------------------------------------------------------- //
+//  Settings                                                                     //
+// --------------------------------------------------------------------------- //
+
+export interface PanelResellerGlobalSettings {
+  sale_mode: boolean;
+  min_wallet_balance: number;
+  grace_days: number;
+  low_balance_hours: number;
+  usage_debt: boolean;
+}
+
+export interface PanelResellerButtons {
+  credentials: boolean;
+  change_password: boolean;
+  toggle_status: boolean;
+  usage_report: boolean;
+  usage_cap: boolean;
+  buy_user_capacity: boolean;
+  delete: boolean;
+}
+
+export interface PanelResellerPanelSettings {
+  code: number;
+  name: string;
+  enable: boolean;
+  sale_enabled: boolean;
+  capacity_enabled: boolean;
+  capacity_price_per_user: number;
+  buttons: PanelResellerButtons;
+}
+
+export interface PanelResellerSettingsResponse extends PanelEnvelope {
+  settings: PanelResellerGlobalSettings;
+  panels: PanelResellerPanelSettings[];
+}
+
+export interface PanelResellerSettingsSaveRequest extends PanelAuthRequest {
+  settings?: PanelResellerGlobalSettings | null;
+  panels?: PanelResellerPanelSettings[] | null;
+}
+
+// --------------------------------------------------------------------------- //
+//  Plans                                                                        //
+// --------------------------------------------------------------------------- //
 
 export interface PanelResellerPlanRow {
   id: number;
@@ -72,6 +268,7 @@ export interface PanelResellerPlanRow {
   min_volume: number;
   max_volume: number;
   volume_step: number;
+  data_limit_gb: number;
   max_users: number;
   duration: number;
   role_id: number;
@@ -80,6 +277,7 @@ export interface PanelResellerPlanRow {
   display_button_text?: string | null;
   button_style?: string | null;
   button_icon?: number | null;
+  linked_accounts: number;
 }
 
 export interface PanelResellerPlansResponse extends PanelEnvelope {
@@ -98,6 +296,8 @@ export interface PanelResellerPlanSaveRequest extends PanelAuthRequest {
   min_volume?: number;
   max_volume?: number;
   volume_step?: number;
+  /** Null keeps the stored value; 0 is unlimited. */
+  data_limit_gb?: number | null;
   max_users?: number;
   duration?: number;
   role_id: number;
@@ -106,6 +306,8 @@ export interface PanelResellerPlanSaveRequest extends PanelAuthRequest {
   display_button_text?: string;
   button_style?: string;
   button_icon?: string;
+  /** Message linked pay-as-you-go resellers when the rate changes. */
+  notify_resellers?: boolean;
 }
 
 export interface PanelResellerPlanDeleteRequest extends PanelAuthRequest {
