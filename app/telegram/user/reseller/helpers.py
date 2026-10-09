@@ -2,24 +2,17 @@
 
 from __future__ import annotations
 
-import json
 import random
-import time
 from datetime import UTC, datetime
 
 import pytz
-from httpx import HTTPStatusError
-from pasarguard import AdminCreate
 from telethon.tl import functions, types
 
 from app import Kenzo
-from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.panels import PanelsManager
-from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_billing_snapshots import ResellerBillingSnapshotCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
-from app.db.crud.settings import SettingsManager
-from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
+from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.services.billing.direct_pay_flow import (
     build_insufficient_balance_message,
@@ -32,44 +25,35 @@ from app.services.billing.reseller_pricing import (
     calculate_purchase_price,
     format_reseller_plan_button_short,
     pricing_mode_label,
-    requires_wallet_for_purchase,
-    resolve_live_unit_price,
     validate_volume,
     volume_unit_label,
 )
-from app.services.panels.admins import (
-    activate_reseller_admin,
-    admin_username_exists,
-    build_admin_create_payload,
-    compute_reseller_data_limit,
-    compute_reseller_expiration,
-    create_reseller_admin,
-    generate_admin_password,
-    get_reseller_admin,
-    purge_reseller_admin,
-    remove_reseller_admin,
-    suspend_reseller_admin,
+from app.services.panels.settings import panel_reseller_sale_enabled
+from app.services.reseller.accounts import (
+    ADMIN_LOCKED_STATUS,
+    is_admin_locked,
+    load_account_live_info,
+    reveal_password,
 )
-from app.services.panels.settings import get_panel_login_url, panel_reseller_sale_enabled
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.purchase import (
+    ERR_DISCOUNT_UNAVAILABLE,
+    ERR_INSUFFICIENT_BALANCE,
+    ERR_INVALID_VOLUME,
+    ERR_USERNAME_EXISTS,
+    min_wallet_error,
+    purchase_reseller_account,
+)
 from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
 from app.services.telegram.rich_message import USAGE_HISTORY_PER_PAGE, prepare_rich_markdown
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.keyboards.panel_buttons import build_panel_display_button
 from app.telegram.state import clear_user, get_data, set_data, set_step
 from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
-from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
+from app.utils.formatting.dates import timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
-from app.utils.security.crypto import decrypt_data, encrypt_data
 from app.utils.text.bot_texts import get_bot_text
 
 logger = get_logger(__name__)
-
-ADMIN_LOCKED_STATUS = "admin_paused"
-
-
-def is_admin_locked(account) -> bool:
-    return account.status == ADMIN_LOCKED_STATUS
 
 
 async def get_reseller_text(key: str, default: str, user_id: int | None = None, **replacements: str) -> str:
@@ -227,9 +211,7 @@ def format_plan_button_text(plan) -> str:
     return format_reseller_plan_button_short(plan)
 
 
-async def build_initial_billing_state(plan, amount: int) -> dict:
-    now = Time_Date()["stamp"]
-    return {"started_at": now, "last_billed_at": now, "setup_fee": amount, "total_billed": 0}
+_ALERT_ERRORS = {ERR_INVALID_VOLUME, ERR_USERNAME_EXISTS, ERR_DISCOUNT_UNAVAILABLE, ERR_INSUFFICIENT_BALANCE}
 
 
 async def create_reseller_purchase_for_user(
@@ -254,143 +236,44 @@ async def create_reseller_purchase_for_user(
         username = await get_data(user_id, "reseller_username")
         volume_raw = await get_data(user_id, "reseller_volume")
 
-    plan = await ResellerPlanManager().get_plan(plan_id)
-    if not plan or not panel_code or not username:
-        msg = "خطا: اطلاعات خرید ناقص است."
-        if event is not None:
-            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
-        else:
-            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
-        return False, "missing_context"
-
-    volume = float(volume_raw) if volume_raw else None
-    if volume is not None:
-        ok, err = validate_volume(plan, volume)
-        if not ok:
-            if event is not None:
-                await event.answer(err, alert=True)
-            else:
-                await Kenzo.send_message(user_id, err)
-            return False, "invalid_volume"
-
-    panel = await PanelsManager().get_panel_by_code(code=int(panel_code))
-    if not panel:
-        msg = "پنل یافت نشد."
-        if event is not None:
-            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
-        else:
-            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
-        return False, "panel_not_found"
-
-    if await admin_username_exists(panel, username):
-        msg = "این نام کاربری ادمین در پنل وجود دارد."
-        if event is not None:
-            await event.answer(msg, alert=True)
-        else:
-            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
-        return False, "username_exists"
-
-    password = generate_admin_password(username=username)
-    data_limit = compute_reseller_data_limit(plan, volume)
-    admin_payload: AdminCreate = build_admin_create_payload(
-        plan,
+    outcome = await purchase_reseller_account(
+        user_id,
+        plan_id=plan_id,
+        panel_code=panel_code,
         username=username,
-        password=password,
-        telegram_id=user_id,
-        data_limit=data_limit,
-        max_users=plan.max_users,
+        volume=float(volume_raw) if volume_raw else None,
+        amount=amount,
+        discount_code=discount_code,
     )
-
-    if discount_code and not await DiscountCodeManager().claim_discount_use(discount_code, user_id):
-        msg = "ظرفیت استفاده از این کد تخفیف تمام شده است."
-        if event is not None:
-            await event.answer(msg, alert=True)
+    if not outcome.ok:
+        if event is not None and outcome.error in _ALERT_ERRORS:
+            await event.answer(outcome.message, alert=True)
+        elif event is not None:
+            await event.edit(outcome.message, buttons=await bhome_buttons(user_id, lang))
+        elif outcome.error == ERR_INVALID_VOLUME:
+            await Kenzo.send_message(user_id, outcome.message)
         else:
-            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
-        return False, "discount_unavailable"
+            await Kenzo.send_message(user_id, outcome.message, buttons=await bhome_buttons(user_id, lang))
+        return False, outcome.error
 
-    new_amount = await debit_Money_if_sufficient(user_id=user_id, amount=int(amount))
-    if new_amount is None:
-        if discount_code:
-            await DiscountCodeManager().release_discount_use(discount_code)
-        msg = "‼️ موجودی کیف پول شما کافی نیست."
-        if event is not None:
-            await event.answer(msg, alert=True)
-        else:
-            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
-        return False, "insufficient_balance"
-
-    start_time = time.time()
-    try:
-        created = await create_reseller_admin(panel, admin_payload)
-    except Exception as e:
-        await update_Money(user_id=user_id, Money=int(amount))
-        if discount_code:
-            await DiscountCodeManager().release_discount_use(discount_code)
-        if not isinstance(e, HTTPStatusError):
-            raise
-        logger.error("create_reseller_admin failed: %s", e.response.text)
-        msg = "خطا در ساخت ادمین پنل. لطفاً با پشتیبانی تماس بگیرید."
-        if event is not None:
-            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
-        else:
-            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
-        return False, "panel_create_failed"
-
-    account_code = await ResellerAccountCRUD().generate_unique_code()
-    expiration = compute_reseller_expiration(plan)
-    billing_state = await build_initial_billing_state(plan, amount)
-
-    created_ok, created_err = await ResellerAccountCRUD().create_account(
-        code=account_code,
-        telegram_id=user_id,
-        panel_code=int(panel_code),
-        panel_admin_id=getattr(created, "id", None),
-        username=username,
-        password_encrypted=encrypt_data(password),
-        plan_id=plan.id,
-        pricing_mode=plan.pricing_mode,
-        data_limit=data_limit or None,
-        max_users=plan.max_users or None,
-        purchased_volume=volume,
-        createtime=Time_Date()["stamp"],
-        expiration_time=expiration,
-        status="active",
-        billing_state=json.dumps(billing_state, ensure_ascii=False),
-    )
-    if not created_ok:
-        logger.error("reseller account insert failed user=%s username=%s: %s", user_id, username, created_err)
-        try:
-            await remove_reseller_admin(panel, username)
-        except Exception as exc:
-            logger.error("rollback remove admin failed username=%s: %s", username, exc)
-        await update_Money(user_id=user_id, Money=int(amount))
-        if discount_code:
-            await DiscountCodeManager().release_discount_use(discount_code)
-        msg = "خطا در ثبت نمایندگی. مبلغ به کیف پول برگشت؛ لطفاً دوباره تلاش کنید."
-        if event is not None:
-            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
-        else:
-            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
-        return False, "account_insert_failed"
-
-    panel_url = get_panel_login_url(panel)
+    plan = outcome.plan
+    volume = outcome.volume
     volume_text = ""
     if volume:
         volume_text = f"**📦 حجم:** {volume:g} {volume_unit_label(plan.pricing_mode)}\n"
     duration_text = f"**⏰ مدت:** {plan.duration} روز\n" if plan.duration else ""
     users_text = f"**👥 سقف یوزر:** {plan.max_users or 'نامحدود'}\n"
-    traffic_text = f"**📊 سقف ترافیک:** {format_size(data_limit)}\n" if data_limit else ""
+    traffic_text = f"**📊 سقف ترافیک:** {format_size(outcome.data_limit)}\n" if outcome.data_limit else ""
 
     success_text = (
         f"**🎉 نمایندگی پنل با موفقیت فعال شد!**\n\n"
-        f"**#️⃣ کد نمایندگی:** `{account_code}`\n"
-        f"**🌐 آدرس پنل:** `{panel_url}`\n"
+        f"**#️⃣ کد نمایندگی:** `{outcome.account_code}`\n"
+        f"**🌐 آدرس پنل:** `{outcome.panel_url}`\n"
         f"**👤 نام کاربری:** `{username}`\n"
-        f"**🔑 رمز عبور:** `{password}`\n\n"
+        f"**🔑 رمز عبور:** `{outcome.password}`\n\n"
         f"{volume_text}{duration_text}{users_text}{traffic_text}\n"
         f"💵 مبلغ `{int(amount):,}` تومان از موجودی کسر شد.\n"
-        f"💰 موجودی جدید: `{new_amount:,}` تومان\n\n"
+        f"💰 موجودی جدید: `{outcome.new_balance:,}` تومان\n\n"
         f"⚠️ رمز را در جای امن ذخیره کنید."
     )
 
@@ -399,27 +282,6 @@ async def create_reseller_purchase_for_user(
     await clear_user(user_id)
     await set_step(user_id, "home")
 
-    ok, account = await ResellerAccountCRUD().get_account(account_code)
-    extra = [
-        f"💸 <b>مبلغ:</b> <code>{int(amount):,}</code> تومان",
-        f"⏱ <b>زمان ساخت:</b> <code>{time.time() - start_time:.2f}</code> ثانیه",
-    ]
-    if discount_code:
-        extra.append(f"🎟 <b>کد تخفیف:</b> <code>{discount_code}</code>")
-    await send_reseller_log(
-        "📢 خرید نمایندگی جدید",
-        account=account if ok else None,
-        actor_id=user_id,
-        extra_lines=extra
-        if ok
-        else [
-            f"👤 <b>کاربر:</b> <code>{user_id}</code>",
-            f"🎫 <b>کد:</b> <code>{account_code}</code>",
-            f"🏢 <b>یوزر ادمین:</b> <code>{username}</code>",
-            f"📛 <b>پنل:</b> <code>{panel_code}</code>",
-            *extra,
-        ],
-    )
     if event is not None:
         await event.respond("✅", buttons=await bhome_buttons(user_id, lang))
         await event.respond(success_text)
@@ -450,17 +312,11 @@ async def _complete_reseller_purchase(event, *, amount: int, discount_code: str 
             await event.answer(err, alert=True)
             return
 
-    settings = await SettingsManager().get_settings()
-    if requires_wallet_for_purchase(plan) and settings:
-        user = await UserCRUD().read_user(user_id)
-        min_balance = int(settings.reseller_min_wallet_balance or 0)
-        if user and user.amount < min_balance:
-            await event.delete()
-            await event.respond(
-                f"برای نمایندگی {pricing_mode_label(plan.pricing_mode)} حداقل موجودی {min_balance:,} تومان لازم است.",
-                buttons=await create_balance_button(user_id),
-            )
-            return
+    wallet_error = await min_wallet_error(plan, user_id)
+    if wallet_error:
+        await event.delete()
+        await event.respond(wallet_error, buttons=await create_balance_button(user_id))
+        return
 
     is_sufficient, message = await check_user_balance(user_id, amount)
     if not is_sufficient:
@@ -494,42 +350,32 @@ def generate_reseller_username(prefix: str = "res") -> str:
 
 
 async def build_reseller_account_detail_text(account, *, show_password: bool = False) -> str:
-    panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    panel_name = panel.name if panel else str(account.panel_code)
-    login_url = get_panel_login_url(panel) if panel else "—"
-    plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
-
-    admin = await get_reseller_admin(panel, account.username) if panel else None
-    used = int(getattr(admin, "used_traffic", 0) or 0) if admin else 0
-    live_limit = (
-        int(getattr(admin, "data_limit", 0) or account.data_limit or 0) if admin else int(account.data_limit or 0)
-    )
-    total_users = int(getattr(admin, "total_users", 0) or 0) if admin else 0
-    admin_status = getattr(admin, "status", None) or account.status
+    info = await load_account_live_info(account)
+    used = info.used_traffic
+    live_limit = info.data_limit
+    total_users = info.total_users
+    live_rate = info.live_rate
 
     mode_label = pricing_mode_label(account.pricing_mode)
     status_fa = await reseller_status_label(account, account.telegram_id)
 
-    live_rate = resolve_live_unit_price(account, plan)
-
     lines = [
         f"**🏢 نمایندگی `{account.username}`**",
         f"**#️⃣ کد:** `{account.code}`",
-        f"**📛 پنل:** {panel_name}",
-        f"**🌐 آدرس ورود:** `{login_url}`",
+        f"**📛 پنل:** {info.panel_name}",
+        f"**🌐 آدرس ورود:** `{info.login_url}`",
         f"**👤 یوزر ادمین:** `{account.username}`",
     ]
 
     if show_password:
-        password = decrypt_data(account.password_encrypted)
-        lines.append(f"**🔑 رمز:** `{password}`")
+        lines.append(f"**🔑 رمز:** `{reveal_password(account)}`")
 
     lines.extend(
         [
             "",
             f"**📋 نوع پلن:** {mode_label}",
             f"**📊 وضعیت ربات:** {status_fa}",
-            f"**📡 وضعیت پنل:** `{admin_status}`",
+            f"**📡 وضعیت پنل:** `{info.admin_status}`",
         ]
     )
 
@@ -565,18 +411,12 @@ async def build_reseller_account_detail_text(account, *, show_password: bool = F
 
     if account.expiration_time:
         lines.append(f"**⏰ انقضا:** {timestamp_to_persian_expiry(account.expiration_time)}")
-        if account.status == "expired":
-            grace_left = max(0, account.expiration_time + 7 * 86400 - Time_Date()["stamp"])
-            days_left = max(1, grace_left // 86400) if grace_left else 0
-            lines.append(f"**🗑 حذف خودکار:** تا {days_left} روز دیگر")
+        if info.grace_days_left is not None:
+            lines.append(f"**🗑 حذف خودکار:** تا {info.grace_days_left} روز دیگر")
 
     if account.pricing_mode in ("hourly", "usage"):
-        state = ResellerAccountCRUD.load_billing_state(account.billing_state)
-        user = await UserCRUD().read_user(account.telegram_id)
-        balance = user.amount if user else 0
-        total_billed = int(state.get("total_billed") or 0)
-        _, snapshot_total = await ResellerBillingSnapshotCRUD().get_usage_totals(account.code)
-        billed_total = max(total_billed, snapshot_total)
+        balance = info.balance or 0
+        billed_total = info.billed_total or 0
         lines.append(f"**💳 موجودی کیف پول:** {balance:,} تومان")
         if account.pricing_mode == "usage":
             lines.append(f"**💸 مجموع کسر مصرفی:** {billed_total:,} تومان")
@@ -616,159 +456,6 @@ async def show_account_detail(event, account) -> None:
     text = await build_reseller_account_detail_text(account, show_password=False)
     buttons = await build_my_reseller_account_buttons(account)
     await event.edit(text, buttons=buttons)
-
-
-async def pause_reseller_account(account) -> tuple[bool, str]:
-    if is_admin_locked(account):
-        return False, "این نمایندگی توسط ادمین غیرفعال شده است."
-    if account.status == "paused":
-        return True, "پنل از قبل غیرفعال است."
-    if account.status == "expired":
-        return False, "نمایندگی منقضی شده است."
-    if account.status == USAGE_CAPPED_STATUS:
-        return False, "پنل به‌خاطر سقف مصرف غیرفعال است. ابتدا سقف را تغییر دهید."
-
-    panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    if not panel:
-        return False, "پنل یافت نشد."
-
-    try:
-        await suspend_reseller_admin(panel, account.username)
-    except Exception as exc:
-        logger.error("pause reseller failed code=%s: %s", account.code, exc)
-        return False, "خطا در غیرفعال‌سازی پنل."
-
-    await ResellerAccountCRUD().update_account(account.code, status="paused")
-    await send_reseller_log(
-        "⏸ غیرفعال‌سازی نمایندگی توسط کاربر",
-        account=account,
-        actor_id=account.telegram_id,
-    )
-    return True, "پنل غیرفعال شد. تا زمان فعال‌سازی مجدد، موجودی کسر نمی‌شود."
-
-
-async def pause_reseller_account_by_admin(account, *, actor_id: int | None = None) -> tuple[bool, str]:
-    if is_admin_locked(account):
-        return True, "پنل از قبل توسط ادمین غیرفعال است."
-    if account.status == "expired":
-        return False, "نمایندگی منقضی شده است."
-
-    panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    if not panel:
-        return False, "پنل یافت نشد."
-
-    try:
-        await suspend_reseller_admin(panel, account.username)
-    except Exception as exc:
-        logger.error("admin pause reseller failed code=%s: %s", account.code, exc)
-        return False, "خطا در غیرفعال‌سازی پنل."
-
-    await ResellerAccountCRUD().update_account(account.code, status=ADMIN_LOCKED_STATUS)
-    await send_reseller_log(
-        "⛔️ غیرفعال‌سازی نمایندگی توسط ادمین",
-        account=account,
-        actor_id=actor_id,
-        actor_role="ادمین",
-    )
-    return True, "نمایندگی توسط ادمین غیرفعال شد."
-
-
-async def resume_reseller_account(account) -> tuple[bool, str]:
-    if is_admin_locked(account):
-        return False, "فعال‌سازی این نمایندگی فقط توسط ادمین امکان‌پذیر است."
-    if account.status != "paused":
-        return False, "این نمایندگی در حالت غیرفعال نیست."
-
-    panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    if not panel:
-        return False, "پنل یافت نشد."
-
-    if account.pricing_mode in ("hourly", "usage"):
-        user = await UserCRUD().read_user(account.telegram_id)
-        plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
-        if account.pricing_mode == "usage" and user and user.amount < 1:
-            return False, "برای فعال‌سازی مجدد موجودی کیف پول کافی نیست."
-        if account.pricing_mode == "hourly":
-            rate = int(resolve_live_unit_price(account, plan))
-            if user and user.amount < max(1, rate // 60):
-                return False, "موجودی برای ادامه پلن ساعتی کافی نیست."
-
-    try:
-        await activate_reseller_admin(panel, account.username)
-    except Exception as exc:
-        logger.error("resume reseller failed code=%s: %s", account.code, exc)
-        return False, "خطا در فعال‌سازی پنل."
-
-    await ResellerAccountCRUD().reset_billing_clock(account.code, status="active")
-    await send_reseller_log(
-        "▶️ فعال‌سازی نمایندگی توسط کاربر",
-        account=account,
-        actor_id=account.telegram_id,
-    )
-    return True, "پنل دوباره فعال شد."
-
-
-async def resume_reseller_account_by_admin(account, *, actor_id: int | None = None) -> tuple[bool, str]:
-    if account.status not in ("paused", ADMIN_LOCKED_STATUS):
-        return False, "این نمایندگی در حالت غیرفعال نیست."
-
-    panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    if not panel:
-        return False, "پنل یافت نشد."
-
-    if account.status == "paused" and account.pricing_mode in ("hourly", "usage"):
-        user = await UserCRUD().read_user(account.telegram_id)
-        plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
-        if account.pricing_mode == "usage" and user and user.amount < 1:
-            return False, "موجودی کیف پول کاربر برای فعال‌سازی کافی نیست."
-        if account.pricing_mode == "hourly":
-            rate = int(resolve_live_unit_price(account, plan))
-            if user and user.amount < max(1, rate // 60):
-                return False, "موجودی کاربر برای ادامه پلن ساعتی کافی نیست."
-
-    try:
-        await activate_reseller_admin(panel, account.username)
-    except Exception as exc:
-        logger.error("admin resume reseller failed code=%s: %s", account.code, exc)
-        return False, "خطا در فعال‌سازی پنل."
-
-    await ResellerAccountCRUD().reset_billing_clock(account.code, status="active")
-    await send_reseller_log(
-        "▶️ فعال‌سازی نمایندگی توسط ادمین",
-        account=account,
-        actor_id=actor_id,
-        actor_role="ادمین",
-    )
-    return True, "نمایندگی توسط ادمین فعال شد."
-
-
-async def delete_reseller_account(
-    account,
-    *,
-    actor_id: int | None = None,
-    actor_role: str = "کاربر",
-) -> tuple[bool, str]:
-    panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    deleted_users = 0
-    admin_removed = False
-    if panel:
-        deleted_users, admin_removed = await purge_reseller_admin(panel, account)
-
-    await ResellerBillingSnapshotCRUD().delete_snapshots_for_account(account.code)
-    await ResellerAccountCRUD().delete_account(account.code)
-    await send_reseller_log(
-        "🗑 حذف نمایندگی",
-        account=account,
-        actor_id=actor_id or account.telegram_id,
-        actor_role=actor_role,
-        extra_lines=[
-            f"👥 <b>یوزر حذف‌شده:</b> <code>{deleted_users}</code>",
-            f"🧹 <b>ادمین از پنل:</b> <code>{'بله' if admin_removed else 'خیر'}</code>",
-        ],
-    )
-    if not admin_removed and panel:
-        return False, "حذف ادمین از پنل ناموفق بود. با پشتیبانی تماس بگیرید."
-    return True, f"نمایندگی `{account.username}` و {deleted_users} یوزر وابسته حذف شدند."
 
 
 async def build_usage_history_text(

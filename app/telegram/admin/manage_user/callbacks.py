@@ -18,6 +18,7 @@ from app.logger import LogType, get_logger
 from app.services.billing.renewal import require_panel_userid
 from app.services.billing.reseller_renewal import renew_reseller_account
 from app.services.panels.admins import get_reseller_admin, get_reseller_admin_user_count, reset_reseller_admin_password
+from app.services.reseller.accounts import delete_account, pause_account_by_admin, resume_account_by_admin
 from app.services.reseller.logging import send_reseller_log
 from app.services.reseller.usage_cap import set_reseller_usage_cap, usage_cap_menu_text
 from app.services.users.admin_profile import display_user_info_admin
@@ -42,13 +43,7 @@ from app.telegram.keyboards.services import create_inline_service_buttons
 from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.shared.utils.username import generate_unique_username
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
-from app.telegram.user.reseller.helpers import (
-    build_reseller_account_detail_text,
-    delete_reseller_account,
-    format_plan_button_text,
-    pause_reseller_account_by_admin,
-    resume_reseller_account_by_admin,
-)
+from app.telegram.user.reseller.helpers import build_reseller_account_detail_text, format_plan_button_text
 from app.telegram.user.services.helpers import build_service_info_message_text, edit_service_view
 from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
@@ -111,7 +106,7 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)
             return True
-        ok, msg = await pause_reseller_account_by_admin(account, actor_id=event.sender_id)
+        ok, msg = await pause_account_by_admin(account, actor_id=event.sender_id)
         await event.answer(msg, alert=True)
         if ok:
             ok, account = await ResellerAccountCRUD().get_account(account_code)
@@ -124,7 +119,7 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)
             return True
-        ok, msg = await resume_reseller_account_by_admin(account, actor_id=event.sender_id)
+        ok, msg = await resume_account_by_admin(account, actor_id=event.sender_id)
         await event.answer(msg, alert=True)
         if ok:
             ok, account = await ResellerAccountCRUD().get_account(account_code)
@@ -159,7 +154,7 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)
             return True
-        ok, msg = await delete_reseller_account(account, actor_id=event.sender_id, actor_role="ادمین")
+        ok, msg = await delete_account(account, actor_id=event.sender_id, actor_role="ادمین")
         await event.answer(msg, alert=True)
         if ok:
             accounts = await ResellerAccountCRUD().get_accounts_by_user(user_id)

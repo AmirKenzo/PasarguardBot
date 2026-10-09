@@ -27,12 +27,28 @@ from app.services.panels.admins import (
     admin_username_exists,
     get_reseller_admin,
     get_reseller_admin_user_count,
-    reset_reseller_admin_password,
 )
 from app.services.panels.settings import (
     panel_reseller_capacity_enabled,
     panel_reseller_capacity_settings,
     panel_reseller_sale_enabled,
+)
+from app.services.reseller.accounts import (
+    ACTION_BUY_CAPACITY,
+    ACTION_CHANGE_PASSWORD,
+    ACTION_CREDENTIALS,
+    ACTION_DELETE,
+    ACTION_PAUSE,
+    ACTION_RESUME,
+    ACTION_USAGE_CAP,
+    ACTION_USAGE_REPORT,
+    account_actions,
+    delete_account,
+    get_owned_account,
+    is_admin_locked,
+    pause_account,
+    reset_password,
+    resume_account,
 )
 from app.services.reseller.capacity import (
     CAPACITY_CUSTOM_MAX,
@@ -40,7 +56,6 @@ from app.services.reseller.capacity import (
     increase_reseller_capacity,
     validate_capacity_quantity,
 )
-from app.services.reseller.logging import send_reseller_log
 from app.services.reseller.usage_cap import parse_usage_cap_gb, set_reseller_usage_cap, usage_cap_menu_text
 from app.telegram.keyboards import reseller as rs_buttons
 from app.telegram.keyboards.home import bhome_buttons
@@ -54,14 +69,10 @@ from app.telegram.user.reseller.helpers import (
     build_reseller_account_detail_text,
     build_reseller_confirm_text,
     build_reseller_renew_confirm_text,
-    delete_reseller_account,
     generate_reseller_username,
     get_reseller_text,
-    is_admin_locked,
-    pause_reseller_account,
     reseller_flow_edit,
     resolve_reseller_purchase_amount,
-    resume_reseller_account,
     show_account_credentials,
     show_account_detail,
     show_reseller_panel_picker,
@@ -82,17 +93,24 @@ from app.telegram.user.reseller.keyboards import (
 )
 from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
 from app.telegram.user.start.helpers import fetch_welcome_text
-from app.utils.security.crypto import encrypt_data
 
 logger = get_logger(__name__)
 
 
 async def _get_owned_account(event, code: int):
-    ok, acc = await ResellerAccountCRUD().get_account(code)
-    if not ok or acc.telegram_id != event.sender_id:
+    acc = await get_owned_account(code, event.sender_id)
+    if acc is None:
         await event.answer("یافت نشد.", alert=True)
-        return None
     return acc
+
+
+async def _reject_unless_allowed(event, account, action: str) -> bool:
+    """Server-side guard matching the hidden button: a crafted callback can't bypass a disabled action."""
+    panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
+    if action in account_actions(account, panel):
+        return False
+    await event.answer("این عملیات برای این نمایندگی فعال نیست.", alert=True)
+    return True
 
 
 async def _reseller_sale_enabled() -> bool:
@@ -370,9 +388,9 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc:
             return
-        if await _reject_if_admin_locked(event, acc):
+        if await _reject_if_admin_locked(event, acc) or await _reject_unless_allowed(event, acc, ACTION_PAUSE):
             return
-        ok, msg = await pause_reseller_account(acc)
+        ok, msg = await pause_account(acc)
         await event.answer(msg, alert=True)
         if ok:
             ok, acc = await ResellerAccountCRUD().get_account(code)
@@ -385,9 +403,9 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc:
             return
-        if await _reject_if_admin_locked(event, acc):
+        if await _reject_if_admin_locked(event, acc) or await _reject_unless_allowed(event, acc, ACTION_RESUME):
             return
-        ok, msg = await resume_reseller_account(acc)
+        ok, msg = await resume_account(acc)
         await event.answer(msg, alert=True)
         if ok:
             ok, acc = await ResellerAccountCRUD().get_account(code)
@@ -407,6 +425,8 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         if acc.pricing_mode != "usage":
             await event.answer("این گزارش فقط برای پلن مصرفی است.", alert=True)
             return
+        if await _reject_unless_allowed(event, acc, ACTION_USAGE_REPORT):
+            return
         await show_usage_history(event, acc, page=page)
         return
 
@@ -419,6 +439,8 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             return
         if acc.pricing_mode != "usage":
             await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
+            return
+        if await _reject_unless_allowed(event, acc, ACTION_USAGE_CAP):
             return
         await delete_data(event.sender_id, "reseller_usage_cap_code")
         await set_step(event.sender_id, "home")
@@ -447,6 +469,8 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         if acc.pricing_mode != "usage":
             await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
             return
+        if await _reject_unless_allowed(event, acc, ACTION_USAGE_CAP):
+            return
         await set_data(event.sender_id, "reseller_usage_cap_code", str(code))
         await set_step(event.sender_id, "reseller_usage_cap_input")
         await event.edit(
@@ -469,6 +493,8 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         if acc.pricing_mode != "usage":
             await event.answer("سقف مصرف فقط برای پلن مصرفی است.", alert=True)
             return
+        if await _reject_unless_allowed(event, acc, ACTION_USAGE_CAP):
+            return
         ok, msg = await set_reseller_usage_cap(acc, gigabytes=None, actor_id=event.sender_id)
         await event.answer(msg, alert=True)
         if ok:
@@ -484,7 +510,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc:
             return
-        if await _reject_if_admin_locked(event, acc):
+        if await _reject_if_admin_locked(event, acc) or await _reject_unless_allowed(event, acc, ACTION_BUY_CAPACITY):
             return
         panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
         if not panel or not panel_reseller_capacity_enabled(panel):
@@ -498,7 +524,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc:
             return
-        if await _reject_if_admin_locked(event, acc):
+        if await _reject_if_admin_locked(event, acc) or await _reject_unless_allowed(event, acc, ACTION_BUY_CAPACITY):
             return
         panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
         if not panel or not panel_reseller_capacity_enabled(panel):
@@ -532,6 +558,8 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         quantity_raw = await get_data(user_id, "reseller_capacity_quantity")
         if not stored_code or int(stored_code) != code or not quantity_raw:
             await event.answer("نشست منقضی شده.", alert=True)
+            return
+        if await _reject_unless_allowed(event, acc, ACTION_BUY_CAPACITY):
             return
         panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
         if not panel or not panel_reseller_capacity_enabled(panel):
@@ -583,7 +611,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc:
             return
-        if await _reject_if_admin_locked(event, acc):
+        if await _reject_if_admin_locked(event, acc) or await _reject_unless_allowed(event, acc, ACTION_BUY_CAPACITY):
             return
         panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
         if not panel or not panel_reseller_capacity_enabled(panel):
@@ -608,7 +636,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
     if data.startswith("ResellerAccount_delete:") and not data.startswith("ResellerAccount_delete_confirm:"):
         code = int(data.split(":")[1])
         acc = await _get_owned_account(event, code)
-        if not acc:
+        if not acc or await _reject_unless_allowed(event, acc, ACTION_DELETE):
             return
         panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
         sub_users = 0
@@ -630,9 +658,9 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
     if data.startswith("ResellerAccount_delete_confirm:"):
         code = int(data.split(":")[1])
         acc = await _get_owned_account(event, code)
-        if not acc:
+        if not acc or await _reject_unless_allowed(event, acc, ACTION_DELETE):
             return
-        ok, msg = await delete_reseller_account(acc)
+        ok, msg = await delete_account(acc)
         await event.answer(msg, alert=True)
         if ok:
             accounts = await ResellerAccountCRUD().get_accounts_by_user(user_id)
@@ -655,7 +683,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc:
             return
-        if await _reject_if_admin_locked(event, acc):
+        if await _reject_if_admin_locked(event, acc) or await _reject_unless_allowed(event, acc, ACTION_CREDENTIALS):
             return
         await show_account_credentials(event, acc)
         return
@@ -665,7 +693,9 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc:
             return
-        if await _reject_if_admin_locked(event, acc):
+        if await _reject_if_admin_locked(event, acc) or await _reject_unless_allowed(
+            event, acc, ACTION_CHANGE_PASSWORD
+        ):
             return
         await event.edit(
             f"**⚠️ تغییر رمز `{acc.username}`**\n\nرمز فعلی پنل غیرفعال می‌شود و رمز جدید ساخته می‌شود.\nآیا مطمئن هستید؟",
@@ -678,28 +708,18 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc:
             return
-        if await _reject_if_admin_locked(event, acc):
+        if await _reject_if_admin_locked(event, acc) or await _reject_unless_allowed(
+            event, acc, ACTION_CHANGE_PASSWORD
+        ):
             return
-        panel = await PanelsManager().get_panel_by_code(code=acc.panel_code)
-        if not panel:
-            await event.answer("پنل یافت نشد.", alert=True)
+        ok, msg, _ = await reset_password(acc, actor_id=event.sender_id)
+        if not ok:
+            await event.answer(msg, alert=True)
             return
-        try:
-            new_password = await reset_reseller_admin_password(panel, acc.username)
-        except Exception as exc:
-            logger.error("password reset failed: %s", exc)
-            await event.answer("خطا در تغییر رمز.", alert=True)
-            return
-        await ResellerAccountCRUD().update_account(acc.code, password_encrypted=encrypt_data(new_password))
-        await send_reseller_log(
-            "🔑 تغییر رمز نمایندگی",
-            account=acc,
-            actor_id=event.sender_id,
-        )
         ok, acc = await ResellerAccountCRUD().get_account(code)
         if ok:
             await show_account_credentials(event, acc)
-        await event.answer("✅ رمز جدید اعمال شد.", alert=False)
+        await event.answer(msg, alert=False)
         return
 
     if data.startswith("ResellerAccount_status:"):
