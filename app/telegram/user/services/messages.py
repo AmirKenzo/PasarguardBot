@@ -14,9 +14,11 @@ from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import UserCRUD
 from app.logger import LogType, get_logger
+from app.services.billing.direct_pay_flow import invoice_shortfall_notice
 from app.services.billing.renewal import (
     require_panel_userid,
 )
+from app.telegram.keyboards.buy import buy_topup_button
 from app.telegram.keyboards.common import is_keyboard_config_step
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.guards.channel_gate import ensure_channel_membership
@@ -161,12 +163,17 @@ async def service_message_handler(event: Message):
             .replace("{original_price}", f"{int(plan.price):,}")
             .replace("{final_price}", f"{int(new_amount):,}")
         )
+        shortfall = await invoice_shortfall_notice(event.sender_id, int(new_amount), renew=True)
+        if shortfall:
+            confirm_text = f"{confirm_text}\n\n{shortfall}"
+        confirm_button = (
+            await buy_topup_button("Confirm_buy_tamdid")
+            if shortfall
+            else Button.inline("✅ تأیید خرید", data="Confirm_buy_tamdid")
+        )
         confirm_buttons = [
             [Button.inline("🎉 کد تخفیف اعمال شد", "none")],
-            [
-                Button.inline("🔙 بازگشت", data=f"service_info:{ConfigID}"),
-                Button.inline("✅ تأیید خرید", data="Confirm_buy_tamdid"),
-            ],
+            [Button.inline("🔙 بازگشت", data=f"service_info:{ConfigID}"), confirm_button],
         ]
         await event.respond(confirm_text, buttons=confirm_buttons, link_preview=False)
         await set_data(event.sender_id, "codetakhfif", res.code)

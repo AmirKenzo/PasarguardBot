@@ -16,6 +16,7 @@ from app.db.crud.keyboards import get_button_text
 from app.db.crud.panels import PanelsManager
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
+from app.services.billing.direct_pay_flow import invoice_shortfall_notice
 from app.services.panels.nodes import filter_nodes_by_plan_type
 from app.services.panels.settings import (
     calculate_custom_buy_price_from_settings,
@@ -298,9 +299,12 @@ async def buy_discount_code_handler(event: Message):
         .replace("{original_price}", f"{int(plan.price):,}")
         .replace("{new_price}", f"{int(new_amount):,}")
     )
+    shortfall = await invoice_shortfall_notice(event.sender_id, int(new_amount))
+    if shortfall:
+        confirm_text = f"{confirm_text}\n\n{shortfall}"
     confirm_buttons = [
         [Button.inline("🎉 کد تخفیف اعمال شد", "none")],
-        *(await build_buy_confirm_button_rows(confirm_data="Confirm_buy", with_discount=False)),
+        *(await build_buy_confirm_button_rows(confirm_data="Confirm_buy", with_discount=False, topup=bool(shortfall))),
     ]
     await event.respond(confirm_text, buttons=confirm_buttons, link_preview=False)
     await set_data(event.sender_id, "codetakhfif", res.code)

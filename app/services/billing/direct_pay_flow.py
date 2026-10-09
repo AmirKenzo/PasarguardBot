@@ -76,6 +76,20 @@ DIRECT_PAY_RENEW_TOPUP_INTRO_DEFAULT = (
 )
 
 
+INVOICE_SHORTFALL_DIRECT_DEFAULT = (
+    "👛 موجودی فعلی شما: ({balance} تومان)\n"
+    "📉 کسری موجودی: ({shortfall} تومان)\n"
+    "📌 با زدن «افزایش موجودی»، روش‌های پرداخت با همین مبلغ باز می‌شود و "
+    "پس از تایید پرداخت، سفارش شما خودکار انجام می‌شود."
+)
+
+INVOICE_SHORTFALL_DEFAULT = (
+    "👛 موجودی فعلی شما: ({balance} تومان)\n"
+    "📉 کسری موجودی: ({shortfall} تومان)\n"
+    "📌 ابتدا کیف پول را شارژ کنید، سپس دوباره همین مراحل را انجام دهید."
+)
+
+
 def fill_placeholders(template: str, **parts: object) -> str:
     """Replace {key} (and legacy {key:,}) with formatted values."""
     out = template
@@ -100,6 +114,29 @@ async def is_direct_pay_renew_enabled() -> bool:
     """Renew direct-pay toggle (VPN config renew only)."""
     settings = await SettingsManager().get_settings()
     return bool(settings and getattr(settings, "direct_pay_renew_mode", False))
+
+
+async def invoice_shortfall_notice(user_id: int, required_amount: int, *, renew: bool = False) -> str | None:
+    """Text to append to an invoice the wallet cannot cover, or None when it can.
+
+    Display only: the confirm handler still prices the order and checks the
+    balance itself, so a stale invoice can never buy anything.
+    """
+    user = await UserCRUD().read_user(user_id)
+    balance = int(user.amount or 0) if user else 0
+    required = int(required_amount)
+    shortfall = required - balance
+    if shortfall <= 0:
+        return None
+    lang = user.language if user and user.language else "fa"
+    direct = await is_direct_pay_renew_enabled() if renew else await is_direct_pay_enabled()
+    if direct:
+        template = await get_bot_text(
+            key="invoice_shortfall_direct_pay", default=INVOICE_SHORTFALL_DIRECT_DEFAULT, lang=lang
+        )
+    else:
+        template = await get_bot_text(key="invoice_shortfall", default=INVOICE_SHORTFALL_DEFAULT, lang=lang)
+    return fill_placeholders(template, required=required, balance=balance, shortfall=shortfall)
 
 
 async def mark_direct_pay_ready(

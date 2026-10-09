@@ -14,7 +14,7 @@ from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
-from app.services.billing.direct_pay_flow import create_balance_button
+from app.services.billing.direct_pay_flow import create_balance_button, invoice_shortfall_notice
 from app.services.billing.reseller_pricing import (
     calculate_purchase_price,
     pricing_mode_label,
@@ -133,10 +133,13 @@ async def _show_reseller_confirm(event):
         plan, username=username, volume=volume, amount=amount, discount_code=discount_code
     )
     show_discount = plan.pricing_mode == "fixed" and not discount_code
+    shortfall = await invoice_shortfall_notice(user_id, int(amount))
+    if shortfall:
+        text = f"{text}\n\n{shortfall}"
     await reseller_flow_edit(
         event,
         text,
-        buttons=await build_reseller_confirm_buttons(show_discount=show_discount),
+        buttons=await build_reseller_confirm_buttons(show_discount=show_discount, topup=bool(shortfall)),
     )
     await set_step(user_id, "reseller_confirm")
 

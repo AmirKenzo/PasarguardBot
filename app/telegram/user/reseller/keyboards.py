@@ -21,13 +21,13 @@ async def build_reseller_plan_buttons(plans) -> list:
     return rows
 
 
-async def build_reseller_confirm_buttons(*, show_discount: bool = False) -> list:
+async def build_reseller_confirm_buttons(*, show_discount: bool = False, topup: bool = False) -> list:
     rows = []
     if show_discount:
         rows.append([await rs_buttons.rs_buy_discount_button()])
     rows.extend(
         [
-            [await rs_buttons.rs_buy_confirm_button()],
+            [await rs_buttons.rs_buy_confirm_button(topup=topup)],
             [await rs_buttons.rs_buy_back_button("ResellerBuy_back_username")],
             [await rs_buttons.rs_buy_cancel_button()],
         ]

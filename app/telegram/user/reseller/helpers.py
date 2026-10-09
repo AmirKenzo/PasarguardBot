@@ -24,6 +24,8 @@ from app.logger import get_logger
 from app.services.billing.direct_pay_flow import (
     build_insufficient_balance_message,
     create_balance_button,
+    is_direct_pay_enabled,
+    start_direct_pay_topup,
 )
 from app.services.billing.direct_pay_store import KIND_RESELLER
 from app.services.billing.reseller_pricing import (
@@ -457,6 +459,8 @@ async def _complete_reseller_purchase(event, *, amount: int, discount_code: str 
                 product_label=getattr(plan, "name", None) or "پنل نمایندگی",
                 volume=volume_label,
             )
+            if await is_direct_pay_enabled() and await start_direct_pay_topup(event):
+                return
         await event.delete()
         await event.respond(message, buttons=await create_balance_button(user_id))
         return

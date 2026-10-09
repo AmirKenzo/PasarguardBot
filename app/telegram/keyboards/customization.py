@@ -211,6 +211,7 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                     await _keyboard_admin_button(keyboard_crud, "in.buy.confirm", 4),
                     await _keyboard_admin_button(keyboard_crud, "in.buy.discount", 4),
                 ],
+                [await _keyboard_admin_button(keyboard_crud, "in.buy.topup", 4)],
                 [
                     await _keyboard_admin_button(keyboard_crud, "in.buy.default_username", 4),
                     await _keyboard_admin_button(keyboard_crud, "in.buy.retry_username", 4),

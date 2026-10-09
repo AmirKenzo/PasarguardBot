@@ -23,6 +23,9 @@ from app.logger import LogType, get_logger
 from app.services.billing.direct_pay_flow import (
     build_insufficient_balance_message,
     create_balance_button,
+    invoice_shortfall_notice,
+    is_direct_pay_enabled,
+    start_direct_pay_topup,
 )
 from app.services.billing.direct_pay_store import KIND_VPN
 from app.services.billing.referral_rewards import process_referral_reward_payout
@@ -368,16 +371,24 @@ async def _confirm_buy_username(event, username: str, *, edit: bool) -> None:
         lang=lang,
     )
     sticky = await get_sticky_discount(event.sender_id)
+    new_price = discounted_price(plan.price, sticky.discount_percentage) if sticky else int(plan.price)
+    shortfall = await invoice_shortfall_notice(event.sender_id, new_price)
     if sticky:
-        new_price = discounted_price(plan.price, sticky.discount_percentage)
         confirm_text = (
             f"{confirm_text}\n\n"
             f"🎟 **تخفیف فعال:** `{sticky.code}` (`{sticky.discount_percentage}%`)\n"
             f"💸 **قیمت با تخفیف:** `{new_price:,}` تومان"
         )
+    if shortfall:
+        confirm_text = f"{confirm_text}\n\n{shortfall}"
+    if sticky:
         confirm_buttons = [
             [Button.inline("🎉 تخفیف فعال روی حساب شما", "none")],
-            *(await build_buy_confirm_button_rows(confirm_data="Confirm_buy", with_discount=False)),
+            *(
+                await build_buy_confirm_button_rows(
+                    confirm_data="Confirm_buy", with_discount=False, topup=bool(shortfall)
+                )
+            ),
         ]
         await set_data(event.sender_id, "codetakhfif", sticky.code)
         await set_data(event.sender_id, "codetakhfif_newprice", new_price)
@@ -385,6 +396,7 @@ async def _confirm_buy_username(event, username: str, *, edit: bool) -> None:
     else:
         confirm_buttons = await build_buy_confirm_button_rows(
             confirm_data=f"confirm_purchase_{panel.code}_{gig}",
+            topup=bool(shortfall),
         )
         await set_step(event.sender_id, "crconf")
     await set_data(event.sender_id, "username", username)
@@ -673,6 +685,7 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
         volume_text = convert_storage(
             float(gig), getattr(plan, "plan_type", None), getattr(plan, "data_limit_reset_strategy", None)
         )
+        snapshotted = False
         if not message:
             message = await build_insufficient_balance_message(
                 event.sender_id,
@@ -681,8 +694,11 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
                 product_label=getattr(plan, "name", None) or "کانفیگ VPN",
                 volume=volume_text,
             )
+            snapshotted = await is_direct_pay_enabled()
         await event.delete()
         await event.respond("💸", buttons=await bhome_buttons(event.sender_id, "fa"))
+        if snapshotted and await start_direct_pay_topup(event):
+            return
         await event.respond(message, buttons=await create_balance_button(event.sender_id))
         return
 

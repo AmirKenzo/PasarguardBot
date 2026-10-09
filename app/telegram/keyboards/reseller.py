@@ -10,6 +10,7 @@ _KEY_DISCOUNT = "in.buy.discount"
 _KEY_CANCEL = "in.buy.cancel"
 _KEY_BACK = "in.buy.back"
 _KEY_BUY_CONFIRM = "in.buy.confirm"
+_KEY_BUY_TOPUP = "in.buy.topup"
 _KEY_RENEW_CONFIRM = "in.ms.renew.confirm"
 _KEY_PAGE_PREV = "in.ms.sub_links.prev"
 _KEY_PAGE_NEXT = "in.ms.sub_links.next"
@@ -89,8 +90,8 @@ async def rs_buy_cancel_button():
     return await _rs_inline_button(_KEY_CANCEL, "ResellerBuy_cancel")
 
 
-async def rs_buy_confirm_button():
-    return await _rs_inline_button(_KEY_BUY_CONFIRM, "ResellerBuy_confirm")
+async def rs_buy_confirm_button(*, topup: bool = False):
+    return await _rs_inline_button(_KEY_BUY_TOPUP if topup else _KEY_BUY_CONFIRM, "ResellerBuy_confirm")
 
 
 async def rs_buy_discount_button():

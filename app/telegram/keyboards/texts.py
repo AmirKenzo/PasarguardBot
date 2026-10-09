@@ -171,6 +171,16 @@ TEXT_KEYS_CONFIG = {
     "balance": [
         {"key": "add_balance_intro", "title": "متن معرفی افزایش موجودی", "placeholders": {}},
         {
+            "key": "invoice_shortfall_direct_pay",
+            "title": "کسری موجودی روی فاکتور (پرداخت مستقیم)",
+            "placeholders": {"required": "مبلغ فاکتور", "balance": "موجودی فعلی", "shortfall": "کسری موجودی"},
+        },
+        {
+            "key": "invoice_shortfall",
+            "title": "کسری موجودی روی فاکتور (حالت عادی)",
+            "placeholders": {"required": "مبلغ فاکتور", "balance": "موجودی فعلی", "shortfall": "کسری موجودی"},
+        },
+        {
             "key": "insufficient_balance_message",
             "title": "پیام کمبود موجودی (حالت عادی)",
             "placeholders": {

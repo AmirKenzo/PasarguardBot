@@ -33,6 +33,16 @@ async def buy_confirm_button(data):
     return await _buy_inline_button("in.buy.confirm", data)
 
 
+async def buy_topup_button(data):
+    """Takes the confirm button's place when the wallet cannot cover the invoice.
+
+    It carries the confirm callback unchanged, so the price is still worked out
+    and the balance checked server-side by the confirm handler, which then opens
+    the top-up instead of buying.
+    """
+    return await _buy_inline_button("in.buy.topup", data)
+
+
 async def buy_discount_button(data):
     return await _buy_inline_button("in.buy.discount", data)
 
@@ -103,17 +113,14 @@ async def build_ms_renew_confirm_button_rows(
     confirm_data,
     back_data,
     discount_data="ApplyCodeTakhfifTamdid",
+    topup: bool = False,
 ) -> ReplyInlineMarkup:
-    """English docstring for build_ms_renew_confirm_button_rows."""
+    """Renew invoice buttons; ``topup`` swaps confirm for the add-balance button."""
+    confirm = await (buy_topup_button if topup else ms_renew_confirm_button)(confirm_data)
     return ReplyInlineMarkup(
         [
             KeyboardInlineButtonRow([await ms_renew_discount_button(discount_data)]),
-            KeyboardInlineButtonRow(
-                [
-                    await ms_renew_back_button(back_data),
-                    await ms_renew_confirm_button(confirm_data),
-                ]
-            ),
+            KeyboardInlineButtonRow([await ms_renew_back_button(back_data), confirm]),
         ]
     )
 
@@ -131,11 +138,13 @@ async def build_buy_confirm_button_rows(
     cancel_data="DataCancel",
     discount_data="ApplyCodeTakhfif",
     with_discount: bool = True,
+    topup: bool = False,
 ) -> list:
     rows = []
     if with_discount:
         rows.append([await buy_discount_button(discount_data)])
-    rows.append([await buy_cancel_button(cancel_data), await buy_confirm_button(confirm_data)])
+    confirm = await (buy_topup_button if topup else buy_confirm_button)(confirm_data)
+    rows.append([await buy_cancel_button(cancel_data), confirm])
     return rows
 
 

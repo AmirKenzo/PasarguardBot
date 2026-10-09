@@ -25,8 +25,10 @@ from app.logger import LogType, get_logger
 from app.services.billing.direct_pay_flow import (
     build_insufficient_balance_message,
     create_direct_pay_balance_button,
+    invoice_shortfall_notice,
     is_direct_pay_renew_enabled,
     mark_direct_pay_ready,
+    start_direct_pay_topup,
 )
 from app.services.billing.direct_pay_store import KIND_RENEW, cancel_pending_for_user
 from app.services.billing.renewal import (
@@ -453,10 +455,14 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
             .replace("{price}", f"{int(plan.price):,}")
         )
 
+        shortfall = await invoice_shortfall_notice(event.sender_id, int(plan.price), renew=True)
+        if shortfall:
+            confirm_text = f"{confirm_text}\n\n{shortfall}"
         _back_confirm = await _back_to_service(event.sender_id, str(ConfigID))
         confirm_buttons = await build_ms_renew_confirm_button_rows(
             confirm_data=f"confirm_purchase_tamdid_{plan.id}",
             back_data=_back_confirm,
+            topup=bool(shortfall),
         )
 
         try:
@@ -526,7 +532,8 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     volume=volume_text,
                     renew=True,
                 )
-                await event.edit(message, buttons=await create_direct_pay_balance_button(event.sender_id))
+                if not await start_direct_pay_topup(event):
+                    await event.edit(message, buttons=await create_direct_pay_balance_button(event.sender_id))
             else:
                 await event.edit(message, buttons=await create_balance_button(event.sender_id))
         else:
@@ -691,7 +698,8 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     volume=volume_text,
                     renew=True,
                 )
-                await event.edit(message, buttons=await create_direct_pay_balance_button(event.sender_id))
+                if not await start_direct_pay_topup(event):
+                    await event.edit(message, buttons=await create_direct_pay_balance_button(event.sender_id))
             else:
                 await event.edit(message, buttons=await create_balance_button(event.sender_id))
 

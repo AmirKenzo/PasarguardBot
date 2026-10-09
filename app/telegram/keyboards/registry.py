@@ -55,6 +55,7 @@ KEYBOARD_BUTTON_TITLES = {
     "in.buy.cancel": "انصراف (خرید)",
     "in.buy.back": "بازگشت (خرید)",
     "in.buy.confirm": "تأیید خرید",
+    "in.buy.topup": "افزایش موجودی (فاکتور با موجودی ناکافی)",
     "in.buy.discount": "اعمال کد تخفیف",
     "in.buy.default_username": "اسم پیشفرض ربات",
     "in.buy.retry_username": "تغییر مجدد نام کانفیگ",
@@ -132,6 +133,7 @@ KEYBOARD_BUTTON_DEFAULTS = {
     "in.buy.cancel": "❌ انصراف",
     "in.buy.back": "🔙 بازگشت",
     "in.buy.confirm": "✅ تأیید خرید",
+    "in.buy.topup": "💰 افزایش موجودی",
     "in.buy.discount": "🎉 اعمال کد تخفیف",
     "in.buy.default_username": "🎲 اسم پیشفرض ربات",
     "in.buy.retry_username": "🔄 تغییر مجدد نام کانفیگ",
@@ -155,6 +157,7 @@ KEYBOARD_BUTTON_DEFAULTS = {
 
 
 KEYBOARD_BUTTON_DEFAULT_STYLES = {
+    "in.buy.topup": ("success", None),
     "bt.menu_miniapp": ("primary", None),
     "bt.menu_miniapp_open": ("primary", None),
     "bt.menu_my_services": ("primary", 5895443668663275064),
