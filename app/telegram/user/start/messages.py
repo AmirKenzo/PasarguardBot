@@ -11,6 +11,12 @@ from app import Kenzo
 from app.db.crud.user import UserCRUD, add_user, clear_reactivatable_status
 from app.logger import LogType, get_logger
 from app.services.billing.referral import parse_referral_start_param
+from app.services.billing.referral_rewards import (
+    REWARD_MODE_PERCENT,
+    SIDE_BONUS,
+    describe_referral_bonus,
+    referral_side_mode,
+)
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.guards.channel_gate import (
     build_channel_join_buttons,
@@ -78,7 +84,16 @@ async def start_command_handler(event: Message):
 
                 referral_manager = ReferralManager()
                 settings = await referral_manager.get_referral_settings()
-                bonus_amount = settings.referral_bonus_amount if settings else 40000
+                bonus = describe_referral_bonus(settings) if settings else ""
+                has_bonus = bool(settings) and (
+                    referral_side_mode(settings, SIDE_BONUS) == REWARD_MODE_PERCENT
+                    or int(settings.referral_bonus_amount or 0) > 0
+                )
+                bonus_line = (
+                    f"🎁 بعد از اولین خرید شما، {bonus} به عنوان هدیه به کیف پول شما واریز خواهد شد!\n\n"
+                    if has_bonus
+                    else ""
+                )
 
                 not_joined_channels = await get_not_joined_channels(event.sender_id)
 
@@ -87,7 +102,7 @@ async def start_command_handler(event: Message):
                         entity=event.sender_id,
                         message=(
                             f"🎉 خوش آمدید! شما از طریق دعوت یکی از کاربران ما وارد شده‌اید.\n\n"
-                            f"🎁 بعد از اولین خرید شما، مبلغ {bonus_amount:,} تومان به عنوان پاداش به حساب شما واریز خواهد شد!\n\n"
+                            f"{bonus_line}"
                             f"برای استفاده از ربات باید در کانال‌های زیر عضو شوید:\n"
                             f"<blockquote expandable>{Time_Date()['mf']}</blockquote>"
                         ),
@@ -98,11 +113,7 @@ async def start_command_handler(event: Message):
                     wlc = await helpers.fetch_welcome_text()
                     await Kenzo.send_message(
                         entity=event.sender_id,
-                        message=(
-                            f"🎉 خوش آمدید! شما از طریق دعوت یکی از کاربران ما وارد شده‌اید.\n\n"
-                            f"🎁 بعد از اولین خرید شما، مبلغ {bonus_amount:,} تومان به عنوان پاداش به حساب شما واریز خواهد شد!\n\n"
-                            f"{wlc}"
-                        ),
+                        message=(f"🎉 خوش آمدید! شما از طریق دعوت یکی از کاربران ما وارد شده‌اید.\n\n{bonus_line}{wlc}"),
                         buttons=await bhome_buttons(event.sender_id, lang),
                     )
 
@@ -119,7 +130,7 @@ async def start_command_handler(event: Message):
                     f"✅ **عضویت موفق در referral**\n\n"
                     f"👤 آیدی کاربر جدید: `{event.sender_id}`\n"
                     f"👥 آیدی referrer: `{referrer_id}`\n"
-                    f"🎁 مبلغ پاداش: `{bonus_amount:,}` تومان\n"
+                    f"🎁 هدیهٔ دعوت شده: {bonus or '—'}\n"
                     f"⏰ زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
                 await send_log_message(LogType.OTHER, message=log_message)
