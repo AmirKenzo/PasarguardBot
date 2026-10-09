@@ -95,6 +95,9 @@ DEFAULT_SERVICE_TOOLS_SETTINGS: dict[str, Any] = {
 DEFAULT_RESELLER_SETTINGS: dict[str, Any] = {
     "reseller_sale_mode": False,
     "reseller_min_wallet_balance": 100000,
+    "reseller_grace_days": 7,
+    "reseller_low_balance_hours": 6,
+    "reseller_usage_debt": True,
 }
 
 SETTINGS_SECTION_DEFAULTS: dict[str, dict[str, Any]] = {

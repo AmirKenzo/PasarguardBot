@@ -19,7 +19,7 @@ from app.services.billing.renewal import require_panel_userid
 from app.services.billing.reseller_renewal import renew_reseller_account
 from app.services.panels.admins import get_reseller_admin, get_reseller_admin_user_count, reset_reseller_admin_password
 from app.services.reseller.accounts import delete_account, pause_account_by_admin, resume_account_by_admin
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.logging import EVENT_PASSWORD, send_reseller_log
 from app.services.reseller.usage_cap import set_reseller_usage_cap, usage_cap_menu_text
 from app.services.users.admin_profile import display_user_info_admin
 from app.telegram.admin.manage_user import states
@@ -205,6 +205,7 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
             account=account,
             actor_id=event.sender_id,
             actor_role="ادمین",
+            event=EVENT_PASSWORD,
         )
         ok, account = await ResellerAccountCRUD().get_account(account_code)
         if ok:

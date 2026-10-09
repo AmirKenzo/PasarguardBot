@@ -33,6 +33,7 @@ async def _run_hourly(monkeypatch, *, rate: int, minutes: int, carry: float = 0.
     )
     patches: list[dict] = []
     debits: list[int] = []
+    ledger: list[tuple[int, int]] = []
 
     async def fake_patch(self, code, *, updates=None, remove=(), **columns):
         patches.append(dict(updates or {}))
@@ -42,31 +43,35 @@ async def _run_hourly(monkeypatch, *, rate: int, minutes: int, carry: float = 0.
         debits.append(amount)
         return 100 if balance_ok else None
 
-    async def fake_log(*args, **kwargs):
-        return None
+    async def fake_ledger(self, account_code, amount, minutes, charged_at):
+        ledger.append((amount, minutes))
+        return True
 
     monkeypatch.setattr(billing.ResellerAccountCRUD, "patch_billing_state", fake_patch)
     monkeypatch.setattr(billing, "debit_Money_if_sufficient", fake_debit)
-    monkeypatch.setattr(billing, "send_reseller_log", fake_log)
+    monkeypatch.setattr(billing.ResellerBillingSnapshotCRUD, "add_hourly_charge", fake_ledger)
     monkeypatch.setattr(billing, "resolve_live_unit_price", lambda account, plan: rate)
 
     await billing._process_hourly_account(account, None, now, plan=SimpleNamespace())
-    return patches, debits
+    return patches, debits, ledger
 
 
 async def test_cheap_hourly_plan_is_not_overcharged(monkeypatch):
     # 20 T/h for one minute is 0.33 T: nothing is debited, the remainder is carried.
-    patches, debits = await _run_hourly(monkeypatch, rate=20, minutes=1)
+    patches, debits, ledger = await _run_hourly(monkeypatch, rate=20, minutes=1)
     assert debits == []
+    assert ledger == []
     assert patches[-1]["hourly_carry"] == round(20 / 60, 6)
 
 
 async def test_carry_is_billed_once_it_reaches_a_toman(monkeypatch):
-    patches, debits = await _run_hourly(monkeypatch, rate=20, minutes=1, carry=0.7)
+    patches, debits, _ = await _run_hourly(monkeypatch, rate=20, minutes=1, carry=0.7)
     assert debits == [1]
     assert 0 <= patches[-1]["hourly_carry"] < 1
 
 
 async def test_full_hour_charges_exact_rate(monkeypatch):
-    _, debits = await _run_hourly(monkeypatch, rate=1000, minutes=60)
+    _, debits, ledger = await _run_hourly(monkeypatch, rate=1000, minutes=60)
     assert debits == [1000]
+    # The charge lands in the hourly ledger instead of a log-channel message.
+    assert ledger == [(1000, 60)]

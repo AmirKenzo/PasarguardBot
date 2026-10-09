@@ -9,7 +9,7 @@ from app.db.crud.user import debit_Money_if_sufficient, update_Money
 from app.logger import get_logger
 from app.services.panels.admins import get_reseller_admin, modify_reseller_admin
 from app.services.panels.settings import is_reseller_capacity_ready, panel_reseller_capacity_settings
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.logging import EVENT_CAPACITY, send_reseller_log
 
 log = get_logger(__name__)
 
@@ -112,6 +112,8 @@ async def increase_reseller_capacity(
             f"📉 <b>User Limit قبل:</b> <code>{limit_before}</code>",
             f"📈 <b>User Limit بعد:</b> <code>{limit_after}</code>",
         ],
+        event=EVENT_CAPACITY,
+        data={"amount": total_amount, "quantity": quantity, "limit_before": limit_before, "limit_after": limit_after},
     )
 
     success = (

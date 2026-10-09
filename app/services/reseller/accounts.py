@@ -13,8 +13,8 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_billing_snapshots import ResellerBillingSnapshotCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
+from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
-from app.jobs.reseller.billing import GRACE_DELETE_SECONDS
 from app.logger import get_logger
 from app.services.billing.reseller_pricing import resolve_live_unit_price
 from app.services.panels.admins import (
@@ -28,7 +28,15 @@ from app.services.panels.settings import (
     panel_reseller_button_enabled,
     panel_reseller_capacity_enabled,
 )
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.logging import (
+    EVENT_ADMIN_PAUSE,
+    EVENT_ADMIN_RESUME,
+    EVENT_DELETE,
+    EVENT_PASSWORD,
+    EVENT_PAUSE,
+    EVENT_RESUME,
+    send_reseller_log,
+)
 from app.services.reseller.panel_sync import purge_reseller_from_panel
 from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
 from app.utils.formatting.dates import Time_Date
@@ -49,6 +57,12 @@ ACTION_USAGE_REPORT = "usage_report"
 ACTION_USAGE_CAP = "usage_cap"
 ACTION_BUY_CAPACITY = "buy_user_capacity"
 ACTION_DELETE = "delete"
+
+
+def grace_seconds(settings) -> int:
+    """How long an expired reseller keeps its panel admin before it is purged."""
+    days = int(getattr(settings, "reseller_grace_days", 7) or 7) if settings else 7
+    return max(1, days) * 86400
 
 
 def is_admin_locked(account) -> bool:
@@ -123,7 +137,8 @@ async def load_account_live_info(account) -> AccountLiveInfo:
 
     grace_days_left = None
     if account.expiration_time and account.status == "expired":
-        grace_left = max(0, account.expiration_time + GRACE_DELETE_SECONDS - Time_Date()["stamp"])
+        grace = grace_seconds(await SettingsManager().get_settings())
+        grace_left = max(0, account.expiration_time + grace - Time_Date()["stamp"])
         grace_days_left = max(1, grace_left // 86400) if grace_left else 0
 
     balance = billed_total = None
@@ -165,7 +180,7 @@ async def reset_password(account, *, actor_id: int | None = None) -> tuple[bool,
         log.error("password reset failed code=%s: %s", account.code, exc)
         return False, "خطا در تغییر رمز.", None
     await ResellerAccountCRUD().update_account(account.code, password_encrypted=encrypt_data(new_password))
-    await send_reseller_log("🔑 تغییر رمز نمایندگی", account=account, actor_id=actor_id)
+    await send_reseller_log("🔑 تغییر رمز نمایندگی", account=account, actor_id=actor_id, event=EVENT_PASSWORD)
     return True, "✅ رمز جدید اعمال شد.", new_password
 
 
@@ -214,7 +229,9 @@ async def pause_account(account) -> tuple[bool, str]:
         return False, "خطا در غیرفعال‌سازی پنل."
 
     await ResellerAccountCRUD().update_account(account.code, status="paused")
-    await send_reseller_log("⏸ غیرفعال‌سازی نمایندگی توسط کاربر", account=account, actor_id=account.telegram_id)
+    await send_reseller_log(
+        "⏸ غیرفعال‌سازی نمایندگی توسط کاربر", account=account, actor_id=account.telegram_id, event=EVENT_PAUSE
+    )
     return True, "پنل غیرفعال شد. تا زمان فعال‌سازی مجدد، موجودی کسر نمی‌شود."
 
 
@@ -235,7 +252,11 @@ async def pause_account_by_admin(account, *, actor_id: int | None = None) -> tup
 
     await ResellerAccountCRUD().update_account(account.code, status=ADMIN_LOCKED_STATUS)
     await send_reseller_log(
-        "⛔️ غیرفعال‌سازی نمایندگی توسط ادمین", account=account, actor_id=actor_id, actor_role="ادمین"
+        "⛔️ غیرفعال‌سازی نمایندگی توسط ادمین",
+        account=account,
+        actor_id=actor_id,
+        actor_role="ادمین",
+        event=EVENT_ADMIN_PAUSE,
     )
     return True, "نمایندگی توسط ادمین غیرفعال شد."
 
@@ -259,7 +280,9 @@ async def resume_account(account) -> tuple[bool, str]:
         return False, "خطا در فعال‌سازی پنل."
 
     await ResellerAccountCRUD().reset_billing_clock(account.code, status="active")
-    await send_reseller_log("▶️ فعال‌سازی نمایندگی توسط کاربر", account=account, actor_id=account.telegram_id)
+    await send_reseller_log(
+        "▶️ فعال‌سازی نمایندگی توسط کاربر", account=account, actor_id=account.telegram_id, event=EVENT_RESUME
+    )
     return True, "پنل دوباره فعال شد."
 
 
@@ -281,12 +304,20 @@ async def resume_account_by_admin(account, *, actor_id: int | None = None) -> tu
         return False, "خطا در فعال‌سازی پنل."
 
     await ResellerAccountCRUD().reset_billing_clock(account.code, status="active")
-    await send_reseller_log("▶️ فعال‌سازی نمایندگی توسط ادمین", account=account, actor_id=actor_id, actor_role="ادمین")
+    await send_reseller_log(
+        "▶️ فعال‌سازی نمایندگی توسط ادمین",
+        account=account,
+        actor_id=actor_id,
+        actor_role="ادمین",
+        event=EVENT_ADMIN_RESUME,
+    )
     return True, "نمایندگی توسط ادمین فعال شد."
 
 
 async def delete_account(account, *, actor_id: int | None = None, actor_role: str = "کاربر") -> tuple[bool, str]:
-    deleted_users, admin_removed = await purge_reseller_from_panel(account)
+    deleted_users, safe_to_drop = await purge_reseller_from_panel(account)
+    if not safe_to_drop:
+        return False, "حذف ادمین از پنل ناموفق بود. با پشتیبانی تماس بگیرید."
     await ResellerAccountCRUD().delete_account(account.code)
     await send_reseller_log(
         "🗑 حذف نمایندگی",
@@ -295,10 +326,8 @@ async def delete_account(account, *, actor_id: int | None = None, actor_role: st
         actor_role=actor_role,
         extra_lines=[
             f"👥 <b>یوزر حذف‌شده:</b> <code>{deleted_users}</code>",
-            f"🧹 <b>ادمین از پنل:</b> <code>{'بله' if admin_removed else 'خیر'}</code>",
         ],
+        event=EVENT_DELETE,
+        data={"deleted_users": deleted_users},
     )
-    panel_missing = not await PanelsManager().get_panel_by_code(code=account.panel_code)
-    if not admin_removed and not panel_missing:
-        return False, "حذف ادمین از پنل ناموفق بود. با پشتیبانی تماس بگیرید."
     return True, f"نمایندگی `{account.username}` و {deleted_users} یوزر وابسته حذف شدند."

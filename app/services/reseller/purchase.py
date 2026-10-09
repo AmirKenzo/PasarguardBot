@@ -29,7 +29,7 @@ from app.services.panels.admins import (
     remove_reseller_admin,
 )
 from app.services.panels.settings import get_panel_login_url
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.logging import EVENT_PURCHASE, send_reseller_log
 from app.utils.formatting.dates import Time_Date
 from app.utils.security.crypto import encrypt_data
 
@@ -181,6 +181,15 @@ async def purchase_reseller_account(
         "📢 خرید نمایندگی جدید",
         account=account if ok else None,
         actor_id=user_id,
+        event=EVENT_PURCHASE,
+        telegram_id=user_id,
+        data={
+            "amount": int(amount),
+            "plan_id": plan.id,
+            "pricing_mode": plan.pricing_mode,
+            "volume": volume,
+            "discount_code": discount_code,
+        },
         extra_lines=extra
         if ok
         else [

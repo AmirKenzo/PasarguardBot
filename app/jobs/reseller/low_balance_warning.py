@@ -1,7 +1,8 @@
 """Proactive low-balance warning for pay-as-you-go (hourly/usage) reseller accounts.
 
 Runs ahead of the billing job's reactive suspend in ``billing.py`` — this only
-notifies, it never charges or suspends. Warned state persists in each account's
+notifies, it never charges or suspends. A user is warned when the wallet covers fewer
+hours than ``reseller_low_balance_hours`` at the current spending rate. Warned state persists in each account's
 ``billing_state`` JSON (mirrors ``last_billed_at``/``total_billed`` there) so we
 don't need a schema migration for a single boolean flag.
 """
@@ -13,12 +14,11 @@ from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
 from app.logger import LogTag, get_logger
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.logging import EVENT_LOW_BALANCE, send_reseller_log
+from app.services.reseller.runway import estimate_runway, format_runway
 
 logger = get_logger(__name__)
 
-# Wallet balance (Toman) below which a reseller is warned their PAYG accounts risk suspension.
-LOW_BALANCE_WARNING_TOMAN = 100_000
 _BILLABLE_MODES = ("hourly", "usage")
 
 
@@ -39,7 +39,7 @@ def _group_by_user(accounts) -> dict[int, list]:
 
 
 async def run_reseller_low_balance_warning() -> None:
-    """Warn resellers once when their wallet drops below the threshold; clear the flag on top-up."""
+    """Warn resellers once when their wallet is about to run out; clear the flag after a top-up."""
     start_time = time.time()
     logger.debug("%s reseller_low_balance_warning started", LogTag.JOB)
 
@@ -54,6 +54,7 @@ async def run_reseller_low_balance_warning() -> None:
         return
 
     user_crud = UserCRUD()
+    threshold_hours = max(1, int(settings.reseller_low_balance_hours or 6))
     warned = 0
     cleared = 0
 
@@ -65,7 +66,8 @@ async def run_reseller_low_balance_warning() -> None:
             for account in user_accounts
         )
 
-        if balance < LOW_BALANCE_WARNING_TOMAN:
+        runway = await estimate_runway(balance, user_accounts)
+        if runway.hours_left is not None and runway.hours_left < threshold_hours:
             if already_notified:
                 continue
             usernames = "، ".join(f"`{account.username}`" for account in user_accounts)
@@ -73,6 +75,7 @@ async def run_reseller_low_balance_warning() -> None:
                 telegram_id,
                 "⚠️ **موجودی کیف پول شما رو به اتمام است**\n\n"
                 f"💳 موجودی فعلی: `{balance:,}` تومان\n"
+                f"⏳ با خرج فعلی حدود **{format_runway(runway.hours_left)}** دیگر کافی است\n"
                 f"🏢 نمایندگی‌های مصرفی (Pay as you go): {usernames}\n\n"
                 "در صورتی که موجودی خود را افزایش ندهید، این پنل‌ها به‌محض ناکافی شدن موجودی "
                 "به‌صورت خودکار غیرفعال خواهند شد.\n"
@@ -88,8 +91,17 @@ async def run_reseller_low_balance_warning() -> None:
                 extra_lines=[
                     f"👤 <b>کاربر:</b> <code>{telegram_id}</code>",
                     f"💳 <b>موجودی:</b> <code>{balance:,}</code> تومان",
+                    f"⏳ <b>دوام تخمینی:</b> {format_runway(runway.hours_left)}",
                     f"🏢 <b>نمایندگی‌ها:</b> {', '.join(account.username for account in user_accounts)}",
                 ],
+                event=EVENT_LOW_BALANCE,
+                telegram_id=telegram_id,
+                data={
+                    "balance": balance,
+                    "burn_per_hour": round(runway.burn_per_hour),
+                    "hours_left": round(runway.hours_left or 0, 1),
+                    "accounts": [account.code for account in user_accounts],
+                },
             )
         elif already_notified:
             cleared += 1

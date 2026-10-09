@@ -107,6 +107,15 @@ class ResellerAccountCRUD:
             log.error("Failed to list grace-deletion reseller accounts: %s", e)
             return []
 
+    async def get_accounts_missing_admin_id(self) -> list[ResellerAccount]:
+        try:
+            async with Session() as session:
+                result = await session.execute(select(ResellerAccount).where(ResellerAccount.panel_admin_id.is_(None)))
+                return list(result.scalars().all())
+        except SQLAlchemyError as e:
+            log.error("Failed to list reseller accounts without admin id: %s", e)
+            return []
+
     async def get_accounts_by_plan(self, plan_id: int) -> list[ResellerAccount]:
         plan_id = as_int(plan_id)
         if plan_id is None:

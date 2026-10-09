@@ -68,10 +68,17 @@ async def sync_reseller_max_users(account, max_users: int) -> tuple[bool, str | 
 
 
 async def purge_reseller_from_panel(account) -> tuple[int, bool]:
-    """Delete the panel admin with its users and the billing history. Returns (deleted_users, admin_removed)."""
-    deleted_users, admin_removed = 0, False
+    """Delete the panel admin with its users. Returns (deleted_users, safe_to_drop).
+
+    ``safe_to_drop`` is False while the admin still exists on a reachable panel; callers must
+    then keep the account row, otherwise the bot loses track of a live admin and its users.
+    Billing history is removed only once the row may go.
+    """
     panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    if panel:
-        deleted_users, admin_removed = await purge_reseller_admin(panel, account)
-    await ResellerBillingSnapshotCRUD().delete_snapshots_for_account(account.code)
+    if not panel:
+        await ResellerBillingSnapshotCRUD().delete_snapshots_for_account(account.code)
+        return 0, True
+    deleted_users, admin_removed = await purge_reseller_admin(panel, account)
+    if admin_removed:
+        await ResellerBillingSnapshotCRUD().delete_snapshots_for_account(account.code)
     return deleted_users, admin_removed

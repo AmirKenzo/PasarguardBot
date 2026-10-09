@@ -17,7 +17,7 @@ from app.services.panels.admins import (
     get_reseller_admin,
     modify_reseller_admin,
 )
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.logging import EVENT_RENEW, send_reseller_log
 from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_size
 
@@ -143,6 +143,13 @@ async def renew_reseller_account(
         actor_id=actor_id or telegram_id,
         actor_role=actor_role,
         extra_lines=extra,
+        event=EVENT_RENEW,
+        data={
+            "amount": charge,
+            "added_bytes": added_bytes,
+            "added_days": int(plan.duration or 0),
+            "discount_code": discount_code,
+        },
     )
     success = f"نمایندگی با موفقیت تمدید شد. مبلغ {charge:,} تومان کسر شد."
     if added_bytes > 0:

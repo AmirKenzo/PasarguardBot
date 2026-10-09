@@ -21,7 +21,7 @@ from app.services.panels.admins import (
     modify_reseller_admin,
 )
 from app.services.panels.settings import get_panel_login_url
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.logging import EVENT_IMPORT, send_reseller_log
 from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
 from app.utils.security.crypto import encrypt_data
@@ -244,6 +244,7 @@ async def import_existing_reseller_admin(
             "🔗 <b>منبع:</b> ادمین موجود پنل (بدون ساخت ادمین جدید)",
             "💰 <b>شارژ کیف پول:</b> انجام نشد",
         ],
+        event=EVENT_IMPORT,
     )
 
     notified = await notify_imported_reseller_user(account, password=new_password, panel=panel)

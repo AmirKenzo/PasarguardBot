@@ -6,7 +6,7 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.logger import get_logger
 from app.services.panels.admins import activate_reseller_admin, get_reseller_admin, suspend_reseller_admin
-from app.services.reseller.logging import send_reseller_log
+from app.services.reseller.logging import EVENT_USAGE_CAP_HIT, EVENT_USAGE_CAP_SET, send_reseller_log
 from app.utils.formatting.conversions import gigabytes_to_bytes
 from app.utils.formatting.traffic import format_size
 
@@ -48,6 +48,8 @@ async def apply_usage_cap_suspend(account, panel, *, reason: str, notify=None) -
         "⛔️ تعلیق به‌خاطر سقف مصرف",
         account=account,
         extra_lines=[f"📌 <b>دلیل:</b> {reason}"],
+        event=EVENT_USAGE_CAP_HIT,
+        data={"reason": reason, "cap_bytes": account.usage_cap_bytes},
     )
     return True
 
@@ -125,6 +127,8 @@ async def set_reseller_usage_cap(
             f"📥 <b>مصرف فعلی:</b> {format_size(used)}",
             f"🚦 <b>سقف جدید:</b> {format_size(cap_bytes) if cap_bytes else 'بدون محدودیت'}",
         ],
+        event=EVENT_USAGE_CAP_SET,
+        data={"used_bytes": used, "cap_bytes": cap_bytes, "reactivated": reactivated, "capped_now": capped_now},
     )
     return True, msg
 

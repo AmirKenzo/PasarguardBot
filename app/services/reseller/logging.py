@@ -1,18 +1,14 @@
-"""Centralized reseller activity logging to the configured log channel."""
+"""Reseller activity: one call records the event in the DB and posts it to the log channel."""
 
 from __future__ import annotations
 
-import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from telethon.tl import functions, types
-
-from app import Kenzo
 from app.db.crud.panels import PanelsManager
+from app.db.crud.reseller_events import ResellerEventCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
 from app.logger import LogType, get_logger
 from app.services.billing.reseller_pricing import pricing_mode_label
-from app.services.telegram.rich_message import prepare_rich_markdown
 from app.telegram.shared.utils.logging import send_log_message
 from app.utils.formatting.dates import timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
@@ -21,6 +17,25 @@ if TYPE_CHECKING:
     from app.db.models.reseller_accounts import ResellerAccount
 
 log = get_logger(__name__)
+
+# ``reseller_events.kind`` values; the web app and admin panel label/filter by these.
+EVENT_PURCHASE = "purchase"
+EVENT_IMPORT = "import"
+EVENT_RENEW = "renew"
+EVENT_CAPACITY = "capacity"
+EVENT_PAUSE = "pause"
+EVENT_RESUME = "resume"
+EVENT_ADMIN_PAUSE = "admin_pause"
+EVENT_ADMIN_RESUME = "admin_resume"
+EVENT_SUSPEND = "suspend"
+EVENT_REACTIVATE = "reactivate"
+EVENT_USAGE_CAP_SET = "usage_cap_set"
+EVENT_USAGE_CAP_HIT = "usage_cap_hit"
+EVENT_PASSWORD = "password"
+EVENT_LOW_BALANCE = "low_balance"
+EVENT_EXPIRE = "expire"
+EVENT_PURGE = "purge"
+EVENT_DELETE = "delete"
 
 
 async def _account_context_lines(account: ResellerAccount) -> list[str]:
@@ -56,7 +71,26 @@ async def send_reseller_log(
     actor_id: int | None = None,
     actor_role: str | None = None,
     extra_lines: list[str] | None = None,
+    event: str | None = None,
+    data: dict[str, Any] | None = None,
+    telegram_id: int | None = None,
 ) -> None:
+    """Post ``title`` to the reseller log channel and, when ``event`` is set, store it in history.
+
+    ``data`` is the structured payload (amounts, reasons, ...) the web pages render;
+    ``telegram_id`` scopes an account-less event (e.g. a low-balance warning) to its user.
+    """
+    if event:
+        await ResellerEventCRUD().add_event(
+            kind=event,
+            title=title,
+            account_code=account.code if account is not None else None,
+            telegram_id=account.telegram_id if account is not None else telegram_id,
+            actor_id=actor_id,
+            actor_role=actor_role,
+            data=data,
+        )
+
     parts = [f"<b>{title}</b>", ""]
     if actor_id is not None:
         role = actor_role or "کاربر"
@@ -69,117 +103,4 @@ async def send_reseller_log(
         parts.extend(line for line in extra_lines if line)
 
     message = "\n".join(parts).strip()
-    await send_log_message(LogType.RESELLER, message=message, parse_mode="html")
-
-
-def _truncate_fixed(value: str, width: int) -> str:
-    text = (value or "").strip()
-    if len(text) <= width:
-        return text.ljust(width)
-    if width <= 1:
-        return text[:width]
-    return (text[: width - 1] + "…").ljust(width)
-
-
-def _format_usage_compact(size_bytes: int | None) -> str:
-    raw = int(size_bytes or 0)
-    if raw < 1024:
-        return f"{raw} B"
-    if raw < 1024**2:
-        return f"{raw / 1024:.2f} KB"
-    if raw < 1024**3:
-        return f"{raw / (1024**2):.2f} MB"
-    return f"{raw / (1024**3):.3f} GB"
-
-
-async def send_reseller_usage_charge_table(rows: list[dict]) -> None:
-    if not rows:
-        return
-
-    # Keep the newest 150 rows to avoid noisy minute-by-minute log spam.
-    rows = rows[-150:]
-    header = "📊 <b>Reseller Usage Charge Summary</b>"
-    summary = f"🧾 <b>Rows:</b> <code>{len(rows)}</code> (last 150)"
-
-    table_lines = [
-        "Code    | Admin            | TelegramID  | Panel  | Status   | MaxUsers | Usage       | Charge(TMN)",
-        "--------+------------------+-------------+--------+----------+----------+-------------+------------",
-    ]
-    markdown_rows: list[str] = []
-    for row in rows:
-        code = _truncate_fixed(str(row.get("code", "")), 7)
-        username = _truncate_fixed(str(row.get("username", "")), 16)
-        telegram_id = _truncate_fixed(str(row.get("telegram_id", "")), 11)
-        panel_code = _truncate_fixed(str(row.get("panel_code", "")), 6)
-        status = _truncate_fixed(str(row.get("status", "")), 8)
-        max_users = _truncate_fixed(str(row.get("max_users", "")), 8)
-        usage = _truncate_fixed(_format_usage_compact(row.get("usage_bytes")), 11)
-        charge = _truncate_fixed(str(row.get("charge", "")), 10)
-        table_lines.append(
-            f"{code} | {username} | {telegram_id} | {panel_code} | {status} | {max_users} | {usage} | {charge}"
-        )
-        markdown_rows.append(
-            "| "
-            + " | ".join(
-                [
-                    str(row.get("code", "")),
-                    str(row.get("username", "")),
-                    str(row.get("telegram_id", "")),
-                    str(row.get("panel_code", "")),
-                    str(row.get("status", "")),
-                    str(row.get("max_users", "")),
-                    _format_usage_compact(row.get("usage_bytes")),
-                    str(row.get("charge", "")),
-                ]
-            )
-            + " |"
-        )
-
-    markdown = "\n".join(
-        [
-            "# 📊 Reseller Usage Charge Summary",
-            "",
-            f"**🧾 Rows:** `{len(rows)}` *(last 150)*",
-            "",
-            "<details>",
-            "<summary>📋 Usage Table</summary>",
-            "",
-            "| Code | Admin | TelegramID | Panel | Status | MaxUsers | Usage | Charge(TMN) |",
-            "|------|-------|------------|-------|--------|----------|-------|-------------|",
-            *markdown_rows,
-            "",
-            "</details>",
-        ]
-    )
-    from app.db.crud.log_channels import LogChannelManager
-    from config import LOG_CHANNEL
-
-    chat_id = None
-    topic_id = None
-    try:
-        destination = await LogChannelManager().get_log_channel_destination(LogType.RESELLER.value)
-        if destination:
-            chat_id = int(destination["chat_id"])
-            topic_id = int(destination["topic_id"]) if destination.get("topic_id") else None
-        elif LOG_CHANNEL is not None:
-            chat_id = int(LOG_CHANNEL)
-    except Exception as exc:
-        log.error("resolve reseller log destination failed: %s", exc)
-
-    if chat_id is not None:
-        try:
-            request_kwargs = {
-                "peer": chat_id,
-                "message": "",
-                "rich_message": types.InputRichMessageMarkdown(prepare_rich_markdown(markdown), rtl=True),
-                "random_id": random.getrandbits(63),
-            }
-            if topic_id:
-                request_kwargs["reply_to"] = topic_id
-            await Kenzo(functions.messages.SendMessageRequest(**request_kwargs))
-            return
-        except Exception as exc:
-            log.error("reseller usage rich log send failed: %s", exc)
-
-    message = "\n".join([header, "", summary, "", "<pre>", *table_lines, "</pre>"])
     await send_log_message(LogType.RESELLER, message=message, parse_mode="html")

@@ -141,12 +141,12 @@ async def delete_reseller(payload: PanelResellerDeleteRequest, request: Request)
         account = await queries.get_reseller(payload.code)
         if account is None:
             return ActionResponse(ok=False, error="حساب نمایندگی با این کد پیدا نشد.")
-        deleted_users, admin_removed = await purge_reseller_from_panel(account)
+        deleted_users, safe_to_drop = await purge_reseller_from_panel(account)
+        if not safe_to_drop:
+            return ActionResponse(ok=False, error="حذف ادمین از پنل ناموفق بود؛ حساب در ربات باقی ماند.")
         ok = await mutations.delete_reseller(actor, payload.code)
         if not ok:
             return ActionResponse(ok=False, error="حساب نمایندگی با این کد پیدا نشد.")
-        if not admin_removed:
-            return ActionResponse(message="حساب از ربات حذف شد، ولی حذف ادمین از پنل ناموفق بود؛ دستی بررسی کنید.")
         return ActionResponse(message=f"حساب نمایندگی و {deleted_users} یوزر آن از پنل حذف شد.")
 
     return await guard.run(payload, request, ActionResponse, handle)

@@ -96,6 +96,58 @@ class ResellerBillingSnapshotCRUD:
             log.error("Failed to add billing snapshot: %s", e)
             return False
 
+    async def add_hourly_charge(self, account_code: int, amount: int, minutes: int, charged_at: int) -> bool:
+        """Fold one hourly-plan charge into the row of the clock hour it belongs to.
+
+        The billing job runs every minute; one row per hour keeps the ledger readable and small.
+        """
+        bucket = int(charged_at) - int(charged_at) % 3600
+        try:
+            async with Session() as session:
+                stmt = select(ResellerBillingSnapshot).where(
+                    ResellerBillingSnapshot.account_code == account_code,
+                    ResellerBillingSnapshot.snapshot_at == bucket,
+                    ResellerBillingSnapshot.billed_minutes.is_not(None),
+                )
+                row = (await session.execute(stmt)).scalars().first()
+                if row is None:
+                    session.add(
+                        ResellerBillingSnapshot(
+                            account_code=account_code,
+                            used_traffic=0,
+                            billed_amount=int(amount),
+                            billed_minutes=int(minutes),
+                            snapshot_at=bucket,
+                        )
+                    )
+                else:
+                    row.billed_amount = int(row.billed_amount or 0) + int(amount)
+                    row.billed_minutes = int(row.billed_minutes or 0) + int(minutes)
+                await session.commit()
+                return True
+        except SQLAlchemyError as e:
+            log.error("Failed to add hourly charge: %s", e)
+            return False
+
+    async def sum_billed_since(self, account_codes: list[int], since: int) -> dict[int, int]:
+        """Total charged per account since ``since`` (both hourly buckets and usage rows)."""
+        if not account_codes:
+            return {}
+        try:
+            async with Session() as session:
+                rows = await session.execute(
+                    select(ResellerBillingSnapshot.account_code, func.sum(ResellerBillingSnapshot.billed_amount))
+                    .where(
+                        ResellerBillingSnapshot.account_code.in_(account_codes),
+                        ResellerBillingSnapshot.snapshot_at >= since,
+                    )
+                    .group_by(ResellerBillingSnapshot.account_code)
+                )
+                return {int(code): int(total or 0) for code, total in rows.all()}
+        except SQLAlchemyError as e:
+            log.error("Failed to sum billed amounts: %s", e)
+            return {}
+
     async def delete_snapshots_before(self, cutoff_ts: int) -> int:
         """Delete billing snapshots older than cutoff timestamp."""
         try:
