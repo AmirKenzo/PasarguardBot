@@ -21,6 +21,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/AmirKenzo/PasarguardBot/main
 
 یک پنل کاربری وب برای مشتریان (مشاهده سرویس‌ها، تمدید، شارژ کیف پول) در مسیر [`frontend/`](frontend/) قرار دارد. برای راه‌اندازی و بیلد به [`frontend/README.md`](frontend/README.md) مراجعه کنید؛ در بیلد Docker به‌صورت خودکار ساخته می‌شود.
 
+<p align="center">
+  <img src=".github/assets/webapp-user.png" alt="وب‌اپ کاربر" width="100%">
+</p>
+
+<p align="center">
+  <img src=".github/assets/webapp-admin.png" alt="پنل مدیریت" width="100%">
+</p>
+
 ## لایسنس
 
 [GNU AGPL-3.0](LICENSE)
