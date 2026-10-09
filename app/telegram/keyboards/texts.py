@@ -5,6 +5,7 @@ from telethon.extensions import html as html_ext
 
 from app import Kenzo
 from app.db.crud.bot_texts import BotTextCRUD
+from app.telegram.shared.reseller_plan_guides import GUIDE_PLACEHOLDERS
 
 
 def render_stored_text_html(value: str | None) -> str:
@@ -167,6 +168,15 @@ TEXT_KEYS_CONFIG = {
         {"key": "reseller_my_list_empty", "title": "پیام نبودن نمایندگی", "placeholders": {}},
         {"key": "reseller_buy_panel_picker", "title": "متن انتخاب پنل (خرید)", "placeholders": {}},
         {"key": "reseller_select_plan_prompt", "title": "متن انتخاب پلن", "placeholders": {"panel_name": "نام پنل"}},
+        # Optional «این پلن چطور کار می‌کند؟» on the purchase confirm screen; empty uses the built-in guide.
+        {"key": "reseller_plan_guide_fixed", "title": "راهنمای پلن ثابت (خرید)", "placeholders": GUIDE_PLACEHOLDERS},
+        {
+            "key": "reseller_plan_guide_unlimited",
+            "title": "راهنمای پلن نامحدود (خرید)",
+            "placeholders": GUIDE_PLACEHOLDERS,
+        },
+        {"key": "reseller_plan_guide_usage", "title": "راهنمای پلن مصرفی (خرید)", "placeholders": GUIDE_PLACEHOLDERS},
+        {"key": "reseller_plan_guide_hourly", "title": "راهنمای پلن ساعتی (خرید)", "placeholders": GUIDE_PLACEHOLDERS},
     ],
     "balance": [
         {"key": "add_balance_intro", "title": "متن معرفی افزایش موجودی", "placeholders": {}},

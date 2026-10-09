@@ -21,6 +21,7 @@ from app.services.reseller.plan_rules import (
     PER_TB,
     UNLIMITED,
     USAGE,
+    addon_price,
     plan_features,
     rule_for,
 )
@@ -612,6 +613,44 @@ def plan_how_it_works_lines(plan, ctx: GuideContext | None = None) -> list[str]:
     if addon_bits:
         lines.append(f"• هر وقت خواستید می‌توانید بخرید: {'، '.join(addon_bits)}.")
     return lines
+
+
+# Placeholders an admin can use when rewriting a plan type's buyer guide in the bot texts.
+GUIDE_PLACEHOLDERS = {
+    "plan_name": "نام پلن",
+    "price": "قیمت (بسته، هر گیگ یا هر ساعت)",
+    "volume": "حجم یا سقف ترافیک",
+    "days": "مدت",
+    "max_users": "سقف یوزر",
+    "grace_days": "روزهای مهلت پس از انقضا",
+    "min_wallet": "حداقل موجودی برای خرید",
+    "extra_day_price": "قیمت هر روز اضافه",
+    "extra_gb_price": "قیمت هر گیگ اضافه",
+    "extra_user_price": "قیمت هر یوزر اضافه",
+}
+
+
+def guide_text_key(mode: str | None) -> str:
+    """Bot text key of a plan type's buyer guide; legacy types share the fixed one."""
+    return f"reseller_plan_guide_{mode if mode in (FIXED, UNLIMITED, USAGE, HOURLY) else FIXED}"
+
+
+def guide_placeholders(plan, ctx: GuideContext | None = None) -> dict[str, str]:
+    """Values for an admin-written guide; the built-in guide doesn't need them."""
+    ctx = ctx or GuideContext()
+    limit = int(plan.data_limit or 0)
+    return {
+        "plan_name": (plan.display_button_text or "").strip().split("\n", 1)[0] or mode_name(plan.pricing_mode),
+        "price": plan_price_line(plan),
+        "volume": format_size(limit) if limit > 0 else "نامحدود",
+        "days": f"{int(plan.duration)} روز" if int(plan.duration or 0) > 0 else "بدون انقضا",
+        "max_users": str(int(plan.max_users or 0) or "نامحدود"),
+        "grace_days": str(ctx.grace_days),
+        "min_wallet": toman(ctx.min_wallet),
+        "extra_day_price": toman(addon_price(plan, ADDON_DAYS)),
+        "extra_gb_price": toman(addon_price(plan, ADDON_VOLUME)),
+        "extra_user_price": toman(addon_price(plan, ADDON_USERS)),
+    }
 
 
 def buyer_plan_guide(plan, ctx: GuideContext | None = None, *, title: str | None = None) -> str:

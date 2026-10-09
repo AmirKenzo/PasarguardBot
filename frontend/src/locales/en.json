@@ -2127,7 +2127,11 @@
       "successPaid": "{{amount}} was taken from your wallet.",
       "savePassword": "Keep the password somewhere safe; you can also see it later on the reseller page.",
       "manage": "Manage reseller",
-      "done": "Back"
+      "done": "Back",
+      "ratePrice": "Cost",
+      "minWalletRequired": "Minimum balance to buy",
+      "upfront": "Upfront payment",
+      "noUpfront": "None"
     },
     "detail": {
       "title": "Reseller",

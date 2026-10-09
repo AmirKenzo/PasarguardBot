@@ -120,6 +120,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
   const { t } = useTranslation();
   const { haptic } = useTelegram();
   const options = useResellerBuyOptions();
+  const minWallet = options.data?.min_wallet_balance ?? 0;
 
   const [step, setStep] = useState<Step>("panel");
   const [panel, setPanel] = useState<ResellerPanelItem | null>(null);
@@ -130,6 +131,8 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
   const [discountDraft, setDiscountDraft] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [preview, setPreview] = useState<WebAppResellerBuyPreviewResponse | null>(null);
+  const confirmPlan = preview?.plan ?? null;
+  const payAsYouGo = confirmPlan?.pricing_mode === "usage" || confirmPlan?.pricing_mode === "hourly";
   const [result, setResult] = useState<WebAppResellerBuyConfirmResponse | null>(null);
   const [error, setError] = useState("");
 
@@ -489,10 +492,26 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
 
               <Card className="space-y-2.5 p-4">
                 <InfoRow label={t("buy.currentBalance")} value={formatToman(preview.balance)} />
-                {preview.discount_percent > 0 && (
-                  <InfoRow label={t("buy.basePrice")} value={formatToman(preview.base_price)} />
+                {payAsYouGo ? (
+                  <>
+                    {/* Usage/hourly plans charge from the wallet over time; what matters at purchase is the minimum balance. */}
+                    <InfoRow label={t("reseller.buy.ratePrice")} value={confirmPlan ? resellerPlanPrice(t, confirmPlan) : "—"} />
+                    {minWallet > 0 && (
+                      <InfoRow label={t("reseller.buy.minWalletRequired")} value={formatToman(minWallet)} strong />
+                    )}
+                    <InfoRow
+                      label={t("reseller.buy.upfront")}
+                      value={preview.final_price > 0 ? formatToman(preview.final_price) : t("reseller.buy.noUpfront")}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {preview.discount_percent > 0 && (
+                      <InfoRow label={t("buy.basePrice")} value={formatToman(preview.base_price)} />
+                    )}
+                    <InfoRow label={t("buy.finalPrice")} value={formatToman(preview.final_price)} strong />
+                  </>
                 )}
-                <InfoRow label={t("buy.finalPrice")} value={formatToman(preview.final_price)} strong />
                 <div
                   className={`flex items-center justify-between gap-3 rounded-md border px-3.5 py-3 text-[13px] ${
                     preview.balance_after >= 0 ? "border-success/30 bg-success/5" : "border-danger/30 bg-danger/5"
@@ -515,7 +534,12 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                 </Link>
               )}
 
-              <StickyActionBar caption={t("buy.finalPrice")} amount={formatToman(preview.final_price)}>
+              <StickyActionBar
+                caption={
+                  payAsYouGo && preview.final_price <= 0 ? t("reseller.buy.minWalletRequired") : t("buy.finalPrice")
+                }
+                amount={formatToman(payAsYouGo && preview.final_price <= 0 ? minWallet : preview.final_price)}
+              >
                 <Button
                   type="button"
                   size="lg"

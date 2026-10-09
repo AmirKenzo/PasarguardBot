@@ -62,6 +62,8 @@ from app.telegram.shared.reseller_plan_guides import (
     addon_current_line,
     addon_preview_lines,
     buyer_plan_guide,
+    guide_placeholders,
+    guide_text_key,
     load_guide_context,
     mode_name,
     parse_addon_quantity,
@@ -168,7 +170,12 @@ async def _show_reseller_confirm(event):
     volume = float(volume_raw) if volume_raw else None
     amount, discount_code = await resolve_reseller_purchase_amount(user_id, plan, volume)
     text = build_reseller_confirm_text(
-        plan, username=username, volume=volume, amount=amount, discount_code=discount_code
+        plan,
+        username=username,
+        volume=volume,
+        amount=amount,
+        discount_code=discount_code,
+        min_wallet=(await load_guide_context()).min_wallet,
     )
     show_discount = is_prepaid(plan) and not discount_code
     shortfall = await invoice_shortfall_notice(user_id, int(amount))
@@ -357,20 +364,41 @@ async def _buy_addon_confirmed(event, code: int, addon: str) -> None:
         await show_account_detail(event, acc)
 
 
-async def _show_plan_guide(event, plan) -> None:
-    """Plan card before purchase: what it includes and how it works."""
+async def _show_buy_guide(event, plan) -> None:
+    """Optional «این پلن چطور کار می‌کند؟» from the confirm screen; admins can rewrite it per plan type."""
     user_id = event.sender_id
-    text = buyer_plan_guide(plan, await load_guide_context(), title=f"🏢 {format_plan_button_text(plan)}")
-    await reseller_flow_edit(
-        event,
-        text,
-        buttons=[
-            [Button.inline("✅ ادامه خرید این پلن", data=f"ResellerBuy_go:{plan.id}")],
-            [await rs_buttons.rs_buy_back_button(f"ResellerPanel_{plan.panel_code}")],
-            [await rs_buttons.rs_buy_cancel_button()],
-        ],
+    ctx = await load_guide_context()
+    text = await get_reseller_text(
+        guide_text_key(plan.pricing_mode),
+        buyer_plan_guide(plan, ctx, title=f"🏢 {format_plan_button_text(plan)}"),
+        user_id,
+        **guide_placeholders(plan, ctx),
     )
-    await set_step(user_id, "reseller_select_plan")
+    await reseller_flow_edit(event, text, buttons=[[Button.inline("🔙 بازگشت", data="ResellerBuy_back_confirm")]])
+
+
+async def _start_plan_purchase(event, plan) -> None:
+    """Plan picked: ask for the volume (legacy volume plans) or straight for the admin username."""
+    user_id = event.sender_id
+    plan_panel = await PanelsManager().get_panel_by_code(code=plan.panel_code)
+    if not plan_panel or not panel_reseller_sale_enabled(plan_panel):
+        await event.answer("این پنل برای فروش نمایندگی فعال نیست.", alert=True)
+        return
+    await _clear_reseller_discount(user_id)
+    await set_data(user_id, "reseller_plan_id", str(plan.id))
+    await set_data(user_id, "reseller_panel_code", str(plan.panel_code))
+    if requires_volume_input(plan):
+        unit = volume_unit_label(plan.pricing_mode)
+        await reseller_flow_edit(
+            event,
+            f"**{mode_name(plan.pricing_mode)}**\n\n"
+            f"حجم را به {unit} وارد کنید"
+            f"{f' (حداقل {plan.min_volume:g} — حداکثر {plan.max_volume:g})' if plan.max_volume else ''}:",
+            buttons=[[Button.inline("🔙 بازگشت", data="ResellerBuy_back_panels")]],
+        )
+        await set_step(user_id, "reseller_enter_volume")
+        return
+    await _prompt_reseller_username(event, plan)
 
 
 @bot_is_offline
@@ -426,49 +454,32 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             user_id,
             panel_name=panel_name,
         )
-        plan_lines = "\n".join(f"🔹 {format_plan_button_text(p)} — {mode_name(p.pricing_mode)}" for p in plans)
-        await reseller_flow_edit(
-            event,
-            f"{prompt}\n\n{plan_lines}\n\nبا انتخاب هر پلن، راهنمای کامل آن نمایش داده می‌شود.",
-            buttons=await build_reseller_plan_buttons(plans),
-        )
+        await reseller_flow_edit(event, prompt, buttons=await build_reseller_plan_buttons(plans))
         await set_step(user_id, "reseller_select_plan")
         return
 
-    if data.startswith("ResellerPlan_"):
-        plan_id = int(data.split("_")[1])
+    # «ResellerBuy_go:» came from the guide step of an earlier version; old messages still work.
+    if data.startswith("ResellerPlan_") or data.startswith("ResellerBuy_go:"):
+        plan_id = int(data.split(":")[1] if data.startswith("ResellerBuy_go:") else data.split("_")[1])
         plan = await ResellerPlanManager().get_plan(plan_id)
         if not plan or not plan.enable:
             await event.answer("پلن یافت نشد.", alert=True)
             return
-        await _show_plan_guide(event, plan)
+        await _start_plan_purchase(event, plan)
         return
 
-    if data.startswith("ResellerBuy_go:"):
-        plan_id = int(data.split(":")[1])
-        plan = await ResellerPlanManager().get_plan(plan_id)
-        if not plan or not plan.enable:
+    if data in ("ResellerBuy_guide", "ResellerBuy_back_confirm"):
+        if await get_step(user_id) != "reseller_confirm":
+            await event.answer("نشست منقضی شده.", alert=True)
+            return
+        if data == "ResellerBuy_back_confirm":
+            await _show_reseller_confirm(event)
+            return
+        plan = await ResellerPlanManager().get_plan(await get_data(user_id, "reseller_plan_id"))
+        if not plan:
             await event.answer("پلن یافت نشد.", alert=True)
             return
-        plan_panel = await PanelsManager().get_panel_by_code(code=plan.panel_code)
-        if not plan_panel or not panel_reseller_sale_enabled(plan_panel):
-            await event.answer("این پنل برای فروش نمایندگی فعال نیست.", alert=True)
-            return
-        await _clear_reseller_discount(user_id)
-        await set_data(user_id, "reseller_plan_id", str(plan_id))
-        await set_data(user_id, "reseller_panel_code", str(plan.panel_code))
-        if requires_volume_input(plan):
-            unit = volume_unit_label(plan.pricing_mode)
-            await reseller_flow_edit(
-                event,
-                f"**{mode_name(plan.pricing_mode)}**\n\n"
-                f"حجم را به {unit} وارد کنید"
-                f"{f' (حداقل {plan.min_volume:g} — حداکثر {plan.max_volume:g})' if plan.max_volume else ''}:",
-                buttons=[[Button.inline("🔙 بازگشت", data="ResellerBuy_back_panels")]],
-            )
-            await set_step(user_id, "reseller_enter_volume")
-            return
-        await _prompt_reseller_username(event, plan)
+        await _show_buy_guide(event, plan)
         return
 
     if data == "ResellerBuy_back_username":

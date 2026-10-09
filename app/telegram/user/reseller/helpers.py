@@ -176,7 +176,13 @@ async def resolve_reseller_purchase_amount(user_id: int, plan, volume: float | N
 
 
 def build_reseller_confirm_text(
-    plan, *, username: str, volume: float | None, amount: int, discount_code: str | None = None
+    plan,
+    *,
+    username: str,
+    volume: float | None,
+    amount: int,
+    discount_code: str | None = None,
+    min_wallet: int = 0,
 ) -> str:
     volume_line = ""
     if volume:
@@ -199,7 +205,8 @@ def build_reseller_confirm_text(
             if fee
             else "**💳 پرداخت اولیه:** ندارد\n"
         )
-        amount_line = f"{fee_line}**💰 هزینه:** {plan_price_line(plan)} (کسر دقیقه‌ای از کیف پول)\n"
+        wallet_line = f"**👛 حداقل موجودی لازم برای خرید:** {min_wallet:,} تومان\n" if min_wallet > 0 else ""
+        amount_line = f"{fee_line}{wallet_line}**💰 هزینه:** {plan_price_line(plan)} (کسر دقیقه‌ای از کیف پول)\n"
     else:
         amount_line = f"**💰 مبلغ:** {amount:,} تومان\n"
     return (

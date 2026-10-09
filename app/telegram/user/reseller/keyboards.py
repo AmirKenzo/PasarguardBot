@@ -89,6 +89,7 @@ async def build_reseller_confirm_buttons(*, show_discount: bool = False, topup: 
     rows.extend(
         [
             [await rs_buttons.rs_buy_confirm_button(topup=topup)],
+            [Button.inline("❓ این پلن چطور کار می‌کند؟", data="ResellerBuy_guide")],
             [await rs_buttons.rs_buy_back_button("ResellerBuy_back_username")],
             [await rs_buttons.rs_buy_cancel_button()],
         ]
