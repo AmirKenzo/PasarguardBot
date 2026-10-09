@@ -1,4 +1,4 @@
 {
   "title": "مستندات",
-  "pages": ["index", "getting-started", "user", "admin", "support"]
+  "pages": ["index", "getting-started", "webapp", "user", "admin", "faq", "support"]
 }

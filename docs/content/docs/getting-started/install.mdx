@@ -1,27 +1,58 @@
 ---
 title: نصب
-description: نصب مرحله‌به‌مرحله PasarguardBot با اسکریپت مدیریت
+description: نصب مرحله‌به‌مرحله PasarguardBot روی سرور لینوکس با اسکریپت مدیریت
 icon: Download
+---
+
+این صفحه نصب ربات را از صفر تا اولین `/start` توضیح می‌دهد. نصب کامل حدود ۵ تا ۱۰ دقیقه طول می‌کشد.
+
+## پیش‌نیازها
+
+| مورد | توضیح |
+|------|--------|
+| سرور لینوکس | Ubuntu / Debian پیشنهادی است. اسکریپت روی Fedora، CentOS/RHEL، Arch، openSUSE و Alpine هم کار می‌کند (روی سیستم‌های تست‌نشده هشدار می‌دهد) |
+| معماری | `amd64` یا `arm64` (ایمیج‌ها فقط برای این دو ساخته می‌شوند) |
+| دسترسی | `root` یا کاربری با `sudo` (اسکریپت خودش با sudo دوباره اجرا می‌شود) |
+| فضای دیسک | حداقل **۲ گیگابایت** خالی |
+| پورت‌های آزاد | `6160` تا `6163` — جزئیات در [پورت‌ها](/docs/getting-started/ports) |
+| توکن ربات | از [@BotFather](https://t.me/BotFather) |
+| آیدی عددی ادمین | آیدی عددی اکانت تلگرام خودتان (مثلاً با ربات‌های UserInfo) |
+| پنل پاسارگارد | آدرس و یوزر/رمز ادمین (یا API Key) پنل — بعد از نصب از داخل ربات اضافه می‌شود |
+
+<Callout type="info" title="Docker لازم نیست از قبل نصب باشد">
+اگر Docker روی سرور نباشد، اسکریپت خودش آن را نصب می‌کند (از `get.docker.com` یا پکیج‌منیجر سیستم).
+</Callout>
+
 ---
 
 ## اجرای اسکریپت
 
-روی سرور لینوکس (با دسترسی root):
+روی سرور اجرا کنید:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/AmirKenzo/PasarguardBot/main/scripts/pasarguardbot.sh)
 ```
 
-اگر اسکریپت از قبل نصب شده:
+اسکریپت این کارها را خودکار انجام می‌دهد:
+
+- اگر root نباشید، خودش با `sudo` دوباره اجرا می‌شود
+- سیستم‌عامل و پکیج‌منیجر را تشخیص می‌دهد (`apt-get`، `dnf`، `yum`، `pacman`، `zypper`، `apk`)
+- ابزارهای پایه (`curl`، `openssl`، `nano`، …) را نصب می‌کند
+- دستور **`pasarguardbot`** را ثبت می‌کند تا بعداً فقط با همین یک کلمه منو را باز کنید
+
+دفعات بعد کافی است بزنید:
 
 ```bash
 pasarguardbot
 ```
 
-منوی مدیریت شبیه این باز می‌شود:
+منوی مدیریت باز می‌شود:
 
 <CliPanel title="PasarguardBot — manager">
-{`PasarguardBot — manager
+{`PasarguardBot — manager v1.3.2
+
+  Manager script : v1.3.2
+  Host OS        : Ubuntu 24.04 LTS
 
 ● Status: Not installed
 
@@ -31,40 +62,48 @@ pasarguardbot
 │  3) Update bot                         │
 │  4) View logs                          │
 │  5) Edit .env file                     │
-│  6) Full restart                       │
-│  7) Service status                     │
-│  8) Show webhook & URLs                │
-│  9) Update manager script              │
-│ 10) Fix Docker network                 │
+│  6) Edit docker-compose.yml            │
+│  7) Full restart                       │
+│  8) Service status                     │
+│  9) Show webhook & URLs                │
+│ 10) Update manager script              │
+│ 11) Fix Docker network                 │
+│ 12) Get SSL certificate (AutoSSL)      │
 │  0) Exit                               │
 └────────────────────────────────────────┘
   Select an option: `}
 </CliPanel>
 
-برای نصب، گزینهٔ **`1`** را بزنید.
+برای نصب، گزینهٔ **`1`** را بزنید. توضیح همهٔ گزینه‌ها در [منوی مدیریت سرور](/docs/getting-started/cli-menu) است.
 
 ---
 
-## مرحله ۱ — انتخاب حالت نصب
+## مراحل نصب
+
+<Steps>
+<Step>
+
+### انتخاب حالت نصب
 
 <CliPanel title="Install mode">
 {`Install mode
 
   1) Docker (full stack — Redis/MariaDB/phpMyAdmin/bot in containers)
-  2) Native (no Docker — services on host, isolated ports 6161/6162/6163)
+  2) Native — temporarily disabled, use Docker for now
   0) Cancel
 Choice: `}
 </CliPanel>
 
-| انتخاب | معنی |
-|--------|------|
-| `1` | **Docker** — همه سرویس‌ها داخل کانتینر (پیشنهادی بیشتر سرورها) |
-| `2` | **Native** — نصب روی خود سیستم (فقط Debian/Ubuntu با apt) |
-| `0` | انصراف |
+گزینهٔ **`1`** (Docker) را بزنید. ربات، دیتابیس MariaDB، Redis و phpMyAdmin هر کدام در یک کانتینر جدا بالا می‌آیند.
 
----
+<Callout type="warn" title="نصب Native فعلاً غیرفعال است">
+گزینهٔ `2` در حال حاضر غیرفعال است و با انتخابش فقط پیام «Native install is temporarily disabled — please use Docker (option 1).» نمایش داده می‌شود. از Docker استفاده کنید.
+</Callout>
 
-## مرحله ۲ — انتخاب برنچ
+</Step>
+<Step>
+
+### انتخاب برنچ
 
 <CliPanel title="Select install branch">
 {`Select install branch
@@ -77,39 +116,28 @@ Choice [1]: `}
 
 | انتخاب | معنی |
 |--------|------|
-| **Enter** یا `1` | برنچ `main` (پایدار — پیشنهادی) |
-| `2` | برنچ `dev` (تست؛ ممکن است ناپایدار باشد) |
+| **Enter** یا `1` | برنچ `main` — نسخهٔ پایدار (پیشنهادی برای سرور اصلی) |
+| `2` | برنچ `dev` — آخرین تغییرات، فقط برای تست؛ ممکن است ناپایدار باشد |
 | `0` | انصراف |
 
----
+برنچ انتخابی ذخیره می‌شود و در بروزرسانی‌های بعدی به‌عنوان «Last used branch» پیشنهاد داده می‌شود.
 
-## مرحله ۳ — بررسی پورت و دیسک
+</Step>
+<Step>
 
-اسکریپت خودش فضای دیسک و آزاد بودن پورت‌ها را چک می‌کند.
+### بررسی‌های خودکار
 
-پورت‌های ثابت (از کاربر پرسیده نمی‌شود):
+اسکریپت قبل از هر کاری این موارد را چک می‌کند:
 
-| پورت | سرویس | دسترسی |
-|------|--------|--------|
-| `6160` | FastAPI / وب‌هوک | Public |
-| `6161` | Redis | localhost |
-| `6162` | MariaDB | localhost |
-| `6163` | phpMyAdmin | Public |
+- **نصب قبلی:** اگر ربات قبلاً نصب شده باشد می‌پرسد `Continue (will keep existing .env and data)? (y/N):` — با `y` ادامه می‌دهد و `.env` و دیتای قبلی دست نمی‌خورد.
+- **فضای دیسک:** حداقل ۲۰۴۸ مگابایت.
+- **Docker:** اگر نصب نباشد نصبش می‌کند و تا ۳۰ ثانیه منتظر بالا آمدن سرویس Docker می‌ماند.
+- **پورت‌ها:** `6160`، `6161`، `6162`، `6163`. اگر یکی توسط برنامهٔ دیگری اشغال باشد می‌پرسد `Continue anyway? (y/N):` (پورت‌هایی که کانتینرهای خود ربات گرفته‌اند نادیده گرفته می‌شوند).
 
-اگر پورتی اشغال باشد:
+</Step>
+<Step>
 
-```text
-Continue anyway? (y/N):
-```
-
-- **Enter** یا `N` → نصب متوقف می‌شود  
-- `y` → با همان پورت ادامه می‌دهد (با احتیاط)
-
----
-
-## مرحله ۴ — اطلاعات تلگرام
-
-وقتی نوبت ساخت `.env` برسد:
+### وارد کردن اطلاعات تلگرام
 
 <CliPanel title="Telegram credentials">
 {`[*] Enter your Telegram credentials:
@@ -120,65 +148,101 @@ Continue anyway? (y/N):
   ADMIN_ID (numeric Telegram user ID):`}
 </CliPanel>
 
-### فیلدها یکی‌یکی
-
 <CliPrompt
   label="API_ID (from my.telegram.org) [2040]:"
-  hint="اختیاری است. فقط Enter بزنید تا مقدار پیش‌فرض Telethon ست شود. اگر از my.telegram.org مقدار خودتان را دارید، همان را وارد کنید."
+  hint="اختیاری. با Enter مقدار عمومی Telegram Desktop (2040) ست می‌شود. پیشنهاد می‌شود API_ID شخصی خودتان را از my.telegram.org بسازید و وارد کنید."
 />
 
 <CliPrompt
-  label="API_HASH [...default...]:"
-  hint="اختیاری است. Enter = پیش‌فرض. معمولاً همراه API_ID از my.telegram.org گرفته می‌شود."
+  label="API_HASH [b18441a1…]:"
+  hint="اختیاری. همراه API_ID از my.telegram.org گرفته می‌شود. Enter = مقدار عمومی."
 />
 
 <CliPrompt
   label="BOT_TOKEN (from @BotFather):"
   required
-  hint="اجباری. توکن ربات را از @BotFather بگیرید و وارد کنید. خالی بگذارید دوباره می‌پرسد."
+  hint="توکن ربات از @BotFather. اگر خالی بگذارید دوباره پرسیده می‌شود (This value is required)."
 />
 
 <CliPrompt
   label="ADMIN_ID (numeric Telegram user ID):"
   required
-  hint="اجباری. آیدی عددی تلگرام خودتان (ادمین). برای پیدا کردن آیدی می‌توانید از ربات‌های UserInfo استفاده کنید."
+  hint="آیدی عددی تلگرام ادمین اصلی. بعداً می‌توانید در .env چند ادمین را با کاما جدا کنید، مثل 111111111,222222222"
 />
 
-### چه چیزهایی پرسیده نمی‌شود؟
+فاصله‌های اضافه خودکار حذف می‌شوند. اگر فایل `.env` از قبل وجود داشته باشد، این مرحله کامل رد می‌شود.
 
-این‌ها خودکار ساخته/ست می‌شوند:
+</Step>
+<Step>
 
-| مورد | وضعیت |
+### ساخت خودکار بقیهٔ تنظیمات
+
+این موارد **پرسیده نمی‌شوند** و خودکار ساخته می‌شوند:
+
+| مورد | مقدار |
 |------|--------|
-| `CRYPTO_KEY` | تصادفی |
-| `WEBHOOK_SECRET` | تصادفی |
-| دیتابیس MariaDB | ساخته می‌شود و پسورد چاپ می‌شود |
-| `REDIS_URL` | خودکار |
-| پورت‌ها | ثابت `6160–6163` |
-| دامنه | پرسیده نمی‌شود (بعداً IP یا دامنه خودتان را در پنل می‌گذارید) |
+| دیتابیس MariaDB | دیتابیس و یوزر `pasarguardbot` با رمز تصادفی ۲۴ کاراکتری؛ رمز root تصادفی ۳۲ کاراکتری |
+| `SQLALCHEMY_DATABASE_URL` | `mysql+asyncmy://pasarguardbot:…@mariadb:3306/pasarguardbot` |
+| `REDIS_URL` | `redis://redis:6379/0` |
+| `FASTAPI_PORT` | `6160` |
+| `TELETHON_SESSION_PATH` | `sessions/KenzoSession` |
+| `CRYPTO_KEY` و `WEBHOOK_SECRET` | در **دیتابیس** (جدول `secrets`) با مقدار تصادفی ساخته می‌شوند — نه در `.env` |
 
-اگر `.env` از قبل وجود داشته باشد، این مرحله رد می‌شود و فایل قبلی نگه داشته می‌شود.
+رمزهای دیتابیس یک‌بار در ترمینال چاپ می‌شوند. اگر از دستشان دادید، همیشه داخل `/opt/pasarguardbot/.env` هستند.
+
+</Step>
+<Step>
+
+### بالا آمدن سرویس‌ها
+
+اسکریپت فایل `docker-compose.yml` را از برنچ انتخابی دانلود و اعتبارسنجی می‌کند، ایمیج‌ها را از `ghcr.io/amirkenzo/pasarguardbot` می‌کشد و کانتینرها را بالا می‌آورد (تا ۹۰ ثانیه منتظر می‌ماند).
+
+در اولین اجرا، ربات خودش جدول‌های دیتابیس را می‌سازد (`alembic upgrade head`).
+
+<Callout type="info">
+اولین بالا آمدن MariaDB ممکن است چند دقیقه طول بکشد. اگر ربات بلافاصله جواب نداد، یکی دو دقیقه صبر کنید.
+</Callout>
+
+</Step>
+<Step>
+
+### خلاصهٔ نصب و لاگ زنده
+
+در پایان مسیرها، ایمیج، برنچ، پورت‌ها و آدرس وب‌هوک چاپ می‌شود و بعد **لاگ زندهٔ ربات** نمایش داده می‌شود:
+
+```text
+Tailing live logs… press Ctrl+C to stop
+```
+
+وقتی در لاگ دیدید ربات بالا آمده، `Ctrl+C` بزنید و بعد Enter تا به منو برگردید.
+
+</Step>
+</Steps>
 
 ---
 
-## مرحله ۵ — پایان نصب
+## اولین ورود به ربات
 
-بعد از بالا آمدن سرویس‌ها، خلاصهٔ مسیرها، پورت‌ها و آدرس وب‌هوک چاپ می‌شود. سپس:
+1. در تلگرام ربات خودتان را باز کنید و `/start` بزنید.
+2. چون آیدی شما در `ADMIN_ID` است، دکمهٔ **⚙️ پنل مدیریت** را می‌بینید (یا دستور `/panel`).
+3. از **📚 منوی پنل‌ها** پنل پاسارگارد را اضافه کنید — [منوی پنل‌ها](/docs/admin/panels).
+4. از **🛒 ساخت پلن** پلن فروش بسازید — [ساخت پلن](/docs/admin/plans).
+5. از **💳 تنظیمات درگاه** حداقل یک روش پرداخت (کارت یا ارز) فعال کنید — [تنظیمات درگاه](/docs/admin/gateway).
+6. کانال‌های لاگ را ست کنید تا رسیدها و بکاپ‌ها جایی ارسال شوند — [مدیریت لاگ‌ها](/docs/admin/logs).
 
-```text
-Press Enter to continue...
-```
+مسیر کامل راه‌اندازی در [چک‌لیست راه‌اندازی](/docs/getting-started/first-setup) آمده است.
 
-Enter بزنید تا به منوی اصلی برگردید.
+---
 
-آدرس‌ها را هر وقت خواستید از منو گزینهٔ **`8) Show webhook & URLs`** ببینید.
+## آدرس وب‌هوک و phpMyAdmin
 
-نمونهٔ خروجی:
+هر وقت لازم شد، از منو گزینهٔ **`9) Show webhook & URLs`** (یا دستور `pasarguardbot urls`) را بزنید:
 
 <CliPanel title="Webhook & URLs">
 {`[*] Webhook (set in Pasarguard panel):
   URL:     http://YOUR_IP:6160/api/webhook
-  Header:  x-webhook-secret: ********
+  Header:  x-webhook-secret: 3f9c0e…(64 hex chars)
+  Note:   crypto_key / webhook_secret are stored in DB (not .env)
 
 [*] phpMyAdmin:
   URL:  http://YOUR_IP:6163
@@ -186,21 +250,51 @@ Enter بزنید تا به منوی اصلی برگردید.
 [!] Replace the IP with your domain if you use one.`}
 </CliPanel>
 
+- آدرس و هدر وب‌هوک را در پنل پاسارگارد ست کنید تا اطلاع‌رسانی حجم/زمان دقیق کار کند: [اطلاع‌رسانی حجم و زمان](/docs/admin/panels/notifications)
+- این خروجی همیشه با `http://` چاپ می‌شود؛ اگر SSL دارید خودتان `https://` و دامنه را جایگزین کنید.
+
 ---
 
-## Docker یا Native؟
+## دامنه، SSL و وب‌اپ
 
-| | Docker | Native |
-|--|--------|--------|
-| سیستم | تقریباً همه لینوکس‌های رایج | فقط Debian/Ubuntu (apt) |
-| سرویس‌ها | کانتینر | systemd روی هاست |
-| سختی | ساده‌تر | برای کسانی که Docker نمی‌خواهند |
-| پیشنهادی | اکثر کاربران | محیط‌های خاص بدون Docker |
+برای **وب‌اپ (Mini App)**، دکمهٔ **🖥 پنل تحت وب** و درگاه **TonPays** حتماً به آدرس **HTTPS** نیاز دارید (تلگرام آدرس http را برای Mini App قبول نمی‌کند). راهنمای کامل: [دامنه و SSL](/docs/getting-started/ssl).
+
+---
+
+## ساختار فایل‌ها روی سرور
+
+<Files>
+  <Folder name="/opt/pasarguardbot" defaultOpen>
+    <File name=".env — تنظیمات اصلی (دسترسی 600)" />
+    <File name="docker-compose.yml" />
+    <File name="pasarguardbot.sh — اسکریپت مدیریت" />
+    <File name="fix-docker-netplan.sh" />
+    <File name=".install_mode / .install_branch" />
+    <Folder name="logs — app.log و error.log" />
+    <Folder name="sessions — سشن تلگرام" />
+    <Folder name="data" defaultOpen>
+      <Folder name="mariadb — دیتای دیتابیس" />
+      <Folder name="redis" />
+      <Folder name="pwa_icons — آیکون‌های وب‌اپ" />
+    </Folder>
+  </Folder>
+  <Folder name="/var/lib/pasarguardbot/certs — گواهی‌های SSL" />
+</Files>
+
+| کانتینر | ایمیج | پورت |
+|---------|-------|------|
+| `pasarguardbot` | `ghcr.io/amirkenzo/pasarguardbot` | `6160` (همهٔ اینترفیس‌ها) |
+| `pasarguardbot-mariadb` | `mariadb:12` | `127.0.0.1:6162` |
+| `pasarguardbot-redis` | `redis:8-alpine` | `127.0.0.1:6161` |
+| `pasarguardbot-phpmyadmin` | `phpmyadmin:5-apache` | `6163` (همهٔ اینترفیس‌ها) |
 
 ---
 
 ## مراحل بعدی
 
-1. در پنل پاسارگارد وب‌هوک را با URL و هدر `x-webhook-secret` ست کنید؛ برای اطلاع‌رسانی حجم/زمان: [اطلاع‌رسانی پنل](/docs/admin/panels/notifications)  
-2. جزئیات متغیرها: [پیکربندی](/docs/getting-started/configuration)  
-3. همه گزینه‌های منو: [منوی مدیریت سرور](/docs/getting-started/cli-menu)
+<Cards>
+  <Card title="چک‌لیست راه‌اندازی" description="از نصب تا اولین فروش" href="/docs/getting-started/first-setup" />
+  <Card title="پیکربندی (.env)" description="همهٔ متغیرها با توضیح" href="/docs/getting-started/configuration" />
+  <Card title="منوی مدیریت سرور" description="آپدیت، لاگ، ری‌استارت، حذف" href="/docs/getting-started/cli-menu" />
+  <Card title="دامنه و SSL" description="برای وب‌اپ و TonPays" href="/docs/getting-started/ssl" />
+</Cards>

@@ -4,10 +4,14 @@ import {
   BookOpenText,
   Boxes,
   CreditCard,
+  DatabaseBackup,
+  CircleHelp,
+  Gift,
   DownloadCloud,
   HeartHandshake,
   KeyRound,
   LayoutDashboard,
+  MonitorSmartphone,
   PanelTop,
   ShieldCheck,
   ShoppingBag,
@@ -20,7 +24,11 @@ import type { LucideIcon } from 'lucide-react';
 const chips = [
   { href: '/docs/getting-started/configuration', label: 'پیکربندی .env', icon: Boxes },
   { href: '/docs/user/buy', label: 'خرید سرویس', icon: ShoppingBag },
+  { href: '/docs/getting-started/first-setup', label: 'چک‌لیست راه‌اندازی', icon: Sparkles },
   { href: '/docs/admin/panels', label: 'منوی پنل‌ها', icon: PanelTop },
+  { href: '/docs/webapp', label: 'وب‌اپ و پنل تحت وب', icon: MonitorSmartphone },
+  { href: '/docs/admin/backup-restore', label: 'بکاپ و ریستور', icon: DatabaseBackup },
+  { href: '/docs/faq', label: 'سوالات متداول', icon: CircleHelp },
   { href: '/docs/support', label: 'حمایت مالی', icon: HeartHandshake },
 ];
 
@@ -49,10 +57,10 @@ const paths: {
     icon: ShieldCheck,
   },
   {
-    href: '/docs/support',
-    title: 'حمایت مالی',
-    description: 'اگر پروژه برایتان مفید بوده، می‌توانید داوطلبانه حمایت کنید.',
-    icon: HeartHandshake,
+    href: '/docs/webapp',
+    title: 'وب‌اپ و پنل وب',
+    description: 'مینی‌اپ تلگرام برای کاربران و پنل مدیریت کامل تحت وب.',
+    icon: MonitorSmartphone,
   },
 ];
 
@@ -78,10 +86,24 @@ const highlights = [
   {
     href: '/docs/user/balance',
     title: 'افزایش موجودی',
-    description: 'شارژ کیف پول با کارت‌به‌کارت یا پرداخت ارزی.',
+    description: 'کارت‌به‌کارت، ارز دیجیتال، استارز تلگرام و TonPays.',
     icon: WalletCards,
   },
+  {
+    href: '/docs/admin/referral',
+    title: 'سیستم دعوت دوستان',
+    description: 'پاداش ثابت یا درصدی، درآمد قابل برداشت و هدیهٔ دعوت‌شده.',
+    icon: Gift,
+  },
+  {
+    href: '/docs/admin/backup-restore',
+    title: 'بکاپ و ریستور',
+    description: 'بکاپ خودکار و ریستور قدم‌به‌قدم با phpMyAdmin، با تصویر.',
+    icon: DatabaseBackup,
+  },
 ];
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 function IconBadge({ icon: Icon }: { icon: LucideIcon }) {
   return (
@@ -185,6 +207,27 @@ export default function HomePage() {
       </section>
 
       <section className="mb-10">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">وب‌اپ کاربر و پنل مدیریت تحت وب</h2>
+          <Link href="/docs/webapp" className="text-sm font-medium text-fd-primary hover:underline">
+            مشاهده راهنما
+          </Link>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {[
+            { src: '/images/hero/webapp-user.webp', alt: 'وب‌اپ کاربر', caption: 'مینی‌اپ کاربر: سرویس‌ها، کیف پول و جزئیات سرویس' },
+            { src: '/images/hero/webapp-admin.webp', alt: 'پنل مدیریت تحت وب', caption: 'پنل مدیریت تحت وب: آمار فروش، کاربران و تنظیمات' },
+          ].map((shot) => (
+            <figure key={shot.src} className="overflow-hidden rounded-2xl border bg-fd-card">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`${basePath}${shot.src}`} alt={shot.alt} loading="lazy" className="block w-full" />
+              <figcaption className="border-t px-4 py-3 text-xs text-fd-muted-foreground">{shot.caption}</figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
+      <section className="mb-10">
         <h2 className="mb-4 text-lg font-semibold">مسیرهای اصلی</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {paths.map((item) => (
@@ -206,7 +249,7 @@ export default function HomePage() {
           <LayoutDashboard className="size-4 text-fd-primary" />
           <h2 className="text-lg font-semibold">بخش‌های پرکاربرد</h2>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {highlights.map((item) => (
             <Link
               key={item.href}
