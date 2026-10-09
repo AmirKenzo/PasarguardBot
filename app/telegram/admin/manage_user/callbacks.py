@@ -136,7 +136,7 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         sub_users = 0
         if panel:
             try:
-                sub_users = await get_reseller_admin_user_count(panel, account.username)
+                sub_users = await get_reseller_admin_user_count(panel, account.panel_admin_id)
             except Exception:
                 sub_users = 0
         await event.edit(
@@ -194,7 +194,7 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
             await event.answer("پنل یافت نشد.", alert=True)
             return True
         try:
-            new_password = await reset_reseller_admin_password(panel, account.username)
+            new_password = await reset_reseller_admin_password(panel, account.panel_admin_id, account.username)
         except Exception as exc:
             logger.error("admin reseller password reset failed: %s", exc)
             await event.answer("خطا در تغییر رمز.", alert=True)
@@ -284,7 +284,7 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         used = 0
         if panel:
             try:
-                admin = await get_reseller_admin(panel, account.username)
+                admin = await get_reseller_admin(panel, account.panel_admin_id)
                 used = int(getattr(admin, "used_traffic", 0) or 0) if admin else 0
             except Exception:
                 used = 0

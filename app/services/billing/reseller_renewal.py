@@ -71,7 +71,7 @@ async def renew_reseller_account(
     if not panel:
         return False, "پنل یافت نشد."
 
-    current = await get_reseller_admin(panel, account.username)
+    current = await get_reseller_admin(panel, account.panel_admin_id)
     if not current:
         return False, "ادمین در پنل یافت نشد."
 
@@ -100,10 +100,10 @@ async def renew_reseller_account(
 
     try:
         if modify_kwargs:
-            await modify_reseller_admin(panel, account.username, AdminModify(**modify_kwargs))
+            await modify_reseller_admin(panel, account.panel_admin_id, AdminModify(**modify_kwargs))
 
         try:
-            await activate_reseller_admin(panel, account.username)
+            await activate_reseller_admin(panel, account.panel_admin_id)
         except Exception as exc:
             log.warning("renew activate admin failed code=%s: %s", account.code, exc)
 

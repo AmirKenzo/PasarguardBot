@@ -114,7 +114,7 @@ class AccountLiveInfo:
 async def load_account_live_info(account) -> AccountLiveInfo:
     panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
     plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
-    admin = await get_reseller_admin(panel, account.username) if panel else None
+    admin = await get_reseller_admin(panel, account.panel_admin_id) if panel else None
 
     used = int(getattr(admin, "used_traffic", 0) or 0) if admin else 0
     data_limit = (
@@ -160,7 +160,7 @@ async def reset_password(account, *, actor_id: int | None = None) -> tuple[bool,
     if not panel:
         return False, "پنل یافت نشد.", None
     try:
-        new_password = await reset_reseller_admin_password(panel, account.username)
+        new_password = await reset_reseller_admin_password(panel, account.panel_admin_id, account.username)
     except Exception as exc:
         log.error("password reset failed code=%s: %s", account.code, exc)
         return False, "خطا در تغییر رمز.", None
@@ -208,7 +208,7 @@ async def pause_account(account) -> tuple[bool, str]:
     if not panel:
         return False, "پنل یافت نشد."
     try:
-        await suspend_reseller_admin(panel, account.username)
+        await suspend_reseller_admin(panel, account.panel_admin_id)
     except Exception as exc:
         log.error("pause reseller failed code=%s: %s", account.code, exc)
         return False, "خطا در غیرفعال‌سازی پنل."
@@ -228,7 +228,7 @@ async def pause_account_by_admin(account, *, actor_id: int | None = None) -> tup
     if not panel:
         return False, "پنل یافت نشد."
     try:
-        await suspend_reseller_admin(panel, account.username)
+        await suspend_reseller_admin(panel, account.panel_admin_id)
     except Exception as exc:
         log.error("admin pause reseller failed code=%s: %s", account.code, exc)
         return False, "خطا در غیرفعال‌سازی پنل."
@@ -253,7 +253,7 @@ async def resume_account(account) -> tuple[bool, str]:
     if error:
         return False, error
     try:
-        await activate_reseller_admin(panel, account.username)
+        await activate_reseller_admin(panel, account.panel_admin_id)
     except Exception as exc:
         log.error("resume reseller failed code=%s: %s", account.code, exc)
         return False, "خطا در فعال‌سازی پنل."
@@ -275,7 +275,7 @@ async def resume_account_by_admin(account, *, actor_id: int | None = None) -> tu
         if error:
             return False, error
     try:
-        await activate_reseller_admin(panel, account.username)
+        await activate_reseller_admin(panel, account.panel_admin_id)
     except Exception as exc:
         log.error("admin resume reseller failed code=%s: %s", account.code, exc)
         return False, "خطا در فعال‌سازی پنل."

@@ -16,8 +16,8 @@ from app.logger import get_logger
 from app.services.billing.reseller_pricing import pricing_mode_label
 from app.services.panels.admins import (
     compute_reseller_expiration,
+    find_admin_by_username,
     generate_admin_password,
-    get_reseller_admin,
     modify_reseller_admin,
 )
 from app.services.panels.settings import get_panel_login_url
@@ -185,7 +185,7 @@ async def import_existing_reseller_admin(
         return False, "این ادمین از قبل در ربات ثبت شده است.", None, None
 
     try:
-        admin = await get_reseller_admin(panel, username)
+        admin = await find_admin_by_username(panel, username)
     except Exception as exc:
         log.error("get_reseller_admin failed panel=%s username=%s: %s", panel_code, username, exc)
         return False, "خطا در دریافت ادمین از پنل.", None, None
@@ -196,7 +196,7 @@ async def import_existing_reseller_admin(
     try:
         await modify_reseller_admin(
             panel,
-            username,
+            admin.id,
             AdminModify(password=new_password, note=str(telegram_id)),
         )
     except Exception as exc:

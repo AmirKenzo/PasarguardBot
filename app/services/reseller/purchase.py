@@ -160,7 +160,7 @@ async def purchase_reseller_account(
         # Without a DB row nothing can bill, renew or clean up this admin: undo everything.
         log.error("reseller account insert failed user=%s username=%s: %s", user_id, username, created_err)
         try:
-            await remove_reseller_admin(panel, username)
+            await remove_reseller_admin(panel, created.id)
         except Exception as exc:
             log.error("rollback remove admin failed username=%s: %s", username, exc)
         await update_Money(user_id=user_id, Money=int(amount))

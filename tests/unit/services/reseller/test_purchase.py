@@ -107,7 +107,7 @@ async def test_db_insert_failure_rolls_back_admin_money_and_discount(env):
     env["accounts"].insert_ok = False
     outcome = await _buy(discount="OFF10")
     assert outcome.error == purchase.ERR_ACCOUNT_INSERT_FAILED
-    assert env["calls"]["removed"] == ["ali_shop"]
+    assert env["calls"]["removed"] == [9]
     assert env["calls"]["refund"] == [500]
     assert env["calls"]["release"] == ["OFF10"]
 

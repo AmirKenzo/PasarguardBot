@@ -79,7 +79,7 @@ async def increase_reseller_capacity(
 
     limit_after = limit_before + quantity
     try:
-        current = await get_reseller_admin(panel, account.username)
+        current = await get_reseller_admin(panel, account.panel_admin_id)
         if not current:
             raise RuntimeError("admin not found on panel")
         overrides = current.permission_overrides
@@ -87,7 +87,7 @@ async def increase_reseller_capacity(
             overrides = overrides.model_copy(update={"max_users": limit_after})
         else:
             overrides = RoleLimits(max_users=limit_after)
-        await modify_reseller_admin(panel, account.username, AdminModify(permission_overrides=overrides))
+        await modify_reseller_admin(panel, account.panel_admin_id, AdminModify(permission_overrides=overrides))
 
         await ResellerAccountCRUD().update_account(account.code, max_users=limit_after)
     except Exception as exc:

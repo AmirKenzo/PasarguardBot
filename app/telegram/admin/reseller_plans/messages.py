@@ -10,7 +10,7 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.crud.user import UserCRUD
-from app.services.panels.admins import get_reseller_admin
+from app.services.panels.admins import find_admin_by_username
 from app.services.reseller.import_existing import format_panel_admin_preview
 from app.telegram.admin.reseller_plans import states
 from app.telegram.admin.reseller_plans.callbacks import (
@@ -66,7 +66,7 @@ async def _process_reseller_import_username(event: Message, user_id: int, msg: s
         return
 
     try:
-        admin = await get_reseller_admin(panel, username)
+        admin = await find_admin_by_username(panel, username)
     except Exception:
         await event.respond("خطا در دریافت ادمین از پنل. دوباره تلاش کنید.")
         return

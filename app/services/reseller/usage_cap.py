@@ -35,7 +35,7 @@ async def apply_usage_cap_suspend(account, panel, *, reason: str, notify=None) -
     if account.status in ("expired", "admin_paused"):
         return False
     try:
-        await suspend_reseller_admin(panel, account.username)
+        await suspend_reseller_admin(panel, account.panel_admin_id)
     except Exception as exc:
         log.error("usage-cap suspend failed code=%s: %s", account.code, exc)
         return False
@@ -72,7 +72,7 @@ async def set_reseller_usage_cap(
         return False, "پنل یافت نشد."
 
     used = 0
-    admin = await get_reseller_admin(panel, account.username)
+    admin = await get_reseller_admin(panel, account.panel_admin_id)
     if admin:
         used = int(getattr(admin, "used_traffic", 0) or 0)
 
@@ -83,7 +83,7 @@ async def set_reseller_usage_cap(
     if account.status == USAGE_CAPPED_STATUS:
         if cap_bytes is None or used < cap_bytes:
             try:
-                await activate_reseller_admin(panel, account.username)
+                await activate_reseller_admin(panel, account.panel_admin_id)
             except Exception as exc:
                 log.error("usage-cap reactivate failed code=%s: %s", account.code, exc)
                 return False, "خطا در فعال‌سازی مجدد پنل."
@@ -91,7 +91,7 @@ async def set_reseller_usage_cap(
             reactivated = True
     elif account.status == "active" and cap_bytes is not None and used >= cap_bytes:
         try:
-            await suspend_reseller_admin(panel, account.username)
+            await suspend_reseller_admin(panel, account.panel_admin_id)
         except Exception as exc:
             log.error("usage-cap immediate suspend failed code=%s: %s", account.code, exc)
             return False, "خطا در اعمال سقف مصرف."

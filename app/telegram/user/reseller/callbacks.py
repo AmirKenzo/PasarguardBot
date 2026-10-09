@@ -448,7 +448,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         used = 0
         if panel:
             try:
-                admin = await get_reseller_admin(panel, acc.username)
+                admin = await get_reseller_admin(panel, acc.panel_admin_id)
                 used = int(getattr(admin, "used_traffic", 0) or 0) if admin else 0
             except Exception:
                 used = 0
@@ -642,7 +642,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         sub_users = 0
         if panel:
             try:
-                sub_users = await get_reseller_admin_user_count(panel, acc.username)
+                sub_users = await get_reseller_admin_user_count(panel, acc.panel_admin_id)
             except Exception:
                 sub_users = 0
         await event.edit(

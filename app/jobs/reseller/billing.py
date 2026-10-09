@@ -19,7 +19,7 @@ from app.services.billing.reseller_pricing import resolve_live_unit_price
 from app.services.panels.admins import (
     activate_reseller_admin,
     get_reseller_admin,
-    get_reseller_admins_by_username,
+    get_reseller_admins_by_id,
     modify_reseller_admin,
     purge_reseller_admin,
     suspend_reseller_admin,
@@ -104,7 +104,7 @@ async def _suspend_account(
     if account.status == "suspended":
         return
     try:
-        await modify_reseller_admin(panel, account.username, AdminModify(status="disabled"))
+        await modify_reseller_admin(panel, account.panel_admin_id, AdminModify(status="disabled"))
     except Exception as exc:
         log.error("suspend reseller failed code=%s: %s", account.code, exc)
         if stats:
@@ -137,7 +137,7 @@ async def _reactivate_account(account, panel, *, stats: _BillingRunStats | None 
     if account.status not in ("suspended", "paused"):
         return
     try:
-        await activate_reseller_admin(panel, account.username)
+        await activate_reseller_admin(panel, account.panel_admin_id)
     except Exception as exc:
         log.error("reactivate reseller failed code=%s: %s", account.code, exc)
         if stats:
@@ -255,7 +255,7 @@ async def _process_usage_account(
             return
     plan = await _resolve_plan(account)
     if admin is _ADMIN_NOT_PROVIDED:
-        admin = await get_reseller_admin(panel, account.username)
+        admin = await get_reseller_admin(panel, account.panel_admin_id)
     if not admin:
         return
 
@@ -377,7 +377,7 @@ async def _try_reactivate_suspended(settings, *, stats: _BillingRunStats | None 
         if account.pricing_mode == "usage":
             # Prevent suspend/reactivate flapping: for usage accounts, require enough
             # balance to cover pending usage since the last billed snapshot.
-            admin = await get_reseller_admin(panel, account.username)
+            admin = await get_reseller_admin(panel, account.panel_admin_id)
             if not admin:
                 continue
             snapshot = await snapshot_crud.get_latest_snapshot(account.code)
@@ -398,7 +398,7 @@ async def _expire_timed_accounts(now: int, *, stats: _BillingRunStats | None = N
         panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
         if panel:
             try:
-                await suspend_reseller_admin(panel, account.username)
+                await suspend_reseller_admin(panel, account.panel_admin_id)
             except Exception as exc:
                 log.error("expire reseller suspend failed code=%s: %s", account.code, exc)
         await ResellerAccountCRUD().update_account(account.code, status="expired")
@@ -501,9 +501,8 @@ async def run_reseller_billing() -> None:
         if not panel:
             continue
 
-        usernames = {account.username for account in panel_accounts if account.username}
         try:
-            admins_by_username = await get_reseller_admins_by_username(panel, usernames)
+            admins_by_id = await get_reseller_admins_by_id(panel, {a.panel_admin_id for a in panel_accounts})
         except Exception as exc:
             stats.errors += len(panel_accounts)
             log.error("usage billing admins fetch error panel=%s: %s", panel_code, exc)
@@ -517,7 +516,7 @@ async def run_reseller_billing() -> None:
                     now,
                     stats=stats,
                     panel=panel,
-                    admin=admins_by_username.get(account.username),
+                    admin=admins_by_id.get(account.panel_admin_id),
                 )
             except Exception as exc:
                 stats.errors += 1

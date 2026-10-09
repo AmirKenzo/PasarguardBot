@@ -88,25 +88,33 @@ async def fetch_panel_roles(panel) -> list[dict[str, Any]]:
         return []
 
 
-async def admin_username_exists(panel, username: str) -> bool:
+async def find_admin_by_username(panel, username: str):
+    """Exact (case-insensitive) username match; only for admins not linked to an account yet."""
     username = (username or "").strip()
     if not username:
-        return False
+        return None
 
-    async def _check(api: PasarguardAPI, token: str):
-        resp = await api.get_admins(token=token, username=username, limit=1)
-        return bool(resp.admins)
+    async def _find(api: PasarguardAPI, token: str):
+        resp = await api.get_admins(token=token, usernames=[username], limit=10)
+        return next((a for a in resp.admins or [] if a.username.lower() == username.lower()), None)
 
+    return await _with_auth_retry(panel, _find)
+
+
+async def admin_username_exists(panel, username: str) -> bool:
     try:
-        return await _with_auth_retry(panel, _check)
+        return await find_admin_by_username(panel, username) is not None
     except HTTPStatusError:
         return False
 
 
-async def get_reseller_admin(panel, username: str):
+async def get_reseller_admin(panel, admin_id: int | None):
+    if not admin_id:
+        return None
+
     async def _get(api: PasarguardAPI, token: str):
-        resp = await api.get_admins(token=token, username=username, limit=1)
-        return resp.admins[0] if resp.admins else None
+        resp = await api.get_admins(token=token, ids=[admin_id], limit=1)
+        return next((a for a in resp.admins or [] if a.id == admin_id), None)
 
     return await _with_auth_retry(panel, _get)
 
@@ -150,11 +158,16 @@ async def list_panel_admins(
     return await _with_auth_retry(panel, _list)
 
 
-async def get_reseller_admins_by_username(panel, usernames: set[str]) -> dict[str, Any]:
-    if not any(username and username.strip() for username in usernames):
+async def get_reseller_admins_by_id(panel, admin_ids: set[int]) -> dict[int, Any]:
+    ids = sorted({int(i) for i in admin_ids if i})
+    if not ids:
         return {}
-    admins = await list_panel_admins(panel, usernames=usernames)
-    return {username: admin for admin in admins if (username := str(getattr(admin, "username", "") or "").strip())}
+
+    async def _get(api: PasarguardAPI, token: str):
+        resp = await api.get_admins(token=token, ids=ids, limit=len(ids))
+        return {a.id: a for a in resp.admins or [] if a.id}
+
+    return await _with_auth_retry(panel, _get)
 
 
 def _build_role_limits(plan: ResellerPlan, max_users: int | None = None) -> RoleLimits | None:
@@ -201,24 +214,24 @@ async def create_reseller_admin(panel, admin: AdminCreate):
     return await _with_auth_retry(panel, _create)
 
 
-async def modify_reseller_admin(panel, username: str, admin: AdminModify):
+async def modify_reseller_admin(panel, admin_id: int, admin: AdminModify):
     async def _modify(api: PasarguardAPI, token: str):
-        return await api.modify_admin(username=username, admin=admin, token=token)
+        return await api.modify_admin_by_id(admin_id=admin_id, admin=admin, token=token)
 
     return await _with_auth_retry(panel, _modify)
 
 
-async def suspend_reseller_admin(panel, username: str):
-    return await modify_reseller_admin(panel, username, AdminModify(status="disabled"))
+async def suspend_reseller_admin(panel, admin_id: int):
+    return await modify_reseller_admin(panel, admin_id, AdminModify(status="disabled"))
 
 
-async def activate_reseller_admin(panel, username: str):
-    return await modify_reseller_admin(panel, username, AdminModify(status="active"))
+async def activate_reseller_admin(panel, admin_id: int):
+    return await modify_reseller_admin(panel, admin_id, AdminModify(status="active"))
 
 
-async def reset_reseller_admin_password(panel, username: str) -> str:
+async def reset_reseller_admin_password(panel, admin_id: int, username: str) -> str:
     password = generate_admin_password(username=username)
-    await modify_reseller_admin(panel, username, AdminModify(password=password))
+    await modify_reseller_admin(panel, admin_id, AdminModify(password=password))
     return password
 
 
@@ -233,54 +246,43 @@ def _parse_removed_users_count(result: Any) -> int:
     return 0
 
 
-async def get_reseller_admin_user_count(panel, admin_username: str) -> int:
-    username = (admin_username or "").strip()
-    if not username:
-        return 0
-    admin = await get_reseller_admin(panel, username)
+async def get_reseller_admin_user_count(panel, admin_id: int | None) -> int:
+    admin = await get_reseller_admin(panel, admin_id)
     return int(getattr(admin, "total_users", 0) or 0) if admin else 0
 
 
-async def delete_reseller_admin_users(panel, *, admin_id: int | None, admin_username: str) -> int:
-    username = (admin_username or "").strip()
-    if not admin_id and not username:
-        return 0
-
+async def delete_reseller_admin_users(panel, admin_id: int) -> int:
     async def _delete(api: PasarguardAPI, token: str):
-        if admin_id:
-            result = await api.remove_all_users_by_id(admin_id=admin_id, token=token)
-        else:
-            result = await api.remove_all_users_by_username(username=username, token=token)
-        return _parse_removed_users_count(result)
+        return _parse_removed_users_count(await api.remove_all_users_by_id(admin_id=admin_id, token=token))
 
     return await _with_auth_retry(panel, _delete)
 
 
-async def remove_reseller_admin(panel, username: str) -> None:
+async def remove_reseller_admin(panel, admin_id: int) -> None:
     async def _remove(api: PasarguardAPI, token: str):
-        await api.remove_admin(token=token, username=username)
+        await api.remove_admin_by_id(admin_id=admin_id, token=token)
 
     await _with_auth_retry(panel, _remove)
 
 
 async def purge_reseller_admin(panel, account) -> tuple[int, bool]:
     """Delete sub-users and remove the panel admin. Returns (deleted_users_count, admin_removed)."""
+    admin_id = account.panel_admin_id
+    if not admin_id:
+        log.error("purge skipped: account=%s has no panel_admin_id", account.code)
+        return 0, False
     deleted_users = 0
     admin_removed = False
     try:
-        deleted_users = await delete_reseller_admin_users(
-            panel,
-            admin_id=getattr(account, "panel_admin_id", None),
-            admin_username=account.username,
-        )
+        deleted_users = await delete_reseller_admin_users(panel, admin_id)
     except Exception as exc:
-        log.error("delete reseller admin users failed username=%s: %s", account.username, exc)
+        log.error("delete reseller admin users failed admin_id=%s: %s", admin_id, exc)
 
     try:
-        await remove_reseller_admin(panel, account.username)
+        await remove_reseller_admin(panel, admin_id)
         admin_removed = True
     except Exception as exc:
-        log.error("remove reseller admin failed username=%s: %s", account.username, exc)
+        log.error("remove reseller admin failed admin_id=%s: %s", admin_id, exc)
 
     return deleted_users, admin_removed
 

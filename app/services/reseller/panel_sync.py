@@ -32,9 +32,9 @@ async def sync_reseller_status(account, new_status: str) -> tuple[bool, str | No
         return False, "پنل این نمایندگی پیدا نشد."
     try:
         if new_status == "active":
-            await activate_reseller_admin(panel, account.username)
+            await activate_reseller_admin(panel, account.panel_admin_id)
         else:
-            await suspend_reseller_admin(panel, account.username)
+            await suspend_reseller_admin(panel, account.panel_admin_id)
     except Exception as exc:
         log.error("web status sync failed code=%s status=%s: %s", account.code, new_status, exc)
         return False, "اعمال وضعیت روی پنل ناموفق بود."
@@ -52,7 +52,7 @@ async def sync_reseller_max_users(account, max_users: int) -> tuple[bool, str | 
         return False, "پنل این نمایندگی پیدا نشد."
     limit = int(max_users) if max_users and max_users > 0 else None
     try:
-        current = await get_reseller_admin(panel, account.username)
+        current = await get_reseller_admin(panel, account.panel_admin_id)
         if not current:
             return False, "ادمین این نمایندگی در پنل پیدا نشد."
         overrides = current.permission_overrides
@@ -60,7 +60,7 @@ async def sync_reseller_max_users(account, max_users: int) -> tuple[bool, str | 
             overrides = overrides.model_copy(update={"max_users": limit})
         else:
             overrides = RoleLimits(max_users=limit)
-        await modify_reseller_admin(panel, account.username, AdminModify(permission_overrides=overrides))
+        await modify_reseller_admin(panel, account.panel_admin_id, AdminModify(permission_overrides=overrides))
     except Exception as exc:
         log.error("web max_users sync failed code=%s: %s", account.code, exc)
         return False, "اعمال سقف کاربر روی پنل ناموفق بود."
