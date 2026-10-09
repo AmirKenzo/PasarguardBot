@@ -695,10 +695,10 @@ async def _complete_vpn_purchase(event, *, amount: int, discount_code: str | Non
                 volume=volume_text,
             )
             snapshotted = await is_direct_pay_enabled()
-        await event.delete()
-        await event.respond("💸", buttons=await bhome_buttons(event.sender_id, "fa"))
         if snapshotted and await start_direct_pay_topup(event):
             return
+        await event.delete()
+        await event.respond("💸", buttons=await bhome_buttons(event.sender_id, "fa"))
         await event.respond(message, buttons=await create_balance_button(event.sender_id))
         return
 
