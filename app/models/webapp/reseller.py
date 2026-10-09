@@ -205,11 +205,17 @@ class WebAppResellerPageRequest(WebAppAuthRequest):
 
 
 class ResellerUsageRow(BaseModel):
+    """``used_bytes`` (usage) or ``billed_minutes`` (hourly) times ``unit_price`` gives ``amount``."""
+
     snapshot_at: int
+    period_start: int | None = None
     kind: str = Field("usage", description="hourly | usage")
     used_bytes: int = 0
     billed_minutes: int | None = None
+    unit_price: float | None = None
+    rate_estimated: bool = False
     amount: int = 0
+    is_debt: bool = False
 
 
 class WebAppResellerUsageResponse(WebAppResellerResponse):

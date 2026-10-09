@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, ErrorState, Input, Pagination } from "../../../components/ui";
+import { Button, ErrorState, Input, Pagination } from "../../../components/ui";
 import { panelResellersApi } from "../../../api/panel";
-import { formatBytes, formatNumber, formatToman, formatUnixDate } from "../../../lib/format";
-import type { PanelResellerSnapshotRow } from "../../../types/panel";
+import { formatNumber, formatToman } from "../../../lib/format";
+import { ChargeItem } from "../../../components/ChargeItem";
+import { toCharge } from "./parts";
 import { usePanelQuery } from "../../../queries/usePanelApi";
-import { DataTable, SectionCard, SelectField, Toolbar } from "../components";
-import type { Column } from "../components";
+import { SectionCard, SelectField, Toolbar } from "../components";
 import { EventList, Segmented } from "./parts";
 import { eventLabels } from "./labels";
 
@@ -76,52 +76,6 @@ export default function BillingTab() {
   );
 
   const labels = eventLabels(t);
-  const columns: Column<PanelResellerSnapshotRow>[] = [
-    {
-      key: "time",
-      header: t("panel.resellerHub.billing.time"),
-      cell: (row) => <span className="text-xs text-muted">{row.snapshot_at ? formatUnixDate(row.snapshot_at) : "—"}</span>,
-    },
-    {
-      key: "account",
-      header: t("panel.resellerHub.accounts.account"),
-      cell: (row) => (
-        <div className="min-w-0">
-          <p className="ltr-field truncate text-sm text-text">{row.username || t("panel.resellerHub.billing.deleted")}</p>
-          <p className="ltr-field text-[11px] text-muted">#{row.account_code}</p>
-        </div>
-      ),
-    },
-    {
-      key: "kind",
-      header: t("panel.common.type"),
-      secondary: true,
-      cell: (row) =>
-        row.kind === "hourly" ? (
-          <Badge tone="primary">{t("panel.common.hourly")}</Badge>
-        ) : (
-          <Badge tone="muted">{t("panel.common.metered")}</Badge>
-        ),
-    },
-    {
-      key: "basis",
-      header: t("panel.resellerHub.billing.basis"),
-      secondary: true,
-      cell: (row) => (
-        <span className="text-xs text-muted">
-          {row.kind === "hourly"
-            ? t("panel.resellerHub.billing.minutes", { count: formatNumber(row.billed_minutes || 0) })
-            : formatBytes(row.used_traffic, 2)}
-        </span>
-      ),
-    },
-    {
-      key: "amount",
-      header: t("panel.common.amount"),
-      cell: (row) => <span className="font-medium text-text">{formatToman(row.billed_amount)}</span>,
-    },
-  ];
-
   const active = view === "ledger" ? ledger : events;
   const totalPages = (view === "ledger" ? ledger.data?.meta.total_pages : events.data?.meta.total_pages) || 1;
 
@@ -209,13 +163,22 @@ export default function BillingTab() {
             ) : undefined
           }
         >
-          <DataTable
-            columns={columns}
-            rows={ledger.data?.rows || []}
-            rowKey={(row) => row.id}
-            loading={ledger.isLoading}
-            emptyTitle={t("panel.resellers.invoicesEmpty")}
-          />
+          {ledger.isLoading ? (
+            <p className="py-8 text-center text-sm text-muted">{t("reseller.loading")}</p>
+          ) : ledger.data?.rows.length ? (
+            <ul className="grid gap-2.5 lg:grid-cols-2">
+              {ledger.data.rows.map((row) => (
+                <ChargeItem
+                  key={row.id}
+                  charge={toCharge(row)}
+                  panelCounter={row.used_traffic}
+                  account={`${row.username || t("panel.resellerHub.billing.deleted")} · #${row.account_code}`}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted">{t("panel.resellers.invoicesEmpty")}</p>
+          )}
         </SectionCard>
       ) : (
         <SectionCard

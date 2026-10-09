@@ -1756,7 +1756,7 @@
       },
       "billing": {
         "ledger": "Charge ledger",
-        "ledgerHint": "Hourly and metered charges taken from reseller wallets",
+        "ledgerHint": "Every charge to a reseller's wallet with its period, traffic or active time, rate and exact calculation",
         "events": "Events",
         "eventCount": "{{count}} events",
         "time": "Time",
@@ -1775,16 +1775,25 @@
         "plan": "Plan",
         "price": "Plan price (Toman)",
         "hourlyRate": "Rate per hour (Toman)",
-        "gbRate": "Price per GB (Toman)",
+        "gbRate": "Price per GB used (Toman)",
         "tbRate": "Price per TB (Toman)",
         "dataLimit": "Volume (GB)",
         "zeroUnlimited": "0 = unlimited",
         "users": "{{count}} users",
         "linked": "{{count}} linked resellers",
-        "lockedHint": "This plan is linked to {{count}} resellers; its panel and pricing model can't change and it can't be deleted (you can disable it).",
+        "lockedHint": "This plan is linked to {{count}} resellers; its panel and plan type can't change and it can't be deleted (you can disable it).",
         "buttonSection": "Purchase button",
         "notify": "Notify linked resellers",
-        "notifyHint": "If the rate changes, users on this plan get a rate-change message."
+        "notifyHint": "If the rate changes, users on this plan get a rate-change message.",
+        "fixedHint": "One fixed price for a set package (volume, duration and user limit). Renewed with the same plan when it ends.",
+        "usageHint": "Nothing is charged at purchase. For every GB the reseller's users consume, the cost is taken from the reseller's wallet over time.",
+        "role": "Admin role on the Pasarguard panel",
+        "chooseRole": "Choose a role",
+        "rolesLoading": "Loading roles from the panel…",
+        "roleHint": "The admin created for the reseller gets this role and its permissions.",
+        "gbVolumeRate": "Price per GB (Toman)",
+        "totalTrafficCap": "Reseller's total traffic cap (GB)",
+        "maxUsers": "User limit"
       },
       "settings": {
         "global": "Global rules",
@@ -1817,7 +1826,9 @@
           "delete": "Delete reseller"
         },
         "unsaved": "You have unsaved changes"
-      }
+      },
+      "planType": "Plan type",
+      "perGbUsedAmount": "{{amount}} / GB used"
     }
   },
   "reseller": {
@@ -1835,11 +1846,11 @@
     "password": "Password",
     "runway": "Wallet runway",
     "mode": {
-      "fixed": "Fixed plan",
+      "fixed": "Fixed",
       "per_gb": "Per GB",
       "per_tb": "Per TB",
       "hourly": "Hourly",
-      "usage": "Metered"
+      "usage": "Usage-based (by traffic used)"
     },
     "list": {
       "title": "My reseller panels",
@@ -1963,6 +1974,22 @@
     },
     "runwayMinutes": "{{count}} min",
     "runwayHours": "{{count}} h",
-    "runwayDays": "{{count}} days"
+    "runwayDays": "{{count}} days",
+    "charge": {
+      "usage": "Usage",
+      "hourly": "Hourly",
+      "debt": "Debt",
+      "used": "Traffic used",
+      "activeTime": "Active time",
+      "rate": "Rate",
+      "calculation": "Calculation",
+      "gigabytes": "{{value}} GB",
+      "minutes": "{{count}} min",
+      "usageFormula": "{{value}} GB × {{rate}}",
+      "hourlyFormula": "{{minutes}} min of the {{rate}} hourly rate",
+      "hourOf": "Hour {{from}} to {{to}}",
+      "panelCounter": "Panel's total usage counter at this moment: {{value}}"
+    },
+    "perGbUsed": "{{amount}} / GB used"
   }
 }

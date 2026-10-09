@@ -53,7 +53,15 @@ def _account(**overrides) -> SimpleNamespace:
 
 
 def _plan(**overrides) -> SimpleNamespace:
-    values = {"id": 3, "panel_code": 1, "pricing_mode": "hourly", "price": 0, "unit_price": 1000}
+    values = {
+        "id": 3,
+        "panel_code": 1,
+        "pricing_mode": "usage",
+        "price": 0,
+        "unit_price": 1000,
+        "role_id": 1,
+        "role_name": "seller",
+    }
     values.update(overrides)
     return SimpleNamespace(**values, display_button_text=None)
 
@@ -101,9 +109,13 @@ async def _save(monkeypatch, request: PanelResellerPlanSaveRequest, *, linked: i
     async def upsert(actor, plan_id, values):
         saved.append(values)
 
+    async def roles(panel_code):
+        return [{"id": 1, "name": "seller"}, {"id": 2, "name": "vip"}]
+
     monkeypatch.setattr(resellers.queries, "panel_names", panel_names)
     monkeypatch.setattr(resellers.queries, "get_reseller_plan", get_plan)
     monkeypatch.setattr(resellers.mutations, "upsert_reseller_plan", upsert)
+    monkeypatch.setattr(resellers, "_panel_roles", roles)
     monkeypatch.setattr(resellers, "_schedule_rate_notice", lambda *args: notices.append(args[1:3]))
     result = await resellers.save_reseller_plan(request, None)
     return result, saved, notices
@@ -117,15 +129,38 @@ async def test_linked_plan_keeps_its_pricing_mode(monkeypatch):
 
 
 async def test_rate_change_on_linked_plan_notifies_resellers(monkeypatch):
-    request = PanelResellerPlanSaveRequest(plan_id=3, panel_code=1, pricing_mode="hourly", unit_price=1500, role_id=1)
+    request = PanelResellerPlanSaveRequest(plan_id=3, panel_code=1, pricing_mode="usage", unit_price=1500, role_id=1)
     result, saved, notices = await _save(monkeypatch, request, linked=2)
     assert result.ok
     assert "data_limit" not in saved[0]
     assert notices == [(1000.0, 1500.0)]
 
 
-async def test_free_hourly_plan_is_rejected(monkeypatch):
-    request = PanelResellerPlanSaveRequest(panel_code=1, pricing_mode="hourly", unit_price=0, role_id=1)
+async def test_free_usage_plan_is_rejected(monkeypatch):
+    request = PanelResellerPlanSaveRequest(panel_code=1, pricing_mode="usage", unit_price=0, role_id=1)
+    result, saved, _ = await _save(monkeypatch, request, linked=0)
+    assert not result.ok
+    assert saved == []
+
+
+async def test_new_plans_are_only_fixed_or_usage(monkeypatch):
+    request = PanelResellerPlanSaveRequest(panel_code=1, pricing_mode="hourly", unit_price=500, role_id=1)
+    result, saved, _ = await _save(monkeypatch, request, linked=0)
+    assert not result.ok
+    assert saved == []
+
+
+async def test_role_name_comes_from_the_panel(monkeypatch):
+    request = PanelResellerPlanSaveRequest(
+        panel_code=1, pricing_mode="fixed", price=900, role_id=2, role_name="typed by hand"
+    )
+    result, saved, _ = await _save(monkeypatch, request, linked=0)
+    assert result.ok
+    assert (saved[0]["role_id"], saved[0]["role_name"]) == (2, "vip")
+
+
+async def test_unknown_role_is_rejected(monkeypatch):
+    request = PanelResellerPlanSaveRequest(panel_code=1, pricing_mode="fixed", price=900, role_id=99)
     result, saved, _ = await _save(monkeypatch, request, linked=0)
     assert not result.ok
     assert saved == []

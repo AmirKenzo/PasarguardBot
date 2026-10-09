@@ -82,7 +82,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
     { key: "panel", header: t("panel.common.panel"), secondary: true, cell: (row) => row.panel || "—" },
     {
       key: "mode",
-      header: t("panel.common.pricingModel"),
+      header: t("panel.resellerHub.planType"),
       secondary: true,
       cell: (row) => pricingLabels(t)[row.pricing_mode] || row.pricing_mode,
     },
@@ -137,7 +137,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
         </div>
         <div className="w-36">
           <SelectField
-            label={t("panel.common.pricingModel")}
+            label={t("panel.resellerHub.planType")}
             options={[
               { value: "", label: t("panel.common.all") },
               ...modes.map((value) => ({ value, label: pricingLabels(t)[value] || value })),

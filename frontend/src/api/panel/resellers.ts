@@ -17,6 +17,8 @@ import type {
   PanelResellerPlansResponse,
   PanelResellerPlanSaveRequest,
   PanelResellerRenewRequest,
+  PanelResellerRolesRequest,
+  PanelResellerRolesResponse,
   PanelResellersRequest,
   PanelResellersResponse,
   PanelResellerSettingsResponse,
@@ -95,6 +97,10 @@ export function listResellerPlans(body: PanelAuthRequest) {
 
 export function saveResellerPlan(body: PanelResellerPlanSaveRequest) {
   return panelPost<ActionResponse>("/reseller-plans/save", body);
+}
+
+export function listPanelRoles(body: PanelResellerRolesRequest) {
+  return panelPost<PanelResellerRolesResponse>("/reseller-plans/roles", body);
 }
 
 export function deleteResellerPlan(body: PanelResellerPlanDeleteRequest) {

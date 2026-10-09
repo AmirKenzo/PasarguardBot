@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Badge, EmptyState } from "../../../components/ui";
 import { formatRelativeTime, formatToman, formatUnixDate } from "../../../lib/format";
-import type { PanelResellerEventRow } from "../../../types/panel";
+import type { PanelResellerEventRow, PanelResellerSnapshotRow } from "../../../types/panel";
 import { EVENT_TONE, STATUS_TONE, eventAmount, eventLabels, statusLabels } from "./labels";
 
 export function StatusBadge({ status }: { status: string }) {
@@ -104,4 +104,19 @@ export function Segmented({
       ))}
     </div>
   );
+}
+
+/** An admin ledger row in the shape the shared ChargeItem renders. */
+export function toCharge(row: PanelResellerSnapshotRow) {
+  return {
+    kind: row.kind,
+    used_bytes: row.used_bytes,
+    billed_minutes: row.billed_minutes,
+    unit_price: row.unit_price,
+    rate_estimated: row.rate_estimated,
+    period_start: row.period_start,
+    charged_at: row.snapshot_at,
+    amount: row.billed_amount,
+    is_debt: row.is_debt,
+  };
 }

@@ -15,7 +15,7 @@ from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_events import ResellerEventCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.models.reseller_events import ResellerEvent
-from app.db.models.reseller_plans import PRICING_MODES
+from app.db.models.reseller_plans import CREATABLE_PRICING_MODES, PRICING_MODES
 from app.logger import get_logger
 from app.models.panel.common import ActionResponse, PanelRequest, page_meta
 from app.models.panel.resellers import (
@@ -35,6 +35,9 @@ from app.models.panel.resellers import (
     PanelResellerPlanSaveRequest,
     PanelResellerPlansResponse,
     PanelResellerRenewRequest,
+    PanelResellerRole,
+    PanelResellerRolesRequest,
+    PanelResellerRolesResponse,
     PanelResellerRow,
     PanelResellerSnapshotRow,
     PanelResellersRequest,
@@ -48,6 +51,7 @@ from app.panel.forms import parse_icon, parse_style
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
 from app.services.billing.reseller_renewal import renew_reseller_account
+from app.services.panels.admins import fetch_panel_roles
 from app.services.reseller.accounts import (
     ADMIN_LOCKED_STATUS,
     PAYG_MODES,
@@ -60,6 +64,7 @@ from app.services.reseller.accounts import (
     reveal_password,
     set_max_users_by_admin,
 )
+from app.services.reseller.ledger import LedgerEntry, describe_charges
 from app.services.reseller.plan_changes import LIVE_RATE_MODES, notify_plan_rate_change
 from app.services.reseller.runway import estimate_runway
 from app.services.reseller.usage_cap import set_reseller_usage_cap
@@ -108,17 +113,22 @@ def reseller_row(account, panels: dict[int, str]) -> PanelResellerRow:
     )
 
 
-def snapshot_row(snapshot, account=None) -> PanelResellerSnapshotRow:
+def snapshot_row(entry: LedgerEntry, account=None) -> PanelResellerSnapshotRow:
     return PanelResellerSnapshotRow(
-        id=int(snapshot.id),
-        account_code=int(snapshot.account_code) if snapshot.account_code is not None else None,
+        id=entry.id,
+        account_code=entry.account_code,
         username=account.username if account is not None else None,
         telegram_id=account.telegram_id if account is not None else None,
-        kind="hourly" if snapshot.billed_minutes is not None else "usage",
-        used_traffic=int(snapshot.used_traffic or 0),
-        billed_amount=int(snapshot.billed_amount or 0),
-        billed_minutes=snapshot.billed_minutes,
-        snapshot_at=snapshot.snapshot_at,
+        kind=entry.kind,
+        used_traffic=entry.panel_counter,
+        used_bytes=entry.used_bytes,
+        billed_amount=entry.amount,
+        billed_minutes=entry.minutes,
+        unit_price=round(entry.unit_price, 2) if entry.unit_price is not None else None,
+        rate_estimated=entry.rate_estimated,
+        period_start=entry.period_start,
+        snapshot_at=entry.charged_at,
+        is_debt=entry.is_debt,
     )
 
 
@@ -197,7 +207,7 @@ async def list_resellers(payload: PanelResellersRequest, request: Request) -> Pa
         return PanelResellersResponse(
             resellers=[reseller_row(account, panels) for account in rows],
             panels=[PanelPanelOption(code=code, name=name) for code, name in panels.items()],
-            pricing_modes=list(PRICING_MODES),
+            pricing_modes=list(CREATABLE_PRICING_MODES),
             meta=page_meta(total, payload.page, payload.limit),
         )
 
@@ -219,7 +229,7 @@ async def reseller_detail(payload: PanelResellerDetailRequest, request: Request)
         response = PanelResellerDetailResponse(
             reseller=reseller_row(account, panels),
             actions=admin_actions(account),
-            snapshots=[snapshot_row(snapshot, account) for snapshot in snapshots],
+            snapshots=[snapshot_row(entry, account) for entry in await describe_charges(snapshots)],
             events=[event_row(event) for event in events],
         )
 
@@ -515,18 +525,48 @@ async def list_reseller_plans(payload: PanelRequest, request: Request) -> PanelR
                 for plan in plans
             ],
             panels=[PanelPanelOption(code=code, name=name) for code, name in panels.items()],
-            pricing_modes=list(PRICING_MODES),
+            pricing_modes=list(CREATABLE_PRICING_MODES),
         )
 
     return await guard.run(payload, request, PanelResellerPlansResponse, handle)
 
 
-def _plan_price_error(payload: PanelResellerPlanSaveRequest) -> str | None:
+async def _panel_roles(panel_code: int) -> list[dict] | None:
+    """Assignable roles of the panel (Owner left out); None when the panel is unknown."""
+    panel = await queries.get_panel(panel_code)
+    if panel is None:
+        return None
+    roles = await fetch_panel_roles(panel)
+    return [role for role in roles if not role.get("is_owner")] or roles
+
+
+@router.post("/panel/reseller-plans/roles", response_model=PanelResellerRolesResponse)
+async def list_panel_roles(payload: PanelResellerRolesRequest, request: Request) -> PanelResellerRolesResponse:
+    async def handle(_: PanelActor) -> PanelResellerRolesResponse:
+        roles = await _panel_roles(payload.panel_code)
+        if roles is None:
+            return PanelResellerRolesResponse(ok=False, error="پنلی با این کد پیدا نشد.")
+        if not roles:
+            return PanelResellerRolesResponse(ok=False, error="نقش‌ها از پنل دریافت نشد؛ اتصال پنل را بررسی کنید.")
+        return PanelResellerRolesResponse(
+            roles=[PanelResellerRole(id=int(role["id"]), name=str(role["name"])) for role in roles]
+        )
+
+    return await guard.run(payload, request, PanelResellerRolesResponse, handle)
+
+
+def _plan_price_error(payload: PanelResellerPlanSaveRequest, existing) -> str | None:
     if payload.pricing_mode not in PRICING_MODES:
-        return "مدل قیمت‌گذاری معتبر نیست."
+        return "نوع پلن معتبر نیست."
+    # Older plans of another type stay editable as they are, but nothing new of that type is created.
+    keeps_old_type = existing is not None and payload.pricing_mode == existing.pricing_mode
+    if payload.pricing_mode not in CREATABLE_PRICING_MODES and not keeps_old_type:
+        return "فقط پلن ثابت یا مصرفی قابل ساخت است."
     if payload.pricing_mode == "fixed" and payload.price <= 0:
         return "قیمت پلن ثابت باید بیشتر از صفر باشد."
-    if payload.pricing_mode != "fixed" and payload.unit_price <= 0:
+    if payload.pricing_mode == "usage" and payload.unit_price <= 0:
+        return "قیمت هر گیگ مصرف باید بیشتر از صفر باشد."
+    if payload.pricing_mode not in ("fixed", "usage") and payload.unit_price <= 0:
         return "قیمت واحد باید بیشتر از صفر باشد."
     if payload.max_volume and payload.max_volume < payload.min_volume:
         return "حداکثر حجم نمی‌تواند از حداقل کمتر باشد."
@@ -551,7 +591,12 @@ async def save_reseller_plan(payload: PanelResellerPlanSaveRequest, request: Req
         panels = await queries.panel_names()
         if payload.panel_code not in panels:
             return ActionResponse(ok=False, error="پنلی با این کد پیدا نشد.")
-        error = _plan_price_error(payload)
+        existing = None
+        if payload.plan_id is not None:
+            existing = await queries.get_reseller_plan(payload.plan_id)
+            if existing is None:
+                return ActionResponse(ok=False, error="پلنی با این شناسه پیدا نشد.")
+        error = _plan_price_error(payload, existing)
         if error:
             return ActionResponse(ok=False, error=error)
         try:
@@ -559,19 +604,31 @@ async def save_reseller_plan(payload: PanelResellerPlanSaveRequest, request: Req
         except ValueError:
             return ActionResponse(ok=False, error="آیدی ایموجی معتبر نیست.")
 
-        existing = None
-        if payload.plan_id is not None:
-            existing = await queries.get_reseller_plan(payload.plan_id)
-            if existing is None:
-                return ActionResponse(ok=False, error="پلنی با این شناسه پیدا نشد.")
+        if existing is not None:
             linked = await ResellerAccountCRUD().count_accounts_by_plan(payload.plan_id)
             if linked and (
                 payload.pricing_mode != existing.pricing_mode or payload.panel_code != int(existing.panel_code)
             ):
                 return ActionResponse(
                     ok=False,
-                    error=f"این پلن به {linked} نمایندگی متصل است؛ پنل و مدل قیمت‌گذاری آن قابل تغییر نیست.",
+                    error=f"این پلن به {linked} نمایندگی متصل است؛ پنل و نوع آن قابل تغییر نیست.",
                 )
+
+        # The role comes from the panel itself, so a typo can't create admins with a missing role.
+        unchanged_role = (
+            existing is not None
+            and payload.role_id == int(existing.role_id or 0)
+            and payload.panel_code == int(existing.panel_code)
+        )
+        role_name = existing.role_name if unchanged_role else None
+        roles = await _panel_roles(payload.panel_code)
+        if roles:
+            role = next((item for item in roles if int(item["id"]) == payload.role_id), None)
+            if role is None:
+                return ActionResponse(ok=False, error="نقش انتخاب‌شده در پنل پیدا نشد.")
+            role_name = str(role["name"])
+        elif not unchanged_role:
+            return ActionResponse(ok=False, error="نقش‌ها از پنل دریافت نشد؛ اتصال پنل را بررسی کنید.")
 
         values = {
             "panel_code": payload.panel_code,
@@ -584,7 +641,7 @@ async def save_reseller_plan(payload: PanelResellerPlanSaveRequest, request: Req
             "max_users": payload.max_users,
             "duration": payload.duration,
             "role_id": payload.role_id,
-            "role_name": payload.role_name.strip() or None,
+            "role_name": role_name,
             "enable": payload.enable,
             "display_button_text": payload.display_button_text.strip() or None,
             "button_style": parse_style(payload.button_style),

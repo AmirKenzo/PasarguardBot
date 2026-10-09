@@ -28,6 +28,7 @@ from app.routers.panel.auth import PanelActor
 from app.routers.panel.resellers import event_row, snapshot_row
 from app.services.billing import payment_stats
 from app.services.reseller.accounts import grace_seconds
+from app.services.reseller.ledger import describe_charges
 from app.services.reseller.logging import EVENT_KINDS, SALE_EVENT_KINDS
 from app.services.reseller.runway import BURNING_MODES, estimate_runways
 
@@ -136,7 +137,10 @@ async def reseller_ledger(payload: PanelResellerLedgerRequest, request: Request)
             per_page=payload.limit,
         )
         return PanelResellerLedgerResponse(
-            rows=[snapshot_row(snapshot, account) for snapshot, account in rows],
+            rows=[
+                snapshot_row(entry, account)
+                for entry, (_, account) in zip(await describe_charges([s for s, _ in rows]), rows, strict=True)
+            ],
             total_billed=billed,
             meta=page_meta(total, payload.page, payload.limit),
         )

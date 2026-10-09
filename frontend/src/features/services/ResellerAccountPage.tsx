@@ -28,6 +28,7 @@ import {
   SkeletonCard,
 } from "../../components/ui";
 import { ErrorState } from "../../components/ui/EmptyState";
+import { ChargeItem } from "../../components/ChargeItem";
 import { useToast } from "../../components/ui/Toast";
 import { resellerApi } from "../../api/webapp";
 import { useTelegram } from "../../hooks/useTelegram";
@@ -167,20 +168,9 @@ function History({ code, showUsage }: { code: number; showUsage: boolean }) {
           <p className="mb-2 text-xs text-muted">
             {t("reseller.detail.totalBilled", { amount: formatToman(usage.data.total_billed) })}
           </p>
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {usage.data.rows.map((row) => (
-              <li
-                key={`${row.snapshot_at}-${row.kind}`}
-                className="flex items-center justify-between gap-3 rounded-md bg-surface-2 px-3 py-2 text-sm"
-              >
-                <span className="text-xs text-muted">{formatUnixDate(row.snapshot_at)}</span>
-                <span className="text-xs text-muted">
-                  {row.kind === "hourly"
-                    ? t("reseller.minutes", { count: formatNumber(row.billed_minutes ?? 0) })
-                    : formatBytes(row.used_bytes, 2)}
-                </span>
-                <span className="font-semibold">{formatToman(row.amount)}</span>
-              </li>
+              <ChargeItem key={`${row.snapshot_at}-${row.kind}`} charge={{ ...row, charged_at: row.snapshot_at }} />
             ))}
           </ul>
         </>
@@ -374,7 +364,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
             <Stat label={t("reseller.detail.balance")} value={formatToman(data.balance ?? 0)} />
             <Stat
               label={t("reseller.detail.rate")}
-              value={t(account.pricing_mode === "hourly" ? "reseller.perHour" : "reseller.perGb", {
+              value={t(account.pricing_mode === "hourly" ? "reseller.perHour" : "reseller.perGbUsed", {
                 amount: formatToman(data.rate),
               })}
             />

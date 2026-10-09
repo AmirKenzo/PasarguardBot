@@ -16,7 +16,8 @@ import {
 import type { PanelResellerDetailResponse } from "../../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../../queries/usePanelApi";
 import { ConfirmButton, FormModal, SelectField } from "../components";
-import { Detail, EventList, Segmented, StatusBadge } from "./parts";
+import { ChargeItem } from "../../../components/ChargeItem";
+import { Detail, EventList, Segmented, StatusBadge, toCharge } from "./parts";
 import { GB, formatRunway, pricingLabels, runwayTone } from "./labels";
 
 type Navigate = (tab: string, extra?: Record<string, string>) => void;
@@ -397,17 +398,9 @@ function AccountBody({
         {history === "events" ? (
           <EventList events={data.events} />
         ) : data.snapshots.length ? (
-          <ul className="space-y-1.5 text-sm">
+          <ul className="space-y-2">
             {data.snapshots.map((snapshot) => (
-              <li key={snapshot.id} className="flex items-center justify-between gap-3 rounded-md bg-surface-2 px-3 py-2">
-                <span className="text-xs text-muted">{snapshot.snapshot_at ? formatUnixDate(snapshot.snapshot_at) : "—"}</span>
-                <span className="text-xs text-muted">
-                  {snapshot.kind === "hourly"
-                    ? t("panel.resellerHub.billing.minutes", { count: formatNumber(snapshot.billed_minutes || 0) })
-                    : formatBytes(snapshot.used_traffic, 2)}
-                </span>
-                <span className="font-medium">{formatToman(snapshot.billed_amount)}</span>
-              </li>
+              <ChargeItem key={snapshot.id} charge={toCharge(snapshot)} panelCounter={snapshot.used_traffic} />
             ))}
           </ul>
         ) : (

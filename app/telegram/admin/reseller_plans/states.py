@@ -19,5 +19,5 @@ ADMIN_INPUT_STEPS = (
 
 PRICING_MODE_LABELS = {
     "fixed": "پلن ثابت",
-    "usage": "مصرفی (Pay as you go)",
+    "usage": "مصرفی (بر اساس حجم مصرف)",
 }

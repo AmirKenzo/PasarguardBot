@@ -112,15 +112,22 @@ class PanelResellersResponse(PanelResponse):
 
 
 class PanelResellerSnapshotRow(BaseModel):
+    """One charge: ``used_bytes`` (usage) or ``billed_minutes`` (hourly) times ``unit_price`` gives ``billed_amount``."""
+
     id: int
     account_code: int | None = None
     username: str | None = None
     telegram_id: int | None = None
     kind: str = Field("usage", description="hourly | usage")
-    used_traffic: int = 0
+    used_traffic: int = Field(0, description="Panel's cumulative traffic counter at charge time")
+    used_bytes: int | None = Field(None, description="Traffic used in the charged period")
     billed_amount: int = 0
     billed_minutes: int | None = None
+    unit_price: float | None = Field(None, description="Rate per GB (usage) or per hour (hourly)")
+    rate_estimated: bool = Field(False, description="Rate derived from amount/usage for rows before rates were stored")
+    period_start: int | None = None
     snapshot_at: int | None = None
+    is_debt: bool = Field(False, description="Charged while the wallet was short; left the balance negative")
 
 
 class PanelResellerLive(BaseModel):
@@ -325,8 +332,8 @@ class PanelResellerPlanSaveRequest(PanelRequest):
     data_limit_gb: float | None = Field(None, ge=0, description="Null keeps the stored value; 0 is unlimited")
     max_users: int = Field(0, ge=0)
     duration: int = Field(0, ge=0)
-    role_id: int = Field(..., ge=0)
-    role_name: str = Field("", max_length=64)
+    role_id: int = Field(..., gt=0, description="A role of the Pasarguard panel; its name is read from the panel")
+    role_name: str = Field("", max_length=64, description="Ignored; kept for older clients")
     enable: bool = True
     display_button_text: str = Field("", max_length=64)
     button_style: str = Field("", max_length=20)
@@ -336,3 +343,16 @@ class PanelResellerPlanSaveRequest(PanelRequest):
 
 class PanelResellerPlanDeleteRequest(PanelRequest):
     plan_id: int
+
+
+class PanelResellerRolesRequest(PanelRequest):
+    panel_code: int = Field(..., gt=0)
+
+
+class PanelResellerRole(BaseModel):
+    id: int
+    name: str
+
+
+class PanelResellerRolesResponse(PanelResponse):
+    roles: list[PanelResellerRole] = Field(default_factory=list)

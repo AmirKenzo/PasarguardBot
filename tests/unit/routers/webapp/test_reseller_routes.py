@@ -13,6 +13,7 @@ from app.models.webapp.reseller import (
     WebAppResellerPageRequest,
 )
 from app.routers.webapp import reseller
+from app.services.reseller import ledger
 from app.services.reseller.purchase import PriceQuote, PurchaseOutcome, PurchaseQuote
 
 USER = 7
@@ -158,13 +159,32 @@ async def test_closed_sale_hides_the_buy_card(env, monkeypatch):
     assert result.ok and result.enabled is False and result.panels == []
 
 
-async def test_usage_rows_report_traffic_since_the_previous_reading(env, monkeypatch):
+def _snap(row_id, at, counter_gb, amount, **extra):
+    values = {
+        "id": row_id,
+        "account_code": 5,
+        "snapshot_at": at,
+        "used_traffic": counter_gb * 1024**3,
+        "billed_amount": amount,
+        "billed_minutes": None,
+        "used_bytes": None,
+        "unit_price": None,
+        "period_start": None,
+        "is_debt": None,
+    }
+    values.update(extra)
+    return SimpleNamespace(**values)
+
+
+async def test_usage_rows_explain_each_charge(env, monkeypatch):
     env["actions"] = {"usage_report"}
     gb = 1024**3
     rows = [
-        SimpleNamespace(snapshot_at=300, used_traffic=9 * gb, billed_amount=40, billed_minutes=None),
-        SimpleNamespace(snapshot_at=200, used_traffic=2 * gb, billed_amount=30, billed_minutes=None),
-        SimpleNamespace(snapshot_at=100, used_traffic=5 * gb, billed_amount=20, billed_minutes=None),
+        # New row: stored usage, rate and period are reported as they are.
+        _snap(3, 300, 9, 14_000, used_bytes=7 * gb, unit_price=2000.0, period_start=200),
+        # Old row: usage rebuilt from the previous reading (counter reset 5 -> 2 GB), rate from amount/usage.
+        _snap(2, 200, 2, 3_000),
+        _snap(1, 100, 5, 20),
     ]
 
     class Snapshots:
@@ -172,11 +192,22 @@ async def test_usage_rows_report_traffic_since_the_previous_reading(env, monkeyp
             return rows[offset : offset + limit]
 
         async def get_usage_totals(self, code):
-            return 3, 90
+            return 3, 17_020
+
+        async def get_previous_usage_snapshots(self, targets):
+            return {int(row.id): rows[rows.index(row) + 1] for row in targets if rows.index(row) + 1 < len(rows)}
 
     monkeypatch.setattr(reseller, "ResellerBillingSnapshotCRUD", Snapshots)
+    monkeypatch.setattr(ledger, "ResellerBillingSnapshotCRUD", Snapshots)
     result = await reseller.reseller_usage(WebAppResellerPageRequest(code=5, limit=2))
-    # 9 GB after 2 GB -> 7 GB; 2 GB after 5 GB means the panel counter was reset -> 2 GB.
-    assert [row.used_bytes // gb for row in result.rows] == [7, 2]
+
+    first, second = result.rows
+    assert (first.used_bytes // gb, first.unit_price, first.period_start, first.rate_estimated) == (7, 2000, 200, False)
+    assert (second.used_bytes // gb, second.unit_price, second.period_start, second.rate_estimated) == (
+        2,
+        1500,
+        100,
+        True,
+    )
     assert result.has_more is True
-    assert result.total_billed == 90
+    assert result.total_billed == 17_020

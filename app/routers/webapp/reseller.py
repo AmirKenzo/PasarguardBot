@@ -78,6 +78,7 @@ from app.services.reseller.accounts import (
     reveal_password,
 )
 from app.services.reseller.capacity import CAPACITY_PRESETS, calculate_capacity_price, increase_reseller_capacity
+from app.services.reseller.ledger import describe_charges
 from app.services.reseller.purchase import (
     apply_reseller_discount,
     purchase_reseller_account,
@@ -581,37 +582,30 @@ async def reseller_capacity_confirm(request: WebAppResellerCapacityRequest) -> W
 
 @router.post("/webapp/reseller/account/usage", response_model=WebAppResellerUsageResponse)
 async def reseller_usage(request: WebAppResellerPageRequest) -> WebAppResellerUsageResponse:
-    """Charge history; usage rows report the traffic used since the previous row."""
+    """Charge history: what was used, at which rate, over which period."""
 
     async def call() -> WebAppResellerUsageResponse:
         user_id = await _user(request)
         account, _ = await _owned(request.code, user_id, ACTION_USAGE_REPORT)
         crud = ResellerBillingSnapshotCRUD()
         offset = (request.page - 1) * request.limit
-        # One extra row: the next older reading is needed for the last row's delta and for has_more.
+        # One extra row tells whether another page exists.
         snapshots = await crud.get_snapshots(account.code, limit=request.limit + 1, offset=offset)
         _, total_billed = await crud.get_usage_totals(account.code)
-        rows: list[ResellerUsageRow] = []
-        for index, snapshot in enumerate(snapshots[: request.limit]):
-            hourly = snapshot.billed_minutes is not None
-            used = 0
-            if not hourly:
-                older = next((s for s in snapshots[index + 1 :] if s.billed_minutes is None), None)
-                current = int(snapshot.used_traffic or 0)
-                if older is None:
-                    used = current if snapshot.billed_amount > 0 else 0
-                else:
-                    previous = int(older.used_traffic or 0)
-                    used = current if current < previous else current - previous
-            rows.append(
-                ResellerUsageRow(
-                    snapshot_at=int(snapshot.snapshot_at),
-                    kind="hourly" if hourly else "usage",
-                    used_bytes=used,
-                    billed_minutes=snapshot.billed_minutes,
-                    amount=int(snapshot.billed_amount or 0),
-                )
+        rows = [
+            ResellerUsageRow(
+                snapshot_at=entry.charged_at,
+                period_start=entry.period_start,
+                kind=entry.kind,
+                used_bytes=entry.used_bytes or 0,
+                billed_minutes=entry.minutes,
+                unit_price=round(entry.unit_price, 2) if entry.unit_price is not None else None,
+                rate_estimated=entry.rate_estimated,
+                amount=entry.amount,
+                is_debt=entry.is_debt,
             )
+            for entry in await describe_charges(snapshots[: request.limit])
+        ]
         return WebAppResellerUsageResponse(
             rows=rows, total_billed=total_billed, has_more=len(snapshots) > request.limit
         )

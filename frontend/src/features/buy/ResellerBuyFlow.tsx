@@ -38,7 +38,7 @@ export function resellerPlanPrice(t: TFunction, plan: ResellerPlanItem): string 
     case "hourly":
       return t("reseller.perHour", { amount: formatToman(plan.unit_price) });
     case "usage":
-      return t("reseller.perGb", { amount: formatToman(plan.unit_price) });
+      return t("reseller.perGbUsed", { amount: formatToman(plan.unit_price) });
     case "per_gb":
       return t("reseller.perGb", { amount: formatToman(plan.unit_price) });
     case "per_tb":

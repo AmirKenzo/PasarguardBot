@@ -227,7 +227,9 @@ async def _process_hourly_account(
         },
     )
     # Charges go to the ledger (web app/admin panel), not the log channel: one message a minute flooded it.
-    await ResellerBillingSnapshotCRUD().add_hourly_charge(account.code, charge, elapsed_minutes, now)
+    await ResellerBillingSnapshotCRUD().add_hourly_charge(
+        account.code, charge, elapsed_minutes, now, hourly_rate=hourly_rate
+    )
     if stats:
         stats.hourly_charged += 1
 
@@ -267,6 +269,7 @@ async def _process_usage_account(
     snapshot_crud = ResellerBillingSnapshotCRUD()
     snapshot = await snapshot_crud.get_latest_snapshot(account.code)
     delta_bytes = _usage_delta(used_traffic, snapshot)
+    period_start = int(snapshot.snapshot_at) if snapshot else (account.createtime or None)
 
     state = ResellerAccountCRUD.load_billing_state(account.billing_state)
     rate = resolve_live_unit_price(account, plan)
@@ -305,7 +308,16 @@ async def _process_usage_account(
                     "total_billed": int(state.get("total_billed") or 0) + charge,
                 },
             )
-            await snapshot_crud.add_snapshot(account.code, used_traffic, charge, now)
+            await snapshot_crud.add_snapshot(
+                account.code,
+                used_traffic,
+                charge,
+                now,
+                used_bytes=delta_bytes,
+                unit_price=rate,
+                period_start=period_start,
+                is_debt=True,
+            )
         await _suspend_account(
             account,
             panel,
@@ -323,7 +335,15 @@ async def _process_usage_account(
             "total_billed": int(state.get("total_billed") or 0) + charge,
         },
     )
-    await snapshot_crud.add_snapshot(account.code, used_traffic, charge, now)
+    await snapshot_crud.add_snapshot(
+        account.code,
+        used_traffic,
+        charge,
+        now,
+        used_bytes=delta_bytes,
+        unit_price=rate,
+        period_start=period_start,
+    )
     if stats:
         stats.usage_charged += 1
 

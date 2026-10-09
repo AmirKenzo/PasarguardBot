@@ -103,6 +103,7 @@ export interface PanelResellersResponse extends PanelEnvelope {
   meta: PageMeta;
 }
 
+/** One charge: `used_bytes` (usage) or `billed_minutes` (hourly) × `unit_price` = `billed_amount`. */
 export interface PanelResellerSnapshotRow {
   id: number;
   account_code?: number | null;
@@ -110,10 +111,20 @@ export interface PanelResellerSnapshotRow {
   telegram_id?: number | null;
   /** hourly | usage */
   kind: string;
+  /** Panel's cumulative traffic counter at charge time. */
   used_traffic: number;
+  /** Traffic used in the charged period. */
+  used_bytes?: number | null;
   billed_amount: number;
   billed_minutes?: number | null;
+  /** Rate per GB (usage) or per hour (hourly). */
+  unit_price?: number | null;
+  /** Rate rebuilt from amount ÷ usage for rows written before rates were stored. */
+  rate_estimated: boolean;
+  period_start?: number | null;
   snapshot_at?: number | null;
+  /** Charged while the wallet was short; left the balance negative. */
+  is_debt: boolean;
 }
 
 export interface PanelResellerLive {
@@ -312,4 +323,17 @@ export interface PanelResellerPlanSaveRequest extends PanelAuthRequest {
 
 export interface PanelResellerPlanDeleteRequest extends PanelAuthRequest {
   plan_id: number;
+}
+
+export interface PanelResellerRolesRequest extends PanelAuthRequest {
+  panel_code: number;
+}
+
+export interface PanelResellerRole {
+  id: number;
+  name: string;
+}
+
+export interface PanelResellerRolesResponse extends PanelEnvelope {
+  roles: PanelResellerRole[];
 }

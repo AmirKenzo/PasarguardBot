@@ -79,7 +79,18 @@ class ResellerBillingSnapshotCRUD:
             log.error("Failed to delete billing snapshots: %s", e)
             return False
 
-    async def add_snapshot(self, account_code: int, used_traffic: int, billed_amount: int, snapshot_at: int) -> bool:
+    async def add_snapshot(
+        self,
+        account_code: int,
+        used_traffic: int,
+        billed_amount: int,
+        snapshot_at: int,
+        *,
+        used_bytes: int | None = None,
+        unit_price: float | None = None,
+        period_start: int | None = None,
+        is_debt: bool = False,
+    ) -> bool:
         try:
             async with Session() as session:
                 session.add(
@@ -88,6 +99,10 @@ class ResellerBillingSnapshotCRUD:
                         used_traffic=used_traffic,
                         billed_amount=billed_amount,
                         snapshot_at=snapshot_at,
+                        used_bytes=used_bytes,
+                        unit_price=unit_price,
+                        period_start=period_start,
+                        is_debt=is_debt or None,
                     )
                 )
                 await session.commit()
@@ -96,7 +111,9 @@ class ResellerBillingSnapshotCRUD:
             log.error("Failed to add billing snapshot: %s", e)
             return False
 
-    async def add_hourly_charge(self, account_code: int, amount: int, minutes: int, charged_at: int) -> bool:
+    async def add_hourly_charge(
+        self, account_code: int, amount: int, minutes: int, charged_at: int, *, hourly_rate: float | None = None
+    ) -> bool:
         """Fold one hourly-plan charge into the row of the clock hour it belongs to.
 
         The billing job runs every minute; one row per hour keeps the ledger readable and small.
@@ -118,16 +135,51 @@ class ResellerBillingSnapshotCRUD:
                             billed_amount=int(amount),
                             billed_minutes=int(minutes),
                             snapshot_at=bucket,
+                            unit_price=hourly_rate,
                         )
                     )
                 else:
                     row.billed_amount = int(row.billed_amount or 0) + int(amount)
                     row.billed_minutes = int(row.billed_minutes or 0) + int(minutes)
+                    if hourly_rate is not None:
+                        row.unit_price = hourly_rate
                 await session.commit()
                 return True
         except SQLAlchemyError as e:
             log.error("Failed to add hourly charge: %s", e)
             return False
+
+    async def get_previous_usage_snapshots(
+        self, rows: list[ResellerBillingSnapshot]
+    ) -> dict[int, ResellerBillingSnapshot]:
+        """For each usage row, the usage row of the same account right before it (keyed by row id)."""
+        previous: dict[int, ResellerBillingSnapshot] = {}
+        targets = [row for row in rows if row.billed_minutes is None]
+        if not targets:
+            return previous
+        try:
+            async with Session() as session:
+                for row in targets:
+                    result = await session.execute(
+                        select(ResellerBillingSnapshot)
+                        .where(
+                            ResellerBillingSnapshot.account_code == row.account_code,
+                            ResellerBillingSnapshot.billed_minutes.is_(None),
+                            (ResellerBillingSnapshot.snapshot_at < row.snapshot_at)
+                            | (
+                                (ResellerBillingSnapshot.snapshot_at == row.snapshot_at)
+                                & (ResellerBillingSnapshot.id < row.id)
+                            ),
+                        )
+                        .order_by(ResellerBillingSnapshot.snapshot_at.desc(), ResellerBillingSnapshot.id.desc())
+                        .limit(1)
+                    )
+                    found = result.scalars().first()
+                    if found is not None:
+                        previous[int(row.id)] = found
+        except SQLAlchemyError as e:
+            log.error("Failed to load previous billing snapshots: %s", e)
+        return previous
 
     async def sum_billed_since(self, account_codes: list[int], since: int) -> dict[int, int]:
         """Total charged per account since ``since`` (both hourly buckets and usage rows)."""

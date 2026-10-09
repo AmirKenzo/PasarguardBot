@@ -121,7 +121,7 @@ export default function OverviewTab({ onNavigate }: { onNavigate: Navigate }) {
                   onClick={() => openAccounts({ mode })}
                   className="flex w-full items-center gap-2 text-sm"
                 >
-                  <span className="w-20 shrink-0 text-start text-muted">{pricingLabels(t)[mode] || mode}</span>
+                  <span className="w-36 shrink-0 truncate text-start text-muted">{pricingLabels(t)[mode] || mode}</span>
                   <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
                     <span
                       className="block h-full rounded-full bg-primary"

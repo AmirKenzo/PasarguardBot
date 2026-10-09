@@ -55,7 +55,7 @@ def pricing_mode_label(mode: str) -> str:
         "per_gb": "هر گیگابایت",
         "per_tb": "هر ترابایت",
         "hourly": "ساعتی",
-        "usage": "مصرفی (Pay as you go)",
+        "usage": "مصرفی (بر اساس حجم مصرف)",
     }.get(mode, mode)
 
 

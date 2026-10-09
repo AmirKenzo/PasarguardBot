@@ -9,14 +9,11 @@ export {
   runwayTone,
   statusLabels,
 } from "../../../lib/resellerLabels";
+import { resellerModeLabel } from "../../../lib/resellerLabels";
 export type { ResellerTone as Tone } from "../../../lib/resellerLabels";
 
 export const GB = 1024 ** 3;
 
-export const pricingLabels = (t: TFunction): Record<string, string> => ({
-  fixed: t("panel.common.flatRate"),
-  per_gb: t("panel.common.perGigabyte"),
-  per_tb: t("panel.common.perTerabyte"),
-  hourly: t("panel.common.hourly"),
-  usage: t("panel.common.metered"),
-});
+/** Plan type names; the same wording as the web app and the bot. */
+export const pricingLabels = (t: TFunction): Record<string, string> =>
+  Object.fromEntries(["fixed", "per_gb", "per_tb", "hourly", "usage"].map((mode) => [mode, resellerModeLabel(t, mode)]));

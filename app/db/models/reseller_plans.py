@@ -4,6 +4,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 PRICING_MODES = ("fixed", "per_gb", "per_tb", "hourly", "usage")
+# New plans can only use these; the other modes stay billable for plans created before.
+CREATABLE_PRICING_MODES = ("fixed", "usage")
 
 
 class ResellerPlan(Base):

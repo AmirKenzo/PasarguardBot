@@ -63,7 +63,7 @@ async def set_reseller_usage_cap(
 ) -> tuple[bool, str]:
     """Set or clear manual usage cap. ``gigabytes`` None/0 clears the cap."""
     if account.pricing_mode != "usage":
-        return False, "سقف مصرف فقط برای پلن مصرفی (Pay as you go) است."
+        return False, "سقف مصرف فقط برای پلن مصرفی (بر اساس حجم مصرف) است."
 
     if gigabytes is not None and gigabytes < 0:
         return False, "مقدار نامعتبر است."

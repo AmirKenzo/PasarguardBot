@@ -43,7 +43,8 @@ async def _run_hourly(monkeypatch, *, rate: int, minutes: int, carry: float = 0.
         debits.append(amount)
         return 100 if balance_ok else None
 
-    async def fake_ledger(self, account_code, amount, minutes, charged_at):
+    async def fake_ledger(self, account_code, amount, minutes, charged_at, hourly_rate=None):
+        assert hourly_rate == rate
         ledger.append((amount, minutes))
         return True
 

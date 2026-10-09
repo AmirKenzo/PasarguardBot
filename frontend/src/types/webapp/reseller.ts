@@ -196,13 +196,18 @@ export interface WebAppResellerPageRequest extends WebAppAuthRequest {
   limit?: number;
 }
 
+/** `used_bytes` (usage) or `billed_minutes` (hourly) × `unit_price` = `amount`. */
 export interface ResellerUsageRow {
   snapshot_at: number;
+  period_start?: number | null;
   /** hourly | usage */
   kind: string;
   used_bytes: number;
   billed_minutes?: number | null;
+  unit_price?: number | null;
+  rate_estimated: boolean;
   amount: number;
+  is_debt: boolean;
 }
 
 export interface WebAppResellerUsageResponse extends WebAppResellerEnvelope {

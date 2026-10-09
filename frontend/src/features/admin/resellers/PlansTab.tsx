@@ -32,7 +32,6 @@ const EMPTY_DRAFT: Draft = {
   max_users: 0,
   duration: 0,
   role_id: 0,
-  role_name: "",
   enable: true,
   display_button_text: "",
   button_style: "",
@@ -52,6 +51,8 @@ function priceLine(t: TFunction, plan: PanelResellerPlanRow): string {
       return t("panel.resellerHub.perHourAmount", { amount: formatToman(plan.unit_price) });
     case "per_tb":
       return t("panel.resellerHub.perTbAmount", { amount: formatToman(plan.unit_price) });
+    case "usage":
+      return t("panel.resellerHub.perGbUsedAmount", { amount: formatToman(plan.unit_price) });
     default:
       return t("panel.resellerHub.perGbAmount", { amount: formatToman(plan.unit_price) });
   }
@@ -71,7 +72,6 @@ function toDraft(plan: PanelResellerPlanRow): Draft {
     max_users: plan.max_users,
     duration: plan.duration,
     role_id: plan.role_id,
-    role_name: plan.role_name || "",
     enable: plan.enable,
     display_button_text: plan.display_button_text || "",
     button_style: plan.button_style || "",
@@ -110,6 +110,22 @@ export default function PlansTab() {
 
   const mode = draft?.pricing_mode || "fixed";
   const locked = !!draft?.plan_id && (draft?.linked || 0) > 0;
+  const rolePanel = draft?.panel_code ?? 0;
+  const roles = usePanelQuery(
+    ["reseller-roles", rolePanel],
+    (auth) => panelResellersApi.listPanelRoles({ ...auth, panel_code: rolePanel }),
+    { enabled: rolePanel > 0, retry: false, staleTime: 60_000 }
+  );
+  const editedPlan = plans.find((plan) => plan.id === draft?.plan_id);
+
+  // New plans are fixed or usage; an older plan of another type keeps its own type while edited.
+  const typeOptions = [...(query.data?.pricing_modes || [])];
+  if (draft && !typeOptions.includes(mode)) typeOptions.push(mode);
+
+  const roleOptions = (roles.data?.roles || []).map((role) => ({ value: String(role.id), label: role.name }));
+  if (draft?.role_id && editedPlan?.role_id === draft.role_id && !roleOptions.some((o) => o.value === String(draft.role_id))) {
+    roleOptions.push({ value: String(draft.role_id), label: editedPlan.role_name || `#${draft.role_id}` });
+  }
 
   return (
     <>
@@ -217,30 +233,54 @@ export default function PlansTab() {
               options={panels.map((panel) => ({ value: String(panel.code), label: panel.name }))}
               value={String(draft.panel_code)}
               disabled={locked}
-              onChange={(event) => setDraft({ ...draft, panel_code: Number(event.target.value) })}
+              onChange={(event) => setDraft({ ...draft, panel_code: Number(event.target.value), role_id: 0 })}
             />
             <SelectField
-              label={t("panel.common.pricingModel")}
-              options={(query.data?.pricing_modes || []).map((value) => ({
-                value,
-                label: pricingLabels(t)[value] || value,
-              }))}
+              label={t("panel.resellerHub.planType")}
+              options={typeOptions.map((value) => ({ value, label: pricingLabels(t)[value] || value }))}
               value={mode}
               disabled={locked}
-              onChange={(event) => setDraft({ ...draft, pricing_mode: event.target.value })}
+              onChange={(event) => {
+                const next = event.target.value;
+                // A usage plan has no up-front price and no duration.
+                setDraft(next === "usage" ? { ...draft, pricing_mode: next, price: 0, duration: 0 } : { ...draft, pricing_mode: next });
+              }}
             />
+            {(mode === "fixed" || mode === "usage") && (
+              <p className="col-span-full -mt-1 text-xs leading-6 text-muted">
+                {t(mode === "fixed" ? "panel.resellerHub.plans.fixedHint" : "panel.resellerHub.plans.usageHint")}
+              </p>
+            )}
 
-            {mode === "fixed"
-              ? numberField(t("panel.resellerHub.plans.price"), "price")
-              : numberField(
-                  mode === "hourly"
-                    ? t("panel.resellerHub.plans.hourlyRate")
-                    : mode === "per_tb"
-                      ? t("panel.resellerHub.plans.tbRate")
-                      : t("panel.resellerHub.plans.gbRate"),
-                  "unit_price"
-                )}
-            {mode === "fixed" && numberField(t("panel.resellerHub.plans.dataLimit"), "data_limit_gb", t("panel.resellerHub.plans.zeroUnlimited"))}
+            <div className="col-span-full">
+              <SelectField
+                label={t("panel.resellerHub.plans.role")}
+                options={[
+                  {
+                    value: "0",
+                    label: roles.isLoading ? t("panel.resellerHub.plans.rolesLoading") : t("panel.resellerHub.plans.chooseRole"),
+                  },
+                  ...roleOptions,
+                ]}
+                value={String(draft.role_id || 0)}
+                disabled={roles.isLoading || roleOptions.length === 0}
+                onChange={(event) => setDraft({ ...draft, role_id: Number(event.target.value) })}
+              />
+              <p className={`mt-1 text-xs ${roles.isError ? "text-danger" : "text-muted"}`}>
+                {roles.isError ? roles.error.message : t("panel.resellerHub.plans.roleHint")}
+              </p>
+            </div>
+
+            {mode === "fixed" && numberField(t("panel.resellerHub.plans.price"), "price")}
+            {mode === "usage" && numberField(t("panel.resellerHub.plans.gbRate"), "unit_price")}
+            {mode === "hourly" && numberField(t("panel.resellerHub.plans.hourlyRate"), "unit_price")}
+            {mode === "per_gb" && numberField(t("panel.resellerHub.plans.gbVolumeRate"), "unit_price")}
+            {mode === "per_tb" && numberField(t("panel.resellerHub.plans.tbRate"), "unit_price")}
+            {numberField(
+              mode === "usage" ? t("panel.resellerHub.plans.totalTrafficCap") : t("panel.resellerHub.plans.dataLimit"),
+              "data_limit_gb",
+              t("panel.resellerHub.plans.zeroUnlimited")
+            )}
             {(mode === "per_gb" || mode === "per_tb") && (
               <>
                 {numberField(t("panel.resellerPlans.minVolume"), "min_volume")}
@@ -248,14 +288,9 @@ export default function PlansTab() {
                 {numberField(t("panel.resellerPlans.volumeStep"), "volume_step")}
               </>
             )}
-            {numberField(t("panel.common.periodDays"), "duration", t("panel.resellerHub.plans.zeroUnlimited"))}
-            {numberField(t("panel.common.maxUsers"), "max_users", t("panel.resellerHub.plans.zeroUnlimited"))}
-            {numberField(t("panel.resellerPlans.roleId"), "role_id")}
-            <Input
-              label={t("panel.resellerPlans.roleName")}
-              value={draft.role_name || ""}
-              onChange={(event) => setDraft({ ...draft, role_name: event.target.value })}
-            />
+            {mode !== "usage" &&
+              numberField(t("panel.common.periodDays"), "duration", t("panel.resellerHub.plans.zeroUnlimited"))}
+            {numberField(t("panel.resellerHub.plans.maxUsers"), "max_users", t("panel.resellerHub.plans.zeroUnlimited"))}
 
             <div className="col-span-full border-t border-border/60 pt-3 text-xs font-semibold text-muted">
               {t("panel.resellerHub.plans.buttonSection")}
@@ -303,7 +338,7 @@ export default function PlansTab() {
               <Button
                 size="sm"
                 loading={save.isPending}
-                disabled={!draft.panel_code}
+                disabled={!draft.panel_code || !draft.role_id}
                 onClick={() => {
                   const { linked: _linked, ...body } = draft;
                   save.mutate(body, { onSuccess: () => setDraft(null) });
