@@ -229,6 +229,7 @@ async def import_existing_reseller_admin(
         expiration_time=expiration,
         status="active",
         billing_state=ResellerAccountCRUD.dump_billing_state(billing_state),
+        billed_traffic=int(getattr(admin, "used_traffic", 0) or 0),
     )
     if not ok:
         log.error("create_account failed after panel modify: %s", result)

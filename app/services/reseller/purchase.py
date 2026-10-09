@@ -239,6 +239,7 @@ async def purchase_reseller_account(
         expiration_time=compute_reseller_expiration(plan),
         status="active",
         billing_state=json.dumps(build_initial_billing_state(amount), ensure_ascii=False),
+        billed_traffic=0,
     )
     if not created_ok:
         # Without a DB row nothing can bill, renew or clean up this admin: undo everything.

@@ -21,8 +21,8 @@ from app.services.reseller.accounts import (
 )
 
 
-def _account(status: str = "active", mode: str = "usage") -> SimpleNamespace:
-    return SimpleNamespace(status=status, pricing_mode=mode)
+def _account(status: str = "active", mode: str = "usage", max_users: int = 10) -> SimpleNamespace:
+    return SimpleNamespace(status=status, pricing_mode=mode, max_users=max_users)
 
 
 @pytest.fixture
@@ -77,3 +77,39 @@ def test_bot_handlers_import_the_shared_service():
 
     assert user_callbacks.pause_account is accounts.pause_account
     assert admin_callbacks.delete_account is accounts.delete_account
+
+
+def test_unlimited_account_is_not_offered_capacity(buttons):
+    # Buying 5 on an unlimited account would cap it at 5.
+    assert ACTION_BUY_CAPACITY not in account_actions(_account(max_users=0), panel=object())
+
+
+def _resume_env(monkeypatch, *, balance: int, pending: int | None):
+    async def read_user(self, user_id):
+        return SimpleNamespace(amount=balance)
+
+    async def get_panel(self, code):
+        return object()
+
+    async def get_plan(self, plan_id):
+        return SimpleNamespace(pricing_mode="usage", unit_price=1000)
+
+    async def pending_charge(account, panel, plan):
+        return pending
+
+    monkeypatch.setattr(accounts.UserCRUD, "read_user", read_user)
+    monkeypatch.setattr(accounts.PanelsManager, "get_panel_by_code", get_panel)
+    monkeypatch.setattr(accounts.ResellerPlanManager, "get_plan", get_plan)
+    monkeypatch.setattr(accounts, "pending_usage_charge", pending_charge)
+
+
+async def test_resume_needs_the_unbilled_usage_covered(monkeypatch):
+    _resume_env(monkeypatch, balance=500, pending=2_000)
+    account = SimpleNamespace(pricing_mode="usage", telegram_id=7, panel_code=1, plan_id=3)
+    assert await accounts._resume_balance_error(account, for_admin=False)
+
+
+async def test_resume_allowed_when_wallet_covers_pending_usage(monkeypatch):
+    _resume_env(monkeypatch, balance=5_000, pending=2_000)
+    account = SimpleNamespace(pricing_mode="usage", telegram_id=7, panel_code=1, plan_id=3)
+    assert await accounts._resume_balance_error(account, for_admin=False) is None

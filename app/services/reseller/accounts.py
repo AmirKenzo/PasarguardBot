@@ -41,6 +41,7 @@ from app.services.reseller.logging import (
 )
 from app.services.reseller.panel_sync import purge_reseller_from_panel, sync_reseller_max_users
 from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
+from app.services.reseller.usage_meter import pending_usage_charge
 from app.utils.formatting.dates import Time_Date
 from app.utils.security.crypto import decrypt_data, encrypt_data
 
@@ -94,7 +95,7 @@ def account_actions(account, panel) -> frozenset[str]:
             actions.add(ACTION_USAGE_REPORT)
         if account.pricing_mode == "usage" and enabled("usage_cap"):
             actions.add(ACTION_USAGE_CAP)
-        if panel and panel_reseller_capacity_enabled(panel) and enabled("buy_user_capacity"):
+        if account.max_users and panel and panel_reseller_capacity_enabled(panel) and enabled("buy_user_capacity"):
             actions.add(ACTION_BUY_CAPACITY)
     if enabled("delete"):
         actions.add(ACTION_DELETE)
@@ -201,12 +202,19 @@ async def _resume_balance_error(account, *, for_admin: bool) -> str | None:
     user = await UserCRUD().read_user(account.telegram_id)
     if not user:
         return None
-    if account.pricing_mode == "usage" and user.amount < 1:
-        return (
-            "موجودی کیف پول کاربر برای فعال‌سازی کافی نیست."
-            if for_admin
-            else "برای فعال‌سازی مجدد موجودی کیف پول کافی نیست."
-        )
+    if account.pricing_mode == "usage":
+        needed = 1
+        panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
+        if panel:
+            plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
+            pending = await pending_usage_charge(account, panel, plan)
+            needed = max(needed, pending or 0)
+        if user.amount < needed:
+            return (
+                f"موجودی کیف پول کاربر برای فعال‌سازی کافی نیست (حداقل {needed:,} تومان)."
+                if for_admin
+                else f"برای فعال‌سازی مجدد حداقل {needed:,} تومان موجودی لازم است."
+            )
     if account.pricing_mode == "hourly":
         plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
         rate = int(resolve_live_unit_price(account, plan))

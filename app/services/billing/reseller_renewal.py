@@ -43,6 +43,8 @@ async def renew_reseller_account(
 
     if account.pricing_mode != "fixed":
         return False, "تمدید فقط برای پلن‌های ثابت امکان‌پذیر است."
+    if account.status == "admin_paused" and actor_role is None:
+        return False, "این نمایندگی توسط ادمین غیرفعال شده است."
 
     plan = await ResellerPlanManager().get_plan(plan_id)
     if not plan or not plan.enable:

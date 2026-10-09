@@ -61,7 +61,7 @@ class WebAppResellerBuyRequest(WebAppAuthRequest):
     panel_code: int
     plan_id: int
     username: str = Field(..., max_length=32)
-    volume: float | None = Field(None, gt=0)
+    volume: float | None = Field(None, gt=0, le=1_000_000, allow_inf_nan=False)
     discount_code: str | None = Field(None, max_length=64)
 
 

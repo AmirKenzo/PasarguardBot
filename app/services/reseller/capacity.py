@@ -69,9 +69,12 @@ async def increase_reseller_capacity(
     if quantity <= 0:
         return False, "تعداد نامعتبر است."
 
+    limit_before = int(account.max_users or 0)
+    if limit_before <= 0:
+        return False, "این نمایندگی محدودیت تعداد یوزر ندارد؛ خرید ظرفیت لازم نیست."
+
     price_per_user = int(settings["price_per_user"])
     total_amount = calculate_capacity_price(panel, quantity, price_per_user=price_per_user)
-    limit_before = int(account.max_users or 0)
 
     new_balance = await debit_Money_if_sufficient(user_id=telegram_id, amount=total_amount)
     if new_balance is None:

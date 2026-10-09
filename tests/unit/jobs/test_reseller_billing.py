@@ -6,23 +6,21 @@ import json
 from types import SimpleNamespace
 
 from app.jobs.reseller import billing
+from app.services.reseller.usage_meter import usage_delta
 
 
-def _snapshot(used: int) -> SimpleNamespace:
-    return SimpleNamespace(used_traffic=used)
+def test_usage_delta_is_difference_since_last_charge():
+    assert usage_delta(1500, 1000) == 500
 
 
-def test_usage_delta_is_difference_since_last_snapshot():
-    assert billing._usage_delta(1500, _snapshot(1000)) == 500
-
-
-def test_usage_delta_without_snapshot_is_everything():
-    assert billing._usage_delta(1500, None) == 1500
+def test_usage_delta_without_baseline_is_everything():
+    # A new admin starts at 0, so everything it has used is new.
+    assert usage_delta(1500, None) == 1500
 
 
 def test_usage_delta_after_panel_reset_counts_new_usage():
     # Panel reset usage to 0 and the admin has since used 200 bytes.
-    assert billing._usage_delta(200, _snapshot(10_000)) == 200
+    assert usage_delta(200, 10_000) == 200
 
 
 async def _run_hourly(monkeypatch, *, rate: int, minutes: int, carry: float = 0.0, balance_ok: bool = True):
