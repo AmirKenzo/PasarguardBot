@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AlertTriangle, History, Link2, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, Card, EmptyState, ErrorState, Input, Skeleton } from "../../../components/ui";
+import { Badge, Button, Card, ChipTabs, EmptyState, ErrorState, Input, Skeleton } from "../../../components/ui";
 import { panelResellersApi } from "../../../api/panel";
 import { formatNumber, formatToman } from "../../../lib/format";
 import type { PanelResellerPlanRow, PanelResellerPlanSaveRequest } from "../../../types/panel";
@@ -73,6 +74,9 @@ const EMPTY_DRAFT: Draft = {
 };
 
 const INVALIDATE = [["reseller-plans"], ["reseller-overview"]];
+
+/** Up to this many panels the filter is a row of chips; more than that becomes a dropdown. */
+const MAX_FILTER_CHIPS = 8;
 
 const ADDON_LABEL_KEYS: Record<AddonKey, string> = {
   [ADDON_DAYS]: "days",
@@ -173,6 +177,7 @@ export default function PlansTab() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const query = usePanelQuery(["reseller-plans"], (auth) => panelResellersApi.listResellerPlans(auth));
   const save = usePanelAction(panelResellersApi.saveResellerPlan, { invalidate: INVALIDATE });
@@ -183,6 +188,21 @@ export default function PlansTab() {
   const byPanel = panels
     .map((panel) => ({ panel, plans: plans.filter((plan) => plan.panel_code === panel.code) }))
     .filter((group) => group.plans.length);
+  const requestedPanel = Number(searchParams.get("panel")) || 0;
+  const panelFilter = byPanel.some((group) => group.panel.code === requestedPanel) ? requestedPanel : 0;
+  const visibleGroups = panelFilter ? byPanel.filter((group) => group.panel.code === panelFilter) : byPanel;
+  const groupedCount = byPanel.reduce((sum, group) => sum + group.plans.length, 0);
+
+  const setPanelFilter = (code: number) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (code) next.set("panel", String(code));
+        else next.delete("panel");
+        return next;
+      },
+      { replace: true }
+    );
 
   const mode = draft?.pricing_mode || FIXED;
   const rule = ruleFor(mode);
@@ -252,12 +272,44 @@ export default function PlansTab() {
         <Button
           size="sm"
           disabled={!panels.length}
-          onClick={() => openDraft({ ...EMPTY_DRAFT, panel_code: panels[0]?.code || 0 })}
+          onClick={() => openDraft({ ...EMPTY_DRAFT, panel_code: panelFilter || panels[0]?.code || 0 })}
         >
           <Plus size={16} />
           {t("panel.common.addPlan")}
         </Button>
       </div>
+
+      {byPanel.length > 1 &&
+        (byPanel.length <= MAX_FILTER_CHIPS ? (
+          <ChipTabs
+            className="mb-4"
+            value={panelFilter}
+            onChange={setPanelFilter}
+            options={[
+              { value: 0, label: t("panel.resellerPlans.allPanels"), count: groupedCount },
+              ...byPanel.map(({ panel, plans: panelPlans }) => ({
+                value: panel.code,
+                label: panel.name,
+                count: panelPlans.length,
+              })),
+            ]}
+          />
+        ) : (
+          <div className="mb-4 sm:max-w-xs">
+            <SelectField
+              aria-label={t("panel.common.panel")}
+              value={String(panelFilter)}
+              onChange={(event) => setPanelFilter(Number(event.target.value))}
+              options={[
+                { value: "0", label: `${t("panel.resellerPlans.allPanels")} · ${formatNumber(groupedCount)}` },
+                ...byPanel.map(({ panel, plans: panelPlans }) => ({
+                  value: String(panel.code),
+                  label: `${panel.name} · ${formatNumber(panelPlans.length)}`,
+                })),
+              ]}
+            />
+          </div>
+        ))}
 
       {query.isError ? (
         <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
@@ -276,9 +328,9 @@ export default function PlansTab() {
         </Card>
       ) : (
         <div className="space-y-5">
-          {byPanel.map(({ panel, plans: panelPlans }) => (
+          {visibleGroups.map(({ panel, plans: panelPlans }) => (
             <div key={panel.code}>
-              <h3 className="mb-2 text-xs font-semibold text-muted">{panel.name}</h3>
+              {!panelFilter && <h3 className="mb-2 text-xs font-semibold text-muted">{panel.name}</h3>}
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {panelPlans.map((plan) => (
                   <PlanCard

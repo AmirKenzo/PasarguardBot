@@ -1538,7 +1538,8 @@
       "subtitle": "Wholesale pricing for resellers",
       "roleName": "Role name",
       "volumeStep": "Volume step (GB)",
-      "editTitle": "Edit reseller plan #{{id}}"
+      "editTitle": "Edit reseller plan #{{id}}",
+      "allPanels": "All panels"
     },
     "userDetail": {
       "numericId": "Numeric ID",
@@ -1875,7 +1876,16 @@
           "buy_user_capacity": "Only shown for plans with an extra-user price.",
           "extra_days": "Only for fixed and unlimited plans with an extra-day price.",
           "extra_volume": "Only for fixed plans with an extra-volume price."
-        }
+        },
+        "searchPanels": "Search panels by name or code",
+        "noPanelMatch": "No panel matches this search",
+        "buttonsOn": "{{on}} of {{total}} buttons on",
+        "saleOn": "Sales on",
+        "saleOff": "Sales off",
+        "edited": "Unsaved change",
+        "allOn": "Turn all on",
+        "allOff": "Turn all off",
+        "showMore": "Show {{count}} more panels"
       },
       "planType": "Plan type",
       "perGbUsedAmount": "{{amount}} / GB used",
@@ -2101,8 +2111,8 @@
       "choosePlan": "Choose a plan",
       "confirmTitle": "Confirm purchase",
       "stepPanel": "Panel",
-      "stepPlan": "Plan & name",
-      "stepConfirm": "Confirm",
+      "stepPlan": "Plan",
+      "stepConfirm": "Username & confirm",
       "unavailable": "Reseller sales are not available right now.",
       "plansCount": "{{count}} reseller plans",
       "hourlyNote": "Charged hourly from your wallet. A balance of at least {{amount}} is needed to buy.",
@@ -2243,9 +2253,8 @@
       "activeTime": "Active time",
       "rate": "Rate",
       "calculation": "Calculation",
-      "gigabytes": "{{value}} GB",
       "minutes": "{{count}} min",
-      "usageFormula": "{{value}} GB × {{rate}}",
+      "usageFormula": "{{usage}} × {{rate}}",
       "hourlyFormula": "{{minutes}} min of the {{rate}} hourly rate",
       "hourOf": "Hour {{from}} to {{to}}",
       "panelCounter": "Panel's total usage counter at this moment: {{value}}"

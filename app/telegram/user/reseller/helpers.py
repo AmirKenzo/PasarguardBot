@@ -532,13 +532,29 @@ def _snapshot_delta_bytes(snapshots: list, index: int) -> int:
     return int(delta_bytes or 0)
 
 
+def usage_size_text(size_bytes: int | None) -> str:
+    size = max(int(size_bytes or 0), 0)
+    if size < 1024:
+        return format_size(size)
+    value = size / 1024
+    for _ in range(2):
+        if value < 1024:
+            break
+        value /= 1024
+    decimals = 2 if value < 10 else 1 if value < 100 else 0
+    number, _, unit = format_size(size, decimal_places=decimals).partition(" ")
+    if "." in number:
+        number = number.rstrip("0").rstrip(".")
+    return f"{number} {unit}"
+
+
 def snapshot_usage_text(snapshots: list, index: int) -> str:
     """What one billing row charged for: active time for hourly rows, traffic for usage rows."""
     snap = snapshots[index]
     minutes = getattr(snap, "billed_minutes", None)
     if minutes is not None:
         return format_active_minutes(minutes)
-    return format_size(_snapshot_delta_bytes(snapshots, index), decimal_places=2)
+    return usage_size_text(_snapshot_delta_bytes(snapshots, index))
 
 
 def usage_history_header(account) -> tuple[str, str]:

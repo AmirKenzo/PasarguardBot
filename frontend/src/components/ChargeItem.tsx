@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Badge } from "./ui";
-import { formatBytes, formatToman } from "../lib/format";
+import { formatToman, formatTraffic } from "../lib/format";
 import { chargeFormula, chargePeriod, chargeRate, chargeUsage } from "../lib/resellerCharges";
 import type { ChargeLike } from "../lib/resellerCharges";
 
@@ -48,7 +48,7 @@ export function ChargeItem({ charge, panelCounter, account }: ChargeItemProps) {
       </dl>
       {panelCounter != null && charge.kind !== "hourly" && (
         <p className="mt-2 text-[11px] text-muted">
-          {t("reseller.charge.panelCounter", { value: formatBytes(panelCounter, 2) })}
+          {t("reseller.charge.panelCounter", { value: formatTraffic(panelCounter) })}
         </p>
       )}
     </li>

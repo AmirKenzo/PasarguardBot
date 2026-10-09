@@ -1,9 +1,7 @@
 /** How one reseller charge came about: usage × rate over a period. Shared by the web app and the admin panel. */
 import type { TFunction } from "i18next";
 import i18n from "../i18n";
-import { formatNumber, formatToman } from "./format";
-
-const GB = 1024 ** 3;
+import { formatNumber, formatToman, formatTraffic } from "./format";
 
 export interface ChargeLike {
   kind: string;
@@ -15,16 +13,10 @@ export interface ChargeLike {
   charged_at?: number | null;
 }
 
-function gigabytes(bytes: number): string {
-  const value = bytes / GB;
-  const digits = value >= 100 ? 1 : value >= 1 ? 2 : 3;
-  return formatNumber(Number(value.toFixed(digits)));
-}
-
-/** What was consumed: traffic in GB for usage charges, minutes for hourly ones. */
+/** What was consumed: traffic with an adaptive unit (B…TB) for usage charges, minutes for hourly ones. */
 export function chargeUsage(t: TFunction, charge: ChargeLike): string {
   if (charge.kind === "hourly") return t("reseller.charge.minutes", { count: formatNumber(charge.billed_minutes ?? 0) });
-  return t("reseller.charge.gigabytes", { value: gigabytes(charge.used_bytes ?? 0) });
+  return formatTraffic(charge.used_bytes ?? 0);
 }
 
 /** The rate applied; "≈" marks rates rebuilt from amount ÷ usage for old rows. */
@@ -36,7 +28,7 @@ export function chargeRate(t: TFunction, charge: ChargeLike): string {
   return charge.rate_estimated ? `≈ ${text}` : text;
 }
 
-/** "usage × rate", e.g. "1.25 GB × 2,500 Toman". */
+/** "usage × rate per GB", e.g. "250 MB × 3,000 Toman / GB"; the usage is shown from bytes, the amount is untouched. */
 export function chargeFormula(t: TFunction, charge: ChargeLike): string {
   if (charge.unit_price == null) return chargeUsage(t, charge);
   const rate = formatToman(charge.unit_price);
@@ -46,7 +38,10 @@ export function chargeFormula(t: TFunction, charge: ChargeLike): string {
       rate,
     });
   }
-  return t("reseller.charge.usageFormula", { value: gigabytes(charge.used_bytes ?? 0), rate });
+  return t("reseller.charge.usageFormula", {
+    usage: formatTraffic(charge.used_bytes ?? 0),
+    rate: t("reseller.perGb", { amount: rate }),
+  });
 }
 
 function clock(unix: number): string {

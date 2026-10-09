@@ -12,14 +12,16 @@ from app.models.panel.resellers import (
     PanelResellerCodeRequest,
     PanelResellerDataLimitRequest,
     PanelResellerDetailRequest,
+    PanelResellerLedgerRequest,
     PanelResellerPanelSettings,
     PanelResellerPlanDeleteRequest,
     PanelResellerPlanSaveRequest,
     PanelResellerSettingsSaveRequest,
     PanelResellerUpdateRequest,
 )
-from app.routers.panel import guard, reseller_settings, resellers
+from app.routers.panel import guard, reseller_insights, reseller_settings, resellers
 from app.routers.panel.auth import PanelActor
+from app.services.reseller.ledger import LedgerEntry
 
 
 @pytest.fixture(autouse=True)
@@ -605,3 +607,38 @@ async def test_detail_offers_own_plan_for_renewal_and_same_type_plans_for_change
     assert result.renew_plans[0].enable is False
     assert [plan.id for plan in result.change_plans] == [4]
     assert result.grace_days == 4
+
+
+async def test_ledger_rows_carry_the_owner_telegram_id(monkeypatch):
+    calls = []
+
+    async def ledger(**kwargs):
+        calls.append(kwargs)
+        return [(SimpleNamespace(id=11), _account(telegram_id=123456789)), (SimpleNamespace(id=12), None)], 2, 900
+
+    async def describe(snapshots):
+        return [
+            LedgerEntry(
+                id=snapshot.id,
+                account_code=5,
+                kind="usage",
+                charged_at=100,
+                amount=450,
+                period_start=None,
+                used_bytes=GB,
+                minutes=None,
+                unit_price=450.0,
+                rate_estimated=False,
+                panel_counter=GB,
+                is_debt=False,
+            )
+            for snapshot in snapshots
+        ]
+
+    monkeypatch.setattr(reseller_insights.queries, "reseller_ledger", ledger)
+    monkeypatch.setattr(reseller_insights, "describe_charges", describe)
+    result = await reseller_insights.reseller_ledger(PanelResellerLedgerRequest(telegram_id=123456789), None)
+    assert result.ok
+    assert calls[0]["telegram_id"] == 123456789
+    assert [(row.username, row.telegram_id) for row in result.rows] == [("res", 123456789), (None, None)]
+    assert result.total_billed == 900

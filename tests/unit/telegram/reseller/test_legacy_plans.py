@@ -7,7 +7,12 @@ from types import SimpleNamespace
 from app.telegram.admin.reseller_plans.callbacks import edit_error
 from app.telegram.admin.reseller_plans.service import plan_manage_buttons, plan_values_lines
 from app.telegram.shared import reseller_plan_guides as guides
-from app.telegram.user.reseller.helpers import build_reseller_confirm_text, snapshot_usage_text, usage_history_header
+from app.telegram.user.reseller.helpers import (
+    build_reseller_confirm_text,
+    snapshot_usage_text,
+    usage_history_header,
+    usage_size_text,
+)
 
 GB = 1024**3
 NOW = 1_800_000_000
@@ -89,7 +94,7 @@ def test_hourly_report_shows_active_time():
         SimpleNamespace(billed_minutes=None, used_traffic=1 * GB, billed_amount=0),
     ]
     assert snapshot_usage_text(rows, 0) == "1 ساعت و 5 دقیقه"
-    assert snapshot_usage_text(rows, 1) == "2.00 گیگابایت"
+    assert snapshot_usage_text(rows, 1) == "2 گیگابایت"
     assert guides.format_active_minutes(0) == "0 دقیقه"
     assert guides.format_active_minutes(120) == "2 ساعت"
     title, column = usage_history_header(SimpleNamespace(pricing_mode="hourly", username="a"))
@@ -106,3 +111,18 @@ def test_legacy_plan_broken_in_two_fields_can_be_fixed_in_any_order():
     # The edited field itself must still follow the rules.
     assert edit_error(legacy, "price", 0)
     assert edit_error(_plan(), "data_limit", 0)
+
+
+def test_usage_report_uses_adaptive_units():
+    mb = 1024 * 1024
+    rows = [
+        SimpleNamespace(billed_minutes=None, used_traffic=GB + 250 * mb, billed_amount=732),
+        SimpleNamespace(billed_minutes=None, used_traffic=GB, billed_amount=0),
+    ]
+    assert snapshot_usage_text(rows, 0) == "250 مگابایت"
+    assert usage_size_text(0) == "0 بایت"
+    assert usage_size_text(512) == "512 بایت"
+    assert usage_size_text(10 * mb) == "10 مگابایت"
+    assert usage_size_text(int(1.25 * GB)) == "1.25 گیگابایت"
+    assert usage_size_text(int(12.5 * GB)) == "12.5 گیگابایت"
+    assert usage_size_text(1500 * GB) == "1,500 گیگابایت"

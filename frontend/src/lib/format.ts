@@ -62,6 +62,31 @@ export function formatBytes(sizeBytes: number | null | undefined, decimalPlaces 
   return `${n.format(Number((sizeBytes / 1073741824).toFixed(decimalPlaces)))} ${t("common.gigabyte")}`;
 }
 
+const TRAFFIC_UNITS = ["common.kilobyte", "common.megabyte", "common.gigabyte", "common.terabyte"] as const;
+
+/** Used-traffic label with an adaptive unit (B → TB) and precision that fits the value:
+ * two decimals under 10, one under 100, none above ("250 MB", "1.25 GB", "12.5 GB"). */
+export function formatTraffic(sizeBytes: number | null | undefined): string {
+  if (sizeBytes === null || sizeBytes === undefined || !Number.isFinite(sizeBytes)) return i18n.t("common.unknown");
+  if (sizeBytes < 0) return `-${formatTraffic(Math.abs(sizeBytes))}`;
+  const n = numberFormatter();
+  if (sizeBytes < 1024) return `${n.format(Math.round(sizeBytes))} ${i18n.t("common.bytes")}`;
+  let value = sizeBytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < TRAFFIC_UNITS.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  let digits = value < 10 ? 2 : value < 100 ? 1 : 0;
+  // 1023.7 KB would round to "1024 KB"; show it as the next unit instead.
+  if (Number(value.toFixed(digits)) >= 1024 && unit < TRAFFIC_UNITS.length - 1) {
+    value /= 1024;
+    unit += 1;
+    digits = 2;
+  }
+  return `${n.format(Number(value.toFixed(digits)))} ${i18n.t(TRAFFIC_UNITS[unit]!)}`;
+}
+
 /** Bilingual "time remaining until expiry" label from a raw unix timestamp. */
 export function formatExpiry(expirationTimestamp: number | null | undefined): { remaining: string; date: string } {
   const t = i18n.t.bind(i18n);

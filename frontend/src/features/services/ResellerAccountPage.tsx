@@ -33,7 +33,15 @@ import {
 import { useToast } from "../../components/ui/Toast";
 import { resellerApi } from "../../api/webapp";
 import { useTelegram } from "../../hooks/useTelegram";
-import { clampPercent, formatBytes, formatNumber, formatRelativeTime, formatToman, formatUnixDate } from "../../lib/format";
+import {
+  clampPercent,
+  formatBytes,
+  formatNumber,
+  formatRelativeTime,
+  formatToman,
+  formatTraffic,
+  formatUnixDate,
+} from "../../lib/format";
 import {
   EVENT_TONE,
   STATUS_TONE,
@@ -339,8 +347,8 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
               <div className="mb-1.5 flex items-center justify-between text-xs">
                 <span className="text-muted">{t("reseller.detail.traffic")}</span>
                 <span className="font-semibold text-text">
-                  {formatBytes(data.used_traffic_bytes, 2)}
-                  {data.data_limit_bytes ? ` / ${formatBytes(data.data_limit_bytes)}` : ""}
+                  {formatTraffic(data.used_traffic_bytes)}
+                  {data.data_limit_bytes ? ` / ${formatTraffic(data.data_limit_bytes)}` : ""}
                 </span>
               </div>
               {usedPercent !== null && (
@@ -356,7 +364,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
               <div>
                 <div className="mb-1.5 flex items-center justify-between text-xs">
                   <span className="text-muted">{t("reseller.detail.usageCap")}</span>
-                  <span className="font-semibold text-text">{formatBytes(data.usage_cap_bytes ?? 0)}</span>
+                  <span className="font-semibold text-text">{formatTraffic(data.usage_cap_bytes ?? 0)}</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-surface-2">
                   <div className="h-full rounded-full bg-warning" style={{ width: `${capPercent}%` }} />
@@ -373,7 +381,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
               label={t("reseller.detail.remaining")}
               value={
                 remainingBytes !== null
-                  ? formatBytes(remainingBytes, 2)
+                  ? formatTraffic(remainingBytes)
                   : isPayg
                     ? t("reseller.plan.noVolumeCap")
                     : t("reseller.detail.unlimitedVolume")
@@ -381,7 +389,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
               hint={
                 remainingBytes === null
                   ? undefined
-                  : t("reseller.detail.remainingOf", { total: formatBytes(data.data_limit_bytes) })
+                  : t("reseller.detail.remainingOf", { total: formatTraffic(data.data_limit_bytes) })
               }
             />
           )}
@@ -1075,8 +1083,8 @@ function AddonSheet({ addon, data, onClose, onDone }: SheetProps & { addon: Rese
                   {data.live && (
                     <ChangeRow
                       label={t("reseller.detail.remaining")}
-                      before={formatBytes(Math.max(0, current.before - data.used_traffic_bytes), 2)}
-                      after={formatBytes(Math.max(0, current.after - data.used_traffic_bytes), 2)}
+                      before={formatTraffic(Math.max(0, current.before - data.used_traffic_bytes))}
+                      after={formatTraffic(Math.max(0, current.after - data.used_traffic_bytes))}
                     />
                   )}
                 </>

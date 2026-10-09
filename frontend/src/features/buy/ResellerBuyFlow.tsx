@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Server, Shuffle, Wallet, X } from "lucide-react";
@@ -37,6 +37,8 @@ import { Banner, ChoiceCard, InfoRow, STEP_MOTION, SelectionChip } from "./BuyCh
 type Step = "panel" | "plan" | "confirm" | "success";
 const STEPS: Step[] = ["panel", "plan", "confirm"];
 const USERNAME_RE = /^[A-Za-z0-9][A-Za-z0-9_]{1,30}[A-Za-z0-9]$/;
+/** Wait this long after the last keystroke before asking the server about the username. */
+const PREVIEW_DEBOUNCE_MS = 450;
 
 // Kept for older imports; the helper now lives with the shared plan guide.
 export { resellerPlanPrice };
@@ -50,62 +52,52 @@ function planTitle(t: TFunction, plan: ResellerPlanItem): string {
 interface PlanCardProps {
   plan: ResellerPlanItem;
   selected: boolean;
-  minWallet: number;
-  graceDays: number;
   onSelect: () => void;
 }
 
-/** A selectable plan: type, price, what it includes, what it allows and how it works. */
-function ResellerPlanCard({ plan, selected, minWallet, graceDays, onSelect }: PlanCardProps) {
+/** A selectable plan: type, price, what it includes and what it allows. The full guide is on the confirm step. */
+function ResellerPlanCard({ plan, selected, onSelect }: PlanCardProps) {
   const { t } = useTranslation();
   const prepaid = PREPAID_MODES.includes(plan.pricing_mode);
   return (
+    // A div, not a button: the card holds a list, which a button may not contain.
     <div
-      className={`overflow-hidden rounded-lg border-[1.5px] transition-colors ${
+      role="radio"
+      tabIndex={0}
+      aria-checked={selected}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`flex w-full cursor-pointer flex-col gap-3 rounded-lg border-[1.5px] p-3.5 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 ${
         selected ? "border-primary bg-primary/6" : "border-border bg-surface hover:border-primary/40"
       }`}
     >
-      {/* A div, not a button: the card holds a list, which a button may not contain. */}
-      <div
-        role="radio"
-        tabIndex={0}
-        aria-checked={selected}
-        onClick={onSelect}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onSelect();
-          }
-        }}
-        className="flex w-full cursor-pointer flex-col gap-3 p-3.5 text-start outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-      >
-        <div className="flex w-full items-start gap-3">
-          <span
-            className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-              selected ? "border-primary" : "border-muted/40"
-            }`}
-          >
-            {selected && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
-          </span>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <p className="text-base font-extrabold text-text">{planTitle(t, plan)}</p>
-            <ResellerModeBadge mode={plan.pricing_mode} />
-          </div>
-          <div className="shrink-0 text-end">
-            <p className="text-sm font-extrabold text-text">{resellerPlanPrice(t, plan)}</p>
-            {prepaid && <p className="mt-0.5 text-[10.5px] text-muted">{t("reseller.plan.oneTime")}</p>}
-          </div>
+      <div className="flex w-full items-start gap-3">
+        <span
+          className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+            selected ? "border-primary" : "border-muted/40"
+          }`}
+        >
+          {selected && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
+        </span>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <p className="text-base font-extrabold text-text">{planTitle(t, plan)}</p>
+          <ResellerModeBadge mode={plan.pricing_mode} />
         </div>
-        <p className="w-full rounded-md bg-surface-2/70 px-3 py-2 text-xs font-medium text-text">
-          {resellerPlanSpecs(t, plan)}
-        </p>
-        <div className="w-full">
-          <ResellerPlanFeatureList plan={plan} minWallet={minWallet} />
+        <div className="shrink-0 text-end">
+          <p className="text-sm font-extrabold text-text">{resellerPlanPrice(t, plan)}</p>
+          {prepaid && <p className="mt-0.5 text-[10.5px] text-muted">{t("reseller.plan.oneTime")}</p>}
         </div>
       </div>
-      <div className="px-3.5 pb-3.5">
-        <ResellerPlanGuide plan={plan} graceDays={graceDays} minWallet={minWallet} />
-      </div>
+      <p className="w-full rounded-md bg-surface-2/70 px-3 py-2 text-xs font-medium text-text">
+        {resellerPlanSpecs(t, plan)}
+      </p>
+      {/* The wallet rule is shown under the list once a usage/hourly plan is picked, and again on confirm. */}
+      <ResellerPlanFeatureList plan={plan} showMinWallet={false} />
     </div>
   );
 }
@@ -131,10 +123,14 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
   const [discountDraft, setDiscountDraft] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [preview, setPreview] = useState<WebAppResellerBuyPreviewResponse | null>(null);
+  const [previewError, setPreviewError] = useState("");
   const confirmPlan = preview?.plan ?? null;
   const payAsYouGo = confirmPlan?.pricing_mode === "usage" || confirmPlan?.pricing_mode === "hourly";
   const [result, setResult] = useState<WebAppResellerBuyConfirmResponse | null>(null);
   const [error, setError] = useState("");
+  // Key ("username|discount") of the request behind `preview`, and a counter so only the latest answer lands.
+  const previewKey = useRef("");
+  const previewSeq = useRef(0);
 
   const suggest = useResellerMutation(resellerApi.suggestUsername, { refresh: false });
   const previewCall = useResellerMutation(resellerApi.previewBuy, { refresh: false });
@@ -148,6 +144,9 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panels.length]);
 
+  const suggestUsername = (panelCode: number) =>
+    suggest.mutate({ panel_code: panelCode }, { onSuccess: (res) => res.username && setUsername(res.username) });
+
   const choosePanel = (next: ResellerPanelItem) => {
     haptic.select();
     setPanel(next);
@@ -156,70 +155,102 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
     setPreview(null);
     setError("");
     setStep("plan");
-    if (!username) {
-      suggest.mutate({ panel_code: next.code }, { onSuccess: (res) => res.username && setUsername(res.username) });
-    }
+    if (!username) suggestUsername(next.code);
   };
 
   const volumeNumber = Number(volume.replace(/,/g, "")) || 0;
-  const usernameValid = USERNAME_RE.test(username.trim());
-  const volumeValid = !plan?.needs_volume || volumeNumber > 0;
+  const trimmedUsername = username.trim();
+  const usernameValid = USERNAME_RE.test(trimmedUsername);
+  const volumeOutOfRange =
+    !!plan?.needs_volume &&
+    volumeNumber > 0 &&
+    (volumeNumber < (plan.min_volume || 0) || (plan.max_volume > 0 && volumeNumber > plan.max_volume));
+  const volumeValid = !plan?.needs_volume || (volumeNumber > 0 && !volumeOutOfRange);
 
-  const requestPreview = async (code: string) => {
-    if (!panel || !plan) return null;
+  const requestPreview = (code: string) => {
+    if (!panel || !plan) return Promise.reject(new Error("No plan selected"));
     return previewCall.mutateAsync({
       panel_code: panel.code,
       plan_id: plan.id,
-      username: username.trim(),
+      username: trimmedUsername,
       volume: plan.needs_volume ? volumeNumber : null,
       discount_code: code || null,
     });
   };
 
-  const goToConfirm = async () => {
+  // The preview validates the username and checks it is free on the panel: re-run it (debounced) on every change.
+  useEffect(() => {
+    if (step !== "confirm" || !panel || !plan) return;
+    if (!usernameValid) {
+      setPreviewError("");
+      return;
+    }
+    const key = `${trimmedUsername}|${discount}`;
+    if (key === previewKey.current) return;
+    const seq = ++previewSeq.current;
+    const timer = window.setTimeout(() => {
+      requestPreview(discount)
+        .then((res) => {
+          if (seq !== previewSeq.current) return;
+          previewKey.current = key;
+          setPreview(res);
+          setPreviewError("");
+        })
+        .catch((err: Error) => {
+          if (seq !== previewSeq.current) return;
+          previewKey.current = "";
+          setPreviewError(err.message);
+        });
+    }, preview || previewError ? PREVIEW_DEBOUNCE_MS : 0); // the first quote on this step needs no waiting
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, panel, plan, trimmedUsername, usernameValid, discount]);
+
+  const previewFresh =
+    !!preview && previewKey.current === `${trimmedUsername}|${discount}` && !previewError && usernameValid;
+  const previewLoading = usernameValid && !previewFresh && !previewError;
+
+  const goToConfirm = () => {
     haptic.impact("light");
     setError("");
-    try {
-      const res = await requestPreview(discount);
-      setPreview(res);
-      setStep("confirm");
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    setPreview(null);
+    setPreviewError("");
+    previewKey.current = "";
+    setStep("confirm");
   };
 
   const applyDiscount = async () => {
     const code = discountDraft.trim();
     if (!code) return;
     setDiscountError("");
+    const seq = ++previewSeq.current;
     try {
       const res = await requestPreview(code);
+      if (seq !== previewSeq.current) return;
+      previewKey.current = `${trimmedUsername}|${code}`;
       setDiscount(code);
       setPreview(res);
+      setPreviewError("");
     } catch (err) {
       setDiscountError((err as Error).message);
     }
   };
 
-  const removeDiscount = async () => {
+  const removeDiscount = () => {
     setDiscount("");
     setDiscountDraft("");
-    try {
-      setPreview(await requestPreview(""));
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    setDiscountError("");
   };
 
   const confirm = async () => {
-    if (!panel || !plan) return;
+    if (!panel || !plan || !previewFresh) return;
     haptic.impact("medium");
     setError("");
     try {
       const res = await confirmCall.mutateAsync({
         panel_code: panel.code,
         plan_id: plan.id,
-        username: username.trim(),
+        username: trimmedUsername,
         volume: plan.needs_volume ? volumeNumber : null,
         discount_code: discount || null,
       });
@@ -247,6 +278,11 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
   };
   const stepLabels = [t("reseller.buy.stepPanel"), t("reseller.buy.stepPlan"), t("reseller.buy.stepConfirm")];
   const stepIndex = STEPS.indexOf(step);
+  const usernameMessage = !username
+    ? null
+    : !usernameValid
+      ? t("reseller.buy.usernameHint")
+      : previewError || null;
 
   if (options.isLoading) {
     return (
@@ -304,8 +340,6 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                     key={item.id}
                     plan={item}
                     selected={plan?.id === item.id}
-                    minWallet={options.data.min_wallet_balance}
-                    graceDays={options.data.grace_days ?? 0}
                     onSelect={() => {
                       haptic.select();
                       setPlan(item);
@@ -340,40 +374,16 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                         })
                       : undefined
                   }
+                  error={
+                    volumeOutOfRange
+                      ? t("reseller.buy.volumeRange", {
+                          min: formatNumber(plan.min_volume),
+                          max: formatNumber(plan.max_volume),
+                        })
+                      : null
+                  }
                   ltr
                 />
-              )}
-
-              {plan && (
-                <div className="space-y-1.5">
-                  <div className="flex items-end gap-2">
-                    <Input
-                      label={t("reseller.buy.username")}
-                      value={username}
-                      onChange={(event) => setUsername(event.target.value)}
-                      placeholder="shop_ali"
-                      ltr
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="h-10 shrink-0"
-                      loading={suggest.isPending}
-                      aria-label={t("reseller.buy.randomName")}
-                      onClick={() =>
-                        suggest.mutate(
-                          { panel_code: panel.code },
-                          { onSuccess: (res) => res.username && setUsername(res.username) }
-                        )
-                      }
-                    >
-                      <Shuffle size={15} />
-                    </Button>
-                  </div>
-                  <p className={`px-1 text-xs ${username && !usernameValid ? "text-danger" : "text-muted"}`}>
-                    {t("reseller.buy.usernameHint")}
-                  </p>
-                </div>
               )}
 
               {plan && (
@@ -385,13 +395,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                       : formatToman(upfrontPrice(plan, volumeNumber))
                   }
                 >
-                  <Button
-                    type="button"
-                    size="lg"
-                    loading={previewCall.isPending}
-                    disabled={!usernameValid || !volumeValid}
-                    onClick={() => void goToConfirm()}
-                  >
+                  <Button type="button" size="lg" disabled={!volumeValid} onClick={goToConfirm}>
                     {t("reseller.buy.continue")}
                   </Button>
                 </StickyActionBar>
@@ -399,21 +403,52 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
             </motion.section>
           )}
 
-          {step === "confirm" && panel && plan && preview && (
+          {step === "confirm" && panel && plan && (
             <motion.section key="confirm" {...STEP_MOTION} className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {panels.length > 1 && <SelectionChip label={panel.name} onChange={() => setStep("panel")} />}
                 <SelectionChip label={planTitle(t, plan)} onChange={() => setStep("plan")} />
               </div>
 
+              <div className="space-y-1.5">
+                <div className="flex items-end gap-2">
+                  <Input
+                    label={t("reseller.buy.username")}
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="shop_ali"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-invalid={!!username && (!usernameValid || !!previewError)}
+                    ltr
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-10 shrink-0"
+                    loading={suggest.isPending}
+                    aria-label={t("reseller.buy.randomName")}
+                    onClick={() => suggestUsername(panel.code)}
+                  >
+                    <Shuffle size={15} />
+                  </Button>
+                </div>
+                <p
+                  className={`px-1 text-xs leading-5 ${
+                    username && (!usernameValid || previewError) ? "text-danger" : "text-muted"
+                  }`}
+                >
+                  {usernameMessage ?? t("reseller.buy.usernameHint")}
+                </p>
+              </div>
+
               <Card className="space-y-2.5 p-4">
-                <InfoRow label={t("reseller.buy.username")} value={<bdi dir="ltr">{preview.username}</bdi>} />
                 <InfoRow label={t("reseller.plan.type")} value={resellerModeLabel(t, plan.pricing_mode)} />
                 <InfoRow label={t("reseller.buy.pricing")} value={resellerPlanPrice(t, plan)} />
-                {preview.volume ? (
+                {plan.needs_volume && volumeNumber > 0 ? (
                   <InfoRow
                     label={t("reseller.buy.volumeShort")}
-                    value={`${formatNumber(preview.volume)} ${plan.pricing_mode === "per_tb" ? t("reseller.tb") : t("reseller.gb")}`}
+                    value={`${formatNumber(preview?.volume ?? volumeNumber)} ${plan.pricing_mode === "per_tb" ? t("reseller.tb") : t("reseller.gb")}`}
                   />
                 ) : null}
                 {!plan.needs_volume && (
@@ -443,7 +478,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
               </Card>
 
               <ResellerPlanGuide
-                plan={preview.plan ?? plan}
+                plan={preview?.plan ?? plan}
                 graceDays={options.data.grace_days ?? 0}
                 minWallet={options.data.min_wallet_balance}
               />
@@ -453,7 +488,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   <div className="flex items-center justify-between gap-3 rounded-md border border-success/30 bg-success/5 px-3.5 py-2.5">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-success">
-                        {t("reseller.buy.discountApplied", { percent: formatNumber(preview.discount_percent) })}
+                        {t("reseller.buy.discountApplied", { percent: formatNumber(preview?.discount_percent ?? 0) })}
                       </p>
                       <p className="truncate font-mono text-[13px] text-text" dir="ltr" style={{ textAlign: "start" }}>
                         {discount}
@@ -461,7 +496,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                     </div>
                     <button
                       type="button"
-                      onClick={() => void removeDiscount()}
+                      onClick={removeDiscount}
                       aria-label={t("reseller.buy.removeDiscount")}
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-surface-2 text-muted hover:text-text"
                     >
@@ -481,8 +516,8 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                       type="button"
                       variant="secondary"
                       className="h-10 shrink-0"
-                      loading={previewCall.isPending}
-                      disabled={!discountDraft.trim()}
+                      loading={previewCall.isPending && !!discountDraft.trim()}
+                      disabled={!discountDraft.trim() || !usernameValid}
                       onClick={() => void applyDiscount()}
                     >
                       {t("reseller.buy.apply")}
@@ -490,42 +525,49 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   </div>
                 ))}
 
-              <Card className="space-y-2.5 p-4">
-                <InfoRow label={t("buy.currentBalance")} value={formatToman(preview.balance)} />
-                {payAsYouGo ? (
-                  <>
-                    {/* Usage/hourly plans charge from the wallet over time; what matters at purchase is the minimum balance. */}
-                    <InfoRow label={t("reseller.buy.ratePrice")} value={confirmPlan ? resellerPlanPrice(t, confirmPlan) : "—"} />
-                    {minWallet > 0 && (
-                      <InfoRow label={t("reseller.buy.minWalletRequired")} value={formatToman(minWallet)} strong />
-                    )}
-                    <InfoRow
-                      label={t("reseller.buy.upfront")}
-                      value={preview.final_price > 0 ? formatToman(preview.final_price) : t("reseller.buy.noUpfront")}
-                    />
-                  </>
-                ) : (
-                  <>
-                    {preview.discount_percent > 0 && (
-                      <InfoRow label={t("buy.basePrice")} value={formatToman(preview.base_price)} />
-                    )}
-                    <InfoRow label={t("buy.finalPrice")} value={formatToman(preview.final_price)} strong />
-                  </>
-                )}
-                <div
-                  className={`flex items-center justify-between gap-3 rounded-md border px-3.5 py-3 text-[13px] ${
-                    preview.balance_after >= 0 ? "border-success/30 bg-success/5" : "border-danger/30 bg-danger/5"
-                  }`}
-                >
-                  <span className="text-muted">{t("buy.balanceAfter")}</span>
-                  <span className={`font-extrabold ${preview.balance_after >= 0 ? "text-success" : "text-danger"}`}>
-                    {formatToman(preview.balance_after)}
-                  </span>
-                </div>
-              </Card>
+              {preview ? (
+                <Card className={`space-y-2.5 p-4 transition-opacity ${previewFresh ? "" : "opacity-60"}`}>
+                  <InfoRow label={t("buy.currentBalance")} value={formatToman(preview.balance)} />
+                  {payAsYouGo ? (
+                    <>
+                      {/* Usage/hourly plans charge from the wallet over time; what matters at purchase is the minimum balance. */}
+                      <InfoRow
+                        label={t("reseller.buy.ratePrice")}
+                        value={confirmPlan ? resellerPlanPrice(t, confirmPlan) : "—"}
+                      />
+                      {minWallet > 0 && (
+                        <InfoRow label={t("reseller.buy.minWalletRequired")} value={formatToman(minWallet)} strong />
+                      )}
+                      <InfoRow
+                        label={t("reseller.buy.upfront")}
+                        value={preview.final_price > 0 ? formatToman(preview.final_price) : t("reseller.buy.noUpfront")}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      {preview.discount_percent > 0 && (
+                        <InfoRow label={t("buy.basePrice")} value={formatToman(preview.base_price)} />
+                      )}
+                      <InfoRow label={t("buy.finalPrice")} value={formatToman(preview.final_price)} strong />
+                    </>
+                  )}
+                  <div
+                    className={`flex items-center justify-between gap-3 rounded-md border px-3.5 py-3 text-[13px] ${
+                      preview.balance_after >= 0 ? "border-success/30 bg-success/5" : "border-danger/30 bg-danger/5"
+                    }`}
+                  >
+                    <span className="text-muted">{t("buy.balanceAfter")}</span>
+                    <span className={`font-extrabold ${preview.balance_after >= 0 ? "text-success" : "text-danger"}`}>
+                      {formatToman(preview.balance_after)}
+                    </span>
+                  </div>
+                </Card>
+              ) : (
+                previewLoading && <Card className="h-32 animate-pulse bg-surface-2" />
+              )}
 
-              {preview.wallet_error && <Banner tone="warning">{preview.wallet_error}</Banner>}
-              {!preview.can_pay && (
+              {previewFresh && preview?.wallet_error && <Banner tone="warning">{preview.wallet_error}</Banner>}
+              {previewFresh && preview && !preview.can_pay && (
                 <Link
                   to="/balance"
                   className="flex h-11 items-center justify-center rounded-md border border-primary/30 bg-primary/5 text-sm font-semibold text-primary"
@@ -536,15 +578,25 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
 
               <StickyActionBar
                 caption={
-                  payAsYouGo && preview.final_price <= 0 ? t("reseller.buy.minWalletRequired") : t("buy.finalPrice")
+                  !preview
+                    ? planTitle(t, plan)
+                    : payAsYouGo && preview.final_price <= 0
+                      ? t("reseller.buy.minWalletRequired")
+                      : t("buy.finalPrice")
                 }
-                amount={formatToman(payAsYouGo && preview.final_price <= 0 ? minWallet : preview.final_price)}
+                amount={
+                  !preview
+                    ? plan.needs_volume && !volumeNumber
+                      ? resellerPlanPrice(t, plan)
+                      : formatToman(upfrontPrice(plan, volumeNumber))
+                    : formatToman(payAsYouGo && preview.final_price <= 0 ? minWallet : preview.final_price)
+                }
               >
                 <Button
                   type="button"
                   size="lg"
                   loading={confirmCall.isPending}
-                  disabled={!preview.can_pay}
+                  disabled={!previewFresh || !preview?.can_pay}
                   onClick={() => void confirm()}
                 >
                   {t("reseller.buy.confirm")}

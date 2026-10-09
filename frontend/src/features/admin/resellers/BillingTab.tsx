@@ -172,7 +172,13 @@ export default function BillingTab() {
                   key={row.id}
                   charge={toCharge(row)}
                   panelCounter={row.used_traffic}
-                  account={`${row.username || t("panel.resellerHub.billing.deleted")} · #${row.account_code}`}
+                  account={[
+                    row.username || t("panel.resellerHub.billing.deleted"),
+                    `#${row.account_code}`,
+                    row.telegram_id ? `🆔 ${row.telegram_id}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 />
               ))}
             </ul>

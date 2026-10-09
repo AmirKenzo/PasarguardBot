@@ -1538,7 +1538,8 @@
       "subtitle": "قیمت‌گذاری فروش عمده به نمایندگان",
       "roleName": "نام نقش",
       "volumeStep": "گام حجم (GB)",
-      "editTitle": "ویرایش پلن نمایندگی #{{id}}"
+      "editTitle": "ویرایش پلن نمایندگی #{{id}}",
+      "allPanels": "همه‌ی پنل‌ها"
     },
     "userDetail": {
       "numericId": "آیدی عددی",
@@ -1875,7 +1876,16 @@
           "buy_user_capacity": "فقط برای پلن‌هایی که قیمت «یوزر اضافه» دارند نمایش داده می‌شود.",
           "extra_days": "فقط برای پلن‌های ثابت و نامحدودی که قیمت «روز اضافه» دارند.",
           "extra_volume": "فقط برای پلن‌های ثابتی که قیمت «حجم اضافه» دارند."
-        }
+        },
+        "searchPanels": "جستجوی پنل با نام یا کد",
+        "noPanelMatch": "پنلی با این مشخصات پیدا نشد",
+        "buttonsOn": "{{on}} از {{total}} دکمه فعال",
+        "saleOn": "فروش روشن",
+        "saleOff": "فروش خاموش",
+        "edited": "تغییر ذخیره نشده",
+        "allOn": "روشن کردن همه",
+        "allOff": "خاموش کردن همه",
+        "showMore": "نمایش {{count}} پنل دیگر"
       },
       "planType": "نوع پلن",
       "perGbUsedAmount": "{{amount}} / هر گیگ مصرف",
@@ -2101,8 +2111,8 @@
       "choosePlan": "انتخاب پلن",
       "confirmTitle": "تأیید خرید",
       "stepPanel": "پنل",
-      "stepPlan": "پلن و نام",
-      "stepConfirm": "تأیید",
+      "stepPlan": "پلن",
+      "stepConfirm": "یوزرنیم و تأیید",
       "unavailable": "فروش نمایندگی در حال حاضر فعال نیست.",
       "plansCount": "{{count}} پلن نمایندگی",
       "hourlyNote": "هزینه به‌صورت ساعتی از کیف پول کسر می‌شود. برای خرید حداقل {{amount}} موجودی لازم است.",
@@ -2243,9 +2253,8 @@
       "activeTime": "زمان فعال",
       "rate": "نرخ",
       "calculation": "محاسبه",
-      "gigabytes": "{{value}} گیگ",
       "minutes": "{{count}} دقیقه",
-      "usageFormula": "{{value}} گیگ × {{rate}}",
+      "usageFormula": "{{usage}} × {{rate}}",
       "hourlyFormula": "{{minutes}} دقیقه از نرخ ساعتی {{rate}}",
       "hourOf": "ساعت {{from}} تا {{to}}",
       "panelCounter": "شمارندهٔ کل مصرف پنل در این لحظه: {{value}}"
