@@ -211,7 +211,7 @@ Choice [1]: `}
 در پایان مسیرها، ایمیج، برنچ، پورت‌ها و آدرس وب‌هوک چاپ می‌شود و بعد **لاگ زندهٔ ربات** نمایش داده می‌شود:
 
 ```text
-Tailing live logs… press Ctrl+C to stop
+Tailing live logs so you can confirm it came up healthy — press Ctrl+C to stop.
 ```
 
 وقتی در لاگ دیدید ربات بالا آمده، `Ctrl+C` بزنید و بعد Enter تا به منو برگردید.
@@ -225,10 +225,11 @@ Tailing live logs… press Ctrl+C to stop
 
 1. در تلگرام ربات خودتان را باز کنید و `/start` بزنید.
 2. چون آیدی شما در `ADMIN_ID` است، دکمهٔ **⚙️ پنل مدیریت** را می‌بینید (یا دستور `/panel`).
-3. از **📚 منوی پنل‌ها** پنل پاسارگارد را اضافه کنید — [منوی پنل‌ها](/docs/admin/panels).
-4. از **🛒 ساخت پلن** پلن فروش بسازید — [ساخت پلن](/docs/admin/plans).
-5. از **💳 تنظیمات درگاه** حداقل یک روش پرداخت (کارت یا ارز) فعال کنید — [تنظیمات درگاه](/docs/admin/gateway).
-6. کانال‌های لاگ را ست کنید تا رسیدها و بکاپ‌ها جایی ارسال شوند — [مدیریت لاگ‌ها](/docs/admin/logs).
+3. از **📚 منوی پنل ها** پنل پاسارگارد را اضافه کنید — [منوی پنل‌ها](/docs/admin/panels).
+4. از **🗞 ساخت پلن** پلن فروش بسازید — [ساخت پلن](/docs/admin/plans).
+5. از **⚙️ تنظیمات ربات** گزینهٔ **وضعیت فروش** را روشن کنید (پیش‌فرض خاموش است).
+6. از **💳 تنظیمات درگاه** حداقل یک روش پرداخت (کارت یا ارز) تنظیم و از **⚙️ تنظیمات ربات** دکمه‌اش را روشن کنید — [تنظیمات درگاه](/docs/admin/gateway).
+7. کانال‌های لاگ را ست کنید تا رسیدها و بکاپ‌ها جایی ارسال شوند — [مدیریت لاگ‌ها](/docs/admin/logs).
 
 مسیر کامل راه‌اندازی در [چک‌لیست راه‌اندازی](/docs/getting-started/first-setup) آمده است.
 
@@ -241,7 +242,7 @@ Tailing live logs… press Ctrl+C to stop
 <CliPanel title="Webhook & URLs">
 {`[*] Webhook (set in Pasarguard panel):
   URL:     http://YOUR_IP:6160/api/webhook
-  Header:  x-webhook-secret: 3f9c0e…(64 hex chars)
+  Header:  x-webhook-secret: <from DB table secrets, name=webhook_secret>
   Note:   crypto_key / webhook_secret are stored in DB (not .env)
 
 [*] phpMyAdmin:
@@ -250,6 +251,7 @@ Tailing live logs… press Ctrl+C to stop
 [!] Replace the IP with your domain if you use one.`}
 </CliPanel>
 
+- خود مقدار Secret چاپ نمی‌شود؛ آن را از phpMyAdmin بردارید: دیتابیس `pasarguardbot` ← جدول `secrets` ← ردیفی که `name` آن `webhook_secret` است، ستون `value` (یک رشتهٔ ۶۴ کاراکتری).
 - آدرس و هدر وب‌هوک را در پنل پاسارگارد ست کنید تا اطلاع‌رسانی حجم/زمان دقیق کار کند: [اطلاع‌رسانی حجم و زمان](/docs/admin/panels/notifications)
 - این خروجی همیشه با `http://` چاپ می‌شود؛ اگر SSL دارید خودتان `https://` و دامنه را جایگزین کنید.
 

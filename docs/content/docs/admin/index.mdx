@@ -1,26 +1,219 @@
 ---
-title: نمای کلی
-description: فهرست بخش‌های پنل مدیریت
+title: نمای کلی پنل مدیریت
+description: چه کسی ادمین است، چطور وارد پنل مدیریت شوید و هر دکمه شما را به کجا می‌برد.
 icon: ShieldCheck
 ---
 
-ورود از دکمهٔ **پنل مدیریت** (فقط ادمین‌ها) یا دستور `/panel`.
+پنل مدیریت جایی است که فروشگاه را می‌سازید و می‌گردانید: اتصال پنل پاسارگارد، ساخت پلن، درگاه‌های پرداخت، کاربران، پیام همگانی، بکاپ و بقیهٔ کارها. این صفحه نقشهٔ کلی پنل است. برای هر بخش یک صفحهٔ جدا با جزئیات کامل وجود دارد.
+
+## چه کسی ادمین است؟ [#who-is-admin]
+
+ادمین‌ها از متغیر `ADMIN_ID` در فایل `.env` خوانده می‌شوند. این متغیر **آیدی عددی** تلگرام است (یوزرنیم قبول نمی‌شود). برای چند ادمین، آیدی‌ها را با ویرگول و بدون فاصله جدا کنید:
+
+```bash
+ADMIN_ID=123456789,987654321
+```
+
+- همهٔ ادمین‌ها دسترسی کامل و یکسان دارند. سطح دسترسی جداگانه وجود ندارد.
+- بعد از تغییر `.env` باید ربات را ری‌استارت کنید. راهنمای ویرایش `.env` در [پیکربندی](/docs/getting-started/configuration) و [منوی مدیریت سرور](/docs/getting-started/cli-menu) آمده است.
+- آیدی عددی خودتان را بعد از ورود، در پیام خوش‌آمد پنل مدیریت می‌بینید.
+
+<Callout type="info" title="ادمین‌ها از محدودیت‌ها معاف‌اند">
+وقتی **وضعیت ربات** خاموش است، کاربران عادی پیام «ربات خاموش است» می‌گیرند، ولی ادمین‌ها همچنان می‌توانند از ربات استفاده کنند. با این کار می‌توانید قبل از باز کردن فروش، همه‌چیز را تست کنید.
+</Callout>
+
+## ورود به پنل مدیریت [#open]
+
+هر کدام از این راه‌ها پنل را باز می‌کند (فقط در چت خصوصی با ربات):
+
+| روش | توضیح |
+|------|--------|
+| دستور `/panel` | از هر جای ربات کار می‌کند. اگر وسط افزودن پنل باشید، آن فرایند لغو می‌شود. |
+| دکمهٔ **⚙️ پنل مدیریت** | در منوی اصلی، فقط برای ادمین‌ها نمایش داده می‌شود. اگر متنش را در [مدیریت دکمه‌ها](/docs/admin/texts-keyboards) عوض کرده باشید، متن جدید هم کار می‌کند. |
+| دکمهٔ **🔙 بازگشت به پنل** | در زیرمنوهای پنل، شما را به صفحهٔ اصلی پنل برمی‌گرداند. |
+
+دکمهٔ **🏠** در پایین کیبورد پنل، شما را به منوی اصلی کاربر برمی‌گرداند.
+
+## پیام خوش‌آمد و هشدار تنظیمات ناقص [#home-message]
+
+با هر بار ورود، ربات آیدی عددی و یوزرنیم شما را به همراه لینک مستندات نشان می‌دهد. اگر هنوز **هیچ مقصد فعالی برای لاگ‌ها** انتخاب نکرده باشید (و `LOG_CHANNEL` هم در `.env` تنظیم نشده باشد)، یک هشدار زیر پیام می‌آید:
+
+```text
+⚠️ تنظیمات ربات کامل نیست
+
+برای عملکرد صحیح ربات، ابتدا مورد زیر را تنظیم کنید:
+
+📝 مدیریت لاگ‌ها
+هنوز کانال یا گروهی برای دریافت لاگ‌های ربات انتخاب نشده است.
+از بخش 📝 مدیریت لاگ‌ها، مقصد ارسال لاگ‌ها را مشخص کنید.
+```
+
+این هشدار را جدی بگیرید: رسیدهای کارت‌به‌کارت (همراه دکمه‌های تایید و رد)، گزارش خریدها و خطاها به همین مقصد فرستاده می‌شوند. راهنما: [مدیریت لاگ‌ها](/docs/admin/logs).
+
+## کیبورد پنل مدیریت [#keyboard]
+
+<TelegramPhone bot="PasarguardBot" title="پنل مدیریت">
+  <TgBubble>
+    🌺به پنل مدیریت خوش آمدید.
+    ایدی عددی شما: 123456789
+    نام کاربری شما: @admin
+
+    📚 مستندات ربات: amirkenzo.github.io/PasarguardBot
+  </TgBubble>
+  <TgKeyboard>
+    <TgRow>
+      <TgBtn>💳 تنظیمات درگاه</TgBtn>
+      <TgBtn>👥 آمار گیری</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>📚 منوی پنل ها</TgBtn>
+      <TgBtn>⚙️ تنظیمات ربات</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>🎟 کدتخفیف</TgBtn>
+      <TgBtn>🗞 ساخت پلن</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>🏢 پلن نمایندگی</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>👤 مدیریت کاربر</TgBtn>
+      <TgBtn>📮 ارسال همگانی</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>📥 فوروارد همگانی</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>➖ کسر موجودی</TgBtn>
+      <TgBtn>➕ افزودن موجودی</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>💰 شارژ گروهی</TgBtn>
+      <TgBtn>🔄 ریست دریافت تست</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>📈 افزایش حجم و زمان همگانی</TgBtn>
+      <TgBtn>🔐 قفل چنل ها</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>📝 مدیریت لاگ‌ها</TgBtn>
+      <TgBtn>📦 بکاپ ربات</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>🧬 مایگریشن از ربات دیگر</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>📝 متن‌های ربات</TgBtn>
+      <TgBtn>⌨️ مدیریت دکمه‌های کیبورد</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>🎁 سیستم دعوت دوستان</TgBtn>
+      <TgBtn>🔗 لینک های آماده</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>📚 مستندات ربات</TgBtn>
+      <TgBtn>🖥 پنل تحت وب</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>🈸 آپدیت برنامه ها</TgBtn>
+    </TgRow>
+    <TgRow>
+      <TgBtn>🏠</TgBtn>
+    </TgRow>
+  </TgKeyboard>
+</TelegramPhone>
+
+<Callout type="info" title="دکمهٔ «🖥 پنل تحت وب»">
+این دکمه فقط وقتی دیده می‌شود که `WEBAPP_URL` با `https://` تنظیم شده باشد. با زدنش یک دکمهٔ شیشه‌ای می‌گیرید که پنل وب را داخل تلگرام و با حساب تلگرام خودتان باز می‌کند. راهنما: [پنل مدیریت وب](/docs/webapp/admin-panel).
+</Callout>
+
+### هر دکمه کجا توضیح داده شده؟ [#button-map]
+
+| دکمه | صفحهٔ راهنما |
+|------|--------------|
+| 💳 تنظیمات درگاه | [تنظیمات درگاه](/docs/admin/gateway) و [درگاه TonPays](/docs/admin/tonpays) |
+| 👥 آمار گیری | [آمارگیری](/docs/admin/stats) |
+| 📚 منوی پنل ها | [منوی پنل‌ها](/docs/admin/panels) |
+| ⚙️ تنظیمات ربات | [تنظیمات ربات](/docs/admin/bot-settings) |
+| 🎟 کدتخفیف | [کد تخفیف](/docs/admin/discounts) |
+| 🗞 ساخت پلن | [ساخت پلن](/docs/admin/plans) |
+| 🏢 پلن نمایندگی | [پلن نمایندگی](/docs/admin/reseller-plans) |
+| 👤 مدیریت کاربر | [مدیریت کاربر](/docs/admin/users) |
+| 📮 ارسال همگانی / 📥 فوروارد همگانی | [ارسال همگانی](/docs/admin/broadcast) |
+| ➖ کسر موجودی / ➕ افزودن موجودی / 💰 شارژ گروهی / 🔄 ریست دریافت تست / 📈 افزایش حجم و زمان همگانی | [عملیات گروهی](/docs/admin/bulk-ops) |
+| 🔐 قفل چنل ها | [قفل چنل‌ها](/docs/admin/channels) |
+| 📝 مدیریت لاگ‌ها | [مدیریت لاگ‌ها](/docs/admin/logs) |
+| 📦 بکاپ ربات | [بکاپ و ریستور](/docs/admin/backup-restore) |
+| 🧬 مایگریشن از ربات دیگر | [مایگریشن](/docs/admin/migration) |
+| 📝 متن‌های ربات / ⌨️ مدیریت دکمه‌های کیبورد | [متن‌ها و دکمه‌ها](/docs/admin/texts-keyboards) |
+| 🎁 سیستم دعوت دوستان | [سیستم دعوت](/docs/admin/referral) |
+| 🔗 لینک های آماده / 🈸 آپدیت برنامه ها | [لینک‌ها و برنامه‌ها](/docs/admin/links-apps) |
+| 🖥 پنل تحت وب | [پنل مدیریت وب](/docs/webapp/admin-panel) |
+
+## ترتیب پیشنهادی راه‌اندازی [#setup-order]
+
+<Steps>
+<Step>
+
+### مقصد لاگ‌ها
+
+یک کانال یا گروه خصوصی بسازید، ربات را ادمینش کنید و از **📝 مدیریت لاگ‌ها** انتخابش کنید. [راهنما](/docs/admin/logs)
+
+</Step>
+<Step>
+
+### اتصال پنل
+
+از **📚 منوی پنل ها → ▫️ افزودن پنل جدید** پنل پاسارگارد را وصل کنید. [راهنما](/docs/admin/panels)
+
+</Step>
+<Step>
+
+### ساخت پلن
+
+برای همان پنل از **🗞 ساخت پلن** پلن‌های فروش را بسازید. [راهنما](/docs/admin/plans)
+
+</Step>
+<Step>
+
+### روش پرداخت
+
+کارت، کیف پول ارزی یا TonPays را از **💳 تنظیمات درگاه** تنظیم کنید و دکمهٔ همان روش را در **⚙️ تنظیمات ربات → 💳 پرداخت‌ها و روش‌های شارژ** روشن کنید. [راهنما](/docs/admin/gateway)
+
+</Step>
+<Step>
+
+### باز کردن فروش
+
+در **⚙️ تنظیمات ربات**، گزینهٔ **وضعیت فروش** را روشن کنید. [راهنما](/docs/admin/bot-settings)
+
+</Step>
+</Steps>
+
+## همهٔ بخش‌ها [#all-pages]
 
 <Cards>
-  <Card title="تنظیمات درگاه" href="/docs/admin/gateway" />
-  <Card title="آمارگیری" href="/docs/admin/stats" />
-  <Card title="منوی پنل‌ها" href="/docs/admin/panels" />
-  <Card title="اطلاع‌رسانی پنل" href="/docs/admin/panels/notifications" />
-  <Card title="تنظیمات ربات" href="/docs/admin/bot-settings" />
-  <Card title="کد تخفیف" href="/docs/admin/discounts" />
-  <Card title="ساخت پلن" href="/docs/admin/plans" />
-  <Card title="پلن نمایندگی" href="/docs/admin/reseller-plans" />
-  <Card title="مدیریت کاربر" href="/docs/admin/users" />
-  <Card title="ارسال و فوروارد همگانی" href="/docs/admin/broadcast" />
-  <Card title="عملیات موجودی و سرویس" href="/docs/admin/bulk-ops" />
-  <Card title="قفل چنل‌ها" href="/docs/admin/channels" />
-  <Card title="متن‌ها و دکمه‌ها" href="/docs/admin/texts-keyboards" />
-  <Card title="بکاپ و ریستور" href="/docs/admin/backup-restore" />
-  <Card title="مدیریت لاگ‌ها" href="/docs/admin/logs" />
-  <Card title="لینک‌ها و برنامه‌ها" href="/docs/admin/links-apps" />
+  <Card title="💳 تنظیمات درگاه" description="کارت‌به‌کارت، تایید خودکار، کیف پول ارزی، بونوس و استارز" href="/docs/admin/gateway" />
+  <Card title="💎 درگاه TonPays" description="درگاه شخص ثالث، کلیدها، وب‌هوک و محدوده مبلغ" href="/docs/admin/tonpays" />
+  <Card title="👥 آمارگیری" description="داشبورد، گزارش مالی، مشتریان برتر، سرویس‌ها و سیستم" href="/docs/admin/stats" />
+  <Card title="📚 منوی پنل‌ها" description="افزودن پنل پاسارگارد و صفحهٔ جزئیات پنل" href="/docs/admin/panels" />
+  <Card title="🧩 تنظیمات هر پنل" description="مرجع کامل همهٔ دکمه‌های تنظیمات پنل" href="/docs/admin/panels/settings" />
+  <Card title="📡 اطلاع‌رسانی حجم و زمان" description="حالت وب‌هوک یا ربات و تنظیم Webhook در پاسارگارد" href="/docs/admin/panels/notifications" />
+  <Card title="⚙️ تنظیمات ربات" description="کلیدهای روشن/خاموش فروش، پرداخت، منو و دکمه‌های سرویس" href="/docs/admin/bot-settings" />
+  <Card title="🗞 ساخت پلن" description="پلن حجمی، مصرف منصفانه و نامحدود، ویرایش گروهی" href="/docs/admin/plans" />
+  <Card title="🎟 کد تخفیف" description="کد عمومی، پرایوت و سفارشی، لینک دیپ" href="/docs/admin/discounts" />
+  <Card title="🏢 پلن نمایندگی" description="پلن ثابت و مصرفی، افزودن ادمین موجود، صورتحساب" href="/docs/admin/reseller-plans" />
+  <Card title="👤 مدیریت کاربر" description="جستجو، اطلاعات، سرویس‌ها و نمایندگی‌های کاربر" href="/docs/admin/users" />
+  <Card title="☎️ پشتیبانی" description="پاسخ به پیام‌های پشتیبانی کاربران" href="/docs/admin/support" />
+  <Card title="📮 ارسال همگانی" description="ارسال و فوروارد پیام به همهٔ کاربران" href="/docs/admin/broadcast" />
+  <Card title="💰 عملیات گروهی" description="کسر و افزودن موجودی، شارژ گروهی، ریست تست، افزایش حجم و زمان" href="/docs/admin/bulk-ops" />
+  <Card title="🔐 قفل چنل‌ها" description="عضویت اجباری در کانال" href="/docs/admin/channels" />
+  <Card title="📝 متن‌ها و دکمه‌ها" description="ویرایش متن پیام‌ها و دکمه‌های کیبورد" href="/docs/admin/texts-keyboards" />
+  <Card title="📝 مدیریت لاگ‌ها" description="کانال یا گروه مقصد لاگ‌ها" href="/docs/admin/logs" />
+  <Card title="📦 بکاپ و ریستور" description="بکاپ خودکار و دستی، بازگردانی" href="/docs/admin/backup-restore" />
+  <Card title="🔗 لینک‌ها و برنامه‌ها" description="لینک‌های آماده و برنامه‌های دانلود" href="/docs/admin/links-apps" />
+  <Card title="🎁 سیستم دعوت" description="پاداش دعوت دوستان" href="/docs/admin/referral" />
+  <Card title="🧬 مایگریشن" description="انتقال کاربران و سرویس‌ها از ربات دیگر" href="/docs/admin/migration" />
+  <Card title="⏱ کارهای خودکار" description="کارهایی که ربات در پس‌زمینه انجام می‌دهد" href="/docs/admin/automation" />
+  <Card title="🖥 پنل مدیریت وب" description="همین تنظیمات در مرورگر یا مینی‌اپ" href="/docs/webapp/admin-panel" />
 </Cards>

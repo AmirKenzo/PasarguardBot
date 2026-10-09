@@ -1,0 +1,198 @@
+---
+title: دامنه و SSL
+description: گرفتن گواهی SSL و تنظیم WEBAPP_URL برای وب‌اپ، پنل تحت وب و TonPays
+icon: ShieldCheck
+---
+
+ربات بدون دامنه و SSL هم کامل کار می‌کند (فروش، پرداخت کارت و ارز، وب‌هوک پنل). ولی این امکانات به یک آدرس **HTTPS** با دامنه نیاز دارند:
+
+| امکان | بدون HTTPS |
+|-------|-----------|
+| وب‌اپ کاربر (Mini App) و دکمهٔ **🚀 ورود به اپلیکیشن** | نمایش داده نمی‌شود |
+| دکمهٔ **🖥 پنل تحت وب** در پنل مدیریت | نمایش داده نمی‌شود |
+| دستور `/webapp` (تست وب‌اپ) | پیام خطا می‌دهد |
+| کال‌بک آنی **TonPays** | پرداخت‌ها فقط با استعلام دوره‌ای تأیید می‌شوند (کندتر) |
+
+<Callout type="warn" title="تلگرام سخت‌گیر است">
+تلگرام برای وب‌اپ فقط آدرس `https://` با **دامنه** و **گواهی معتبر** را قبول می‌کند. آدرس `http://`، آی‌پی خام (مثل `https://1.2.3.4`) و گواهی self-signed رد می‌شوند.
+</Callout>
+
+همهٔ این‌ها روی همان پورت وب‌سرور ربات (`6160`) سرو می‌شوند. ساده‌ترین راه این است که ربات خودش با گواهی Let's Encrypt روی همین پورت HTTPS سرو کند، بدون nginx.
+
+---
+
+## روش پیشنهادی: AutoSSL داخل اسکریپت
+
+<Steps>
+<Step>
+
+### دامنه را به سرور وصل کنید
+
+در پنل DNS دامنه یک رکورد **A** بسازید، مثلاً `bot.example.com` ← آی‌پی سرور ربات.
+
+- اگر از Cloudflare استفاده می‌کنید، پروکسی (ابر نارنجی) را **خاموش** کنید (DNS only).
+- چند دقیقه صبر کنید تا DNS پخش شود. با `ping bot.example.com` چک کنید که آی‌پی درست برگردد.
+- پورت **80** سرور باید آزاد و از اینترنت در دسترس باشد (تأیید Let's Encrypt روی پورت 80 انجام می‌شود).
+
+</Step>
+<Step>
+
+### گرفتن گواهی
+
+```bash
+pasarguardbot ssl
+```
+
+یا در منو گزینهٔ **`12) Get SSL certificate (AutoSSL)`**. اگر ابزار [AutoSSL](https://github.com/AmirKenzo/Auto-SSL-Domain) نصب نباشد، اول خودکار نصب می‌شود و بعد `autossl issue` اجرا می‌شود.
+
+1. دامنه را وارد کنید (مثلاً `bot.example.com`).
+2. گواهی Let's Encrypt صادر می‌شود.
+3. در مرحلهٔ **Select deployment target** گزینهٔ **`[4] PasarguardBot`** را انتخاب کنید:
+
+<CliPanel title="AutoSSL">
+{`  Select deployment target:
+
+    [1] Manual        → /etc/autossl/certs/bot.example.com/
+    [2] Marzban       → /var/lib/marzban/certs/bot.example.com/
+    [3] Pasarguard    → /var/lib/pasarguard/certs/bot.example.com/
+    [4] PasarguardBot → /var/lib/pasarguardbot/certs/bot.example.com/
+    [5] PG-Node       → /var/lib/pg-node/certs/bot.example.com/
+
+  › Choice [1-5, default 1]: 4`}
+</CliPanel>
+
+با گزینهٔ `4`، AutoSSL فایل‌های `fullchain.pem` و `privkey.pem` را در `/var/lib/pasarguardbot/certs/<دامنه>/` می‌گذارد، `SSL_CERTFILE` و `SSL_KEYFILE` را خودش در `.env` ربات ست می‌کند و ربات را ری‌استارت می‌کند.
+
+</Step>
+<Step>
+
+### تنظیم `WEBAPP_URL`
+
+`WEBAPP_URL` خودکار ست **نمی‌شود**. فایل `.env` را باز کنید:
+
+```bash
+pasarguardbot edit-env
+```
+
+و این خطوط را بررسی یا اضافه کنید:
+
+```bash
+WEBAPP_URL=https://bot.example.com:6160/api/webapp
+SSL_CERTFILE=/var/lib/pasarguardbot/certs/bot.example.com/fullchain.pem
+SSL_KEYFILE=/var/lib/pasarguardbot/certs/bot.example.com/privkey.pem
+```
+
+ذخیره کنید و به سؤال `Restart the bot? (Y/n):` با Enter جواب دهید.
+
+<Callout type="info" title="چرا این مسیرها؟">
+ربات داخل کانتینر Docker اجرا می‌شود. پوشهٔ `/var/lib/pasarguardbot` سرور **با همان مسیر** و به‌صورت فقط‌خواندنی داخل کانتینر مونت شده، پس مسیری که در `.env` می‌نویسید هم روی سرور و هم داخل کانتینر یکی است. گواهی را جای دیگری نگذارید، چون کانتینر آن را نمی‌بیند.
+</Callout>
+
+</Step>
+<Step>
+
+### تست
+
+1. در مرورگر `https://bot.example.com:6160/webapp` را باز کنید؛ باید صفحهٔ وب‌اپ بدون خطای گواهی بیاید.
+2. در ربات (با اکانت ادمین) دستور `/webapp` را بفرستید. باید دکمهٔ **🧪 باز کردن وب‌اپ** بیاید.
+3. حالا دکمهٔ **🖥 پنل تحت وب** هم در پنل مدیریت دیده می‌شود.
+4. برای نمایش وب‌اپ به کاربران: **⚙️ تنظیمات ربات → 🚀 مینی‌اپ** را روی «دکمه در منو» یا «فقط مینی‌اپ» بگذارید. [وب‌اپ](/docs/webapp)
+
+| پیام ربات بعد از `/webapp` | معنی |
+|----------------------------|------|
+| «آدرس مینی‌اپ تنظیم نشده…» | `WEBAPP_URL` خالی است یا ری‌استارت نکرده‌اید |
+| «آدرس مینی‌اپ باید با `https://` شروع شود…» | آدرس را با `http://` نوشته‌اید |
+| «تلگرام این آدرس را نپذیرفت…» | آی‌پی خام، گواهی نامعتبر یا self-signed |
+
+</Step>
+<Step>
+
+### آدرس وب‌هوک پنل را به‌روز کنید
+
+وقتی SSL روشن است، پورت `6160` **فقط HTTPS** جواب می‌دهد. اگر قبلاً وب‌هوک پنل پاسارگارد را با `http://IP:6160/api/webhook` ست کرده‌اید، آن را به این تغییر دهید:
+
+```text
+https://bot.example.com:6160/api/webhook
+```
+
+(خروجی `pasarguardbot urls` همیشه `http://` و آی‌پی چاپ می‌کند؛ خودتان جایگزین کنید.)
+
+</Step>
+</Steps>
+
+### تمدید گواهی
+
+گواهی Let's Encrypt حدود ۹۰ روز اعتبار دارد. برای تمدید:
+
+```bash
+autossl renew
+pasarguardbot restart
+```
+
+یا دوباره `pasarguardbot ssl` را اجرا کنید. ربات گواهی را فقط هنگام شروع می‌خواند، پس بعد از تمدید یک ری‌استارت لازم است.
+
+---
+
+## روش جایگزین: ریورس‌پروکسی خودتان (nginx / Caddy)
+
+اگر روی سرور از قبل nginx یا Caddy روی پورت 443 دارید، می‌توانید SSL را آنجا بگیرید و درخواست‌ها را به پورت `6160` ربات بفرستید. در این حالت `SSL_CERTFILE` و `SSL_KEYFILE` را **خالی** بگذارید (ربات HTTP ساده سرو می‌کند).
+
+<Tabs items={['nginx', 'Caddy']}>
+<Tab value="nginx">
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name bot.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/bot.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bot.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:6160;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+```
+
+</Tab>
+<Tab value="Caddy">
+
+```text
+bot.example.com {
+    reverse_proxy 127.0.0.1:6160
+}
+```
+
+</Tab>
+</Tabs>
+
+بعد در `.env`:
+
+```bash
+WEBAPP_URL=https://bot.example.com/api/webapp
+```
+
+<Callout type="info" title="اگر فقط /api را پروکسی می‌کنید">
+اگر روی یک دامنهٔ مشترک فقط مسیرهای `/api/` را به ربات می‌فرستید (مثلاً `location /api/ { … }`)، `WEBAPP_URL` را روی `/api/webapp` بگذارید. فایل‌های وب‌اپ علاوه بر `/webapp/assets` از مسیر `/api/webapp/assets` هم سرو می‌شوند، پس با پروکسی فقط `/api` هم کامل کار می‌کند.
+</Callout>
+
+آدرس وب‌هوک پنل در این حالت `https://bot.example.com/api/webhook` است و کال‌بک TonPays خودکار روی `https://bot.example.com/api/payments/tonpays/callback` تنظیم می‌شود (دامنه و پورت از `WEBAPP_URL` گرفته می‌شود).
+
+---
+
+## اختیاری: Mini App اصلی ربات در BotFather
+
+می‌توانید همین آدرس را در [@BotFather](https://t.me/BotFather) به‌عنوان Mini App اصلی ربات ثبت کنید تا در پروفایل ربات دکمهٔ باز کردن اپ دیده شود: `/mybots` ← ربات خودتان ← **Bot Settings** ← **Configure Mini App** و آدرس `WEBAPP_URL` را وارد کنید. این کار برای کارکرد ربات لازم نیست.
+
+---
+
+## مرتبط
+
+<Cards>
+  <Card title="پورت‌ها" description="چه چیزی روی 6160 سرو می‌شود" href="/docs/getting-started/ports" />
+  <Card title="پیکربندی (.env)" description="WEBAPP_URL و SSL_*" href="/docs/getting-started/configuration#web" />
+  <Card title="وب‌اپ و پنل تحت وب" description="امکانات وب‌اپ" href="/docs/webapp" />
+</Cards>

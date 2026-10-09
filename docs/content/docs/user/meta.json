@@ -3,13 +3,17 @@
   "icon": "Users",
   "pages": [
     "index",
+    "commands",
     "buy",
     "my-services",
+    "renew-upgrade",
     "balance",
     "trial",
+    "referral",
     "reseller",
     "profile",
     "help-support",
-    "advanced-settings"
+    "advanced-settings",
+    "games"
   ]
 }

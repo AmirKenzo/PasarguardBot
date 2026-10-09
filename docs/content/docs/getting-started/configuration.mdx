@@ -1,33 +1,235 @@
 ---
-title: پیکربندی
-description: متغیرهای محیطی — خودکار در نصب و قابل ویرایش بعداً
+title: پیکربندی (.env)
+description: مرجع کامل همهٔ متغیرهای فایل .env با مقدار پیش‌فرض و توضیح
 icon: Settings2
 ---
 
-در **نصب اولیه** فقط چند فیلد تلگرام پرسیده می‌شود. بقیه معمولاً خودکار ساخته می‌شوند. برای تغییر بعدی از منو گزینهٔ **`5) Edit .env file`** استفاده کنید.
+همهٔ تنظیمات سطح سرور ربات در فایل **`/opt/pasarguardbot/.env`** هستند. در نصب فقط چهار مقدار از شما پرسیده می‌شود (`API_ID`، `API_HASH`، `BOT_TOKEN`، `ADMIN_ID`) و بقیه خودکار پر می‌شوند. این صفحه همهٔ متغیرها را با پیش‌فرض و کاربردشان توضیح می‌دهد.
 
-## در نصب از شما پرسیده می‌شود
+<Callout type="info" title="بیشتر تنظیمات داخل خود ربات است">
+وضعیت فروش، درگاه‌ها، پلن‌ها، متن‌ها، کانال‌های لاگ و … در دیتابیس ذخیره می‌شوند و از **پنل مدیریت** ربات تغییر می‌کنند، نه از `.env`. اینجا فقط تنظیمات سرور و اتصال‌ها هستند.
+</Callout>
 
-| متغیر | اجباری؟ | توضیح |
-|--------|---------|--------|
-| `API_ID` | خیر | Enter = پیش‌فرض Telethon (`2040`) |
-| `API_HASH` | خیر | Enter = پیش‌فرض Telethon |
-| `BOT_TOKEN` | بله | از [@BotFather](https://t.me/BotFather) |
-| `ADMIN_ID` | بله | آیدی عددی ادمین تلگرام |
+## ویرایش `.env` [#edit]
 
-جزئیات مراحل: [نصب](/docs/getting-started/install)
+```bash
+pasarguardbot edit-env
+```
 
-## خودکار ساخته می‌شود
+یا در منو گزینهٔ **`5) Edit .env file`**. فایل با `nano` (یا ادیتور `$EDITOR`) باز می‌شود. بعد از ذخیره و خروج (`Ctrl+O`، Enter، `Ctrl+X`) می‌پرسد:
+
+```text
+Restart the bot? (Y/n):
+```
+
+با **Enter** یا `Y` یک ری‌استارت کامل انجام می‌شود (ایمیج ربات pull، بعد `down` و `up -d`). تغییرات `.env` **فقط بعد از ری‌استارت** اعمال می‌شوند.
+
+<Callout type="warn" title="CRYPTO_KEY و WEBHOOK_SECRET دیگر در .env نیستند">
+این دو مقدار حالا در **دیتابیس**، جدول `secrets` (ردیف‌های `crypto_key` و `webhook_secret`) نگهداری می‌شوند. ربات آن‌ها را از `.env` **نمی‌خواند**؛ اگر در `.env` اضافه یا عوضشان کنید هیچ اثری ندارد.
+
+- Secret وب‌هوک را از phpMyAdmin (جدول `secrets`) بردارید؛ گزینهٔ `9` منو آدرس و محل آن را نشان می‌دهد.
+- فقط یک استثنا هست: ریستور بکاپ ربات‌های نسخهٔ **2.1.4 و قدیمی‌تر**. آن را طبق [ربات‌های قدیمی](/docs/admin/backup-restore#old-versions) انجام دهید.
+</Callout>
+
+<Callout type="info" title="قالب مقادیر">
+- مقادیر بولی: `true` / `false` (همچنین `1`/`0`، `yes`/`no`، `on`/`off`).
+- برای خالی گذاشتن یک متغیر اختیاری، کل خطش را با `#` کامنت کنید یا بعد از `=` چیزی ننویسید.
+- دور مقدار فاصله نگذارید.
+</Callout>
+
+---
+
+## اجباری [#required]
 
 | متغیر | توضیح |
-|--------|--------|
-| `CRYPTO_KEY` | کلید رمزنگاری (تصادفی) |
-| `WEBHOOK_SECRET` | سکرت هدر وب‌هوک (تصادفی) |
-| `SQLALCHEMY_DATABASE_URL` | اتصال MariaDB |
-| `REDIS_URL` | اتصال Redis |
-| `FASTAPI_PORT` | پیش‌فرض `6160` |
-| رمز/یوزر دیتابیس | بعد از ساخت `.env` چاپ می‌شود |
+|-------|-------|
+| `API_ID` | از [my.telegram.org](https://my.telegram.org/apps). در نصب با Enter مقدار عمومی `2040` ست می‌شود |
+| `API_HASH` | همراه `API_ID` از my.telegram.org |
+| `BOT_TOKEN` | توکن ربات از [@BotFather](https://t.me/BotFather) |
+| `ADMIN_ID` | آیدی عددی ادمین‌ها، **با کاما جدا**، بدون فاصله. مثال: `111111111,222222222` |
+| `SQLALCHEMY_DATABASE_URL` | آدرس اتصال دیتابیس. نصب Docker خودکار می‌سازد: `mysql+asyncmy://pasarguardbot:<رمز>@mariadb:3306/pasarguardbot` |
 
-## مرجع کامل
+<Callout type="info" title="اضافه کردن ادمین جدید">
+آیدی عددی ادمین جدید را با کاما به `ADMIN_ID` اضافه کنید و ربات را ری‌استارت کنید. همهٔ آیدی‌های این لیست دسترسی کامل پنل مدیریت را دارند.
+</Callout>
 
-لیست همه متغیرها در ریپو: [`.env.example`](https://github.com/AmirKenzo/PasarguardBot/blob/main/.env.example)
+---
+
+## وب‌سرور و HTTPS [#web]
+
+وب‌سرور داخلی (FastAPI) وب‌هوک پنل، وب‌اپ، پنل تحت وب و کال‌بک TonPays را سرو می‌کند.
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `FASTAPI_PORT` | `6160` (نصب) | پورت وب‌سرور. **خالی = وب‌سرور خاموش** (وب‌هوک، وب‌اپ و TonPays کار نمی‌کنند). در Docker پورت کانتینر هم از همین مقدار گرفته می‌شود. [پورت‌ها](/docs/getting-started/ports) |
+| `WEBAPP_URL` | خالی | آدرس **HTTPS** وب‌اپ، مثل `https://bot.example.com:6160/api/webapp`. برای Mini App، دکمهٔ 🖥 پنل تحت وب، دستور `/webapp` و کال‌بک TonPays لازم است. آدرس `http://` نادیده گرفته می‌شود |
+| `SSL_CERTFILE` | خالی | مسیر `fullchain.pem`. اگر این و `SSL_KEYFILE` هر دو ست باشند، پورت `6160` مستقیم **HTTPS** سرو می‌کند |
+| `SSL_KEYFILE` | خالی | مسیر `privkey.pem` |
+| `API_DOCS_ENABLED` | `false` | نمایش `/docs`، `/redoc` و `/openapi.json` (فقط برای توسعه؛ روی سرور اصلی روشن نکنید) |
+
+مسیر گواهی‌ها باید همان مسیری باشد که **داخل کانتینر** دیده می‌شود. پوشهٔ `/var/lib/pasarguardbot` با همان مسیر (فقط‌خواندنی) داخل کانتینر مونت شده، پس گواهی را در `/var/lib/pasarguardbot/certs/<دامنه>/` بگذارید. راهنمای کامل: [دامنه و SSL](/docs/getting-started/ssl).
+
+---
+
+## ظاهر و دکمه‌ها [#ui]
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `ADMIN_ID_TAG` | خالی | یوزرنیم (بدون `@`) برای دکمهٔ **📢 وضعیت بروزرسانی** که وقتی «وضعیت ربات» خاموش است به کاربران نشان داده می‌شود (لینک `https://t.me/<ADMIN_ID_TAG>`) |
+| `BOT_TAG` | خالی | متنی که در پیام اطلاعات سرویس، قبل از عبارت `(Subscription)` و لینک ساب نمایش داده می‌شود |
+| `DISABLE_UPTIME_BUTTONS` | `true` | وقتی `true` است دکمهٔ **🔋 وضعیت سرویس ها** در منوی اصلی نمایش داده نمی‌شود. برای نمایش، `false` کنید |
+| `LINK_UPTIME_BUTTONS` | `https://t.me/` | لینکی که دکمهٔ 🔋 وضعیت سرویس ها باز می‌کند (مثلاً صفحهٔ وضعیت سرورها) |
+| `TUTORIAL_HELP_LINKS` | `https://t.me/` | یک لینک تکی برای دکمهٔ قدیمی «🔰 لیست تمام آموزش ها». دکمه‌های راهنما حالا از داخل ربات (**📚 راهنما → ⚙️ تنظیمات راهنما**) مدیریت می‌شوند |
+| `CHANNEL_ID_TAG` | خالی | در `.env.example` هست ولی نسخهٔ فعلی ربات از آن استفاده نمی‌کند |
+
+---
+
+## لاگ در تلگرام [#log-channel]
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `LOG_CHANNEL` | خالی | آیدی عددی کانال/گروه (مثل `-1001234567890`) به‌عنوان **مقصد پشتیبان** لاگ‌ها: هر نوع لاگی که در **📝 مدیریت لاگ‌ها** مقصد نداشته باشد، اینجا فرستاده می‌شود |
+
+<Callout type="warn" title="بکاپ به LOG_CHANNEL نمی‌رود">
+فایل بکاپ فقط به مقصد **🗄 بکاپ ربات** در **📝 مدیریت لاگ‌ها** ارسال می‌شود. روش پیشنهادی این است که همهٔ مقصدها را از داخل ربات تنظیم کنید: [مدیریت لاگ‌ها](/docs/admin/logs).
+</Callout>
+
+---
+
+## شبکه‌های تست ارز دیجیتال [#crypto]
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `TRX_TESTNET_MODE` | خالی (Mainnet) | برای تست درگاه ترون/USDT‌-TRC20: `nile` یا `shasta` |
+| `TON_TESTNET_MODE` | خالی (Mainnet) | برای تست درگاه TON: `testnet` |
+
+روی ربات فروش واقعی این دو را **خالی** بگذارید؛ در حالت تست، پرداخت‌های واقعی شناسایی نمی‌شوند.
+
+---
+
+## یکپارچه‌سازی [#integrations]
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `GITHUB_TOKEN` | خالی | توکن شخصی GitHub برای گرفتن ریلیزهای برنامه‌ها در **🈸 آپدیت برنامه ها** / دانلود راهنما. بدون آن هم کار می‌کند؛ برای بالا بردن محدودیت API یا ریپوهای خصوصی |
+
+---
+
+## Redis [#redis]
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `REDIS_URL` | `redis://localhost:6161` | نصب Docker می‌نویسد: `redis://redis:6379/0` |
+| `REDIS_NAMESPACE_PREFIX` | `pasarguardbot:mainbot` | پیشوند کلیدها؛ اگر چند ربات از یک Redis استفاده می‌کنند برای هر کدام متفاوت بگذارید. خالی = از هش توکن ربات ساخته می‌شود |
+| `REDIS_RETRY_INTERVAL_SECONDS` | `10.0` | فاصلهٔ تلاش دوباره برای اتصال |
+| `REDIS_SOCKET_CONNECT_TIMEOUT` | `2.0` | تایم‌اوت اتصال (ثانیه) |
+| `REDIS_SOCKET_TIMEOUT` | `0.0` | تایم‌اوت خواندن؛ `0` یعنی خاموش (لازم برای صف پیام). تغییرش ندهید |
+| `REDIS_HEALTH_CHECK_INTERVAL` | `30` | فاصلهٔ چک سلامت اتصال (ثانیه) |
+| `STATE_TTL_SECONDS` | `86400` | عمر وضعیت مکالمه (مرحلهٔ فعلی کاربر در ربات) |
+| `LOCK_TTL_SECONDS` | `300` | عمر قفل‌های داخلی (جلوگیری از کلیک/پرداخت تکراری) |
+| `CALLBACK_TTL_SECONDS` | `3600` | عمر داده‌های دکمه‌های شیشه‌ای |
+
+---
+
+## دیتابیس (Pool اتصال) [#db-pool]
+
+فقط برای MariaDB/MySQL/PostgreSQL (نه SQLite).
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `SQLALCHEMY_POOL_SIZE` | `20` | تعداد اتصال ثابت |
+| `SQLALCHEMY_MAX_OVERFLOW` | `30` | اتصال اضافه در اوج بار |
+| `SQLALCHEMY_POOL_TIMEOUT` | `30` | ثانیه انتظار برای اتصال آزاد |
+
+---
+
+## صف ارسال پیام [#send-queue]
+
+ارسال پیام با محدودیت سرعت (برای پیام‌های ورود وب‌اپ و اعلان کارت دستی از وب‌اپ).
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `SEND_QUEUE_ENABLED` | `false` | روشن کردن صف |
+| `SEND_QUEUE_DELAY_SEC` | `1.0` | فاصله بین دو ارسال (ثانیه) |
+| `SEND_QUEUE_MAX_LEN` | `10000` | حداکثر طول صف |
+
+---
+
+## لاگ فایل [#file-logging]
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `LOG_LEVEL` | `INFO` | `DEBUG`، `INFO`، `WARNING`، `ERROR` |
+| `LOG_DIR` | `./logs` | پوشهٔ لاگ؛ در Docker روی `/opt/pasarguardbot/logs` سرور مونت است |
+| `LOG_TO_FILE` | `true` | نوشتن `app.log` و `error.log` |
+| `LOG_USE_RICH` | `false` | خروجی رنگی کنسول |
+| `LOG_FORMAT` | `%(asctime)s \| %(levelname)-8s \| %(message)s` | قالب خطوط لاگ (فرمت استاندارد Python logging) |
+| `LOG_MIDDLEWARE_DEBUG` | `false` | لاگ جزئیات هر آپدیت تلگرام (فقط عیب‌یابی) |
+| `LOG_HANDLER_EVENTS` | `false` | لاگ ورود به هندلرها در سطح DEBUG |
+| `LOG_APP_MAX_BYTES` | `5242880` (۵ مگ) | حجم هر فایل `app.log` قبل از چرخش |
+| `LOG_APP_BACKUP_COUNT` | `5` | تعداد فایل‌های قدیمی `app.log` |
+| `LOG_ERROR_MAX_BYTES` | `2097152` (۲ مگ) | حجم هر فایل `error.log` |
+| `LOG_ERROR_BACKUP_COUNT` | `3` | تعداد فایل‌های قدیمی `error.log` |
+
+---
+
+## غیرفعال کردن ماژول‌ها [#modules]
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `DISABLED_TELEGRAM_MODULES` | خالی | نام ماژول‌های تلگرامی که نباید بارگذاری شوند، با کاما (مثل `admin.migration`). نام‌ها همان نام پوشه/فایل زیر `admin`، `user` یا `business` هستند. فقط اگر دقیقاً می‌دانید چه می‌کنید |
+
+---
+
+## مقادیری که نصاب می‌نویسد [#installer]
+
+این‌ها را اسکریپت نصب می‌سازد؛ معمولاً **دست نزنید**.
+
+| متغیر | مقدار | توضیح |
+|-------|-------|-------|
+| `MARIADB_ROOT_PASSWORD` | تصادفی ۳۲ کاراکتری | رمز root دیتابیس (ورود phpMyAdmin با یوزر `root`) |
+| `MARIADB_DATABASE` | `pasarguardbot` | نام دیتابیس |
+| `MARIADB_USER` | `pasarguardbot` | یوزر دیتابیس |
+| `MARIADB_PASSWORD` | تصادفی ۲۴ کاراکتری | رمز یوزر؛ همان رمزی که در `SQLALCHEMY_DATABASE_URL` است |
+| `PASARGUARDBOT_IMAGE_TAG` | `latest` یا `dev` | تگ ایمیج ربات: برنچ `main` ← `latest`، برنچ‌های دیگر ← نام برنچ. در هر آپدیت طبق برنچ انتخابی بازنویسی می‌شود |
+| `PASARGUARDBOT_CONFIG_DIR` | `/opt/pasarguardbot` | مسیر نصب، برای مونت‌های docker-compose |
+| `TELETHON_SESSION_PATH` | `sessions/KenzoSession` | فایل سشن تلگرام ربات (پیش‌فرض کد: `KenzoSession`) |
+
+<Callout type="error" title="رمز دیتابیس را فقط در .env عوض نکنید">
+MariaDB رمزها را فقط در **اولین** راه‌اندازی از `MARIADB_*` می‌خواند. اگر بعداً فقط `.env` را عوض کنید، رمز واقعی دیتابیس تغییر نمی‌کند و ربات دیگر وصل نمی‌شود.
+</Callout>
+
+---
+
+## نمونهٔ `.env` بعد از نصب
+
+```bash
+API_ID=2040
+API_HASH=b18441a1ff607e10a989891a5462e627
+BOT_TOKEN=1234567890:AAAA...
+ADMIN_ID=111111111,222222222
+
+SQLALCHEMY_DATABASE_URL=mysql+asyncmy://pasarguardbot:xxxxxxxx@mariadb:3306/pasarguardbot
+FASTAPI_PORT=6160
+
+# بعد از گرفتن SSL:
+WEBAPP_URL=https://bot.example.com:6160/api/webapp
+SSL_CERTFILE=/var/lib/pasarguardbot/certs/bot.example.com/fullchain.pem
+SSL_KEYFILE=/var/lib/pasarguardbot/certs/bot.example.com/privkey.pem
+
+REDIS_URL=redis://redis:6379/0
+REDIS_NAMESPACE_PREFIX=pasarguardbot:mainbot
+TELETHON_SESSION_PATH=sessions/KenzoSession
+LOG_DIR=./logs
+LOG_TO_FILE=true
+LOG_LEVEL=INFO
+
+MARIADB_ROOT_PASSWORD=...
+MARIADB_DATABASE=pasarguardbot
+MARIADB_USER=pasarguardbot
+MARIADB_PASSWORD=...
+PASARGUARDBOT_IMAGE_TAG=latest
+PASARGUARDBOT_CONFIG_DIR=/opt/pasarguardbot
+```
+
+فایل کامل با کامنت‌ها در ریپو: [`.env.example`](https://github.com/AmirKenzo/PasarguardBot/blob/main/.env.example)

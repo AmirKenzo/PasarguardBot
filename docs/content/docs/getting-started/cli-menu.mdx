@@ -1,150 +1,260 @@
 ---
 title: منوی مدیریت سرور
-description: راهنمای کامل گزینه‌های اسکریپت pasarguardbot
+description: راهنمای کامل همهٔ گزینه‌ها و دستورهای اسکریپت pasarguardbot
 icon: Terminal
 ---
 
-با اجرای `pasarguardbot` (یا نصب اولیه اسکریپت) منوی مدیریت باز می‌شود.
+بعد از نصب، کل مدیریت ربات روی سرور با یک دستور انجام می‌شود:
+
+```bash
+pasarguardbot
+```
 
 <CliPanel title="PasarguardBot — manager">
-{`PasarguardBot — manager v…
+{`PasarguardBot — manager v1.3.2
 
-● Status: Installed (docker)
+  Manager script:  v1.3.2
+  Host OS:         Ubuntu 24.04 LTS
+  Install mode:    docker
+  Branch:          main
+  Bot version:     …
+  Bot runtime:     running (4/4 services running)
+  API port:        6160
+  Config:          /opt/pasarguardbot
 
-┌────────────────────────────────────────┐
-│  1) Install bot                        │
-│  2) Uninstall bot                      │
-│  3) Update bot                         │
-│  4) View logs                          │
-│  5) Edit .env file                     │
-│  6) Full restart                       │
-│  7) Service status                     │
-│  8) Show webhook & URLs                │
-│  9) Update manager script              │
-│ 10) Fix Docker network                 │
-│  0) Exit                               │
-└────────────────────────────────────────┘
+  ● Status: Installed (docker)
+
+  ┌─────────────────────────────────────────────┐
+  │   1) Install bot                            │
+  │   2) Uninstall bot                          │
+  │   3) Update bot                             │
+  │   4) View logs                              │
+  │   5) Edit .env file                         │
+  │   6) Edit docker-compose.yml                │
+  │   7) Full restart                           │
+  │   8) Service status                         │
+  │   9) Show webhook & URLs                    │
+  │  10) Update manager script                  │
+  │  11) Fix Docker network                     │
+  │  12) Get SSL certificate (AutoSSL)          │
+  │   0) Exit                                   │
+  └─────────────────────────────────────────────┘
+
   Select an option: `}
 </CliPanel>
 
-در ادامه هر گزینه توضیح داده شده است.
+بالای منو نسخهٔ اسکریپت، سیستم‌عامل، حالت نصب، برنچ، نسخهٔ ربات، وضعیت کانتینرها و پورت API نمایش داده می‌شود. در همهٔ سؤال‌های `(y/N)` زدن Enter یعنی **خیر** و در `(Y/n)` یعنی **بله**.
 
 ---
 
-## ۱) Install bot — نصب ربات
+## ۱) Install bot — نصب [#install]
 
-نصب کامل Docker یا Native. جزئیات مرحله‌به‌مرحله در صفحهٔ [نصب](/docs/getting-started/install).
-
-اگر قبلاً نصب شده باشد می‌پرسد:
+حالت نصب (Docker؛ Native فعلاً غیرفعال است) و برنچ (`main` یا `dev`) را می‌پرسد و ربات را نصب می‌کند. اگر قبلاً نصب شده باشد:
 
 ```text
 Continue (will keep existing .env and data)? (y/N):
 ```
 
-- **Enter** / `N` → لغو  
-- `y` → ادامه (`.env` و دیتا حفظ می‌شود)
+با `y` ادامه می‌دهد؛ `.env` و دیتای قبلی دست نمی‌خورد. جزئیات کامل: [نصب](/docs/getting-started/install).
 
 ---
 
-## ۲) Uninstall bot — حذف
-
-### Docker
+## ۲) Uninstall bot — حذف [#uninstall]
 
 <CliPanel title="Uninstall (Docker)">
 {`⚠  Uninstall PasarguardBot (Docker)
 
   1) Remove containers only (keep .env and data)
-  2) Remove containers + data
-  3) Full remove (everything under /opt/pasarguardbot)
-  0) Cancel`}
+  2) Remove containers + data (keep .env / config if present)
+  3) Full remove (/opt/pasarguardbot and /usr/local/bin/pasarguardbot)
+  0) Cancel
+Choice: `}
 </CliPanel>
 
-| گزینه | کار |
-|--------|-----|
-| `1` | فقط کانتینرها؛ `.env` و دیتا می‌ماند |
-| `2` | کانتینر + دیتابیس/ردیس — باید دقیقاً `yes` تایپ کنید |
-| `3` | حذف کامل مسیر `/opt/pasarguardbot` — باید `yes` تایپ کنید |
-| `0` | بازگشت |
+| گزینه | چه چیزی حذف می‌شود | چه چیزی می‌ماند | تأیید |
+|-------|-------------------|-----------------|-------|
+| `1` | فقط کانتینرها | `.env`، دیتابیس، لاگ‌ها | ندارد |
+| `2` | کانتینرها + پوشهٔ `/opt/pasarguardbot/data` (دیتابیس و Redis) | `.env` و تنظیمات | باید دقیقاً `yes` تایپ کنید |
+| `3` | همه‌چیز: کل `/opt/pasarguardbot`، دستور `pasarguardbot`، ایمیج ربات | هیچ | باید دقیقاً `yes` تایپ کنید |
+| `0` | — | — | انصراف |
 
-### Native
+<Callout type="error" title="قبل از گزینهٔ 2 یا 3 بکاپ بگیرید">
+گزینه‌های `2` و `3` دیتابیس را برای همیشه پاک می‌کنند. اول از **📦 بکاپ ربات** یک بکاپ تازه بگیرید. [بکاپ و ریستور](/docs/admin/backup-restore)
+</Callout>
 
-همان الگوی سه‌مرحله‌ای برای توقف سرویس‌ها / حذف دیتا / حذف کامل.
-
----
-
-## ۳) Update bot — بروزرسانی ربات
-
-برنچ را مثل نصب می‌پرسد (`Choice [1]:` → Enter = `main`).
-
-- **Docker:** دریافت compose/ایمیج جدید و recreate کانتینرها  
-- **Native:** sync از گیت + نصب وابستگی‌ها + ری‌استارت systemd  
+در نصب Native (قدیمی) همین سه سطح با این عنوان‌ها هست: `Stop services only (keep .env, app, and data)`، `Stop services + delete data (keep .env / app / config)` و `Full remove (/opt/pasarguardbot, systemd units, and /usr/local/bin/pasarguardbot)`.
 
 ---
 
-## ۴) View logs — لاگ‌ها
+## ۳) Update bot — بروزرسانی [#update]
 
-### Docker
+```bash
+pasarguardbot update
+```
+
+<Steps>
+<Step>
+
+### انتخاب برنچ
 
 ```text
-  1) Bot
-  2) MariaDB
-  3) Redis
+Select update branch
+
+  1) main  (recommended — latest stable)
+  2) dev   (testing only — may be unstable)
+  0) Cancel
+
+[*] Last used branch: main
+Choice [1]:
+```
+
+Enter = `main`. با همین مرحله می‌توانید بین `main` و `dev` جابه‌جا شوید.
+
+</Step>
+<Step>
+
+### آپدیت خود اسکریپت
+
+اول چک می‌کند نسخهٔ جدیدتری از اسکریپت مدیریت در آن برنچ هست یا نه. اگر بود، نصبش می‌کند و آپدیت را با نسخهٔ جدید ادامه می‌دهد (`Manager script updated — continuing with the latest version...`).
+
+</Step>
+<Step>
+
+### دانلود docker-compose.yml و ایمیج‌ها
+
+فایل `docker-compose.yml` از برنچ انتخابی **دوباره دانلود و جایگزین** می‌شود، `PASARGUARDBOT_IMAGE_TAG` در `.env` طبق برنچ ست می‌شود (`main` ← `latest`، `dev` ← `dev`) و همهٔ ایمیج‌ها pull می‌شوند.
+
+</Step>
+<Step>
+
+### ساخت دوبارهٔ کانتینرها
+
+کانتینرها با `up -d --force-recreate` از نو ساخته می‌شوند و ایمیج‌های بلااستفادهٔ قدیمی پاک می‌شوند. ربات هنگام بالا آمدن **مایگریشن دیتابیس را خودکار** اجرا می‌کند؛ کار دستی لازم نیست.
+
+</Step>
+<Step>
+
+### لاگ زنده
+
+در پایان `Update complete (نسخهٔ قبلی → نسخهٔ جدید)` چاپ می‌شود و لاگ زنده نمایش داده می‌شود. وقتی دیدید ربات بالا آمد `Ctrl+C` بزنید.
+
+</Step>
+</Steps>
+
+<Callout type="warn" title="تغییرات دستی docker-compose.yml از بین می‌رود">
+هر آپدیت فایل compose را از گیت‌هاب بازنویسی می‌کند. `.env` و دیتا دست نمی‌خورند.
+</Callout>
+
+<Callout type="info" title="جابه‌جایی بین main و dev">
+برنچ `dev` برای تست است. قبل از رفتن به `dev` یا برگشتن از آن به `main` حتماً بکاپ بگیرید؛ ممکن است `dev` تغییرات دیتابیسی داشته باشد که هنوز در `main` نیامده.
+</Callout>
+
+---
+
+## ۴) View logs — لاگ‌ها [#logs]
+
+<CliPanel title="View logs (Docker)">
+{`  1) Bot logs
+  2) MariaDB logs
+  3) Redis logs
   4) All services
   5) Live bot logs (Ctrl+C to exit)
   0) Back
-```
+Choice: `}
+</CliPanel>
 
-### Native
+| گزینه | خروجی |
+|-------|-------|
+| `1` | ۲۰۰ خط آخر لاگ ربات |
+| `2` | ۲۰۰ خط آخر MariaDB |
+| `3` | ۲۰۰ خط آخر Redis |
+| `4` | ۱۰۰ خط آخر همهٔ سرویس‌ها |
+| `5` | لاگ زندهٔ ربات؛ با `Ctrl+C` خارج شوید |
 
-```text
-  1) Bot
-  2) MariaDB
-  3) Redis
-  4) phpMyAdmin logs
-  5) Live bot logs (Ctrl+C to exit)
-  0) Back
-```
+در نصب Native گزینهٔ `4` به‌جای «All services»، `phpMyAdmin logs` است.
 
-گزینهٔ `5` لاگ زنده است؛ با `Ctrl+C` خارج شوید.
+دستور `pasarguardbot logs` مستقیم لاگ زندهٔ **همهٔ سرویس‌های در حال اجرا** را با زمان (۲۰۰ خط آخر و ادامه) نشان می‌دهد.
+
+لاگ‌های فایلی ربات هم در `/opt/pasarguardbot/logs/` هستند (`app.log` و `error.log`).
 
 ---
 
-## ۵) Edit .env file — ویرایش تنظیمات
+## ۵) Edit .env file — ویرایش تنظیمات [#edit-env]
 
-فایل `/opt/pasarguardbot/.env` با ادیتور (`nano` یا `$EDITOR`) باز می‌شود.
+```bash
+pasarguardbot edit-env
+```
 
-بعد از ذخیره:
+فایل `/opt/pasarguardbot/.env` با `nano` (یا ادیتور تعریف‌شده در `$EDITOR`) باز می‌شود. بعد از بستن ادیتور:
 
 ```text
 Restart the bot? (Y/n):
 ```
 
-- **Enter** یا `Y` → ری‌استارت ربات  
-- `n` → بدون ری‌استارت
+- **Enter** یا `Y`: ری‌استارت کامل (مثل گزینهٔ ۷) تا تغییرات اعمال شوند.
+- `n`: بدون ری‌استارت؛ تغییرات تا ری‌استارت بعدی اعمال نمی‌شوند.
+
+همهٔ متغیرها: [پیکربندی (.env)](/docs/getting-started/configuration).
 
 ---
 
-## ۶) Full restart — ری‌استارت کامل
+## ۶) Edit docker-compose.yml [#edit-compose]
 
-همه سرویس‌های استک را از نو بالا می‌آورد.
+```bash
+pasarguardbot edit
+```
 
-- Docker: `down` سپس `up -d` (در صورت امکان pull ایمیج بات)  
-- Native: ری‌استارت واحدهای systemd (redis / mariadb / phpmyadmin / bot)
+فایل `/opt/pasarguardbot/docker-compose.yml` را باز می‌کند. قبل از باز شدن هشدار می‌دهد:
+
+```text
+[!] This is a local edit — the next 'Update bot' will overwrite it with the upstream Compose file.
+```
+
+بعد از ذخیره، فایل اعتبارسنجی می‌شود (باید ایمیج `ghcr.io/amirkenzo/pasarguardbot` را داشته باشد و `build:` نداشته باشد) و می‌پرسد:
+
+```text
+Apply the changes now (docker compose up -d)? (Y/n):
+```
+
+فقط برای نصب Docker است.
 
 ---
 
-## ۷) Service status — وضعیت سرویس‌ها
+## ۷) Full restart — ری‌استارت کامل [#restart]
 
-وضعیت کانتینرها یا systemd، پورت‌ها و خلاصهٔ URLها را نشان می‌دهد.
+```bash
+pasarguardbot restart
+```
+
+به ترتیب: آخرین ایمیج ربات **pull** می‌شود (روی همان تگ فعلی)، همهٔ کانتینرها `down` و دوباره `up -d` می‌شوند، و لاگ زنده نمایش داده می‌شود.
+
+<Callout type="info">
+چون ایمیج ربات pull می‌شود، اگر روی تگ `latest` نسخهٔ جدیدی منتشر شده باشد، ری‌استارت هم ربات را به آن نسخه می‌برد. ولی فایل compose و اسکریپت را به‌روز نمی‌کند؛ برای آپدیت کامل از گزینهٔ ۳ استفاده کنید.
+</Callout>
 
 ---
 
-## ۸) Show webhook & URLs — وب‌هوک و آدرس‌ها
+## ۸) Service status — وضعیت سرویس‌ها [#status]
 
-<CliPanel title="URLs">
+```bash
+pasarguardbot status
+```
+
+وضعیت کانتینرها (`docker compose ps`)، مصرف CPU و RAM هر کانتینر، و در آخر همان خروجی گزینهٔ ۹ را نشان می‌دهد.
+
+---
+
+## ۹) Show webhook & URLs — وب‌هوک و آدرس‌ها [#urls]
+
+```bash
+pasarguardbot urls
+```
+
+<CliPanel title="Webhook & URLs">
 {`[*] Webhook (set in Pasarguard panel):
   URL:     http://SERVER_IP:6160/api/webhook
-  Header:  x-webhook-secret: <from .env>
+  Header:  x-webhook-secret: <from DB table secrets, name=webhook_secret>
+  Note:   crypto_key / webhook_secret are stored in DB (not .env)
 
 [*] phpMyAdmin:
   URL:  http://SERVER_IP:6163
@@ -152,19 +262,32 @@ Restart the bot? (Y/n):
 [!] Replace the IP with your domain if you use one.`}
 </CliPanel>
 
-همین مقادیر را در پنل پاسارگارد برای وب‌هوک ست کنید.
+- آی‌پی عمومی سرور خودکار تشخیص داده می‌شود و پورت از `FASTAPI_PORT` خوانده می‌شود.
+- آدرس‌ها **همیشه با `http://`** چاپ می‌شوند. اگر SSL دارید، `https://` و دامنه را خودتان جایگزین کنید.
+- خود مقدار Secret چاپ **نمی‌شود**. در phpMyAdmin وارد دیتابیس `pasarguardbot` شوید، جدول `secrets` را باز کنید و مقدار `value` ردیف `webhook_secret` را کپی کنید (یوزر و رمز ورود phpMyAdmin در `.env`: `MARIADB_USER` / `MARIADB_PASSWORD`).
+
+راهنمای ست کردن در پنل: [اطلاع‌رسانی حجم و زمان](/docs/admin/panels/notifications).
 
 ---
 
-## ۹) Update manager script — آپدیت اسکریپت مدیریت
+## ۱۰) Update manager script — آپدیت اسکریپت مدیریت [#update-script]
 
-خود فایل `pasarguardbot.sh` را از برنچ فعلی دوباره می‌گیرد. اگر نسخه عوض شده باشد، یک‌بار دیگر `pasarguardbot` را اجرا کنید.
+```bash
+pasarguardbot update-script
+```
+
+فقط خود اسکریپت `pasarguardbot` را از **برنچ ذخیره‌شده** (همان برنچی که نصب یا آخرین آپدیت با آن انجام شده) دوباره دانلود و نصب می‌کند. ربات را آپدیت نمی‌کند.
+
+- اگر نسخه یکی باشد: `Manager script is already up to date`.
+- اگر نسخهٔ جدید نصب شد: `Run pasarguardbot again to use the new script.` یک بار از منو خارج شوید و دوباره `pasarguardbot` را بزنید.
+
+اگر دستور `pasarguardbot` به هر دلیلی از سیستم حذف شده، همین گزینه دوباره ثبتش می‌کند.
 
 ---
 
-## ۱۰) Fix Docker network — رفع شبکه Docker
+## ۱۱) Fix Docker network — رفع مشکل شبکهٔ Docker [#docker-network]
 
-فقط برای نصب Docker معنی دارد. در حالت Native معمولاً غیرفعال/مسدود است.
+برای سرورهایی (به‌خصوص بعضی دیتاسنترها با Ubuntu) که یک فایل Netplan با الگوی wildcard دارند و شبکهٔ bridge داکر را خراب می‌کند. علامتش: کانتینرها به اینترنت یا به هم وصل نمی‌شوند، pull یا اتصال ربات به تلگرام/پنل خطا می‌دهد.
 
 <CliPanel title="Docker network">
 {`Docker network
@@ -172,31 +295,61 @@ Restart the bot? (Y/n):
   1) Check Docker Bridge
   2) Repair Docker Bridge
   3) Rollback Netplan Repair
-  0) Back`}
+  0) Back
+Choice: `}
 </CliPanel>
 
-برای Repair/Rollback تأیید می‌خواهد: `Continue? [y/N]:` — **Enter = خیر**.
+| گزینه | کار |
+|-------|-----|
+| `1` Check | یک کانتینر تست (`alpine`) بالا می‌آورد و شبکهٔ bridge را آزمایش می‌کند. چیزی تغییر نمی‌کند |
+| `2` Repair | اگر تست شکست بخورد و فایل شناخته‌شدهٔ `/etc/netplan/99-custom.yaml` با wildcard پیدا شود، از آن بکاپ می‌گیرد، غیرفعالش می‌کند و Docker را ری‌استارت می‌کند. تأیید `Continue? [y/N]` می‌خواهد |
+| `3` Rollback | فایل Netplan غیرفعال‌شده را برمی‌گرداند. تأیید می‌خواهد |
+
+نکته‌ها:
+
+- **فقط روی Ubuntu** کار می‌کند؛ روی سیستم‌های دیگر پیام `Docker Bridge repair is supported only on Ubuntu.` می‌دهد. در نصب Native هم غیرفعال است.
+- اگر فایل حاوی تنظیمات حساس شبکه باشد یا اینترفیس اصلی جای دیگری تعریف نشده باشد، تعمیر برای جلوگیری از قطع شدن سرور **انجام نمی‌شود** (`Automatic repair was refused to keep the network safe.`).
+- بعد از تعمیر یا Rollback ممکن است بپرسد `Reboot the server now? [y/N]`. اگر نه، بعداً خودتان `reboot` کنید.
+- بکاپ‌ها در `/opt/pasarguardbot/backups/netplan/` ذخیره می‌شوند.
 
 ---
 
-## ۰) Exit — خروج
+## ۱۲) Get SSL certificate (AutoSSL) [#ssl]
+
+```bash
+pasarguardbot ssl
+```
+
+ابزار [AutoSSL](https://github.com/AmirKenzo/Auto-SSL-Domain) را (اگر نصب نباشد) نصب و `autossl issue` را اجرا می‌کند تا گواهی Let's Encrypt بگیرید. با انتخاب مقصد **PasarguardBot** گواهی در `/var/lib/pasarguardbot/certs/<دامنه>/` قرار می‌گیرد. راهنمای کامل: [دامنه و SSL](/docs/getting-started/ssl).
+
+---
+
+## ۰) Exit [#exit]
 
 با `0` یا `q` از منو خارج می‌شوید.
 
 ---
 
-## میانبرهای خط فرمان
+## میانبرهای خط فرمان [#shortcuts]
 
-بدون منو هم می‌توانید مستقیم بزنید:
+بدون باز کردن منو:
 
-```bash
-pasarguardbot install
-pasarguardbot uninstall
-pasarguardbot update
-pasarguardbot logs
-pasarguardbot restart
-pasarguardbot status
-pasarguardbot urls
-pasarguardbot update-script
-pasarguardbot menu
-```
+| دستور | معادل |
+|-------|-------|
+| `pasarguardbot` یا `pasarguardbot menu` | باز کردن منو |
+| `pasarguardbot install` | ۱) نصب |
+| `pasarguardbot uninstall` | ۲) حذف (با زیرمنو و تأیید) |
+| `pasarguardbot purge` | حذف کامل همه‌چیز، **بدون هیچ سؤال و تأییدی** |
+| `pasarguardbot update` | ۳) آپدیت ربات |
+| `pasarguardbot logs` | لاگ زندهٔ همهٔ سرویس‌ها |
+| `pasarguardbot edit-env` | ۵) ویرایش `.env` |
+| `pasarguardbot edit` | ۶) ویرایش docker-compose.yml |
+| `pasarguardbot restart` | ۷) ری‌استارت کامل |
+| `pasarguardbot status` | ۸) وضعیت سرویس‌ها |
+| `pasarguardbot urls` | ۹) وب‌هوک و آدرس‌ها |
+| `pasarguardbot update-script` | ۱۰) آپدیت اسکریپت |
+| `pasarguardbot ssl` | ۱۲) گرفتن SSL |
+
+<Callout type="error" title="purge هیچ تأییدی نمی‌خواهد">
+`pasarguardbot purge` بلافاصله همهٔ کانتینرها، کل پوشهٔ `/opt/pasarguardbot` (شامل **دیتابیس** و `.env`) و خود دستور `pasarguardbot` را پاک می‌کند و هر پروسه‌ای را که روی پورت‌های `6160` تا `6163` باشد می‌بندد. هیچ سؤالی نمی‌پرسد و قابل برگشت نیست. فقط وقتی استفاده کنید که از بکاپ مطمئن هستید.
+</Callout>
