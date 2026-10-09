@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, Index, String, Text
+from sqlalchemy import BigInteger, Boolean, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -18,6 +18,12 @@ class ReferralSettings(Base):
         BigInteger, default=40000, server_default="40000"
     )  # Bonus for referred user
     referral_banner_text: Mapped[str] = mapped_column(Text, nullable=True)
+    referral_reward_mode: Mapped[str] = mapped_column(String(10), default="fixed", server_default="fixed")
+    referral_reward_percent: Mapped[int] = mapped_column(Integer, default=10, server_default="10")
+    referral_reward_max: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    referral_bonus_mode: Mapped[str] = mapped_column(String(10), default="fixed", server_default="fixed")
+    referral_bonus_percent: Mapped[int] = mapped_column(Integer, default=5, server_default="5")
+    referral_bonus_max: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
 
     def __repr__(self):
         return (
@@ -39,6 +45,9 @@ class ReferralReward(Base):
     reward_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)  # Amount given to referrer
     bonus_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)  # Amount given to referred user
     transaction_id: Mapped[int] = mapped_column(BigInteger, nullable=True)  # Related transaction
+    base_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    reward_percent: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bonus_percent: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[int] = mapped_column(BigInteger, nullable=False)  # Timestamp
     status: Mapped[str] = mapped_column(
         String(20), default="completed", server_default="'completed'"

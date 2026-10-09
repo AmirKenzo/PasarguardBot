@@ -601,7 +601,7 @@ async def create_vpn_purchase_for_user(
     try:
         user = await UserCRUD().read_user(user_id)
         if user and user.ref:
-            await process_referral_reward_payout(user.ref, user_id)
+            await process_referral_reward_payout(user.ref, user_id, paid_amount=int(amount))
     except Exception as e:
         logger.error("Error processing referral rewards: %s", e)
 

@@ -258,17 +258,36 @@ class ReferralManager:
         """Get current referral settings"""
         return await self.settings_crud.get_settings()
 
-    async def process_referral_reward(self, referrer_id, referred_id, transaction_id=None):
+    async def process_referral_reward(
+        self,
+        referrer_id,
+        referred_id,
+        transaction_id=None,
+        *,
+        reward_amount: int | None = None,
+        bonus_amount: int | None = None,
+        base_amount: int | None = None,
+        reward_percent: int | None = None,
+        bonus_percent: int | None = None,
+    ):
         """Process referral reward when a referred user makes a purchase.
 
-        Check + insert + balance credit run in one session/transaction.
+        ``reward_amount`` / ``bonus_amount`` are the referrer's reward and the invited
+        user's bonus already worked out by the caller (see
+        services/billing/referral_rewards.py); without them the fixed amounts from
+        settings are used. Check + insert + balance credit run in one
+        session/transaction, and the unique pair index keeps it to one reward.
         """
         settings = await self.get_referral_settings()
         if not settings or not settings.referral_enabled:
             return False, "Referral system is disabled"
 
-        reward_amount = int(settings.referral_reward_amount or 0)
-        bonus_amount = int(settings.referral_bonus_amount or 0)
+        if reward_amount is None:
+            reward_amount = int(settings.referral_reward_amount or 0)
+        reward_amount = max(int(reward_amount), 0)
+        if bonus_amount is None:
+            bonus_amount = int(settings.referral_bonus_amount or 0)
+        bonus_amount = max(int(bonus_amount), 0)
         try:
             async with Session() as session:
                 exists = await session.execute(
@@ -291,6 +310,9 @@ class ReferralManager:
                         transaction_id=transaction_id,
                         created_at=int(time.time()),
                         status="completed",
+                        base_amount=base_amount,
+                        reward_percent=reward_percent,
+                        bonus_percent=bonus_percent,
                     )
                 )
                 await session.flush()

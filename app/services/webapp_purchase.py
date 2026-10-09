@@ -9,7 +9,6 @@ from httpx import HTTPStatusError
 from pasarguard import GroupsResponse, PasarguardAPI, UserCreate
 from pasarguard.enums import UserDataLimitResetStrategy
 
-from app import Kenzo
 from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
@@ -17,6 +16,7 @@ from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import LogType, get_logger
+from app.services.billing.referral_rewards import process_referral_reward_payout
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.locations import location_lines, resolve_plan_locations
 from app.services.panels.settings import panel_default_group_ids, panel_display_mode, panel_shop_sale_enabled
@@ -57,30 +57,6 @@ def resolve_panel_group_ids(panel: Any, groups_resp: GroupsResponse) -> list[int
 
 def is_panel_username_conflict(exc: BaseException) -> bool:
     return isinstance(exc, HTTPStatusError) and exc.response.status_code in PANEL_USERNAME_CONFLICT_CODES
-
-
-async def process_referral_reward_payout(referrer_id: int, referred_id: int) -> None:
-    try:
-        from app.db.crud.referral import ReferralManager
-
-        referral_manager = ReferralManager()
-        settings = await referral_manager.get_referral_settings()
-        if not settings or not settings.referral_enabled:
-            return
-
-        ok, _reason = await referral_manager.process_referral_reward(referrer_id, referred_id)
-        if not ok:
-            return
-
-        await Kenzo.send_message(
-            referrer_id,
-            f"🎉 تبریک! شما {settings.referral_reward_amount:,} تومان پاداش دعوت دریافت کردید!\n\n"
-            f"👤 کاربر خریدار: {referred_id}\n"
-            f"💰 مبلغ پاداش: {settings.referral_reward_amount:,} تومان\n"
-            f"🎁 مبلغ هدیه کاربر: {settings.referral_bonus_amount:,} تومان",
-        )
-    except Exception as e:
-        logger.error("Error processing referral reward payout: %s", e)
 
 
 class WebAppPurchaseService:
@@ -309,7 +285,7 @@ class WebAppPurchaseService:
         try:
             fresh_user = await self.users.read_user(user_id)
             if fresh_user and getattr(fresh_user, "ref", None):
-                await process_referral_reward_payout(int(fresh_user.ref), user_id)
+                await process_referral_reward_payout(int(fresh_user.ref), user_id, paid_amount=price.final_price)
         except Exception as e:
             logger.error("Error processing referral reward: %s", e)
 

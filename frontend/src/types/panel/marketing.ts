@@ -42,7 +42,13 @@ export interface PanelDiscountDeleteRequest extends PanelAuthRequest {
 export interface PanelReferralSettings {
   referral_enabled: boolean;
   referral_reward_amount: number;
+  referral_reward_mode: "fixed" | "percent";
+  referral_reward_percent: number;
+  referral_reward_max: number;
   referral_bonus_amount: number;
+  referral_bonus_mode: "fixed" | "percent";
+  referral_bonus_percent: number;
+  referral_bonus_max: number;
   referral_banner_text?: string | null;
 }
 
@@ -52,6 +58,9 @@ export interface PanelReferralRewardRow {
   referred_id?: number | null;
   reward_amount: number;
   bonus_amount: number;
+  base_amount?: number | null;
+  reward_percent?: number | null;
+  bonus_percent?: number | null;
   status?: string | null;
   created_at?: number | null;
 }
@@ -70,6 +79,12 @@ export interface PanelReferralResponse extends PanelEnvelope {
 export interface PanelReferralSaveRequest extends PanelAuthRequest {
   referral_enabled: boolean;
   referral_reward_amount: number;
+  referral_reward_mode: "fixed" | "percent";
+  referral_reward_percent: number;
+  referral_reward_max: number;
   referral_bonus_amount: number;
+  referral_bonus_mode: "fixed" | "percent";
+  referral_bonus_percent: number;
+  referral_bonus_max: number;
   referral_banner_text?: string;
 }

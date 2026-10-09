@@ -1,5 +1,7 @@
 """Admin panel DTOs: discount codes and the referral programme."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.models.panel.common import PagedRequest, PageMeta, PanelRequest, PanelResponse
@@ -48,7 +50,13 @@ class PanelDiscountDeleteRequest(PanelRequest):
 class PanelReferralSettings(BaseModel):
     referral_enabled: bool = True
     referral_reward_amount: int = 0
+    referral_reward_mode: Literal["fixed", "percent"] = "fixed"
+    referral_reward_percent: int = 10
+    referral_reward_max: int = 0
     referral_bonus_amount: int = 0
+    referral_bonus_mode: Literal["fixed", "percent"] = "fixed"
+    referral_bonus_percent: int = 5
+    referral_bonus_max: int = 0
     referral_banner_text: str | None = None
 
 
@@ -58,6 +66,9 @@ class PanelReferralRewardRow(BaseModel):
     referred_id: int | None = None
     reward_amount: int = 0
     bonus_amount: int = 0
+    base_amount: int | None = None
+    reward_percent: int | None = None
+    bonus_percent: int | None = None
     status: str | None = None
     created_at: int | None = None
 
@@ -78,5 +89,11 @@ class PanelReferralResponse(PanelResponse):
 class PanelReferralSaveRequest(PanelRequest):
     referral_enabled: bool = True
     referral_reward_amount: int = Field(0, ge=0)
+    referral_reward_mode: Literal["fixed", "percent"] = "fixed"
+    referral_reward_percent: int = Field(10, ge=1, le=100)
+    referral_reward_max: int = Field(0, ge=0)
     referral_bonus_amount: int = Field(0, ge=0)
+    referral_bonus_mode: Literal["fixed", "percent"] = "fixed"
+    referral_bonus_percent: int = Field(5, ge=1, le=100)
+    referral_bonus_max: int = Field(0, ge=0)
     referral_banner_text: str = Field("", max_length=4096)

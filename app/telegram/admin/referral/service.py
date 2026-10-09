@@ -8,24 +8,103 @@ from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 from app.db.crud.referral import ReferralManager
 from app.db.crud.user import UserCRUD
 from app.services.billing.referral import build_referral_start_param
+from app.services.billing.referral_rewards import (
+    REWARD_MODE_FIXED,
+    REWARD_MODE_PERCENT,
+    REWARD_PERCENT_MAX,
+    REWARD_PERCENT_MIN,
+    SIDE_BONUS,
+    SIDE_REWARD,
+    describe_referral_reward,
+    describe_referral_side,
+    referral_side_mode,
+)
 from app.telegram.keyboards.balance import balance_back_home_button
 from app.telegram.keyboards.common import styled_copy_button
 from app.telegram.state import set_step
 
+NEWLINE = "\n"
+
+
+SIDE_LABELS: dict[str, str] = {SIDE_REWARD: "پاداش دعوت کننده", SIDE_BONUS: "هدیه دعوت شده"}
+SIDE_ICONS: dict[str, str] = {SIDE_REWARD: "💰", SIDE_BONUS: "🎁"}
+MODE_TOGGLES: dict[str, str] = {
+    "toggle_referral_reward_mode": SIDE_REWARD,
+    "toggle_referral_bonus_mode": SIDE_BONUS,
+}
+PERCENT_STEPS: dict[str, str] = {
+    "change_referral_percent": SIDE_REWARD,
+    "change_referral_bonus_percent": SIDE_BONUS,
+}
+MAX_STEPS: dict[str, str] = {
+    "change_referral_max": SIDE_REWARD,
+    "change_referral_bonus_max": SIDE_BONUS,
+}
+FIXED_STEPS: dict[str, str] = {
+    "change_referral_reward": SIDE_REWARD,
+    "change_referral_bonus": SIDE_BONUS,
+}
+_BACK_ROW = [Button.inline("🔙 بازگشت", data="back_to_referral_management")]
+
+
+def _step_for(steps: dict[str, str], side: str) -> str:
+    return next(step for step, step_side in steps.items() if step_side == side)
+
+
+def _side_lines(settings, side: str) -> list[str]:
+    percent_mode = referral_side_mode(settings, side) == REWARD_MODE_PERCENT
+    label = SIDE_LABELS[side]
+    lines = [
+        f"{SIDE_ICONS[side]} **{label}:** {describe_referral_side(settings, side)}",
+        f"   ⚖️ نوع: {'درصدی از مبلغ اولین خرید' if percent_mode else 'مبلغ ثابت'}",
+    ]
+    if percent_mode:
+        cap = int(getattr(settings, f"referral_{side}_max", 0) or 0)
+        lines.append(f"   🔝 سقف: {f'{cap:,} تومان' if cap > 0 else 'بدون سقف'}")
+    return lines
+
 
 def referral_management_message(settings) -> str:
     status = "🟢 فعال" if settings.referral_enabled else "🔴 غیرفعال"
-    return (
-        f"🎁 **مدیریت سیستم دعوت دوستان**\n\n"
-        f"📊 **وضعیت سیستم:** {status}\n"
-        f"💰 **مبلغ پاداش دعوت کننده:** `{settings.referral_reward_amount:,}` تومان\n"
-        f"🎁 **مبلغ هدیه دعوت شده:** `{settings.referral_bonus_amount:,}` تومان\n\n"
-        f"**تنظیمات فعلی:**\n"
-        f"• سیستم دعوت: {'فعال' if settings.referral_enabled else 'غیرفعال'}\n"
-        f"• پاداش دعوت کننده: {settings.referral_reward_amount:,} تومان\n"
-        f"• هدیه دعوت شده: {settings.referral_bonus_amount:,} تومان\n\n"
-        f"برای تغییر تنظیمات از دکمه‌های زیر استفاده کنید:"
-    )
+    lines = [
+        "🎁 **مدیریت سیستم دعوت دوستان**",
+        "",
+        f"📊 **وضعیت سیستم:** {status}",
+        "",
+        *_side_lines(settings, SIDE_REWARD),
+        "",
+        *_side_lines(settings, SIDE_BONUS),
+        "",
+        "💡 پرداخت فقط یک بار و در **اولین خرید** کاربر دعوت‌شده انجام می‌شود. در حالت درصدی، "
+        "مبنا مبلغی است که واقعاً از کیف پول کاربر کم شده (بعد از کد تخفیف). "
+        "هر طرف را می‌توانید روی 0 بگذارید؛ طرفی که چیزی نگیرد پیامی هم دریافت نمی‌کند.",
+        "",
+        "برای تغییر تنظیمات از دکمه‌های زیر استفاده کنید:",
+    ]
+    return NEWLINE.join(lines)
+
+
+def _side_buttons(settings, side: str) -> list:
+    percent_mode = referral_side_mode(settings, side) == REWARD_MODE_PERCENT
+    label = SIDE_LABELS[side]
+    rows = [
+        [
+            Button.inline(
+                f"⚖️ {label}: {'درصدی' if percent_mode else 'ثابت'} (تغییر)",
+                data=_step_for(MODE_TOGGLES, side),
+            )
+        ]
+    ]
+    if percent_mode:
+        rows.append(
+            [
+                Button.inline(f"📊 درصد {label}", data=_step_for(PERCENT_STEPS, side)),
+                Button.inline(f"🔝 سقف {label}", data=_step_for(MAX_STEPS, side)),
+            ]
+        )
+    else:
+        rows.append([Button.inline(f"{SIDE_ICONS[side]} تغییر مبلغ {label}", data=_step_for(FIXED_STEPS, side))])
+    return rows
 
 
 def referral_management_buttons(settings) -> list:
@@ -36,8 +115,8 @@ def referral_management_buttons(settings) -> list:
                 data="toggle_referral_system",
             )
         ],
-        [Button.inline("💰 تغییر مبلغ پاداش دعوت کننده", data="change_referral_reward")],
-        [Button.inline("🎁 تغییر مبلغ هدیه دعوت شده", data="change_referral_bonus")],
+        *_side_buttons(settings, SIDE_REWARD),
+        *_side_buttons(settings, SIDE_BONUS),
         [Button.inline("🎨 تغییر متن بنر", data="change_referral_banner")],
         [Button.inline("📊 آمار سیستم دعوت", data="referral_stats")],
         [Button.inline("🔙 بازگشت به پنل", data="back_to_admin_panel")],
@@ -62,23 +141,58 @@ async def handle_referral_callbacks(event, data):
         else:
             await event.edit("❌ خطا در تغییر وضعیت سیستم دعوت")
 
-    elif data == "change_referral_reward":
-        await event.edit(
-            "💰 **تغییر مبلغ پاداش دعوت کننده**\n\nلطفاً مبلغ جدید پاداش دعوت کننده را ارسال کنید (به تومان):",
-            buttons=[[Button.inline("🔙 بازگشت", data="back_to_referral_management")]],
-        )
-        await set_step(event.sender_id, "change_referral_reward")
+    elif data in MODE_TOGGLES:
+        side = MODE_TOGGLES[data]
+        settings = await referral_manager.get_referral_settings()
+        if not settings:
+            await event.answer("❌ خطا در دریافت تنظیمات سیستم دعوت", alert=True)
+            return
+        percent_now = referral_side_mode(settings, side) == REWARD_MODE_PERCENT
+        new_mode = REWARD_MODE_FIXED if percent_now else REWARD_MODE_PERCENT
+        settings = await referral_manager.settings_crud.update_settings(**{f"referral_{side}_mode": new_mode})
+        await event.edit(referral_management_message(settings), buttons=referral_management_buttons(settings))
+        mode_text = "درصدی" if new_mode == REWARD_MODE_PERCENT else "ثابت"
+        await event.answer(f"✅ نوع {SIDE_LABELS[side]} به «{mode_text}» تغییر کرد.")
 
-    elif data == "change_referral_bonus":
+    elif data in PERCENT_STEPS:
+        label = SIDE_LABELS[PERCENT_STEPS[data]]
         await event.edit(
-            "🎁 **تغییر مبلغ هدیه دعوت شده**\n\nلطفاً مبلغ جدید هدیه دعوت شده را ارسال کنید (به تومان):",
-            buttons=[[Button.inline("🔙 بازگشت", data="back_to_referral_management")]],
+            f"📊 **درصد {label}**"
+            + NEWLINE * 2
+            + f"یک عدد بین {REWARD_PERCENT_MIN} تا {REWARD_PERCENT_MAX} بفرستید."
+            + NEWLINE
+            + "مثلاً با `10`، برای خرید ۱۰۰ هزار تومانی، ۱۰ هزار تومان داده می‌شود."
+            + NEWLINE
+            + "برای «هیچ» نوع را روی ثابت بگذارید و مبلغ را 0 کنید.",
+            buttons=[_BACK_ROW],
         )
-        await set_step(event.sender_id, "change_referral_bonus")
+        await set_step(event.sender_id, data)
+
+    elif data in MAX_STEPS:
+        label = SIDE_LABELS[MAX_STEPS[data]]
+        await event.edit(
+            f"🔝 **سقف {label} (حالت درصدی)**"
+            + NEWLINE * 2
+            + "بیشترین مبلغی که برای یک دعوت داده می‌شود را به تومان بفرستید."
+            + NEWLINE
+            + "برای «بدون سقف» عدد `0` را بفرستید.",
+            buttons=[_BACK_ROW],
+        )
+        await set_step(event.sender_id, data)
+
+    elif data in FIXED_STEPS:
+        label = SIDE_LABELS[FIXED_STEPS[data]]
+        await event.edit(
+            f"{SIDE_ICONS[FIXED_STEPS[data]]} **تغییر مبلغ {label}**"
+            + NEWLINE * 2
+            + "مبلغ جدید را به تومان بفرستید. برای «هیچ» عدد `0` را بفرستید.",
+            buttons=[_BACK_ROW],
+        )
+        await set_step(event.sender_id, data)
 
     elif data == "change_referral_banner":
         await event.edit(
-            "🎨 **تغییر متن بنر**\n\nلطفاً متن جدید بنر را ارسال کنید.\n\n💡 **نکته:** می‌توانید از پلیس‌هولدر  های زیر استفاده کنید:\n• `{referral_link}` - لینک دعوت\n• `{referral_reward_amount}` - مبلغ پاداش دعوت کننده\n• `{referral_bonus_amount}` - مبلغ هدیه دعوت شده",
+            "🎨 **تغییر متن بنر**\n\nلطفاً متن جدید بنر را ارسال کنید.\n\n💡 **نکته:** می‌توانید از پلیس‌هولدر  های زیر استفاده کنید:\n• `{referral_link}` - لینک دعوت\n• `{referral_reward}` - پاداش دعوت کننده (مثلاً «۱۰٪ مبلغ اولین خرید» یا «40,000 تومان»)\n• `{referral_reward_amount}` - مبلغ ثابت پاداش دعوت کننده\n• `{referral_bonus}` - هدیه دعوت شده (مثلاً «۵٪ مبلغ اولین خرید» یا «20,000 تومان»)\n• `{referral_bonus_amount}` - مبلغ ثابت هدیه دعوت شده",
             buttons=[[Button.inline("🔙 بازگشت", data="back_to_referral_management")]],
         )
         await set_step(event.sender_id, "change_referral_banner")
@@ -125,6 +239,8 @@ async def handle_referral_callbacks(event, data):
         )
 
         referral_message = banner_text.replace("{referral_link}", referral_link)
+        referral_message = referral_message.replace("{referral_reward}", describe_referral_reward(settings))
+        referral_message = referral_message.replace("{referral_bonus}", describe_referral_side(settings, SIDE_BONUS))
         referral_message = referral_message.replace("{referral_reward_amount}", f"{settings.referral_reward_amount:,}")
         referral_message = referral_message.replace("{referral_bonus_amount}", f"{settings.referral_bonus_amount:,}")
 
@@ -163,8 +279,8 @@ async def handle_referral_callbacks(event, data):
 
 👥 **تعداد دعوت‌های موفق:** {user_stats["referral_count"]} نفر
 💰 **کل درآمد از دعوت:** {user_stats["total_earnings"]:,} تومان
-🎁 **پاداش هر دعوت:** {settings.referral_reward_amount:,} تومان
-💝 **هدیه دعوت شده:** {settings.referral_bonus_amount:,} تومان
+🎁 **پاداش هر دعوت:** {describe_referral_reward(settings)}
+💝 **هدیه دعوت شده:** {describe_referral_side(settings, SIDE_BONUS)}
 
 📈 **جزئیات دعوت‌ها:**
 ✅ **کاربران خریدار:** {completed_users} نفر

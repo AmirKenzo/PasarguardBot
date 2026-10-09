@@ -6,6 +6,12 @@ REFERRAL_ADMIN_CALLBACKS = frozenset(
         "change_referral_reward",
         "change_referral_bonus",
         "change_referral_banner",
+        "toggle_referral_reward_mode",
+        "change_referral_bonus_max",
+        "change_referral_bonus_percent",
+        "toggle_referral_bonus_mode",
+        "change_referral_percent",
+        "change_referral_max",
         "referral_stats",
         "back_to_referral_management",
     }
@@ -20,6 +26,10 @@ REFERRAL_USER_CALLBACKS = frozenset(
 
 REFERRAL_ADMIN_STEPS = frozenset(
     {
+        "change_referral_percent",
+        "change_referral_max",
+        "change_referral_bonus_percent",
+        "change_referral_bonus_max",
         "change_referral_reward",
         "change_referral_bonus",
         "change_referral_banner",
