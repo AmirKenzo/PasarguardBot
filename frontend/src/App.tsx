@@ -19,6 +19,7 @@ const TonPaysDeposit = lazy(() => import("./features/balance/TonPaysDeposit"));
 const TransactionsPage = lazy(() => import("./features/balance/TransactionsPage"));
 const ServicesListPage = lazy(() => import("./features/services/ServicesListPage"));
 const ServiceDetailPage = lazy(() => import("./features/services/ServiceDetailPage"));
+const ResellerAccountPage = lazy(() => import("./features/services/ResellerAccountPage"));
 const RenewFlow = lazy(() => import("./features/services/RenewFlow"));
 const ExtendTimeFlow = lazy(() => import("./features/services/ExtendTimeFlow"));
 const ExtraVolumeFlow = lazy(() => import("./features/services/ExtraVolumeFlow"));
@@ -122,6 +123,7 @@ export default function App() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="services" element={<ServicesListPage />} />
+          <Route path="services/reseller/:code" element={<ResellerAccountPage />} />
           <Route path="services/:code" element={<ServiceDetailPage />} />
           <Route path="services/:code/renew" element={<RenewFlow />} />
           <Route path="services/:code/extend-time" element={<ExtendTimeFlow />} />

@@ -92,3 +92,16 @@ export function configLinksFromUrls(urls: string[]): { index: number; name: stri
     })
     .filter((item): item is { index: number; name: string; url: string } => item !== null);
 }
+
+/** Whole days until expiry (0 once expired), or null for a service without one. */
+export function daysUntil(expirationTimestamp: number | null | undefined): number | null {
+  if (!expirationTimestamp) return null;
+  const diff = expirationTimestamp * 1000 - Date.now();
+  return diff <= 0 ? 0 : Math.ceil(diff / 86_400_000);
+}
+
+/** Active item whose expiry is close enough to nudge a renewal. */
+export function isExpiringSoon(expirationTimestamp: number | null | undefined, thresholdDays = 3): boolean {
+  const days = daysUntil(expirationTimestamp);
+  return days != null && days > 0 && days <= thresholdDays;
+}

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Globe2, Store, Wallet } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -18,6 +20,12 @@ import {
 import { buyApi } from "../../api/webapp";
 import { useWebAppAuth } from "../../hooks/useWebAppAuth";
 import type { WebAppBuyPanelItem, WebAppBuyPlanItem, WebAppBuyPreviewResponse } from "../../types/webapp";
+import { IconBadge } from "../../components/ui";
+import { PageHeader } from "../../components/layout/PageHeader";
+import { useProfileQuery } from "../../queries/useAuth";
+import { useResellerBuyOptions } from "../../queries/useReseller";
+import { ChoiceCard } from "./BuyChoices";
+import ResellerBuyFlow from "./ResellerBuyFlow";
 
 type BuyStep = "panel" | "duration" | "plan" | "username" | "confirm" | "success";
 
@@ -67,7 +75,7 @@ function PlanSummary({ plan }: { plan: WebAppBuyPlanItem }) {
   );
 }
 
-export default function BuyWizardPage() {
+function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
   const { t } = useTranslation();
   const { haptic } = useTelegram();
   const { auth } = useWebAppAuth();
@@ -247,6 +255,11 @@ export default function BuyWizardPage() {
       <AnimatePresence mode="wait">
         {step === "panel" && (
           <motion.section key="panel" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
+            {onExit && (
+              <Button type="button" variant="ghost" size="sm" onClick={onExit}>
+                {t("buy.back")}
+              </Button>
+            )}
             {panels.length === 0 ? (
               <EmptyState title={t("buy.noPanels")} description={t("buy.noPanelsRetry")} />
             ) : (
@@ -477,5 +490,72 @@ function BuyHeader() {
         </div>
       </div>
     </header>
+  );
+}
+
+type PurchaseMode = "vpn" | "reseller";
+
+/** First screen of the Buy tab: VPN service or Pasarguard panel reseller.
+ *  With reseller sales off there is nothing to choose, so the VPN flow opens directly. */
+export default function BuyWizardPage() {
+  const { t } = useTranslation();
+  const { haptic } = useTelegram();
+  const [mode, setMode] = useState<PurchaseMode | null>(null);
+  const reseller = useResellerBuyOptions();
+  const { data: user } = useProfileQuery();
+
+  const resellerOn = !!reseller.data?.enabled;
+  if (mode === "reseller" && resellerOn) return <ResellerBuyFlow onExit={() => setMode(null)} />;
+  if (mode === "vpn" || (!reseller.isLoading && !resellerOn)) {
+    return <VpnBuyWizard onExit={resellerOn ? () => setMode(null) : undefined} />;
+  }
+  if (reseller.isLoading) {
+    return (
+      <div className="space-y-5">
+        <BuyHeader />
+        <Card className="h-32 animate-pulse bg-surface-2" />
+      </div>
+    );
+  }
+
+  const choose = (next: PurchaseMode) => {
+    haptic.select();
+    setMode(next);
+  };
+
+  return (
+    <div>
+      <PageHeader title={t("buy.modeTitle")} subtitle={t("buy.modeSubtitle")} />
+      <div className="space-y-3">
+        <ChoiceCard
+          icon={Globe2}
+          tone="primary"
+          title={t("buy.modeVpn")}
+          description={t("buy.modeVpnDesc")}
+          highlighted
+          onSelect={() => choose("vpn")}
+        />
+        <ChoiceCard
+          icon={Store}
+          tone="success"
+          title={t("buy.modeReseller")}
+          description={t("buy.modeResellerDesc")}
+          onSelect={() => choose("reseller")}
+        />
+        <Card className="flex items-center gap-3 p-4">
+          <IconBadge icon={Wallet} tone="accent" size="md" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted">{t("buy.yourBalance")}</p>
+            <p className="truncate text-lg font-extrabold text-text">{formatToman(user?.amount ?? reseller.data?.balance ?? 0)}</p>
+          </div>
+          <Link
+            to="/balance"
+            className="inline-flex h-9 shrink-0 items-center rounded-sm bg-primary px-4 text-sm font-medium text-primary-text hover:bg-primary/90"
+          >
+            {t("buy.topUp")}
+          </Link>
+        </Card>
+      </div>
+    </div>
   );
 }

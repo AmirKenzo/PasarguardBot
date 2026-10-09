@@ -24,3 +24,8 @@ export * from "./MagicCard";
 export * from "./Particles";
 export * from "./SmokeyBackground";
 export * from "./LanguageToggle";
+export * from "./ChipTabs";
+export * from "./StickyActionBar";
+export * from "./StepProgress";
+export * from "./PlanOption";
+export * from "./CopyField";

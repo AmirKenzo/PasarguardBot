@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Clock, Database, Search, Satellite, Server } from "lucide-react";
+import { CalendarClock, ChevronRight, Database, Plus, Search, Satellite, Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmojiIcon } from "../../components/EmojiIcon";
-import { EmptyState, Input, Pagination, SegmentedControl, SkeletonCard } from "../../components/ui";
+import { ChipTabs, EmptyState, IconBadge, Input, Pagination, SegmentedControl, SkeletonCard } from "../../components/ui";
 import { ErrorState } from "../../components/ui/EmptyState";
 import { Badge } from "../../components/ui/Badge";
 import { useTelegram } from "../../hooks/useTelegram";
-import { statusLabel, statusTone } from "../../lib/serviceHelpers";
-import { formatBytes, formatExpiry } from "../../lib/format";
+import { daysUntil, isExpiringSoon, statusLabel, statusTone } from "../../lib/serviceHelpers";
+import { formatBytes, formatNumber } from "../../lib/format";
+import { useResellerAccounts } from "../../queries/useReseller";
+import ResellerAccountsList from "./ResellerAccountsList";
 import { useServicesQuery } from "../../queries/useServices";
 import type { PanelGroupItem, ServiceStatus } from "../../types/webapp";
 
@@ -35,69 +38,57 @@ const itemVariants = {
 };
 
 function ServiceCard({ service }: { service: ServiceStatus }) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
-  const expiry = formatExpiry(service.expiration_timestamp);
+  const expired = (service.status || "").toLowerCase() === "expired";
+  const expiringSoon = !expired && isExpiringSoon(service.expiration_timestamp);
+  const days = daysUntil(service.expiration_timestamp);
   const tone = statusTone(service.status);
+  const badgeTone = expiringSoon ? "warning" : tone.badge;
+  const badgeLabel = expiringSoon ? t("services.expiringSoon") : statusLabel(service.status);
+  const subtitle = [service.panel_name, `${t("services.code")} ${formatNumber(Number(service.code))}`]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <motion.div variants={itemVariants} layout>
-      <Link
-        to={`/services/${service.code}`}
-        onClick={() => haptic.select()}
-        className="block"
-      >
+      <Link to={`/services/${service.code}`} onClick={() => haptic.select()} className="block h-full">
         <motion.article
-          whileHover={{ y: -1 }}
           whileTap={{ scale: 0.985 }}
-          className="relative overflow-hidden rounded-lg border border-border bg-surface p-3.5 shadow-sm transition-colors hover:border-primary/30"
+          className={`flex h-full flex-col gap-3 rounded-lg border bg-surface p-3.5 shadow-sm transition-colors hover:border-primary/30 ${
+            expiringSoon ? "border-warning/40" : "border-border"
+          } ${expired ? "opacity-60" : ""}`}
         >
           <div className="flex items-center gap-3">
-            <div className="relative shrink-0">
-              <span
-                className={`absolute inset-0 rounded-full opacity-40 blur-md ${
-                  tone.badge === "success"
-                    ? "bg-success"
-                    : tone.badge === "danger"
-                      ? "bg-danger"
-                      : tone.badge === "warning"
-                        ? "bg-warning"
-                        : "bg-muted"
-                }`}
-              />
-              <span
-                className={`relative block h-2 w-2 rounded-full ${
-                  tone.badge === "success"
-                    ? "bg-success"
-                    : tone.badge === "danger"
-                      ? "bg-danger"
-                      : tone.badge === "warning"
-                        ? "bg-warning"
-                        : "bg-muted"
-                }`}
-              />
-            </div>
-
+            <IconBadge icon={Server} tone={expired ? "danger" : expiringSoon ? "warning" : "primary"} size="md" />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="truncate text-sm font-bold tracking-tight text-text">
-                  {service.username}
-                </h2>
-                <Badge tone={tone.badge}>{statusLabel(service.status)}</Badge>
-              </div>
-              <div className="mt-1 flex items-center gap-2.5 text-[11px] text-muted">
-                <span className="flex items-center gap-1">
-                  <Clock size={11} />
-                  {expiry.remaining}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Database size={11} />
-                  {formatBytes(service.total_traffic_bytes)}
-                </span>
-              </div>
+              <h2 className="truncate text-sm font-bold text-text" dir="ltr" style={{ textAlign: "start" }}>
+                {service.username}
+              </h2>
+              <p className="mt-0.5 truncate text-[11px] text-muted">{subtitle}</p>
             </div>
-
-            <ChevronLeft size={16} className="shrink-0 text-muted/70" />
+            <Badge tone={badgeTone}>{badgeLabel}</Badge>
           </div>
+
+          {!expired && (
+            <div className="flex items-center justify-between gap-2 border-t border-border pt-2.5 text-xs text-muted">
+              <span className="flex items-center gap-1.5">
+                <Database size={13} />
+                <b className="font-semibold text-text">
+                  {service.total_traffic_bytes > 0 ? formatBytes(service.total_traffic_bytes) : t("services.unlimited")}
+                </b>
+              </span>
+              {days != null && (
+                <span className={`flex items-center gap-1.5 ${expiringSoon ? "text-warning" : ""}`}>
+                  <CalendarClock size={13} />
+                  <span>
+                    <b className={`font-semibold ${expiringSoon ? "text-warning" : "text-text"}`}>{formatNumber(days)}</b>{" "}
+                    {t("services.daysLeft")}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
         </motion.article>
       </Link>
     </motion.div>
@@ -137,7 +128,7 @@ function PanelGroupCard({ group, onSelect, t }: { group: PanelGroupItem; onSelec
   );
 }
 
-export default function ServicesListPage() {
+function VpnServicesList({ chips }: { chips: ReactNode }) {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState<number>(5);
@@ -174,8 +165,9 @@ export default function ServicesListPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="space-y-1"
+        className="relative space-y-1 pe-12"
       >
+        <BuyNewButton />
         {selectedPanel ? (
           <button
             type="button"
@@ -198,6 +190,8 @@ export default function ServicesListPage() {
         </p>
       </motion.header>
 
+      {chips}
+
       {!showPanelGroups && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -219,7 +213,7 @@ export default function ServicesListPage() {
       {error && <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />}
 
       {isLoading ? (
-        <div className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
@@ -232,7 +226,7 @@ export default function ServicesListPage() {
             description={t("services.noPanelsDesc")}
           />
         ) : (
-          <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-3">
+          <motion.div variants={listVariants} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-2">
             {panelGroups.map((group) => (
               <PanelGroupCard
                 key={group.panel_code}
@@ -257,7 +251,7 @@ export default function ServicesListPage() {
               variants={listVariants}
               initial="hidden"
               animate="show"
-              className="space-y-3"
+              className="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
             >
               {services.map((svc) => (
                 <ServiceCard key={svc.code} service={svc} />
@@ -285,5 +279,54 @@ export default function ServicesListPage() {
         </>
       )}
     </div>
+  );
+}
+
+function BuyNewButton() {
+  const { t } = useTranslation();
+  const { haptic } = useTelegram();
+  return (
+    <Link
+      to="/buy"
+      onClick={() => haptic.select()}
+      aria-label={t("services.buyNew")}
+      title={t("services.buyNew")}
+      className="absolute end-0 top-0 flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-text shadow-sm transition-colors hover:bg-primary/90"
+    >
+      <Plus size={20} />
+    </Link>
+  );
+}
+
+type ServicesTab = "vpn" | "reseller";
+
+/** VPN services, plus a "Reseller" chip once the user owns a reseller account. */
+export default function ServicesListPage() {
+  const { t } = useTranslation();
+  const { haptic } = useTelegram();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const resellers = useResellerAccounts();
+  const resellerCount = resellers.data?.accounts.length ?? 0;
+  const tab: ServicesTab = searchParams.get("tab") === "reseller" && resellerCount > 0 ? "reseller" : "vpn";
+
+  const chips =
+    resellerCount > 0 ? (
+      <ChipTabs<ServicesTab>
+        options={[
+          { value: "vpn", label: t("services.vpnTab") },
+          { value: "reseller", label: t("services.resellerTab"), count: resellerCount },
+        ]}
+        value={tab}
+        onChange={(value) => {
+          haptic.select();
+          setSearchParams(value === "reseller" ? { tab: "reseller" } : {}, { replace: true });
+        }}
+      />
+    ) : null;
+
+  return tab === "reseller" && resellers.data ? (
+    <ResellerAccountsList data={resellers.data} chips={chips} />
+  ) : (
+    <VpnServicesList chips={chips} />
   );
 }

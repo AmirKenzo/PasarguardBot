@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Home, ListVideo, ShoppingBag, User, Wallet } from "lucide-react";
@@ -103,6 +103,23 @@ export function AppShell() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  // Bottom action bars (StickyActionBar) sit just above the mobile nav, whose
+  // height depends on the device's safe-area inset.
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const root = document.documentElement;
+    const update = () => root.style.setProperty("--bottom-nav-h", `${nav.offsetHeight}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--bottom-nav-h");
+    };
+  }, []);
+
   return (
     <div className="flex min-h-screen w-full">
       <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-l border-border bg-surface p-4 md:flex">
@@ -147,7 +164,7 @@ export function AppShell() {
           </PageTransition>
         </main>
 
-        <nav className="safe-area-pb fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-surface/95 backdrop-blur md:hidden">
+        <nav ref={navRef} className="safe-area-pb fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-surface/95 backdrop-blur md:hidden">
           <NavButtons orientation="row" />
         </nav>
       </div>

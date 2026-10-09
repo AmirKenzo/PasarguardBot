@@ -7,3 +7,4 @@ export * from "./buy";
 export * from "./balance";
 export * from "./transactions";
 export * from "./upgrade";
+export * from "./reseller";
