@@ -18,7 +18,13 @@ from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import get_logger
-from app.services.billing.reseller_pricing import pricing_mode_label, requires_wallet_for_purchase, validate_volume
+from app.services.billing.reseller_pricing import (
+    calculate_purchase_price,
+    pricing_mode_label,
+    requires_volume_input,
+    requires_wallet_for_purchase,
+    validate_volume,
+)
 from app.services.panels.admins import (
     admin_username_exists,
     build_admin_create_payload,
@@ -28,7 +34,7 @@ from app.services.panels.admins import (
     generate_admin_password,
     remove_reseller_admin,
 )
-from app.services.panels.settings import get_panel_login_url
+from app.services.panels.settings import get_panel_login_url, panel_reseller_sale_enabled
 from app.services.reseller.logging import EVENT_PURCHASE, send_reseller_log
 from app.utils.formatting.dates import Time_Date
 from app.utils.security.crypto import encrypt_data
@@ -37,6 +43,7 @@ log = get_logger(__name__)
 
 # Error codes returned in ``PurchaseOutcome.error`` (also used as the bot's result string).
 ERR_MISSING_CONTEXT = "missing_context"
+ERR_PLAN_UNAVAILABLE = "plan_unavailable"
 ERR_INVALID_VOLUME = "invalid_volume"
 ERR_PANEL_NOT_FOUND = "panel_not_found"
 ERR_USERNAME_EXISTS = "username_exists"
@@ -59,6 +66,81 @@ class PurchaseOutcome:
     data_limit: int = 0
     volume: float | None = None
     plan: object | None = None
+
+
+@dataclass
+class PriceQuote:
+    base_price: int
+    final_price: int
+    discount_percent: int = 0
+    discount_code: str | None = None
+
+
+@dataclass
+class PurchaseQuote:
+    """A validated, priced purchase; ``wallet_error`` is set when the minimum wallet rule blocks it."""
+
+    panel: object
+    plan: object
+    volume: float | None
+    price: PriceQuote
+    wallet_error: str | None = None
+
+
+async def reseller_sale_open(settings=None) -> bool:
+    """Reseller sales need both the global sale switch and the reseller switch."""
+    settings = settings if settings is not None else await SettingsManager().get_settings()
+    return bool(settings and settings.sale_mode and settings.reseller_sale_mode)
+
+
+async def apply_reseller_discount(
+    user_id: int, base_price: int, code: str | None
+) -> tuple[PriceQuote | None, str | None]:
+    """Price after an optional discount code. Returns (quote, error)."""
+    code = (code or "").strip().upper()
+    if not code:
+        return PriceQuote(base_price=base_price, final_price=base_price), None
+    status, result = await DiscountCodeManager().validate_discount_code(code=code, user_id=user_id)
+    if not status:
+        return None, str(result) if result else "کد تخفیف نامعتبر است."
+    percent = float(getattr(result, "discount_percentage", 0) or 0)
+    final_price = max(0, int(base_price - base_price * percent / 100))
+    return PriceQuote(base_price, final_price, int(percent), result.code), None
+
+
+async def quote_reseller_purchase(
+    user_id: int,
+    *,
+    panel_code: int,
+    plan_id: int,
+    volume: float | None = None,
+    discount_code: str | None = None,
+) -> tuple[PurchaseQuote | None, str | None]:
+    """Validate a purchase the way the bot's flow does and price it on the server. Returns (quote, error)."""
+    if not await reseller_sale_open():
+        return None, "فروش نمایندگی در حال حاضر غیرفعال است."
+    panel = await PanelsManager().get_panel_by_code(code=int(panel_code))
+    if not panel or not panel_reseller_sale_enabled(panel):
+        return None, "این پنل برای فروش نمایندگی فعال نیست."
+    plan = await ResellerPlanManager().get_plan(plan_id)
+    if not plan or not plan.enable or int(plan.panel_code) != int(panel_code):
+        return None, "پلن یافت نشد."
+
+    if requires_volume_input(plan):
+        if volume is None:
+            return None, "حجم را وارد کنید."
+        ok, error = validate_volume(plan, float(volume))
+        if not ok:
+            return None, error
+    else:
+        volume = None
+
+    if discount_code and plan.pricing_mode != "fixed":
+        return None, "کد تخفیف فقط برای پلن ثابت است."
+    price, error = await apply_reseller_discount(user_id, calculate_purchase_price(plan, volume), discount_code)
+    if error:
+        return None, error
+    return PurchaseQuote(panel, plan, volume, price, await min_wallet_error(plan, user_id)), None
 
 
 def build_initial_billing_state(amount: int) -> dict:
@@ -93,6 +175,8 @@ async def purchase_reseller_account(
     plan = await ResellerPlanManager().get_plan(plan_id)
     if not plan or not panel_code or not username:
         return PurchaseOutcome(False, ERR_MISSING_CONTEXT, "خطا: اطلاعات خرید ناقص است.")
+    if not plan.enable or int(plan.panel_code) != int(panel_code):
+        return PurchaseOutcome(False, ERR_PLAN_UNAVAILABLE, "این پلن دیگر برای این پنل در دسترس نیست.")
 
     if volume is not None:
         ok, err = validate_volume(plan, volume)

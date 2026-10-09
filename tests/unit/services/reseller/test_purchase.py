@@ -8,7 +8,9 @@ import pytest
 
 from app.services.reseller import purchase
 
-PLAN = SimpleNamespace(id=3, pricing_mode="fixed", max_users=10, duration=30, data_limit=0, role_id=1)
+PLAN = SimpleNamespace(
+    id=3, panel_code=1, enable=True, pricing_mode="fixed", max_users=10, duration=30, data_limit=0, role_id=1
+)
 
 
 @pytest.fixture
@@ -119,3 +121,11 @@ async def test_successful_purchase_returns_credentials(env):
     assert outcome.panel_url == "https://panel"
     assert outcome.password
     assert outcome.new_balance == 1000
+
+
+async def test_plan_from_another_panel_is_rejected(env):
+    outcome = await purchase.purchase_reseller_account(
+        7, plan_id=PLAN.id, panel_code=2, username="ali_shop", volume=None, amount=500
+    )
+    assert outcome.error == purchase.ERR_PLAN_UNAVAILABLE
+    assert env["calls"]["refund"] == []

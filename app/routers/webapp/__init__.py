@@ -11,6 +11,7 @@ instead of growing one large file:
   - balance: balance top-up methods and deposit flows
   - transactions: unified payment transaction history
   - upgrade: extend-time / extra-volume purchases and config transfer
+  - reseller: reseller (panel admin) purchase and self-service management
   - state: shared in-memory auth state (OTP sessions, revoked tokens, locks)
 """
 
@@ -26,6 +27,7 @@ from app.routers.webapp.balance import router as balance_router
 from app.routers.webapp.buy import router as buy_router
 from app.routers.webapp.pwa import router as pwa_router
 from app.routers.webapp.renew import router as renew_router
+from app.routers.webapp.reseller import router as reseller_router
 from app.routers.webapp.services import router as services_router
 from app.routers.webapp.tonpays import router as tonpays_router
 from app.routers.webapp.transactions import router as transactions_router
@@ -48,6 +50,7 @@ webapp_router.include_router(balance_router)
 webapp_router.include_router(tonpays_router)
 webapp_router.include_router(transactions_router)
 webapp_router.include_router(upgrade_router)
+webapp_router.include_router(reseller_router)
 webapp_router.include_router(pwa_router)
 
 

@@ -11,7 +11,6 @@ from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.panels import PanelsManager
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
-from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.services.billing.direct_pay_flow import create_balance_button, invoice_shortfall_notice
@@ -56,6 +55,7 @@ from app.services.reseller.capacity import (
     increase_reseller_capacity,
     validate_capacity_quantity,
 )
+from app.services.reseller.purchase import reseller_sale_open
 from app.services.reseller.usage_cap import parse_usage_cap_gb, set_reseller_usage_cap, usage_cap_menu_text
 from app.telegram.keyboards import reseller as rs_buttons
 from app.telegram.keyboards.home import bhome_buttons
@@ -114,8 +114,7 @@ async def _reject_unless_allowed(event, account, action: str) -> bool:
 
 
 async def _reseller_sale_enabled() -> bool:
-    settings = await SettingsManager().get_settings()
-    return bool(settings and settings.sale_mode and settings.reseller_sale_mode)
+    return await reseller_sale_open()
 
 
 async def _show_reseller_panel_picker(event) -> None:

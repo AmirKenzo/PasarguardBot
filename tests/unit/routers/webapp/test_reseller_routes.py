@@ -1,0 +1,182 @@
+"""Web app reseller endpoints: same toggles and server-side prices as the bot."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+import pytest
+
+from app.models.webapp.common import WebAppAuthRequest
+from app.models.webapp.reseller import (
+    WebAppResellerBuyRequest,
+    WebAppResellerCodeRequest,
+    WebAppResellerPageRequest,
+)
+from app.routers.webapp import reseller
+from app.services.reseller.purchase import PriceQuote, PurchaseOutcome, PurchaseQuote
+
+USER = 7
+
+
+def _account(**overrides) -> SimpleNamespace:
+    values = {
+        "code": 5,
+        "telegram_id": USER,
+        "panel_code": 1,
+        "username": "res",
+        "pricing_mode": "usage",
+        "status": "active",
+        "expiration_time": None,
+        "max_users": 0,
+        "createtime": 0,
+        "usage_cap_bytes": None,
+        "purchased_volume": None,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+@pytest.fixture
+def env(monkeypatch):
+    state = {"account": _account(), "actions": {"credentials", "delete"}, "locked": False}
+
+    async def authenticate(**kwargs):
+        return USER
+
+    async def owned(code, telegram_id):
+        account = state["account"]
+        return account if code == account.code and telegram_id == account.telegram_id else None
+
+    class Panels:
+        async def get_panel_by_code(self, code):
+            return SimpleNamespace(code=code, name="main")
+
+    async def lock(user_id, name, ttl=None):
+        return not state["locked"]
+
+    async def unlock(user_id, name):
+        return None
+
+    monkeypatch.setattr(reseller, "authenticate_user", authenticate)
+    monkeypatch.setattr(reseller, "get_owned_account", owned)
+    monkeypatch.setattr(reseller, "PanelsManager", Panels)
+    monkeypatch.setattr(reseller, "account_actions", lambda account, panel: frozenset(state["actions"]))
+    monkeypatch.setattr(reseller, "acquire_user_lock", lock)
+    monkeypatch.setattr(reseller, "release_user_lock", unlock)
+    monkeypatch.setattr(reseller, "reveal_password", lambda account: "secret")
+    return state
+
+
+async def test_someone_elses_account_is_not_found(env):
+    env["account"] = _account(telegram_id=999)
+    result = await reseller.reseller_password(WebAppResellerCodeRequest(code=5))
+    assert not result.ok
+    assert result.password is None
+
+
+async def test_disabled_button_is_refused_by_the_api(env):
+    env["actions"] = {"delete"}
+    result = await reseller.reseller_password(WebAppResellerCodeRequest(code=5))
+    assert not result.ok
+    assert result.password is None
+
+    env["actions"] = {"credentials"}
+    assert (await reseller.reseller_password(WebAppResellerCodeRequest(code=5))).password == "secret"
+
+
+async def test_admin_locked_account_explains_why(env, monkeypatch):
+    env["actions"] = {"delete"}
+    monkeypatch.setattr(reseller, "is_admin_locked", lambda account: True)
+    result = await reseller.reseller_pause(WebAppResellerCodeRequest(code=5))
+    assert result.error == "این نمایندگی توسط ادمین غیرفعال شده است."
+
+
+def _buy(**overrides) -> WebAppResellerBuyRequest:
+    return WebAppResellerBuyRequest(**{"panel_code": 1, "plan_id": 3, "username": "shop_one", **overrides})
+
+
+@pytest.fixture
+def purchase(env, monkeypatch):
+    calls = {"purchase": []}
+    quote = PurchaseQuote(
+        panel=SimpleNamespace(code=1, name="main"),
+        plan=SimpleNamespace(id=3),
+        volume=None,
+        price=PriceQuote(base_price=1000, final_price=800, discount_percent=20, discount_code="OFF20"),
+    )
+
+    async def quote_purchase(user_id, **kwargs):
+        return quote, None
+
+    async def buy(user_id, **kwargs):
+        calls["purchase"].append(kwargs)
+        return PurchaseOutcome(True, account_code=55, password="pw", panel_url="https://p", new_balance=200)
+
+    monkeypatch.setattr(reseller, "quote_reseller_purchase", quote_purchase)
+    monkeypatch.setattr(reseller, "purchase_reseller_account", buy)
+    return {"calls": calls, "quote": quote}
+
+
+async def test_confirm_charges_the_server_price(purchase):
+    result = await reseller.reseller_buy_confirm(_buy())
+    assert result.ok and result.password == "pw"
+    sent = purchase["calls"]["purchase"][0]
+    assert (sent["amount"], sent["discount_code"], sent["username"]) == (800, "OFF20", "shop_one")
+
+
+async def test_invalid_username_never_reaches_the_panel(purchase):
+    result = await reseller.reseller_buy_confirm(_buy(username="bad name!"))
+    assert not result.ok
+    assert purchase["calls"]["purchase"] == []
+
+
+async def test_wallet_rule_blocks_confirm(purchase):
+    purchase["quote"].wallet_error = "need 100,000"
+    result = await reseller.reseller_buy_confirm(_buy())
+    assert result.error == "need 100,000"
+    assert purchase["calls"]["purchase"] == []
+
+
+async def test_double_submit_is_refused(env, purchase):
+    env["locked"] = True
+    result = await reseller.reseller_buy_confirm(_buy())
+    assert not result.ok
+    assert purchase["calls"]["purchase"] == []
+
+
+async def test_closed_sale_hides_the_buy_card(env, monkeypatch):
+    class Settings:
+        async def get_settings(self):
+            return SimpleNamespace(sale_mode=True, reseller_sale_mode=False)
+
+    async def closed(settings=None):
+        return False
+
+    monkeypatch.setattr(reseller, "SettingsManager", Settings)
+    monkeypatch.setattr(reseller, "reseller_sale_open", closed)
+    result = await reseller.reseller_buy_options(WebAppAuthRequest())
+    assert result.ok and result.enabled is False and result.panels == []
+
+
+async def test_usage_rows_report_traffic_since_the_previous_reading(env, monkeypatch):
+    env["actions"] = {"usage_report"}
+    gb = 1024**3
+    rows = [
+        SimpleNamespace(snapshot_at=300, used_traffic=9 * gb, billed_amount=40, billed_minutes=None),
+        SimpleNamespace(snapshot_at=200, used_traffic=2 * gb, billed_amount=30, billed_minutes=None),
+        SimpleNamespace(snapshot_at=100, used_traffic=5 * gb, billed_amount=20, billed_minutes=None),
+    ]
+
+    class Snapshots:
+        async def get_snapshots(self, code, limit, offset):
+            return rows[offset : offset + limit]
+
+        async def get_usage_totals(self, code):
+            return 3, 90
+
+    monkeypatch.setattr(reseller, "ResellerBillingSnapshotCRUD", Snapshots)
+    result = await reseller.reseller_usage(WebAppResellerPageRequest(code=5, limit=2))
+    # 9 GB after 2 GB -> 7 GB; 2 GB after 5 GB means the panel counter was reset -> 2 GB.
+    assert [row.used_bytes // gb for row in result.rows] == [7, 2]
+    assert result.has_more is True
+    assert result.total_billed == 90
