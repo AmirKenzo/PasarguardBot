@@ -2,6 +2,7 @@ from sqlalchemy import func
 from sqlalchemy.future import select
 
 from app.db.base import AsyncSessionLocal as Session
+from app.db.crud.bot_texts import BotTextCRUD, panel_locations_text_key
 from app.db.models.panels import Panels
 from app.db.models.services import Service
 from app.logger import get_logger
@@ -104,6 +105,7 @@ class PanelsManager:
             if panel:
                 await session.delete(panel)
                 await session.commit()
+                await BotTextCRUD().delete_text(key=panel_locations_text_key(code))
                 return True
             return False
 

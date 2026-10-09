@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import delete, select, update
 
 from app.db.base import AsyncSessionLocal as Session
+from app.db.crud.bot_texts import BotTextCRUD, panel_locations_text_key
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
 from app.db.crud.receipt_hash import ReceiptHashCRUD
@@ -312,6 +313,7 @@ async def delete_panel(ctx: PanelActor, code: int) -> bool:
         await session.commit()
     if not result.rowcount:
         return False
+    await BotTextCRUD().delete_text(key=panel_locations_text_key(code))
     await _audit(ctx, "panel_delete", target_type="panel", target_id=code)
     return True
 

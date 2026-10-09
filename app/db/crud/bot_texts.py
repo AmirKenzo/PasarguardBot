@@ -5,6 +5,11 @@ from app.db.base import AsyncSessionLocal as Session
 from app.db.models.bot_text import BotText
 
 
+def panel_locations_text_key(panel_code: int) -> str:
+    """Key of a panel's hand-written invoice locations (see services/panels/locations.py)."""
+    return f"panel_locations_{int(panel_code)}"
+
+
 class BotTextCRUD:
     async def get_text(self, key: str, lang: str | None = None) -> str | None:
         try:

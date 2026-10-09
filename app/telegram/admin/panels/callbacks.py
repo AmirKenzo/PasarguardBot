@@ -40,7 +40,7 @@ from app.services.panels.groups import (
     step_data_to_group_ids,
     summarize_selected_groups,
 )
-from app.services.panels.locations import panel_manual_locations
+from app.services.panels.locations import get_manual_locations_text, save_manual_locations_text
 from app.services.panels.settings import (
     LOCATIONS_MODE_MANUAL,
     LOCATIONS_MODES,
@@ -1671,8 +1671,25 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             await event.answer("❌ پنل یافت نشد!", alert=True)
             return
         await set_step(event.sender_id, "Menu_panels")
-        text, buttons = build_locations_view(panel)
-        await event.edit(text, buttons=buttons)
+        text, buttons = await build_locations_view(panel)
+        await event.edit(text, buttons=buttons, parse_mode="html")
+
+    elif data.startswith("panel_locations_preview:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        manual = (await get_manual_locations_text(panel)).strip()
+        if not manual:
+            await event.answer("متنی ثبت نشده است.", alert=True)
+            return
+        await event.answer()
+        try:
+            # Sent exactly as the invoice would render it, premium emoji included.
+            await event.respond(manual)
+        except Exception as exc:
+            await event.respond(f"❌ نمایش این متن با خطا روبه‌رو شد: {exc}", parse_mode=None)
 
     elif data.startswith("panel_locations_mode:"):
         parts = data.split(":")
@@ -1688,12 +1705,13 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             return
         await panel_manager.update_panel(panel_code, locations_mode=mode)
         panel = await panel_manager.get_panel_by_code(panel_code)
-        text, buttons = build_locations_view(panel)
-        await event.edit(text, buttons=buttons)
+        text, buttons = await build_locations_view(panel)
+        await event.edit(text, buttons=buttons, parse_mode="html")
+        no_text = mode == LOCATIONS_MODE_MANUAL and not (await get_manual_locations_text(panel)).strip()
         notice = "✅ حالت لوکیشن‌ها ذخیره شد."
-        if mode == LOCATIONS_MODE_MANUAL and not panel_manual_locations(panel):
-            notice += "\nلیست دستی خالی است؛ تا وقتی پرش نکنید، نودها نمایش داده می‌شوند."
-        await event.answer(notice, alert=mode == LOCATIONS_MODE_MANUAL)
+        if no_text:
+            notice += "\nمتن دستی ثبت نشده؛ تا وقتی ثبتش نکنید، نودها نمایش داده می‌شوند."
+        await event.answer(notice, alert=no_text)
 
     elif data.startswith("panel_locations_edit:"):
         panel_code = int(data.split(":")[1])
@@ -1713,11 +1731,12 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
         if not panel:
             await event.answer("❌ پنل یافت نشد!", alert=True)
             return
+        await save_manual_locations_text(panel_code, "")
         await panel_manager.update_panel(panel_code, locations=[])
         panel = await panel_manager.get_panel_by_code(panel_code)
-        text, buttons = build_locations_view(panel)
-        await event.edit(text, buttons=buttons)
-        await event.answer("🧹 لیست دستی پاک شد.")
+        text, buttons = await build_locations_view(panel)
+        await event.edit(text, buttons=buttons, parse_mode="html")
+        await event.answer("🧹 متن دستی پاک شد.")
 
     elif data.startswith("panel_delete_confirm:"):
         panel_code = int(data.split(":")[1])

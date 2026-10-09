@@ -223,7 +223,6 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
   const [styleDraft, setStyleDraft] = useState<PanelButtonStyleResponse | null>(null);
   const [originalIconId, setOriginalIconId] = useState<string | null | undefined>(null);
   const [newPrefixDraft, setNewPrefixDraft] = useState("");
-  const [locationsText, setLocationsText] = useState("");
   const [volumePlanRows, setVolumePlanRows] = useState<PlanRow[]>([]);
   const [timePlanRows, setTimePlanRows] = useState<PlanRow[]>([]);
   const [showPlanErrors, setShowPlanErrors] = useState(false);
@@ -247,7 +246,6 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
   useEffect(() => {
     if (settingsQuery.data) {
       setDraft(settingsQuery.data);
-      setLocationsText((settingsQuery.data.subscription.locations ?? []).join("\n"));
       setVolumePlanRows(volumeRows(settingsQuery.data.volume_plans ?? []));
       setTimePlanRows(timeRows(settingsQuery.data.time_plans ?? []));
       setShowPlanErrors(false);
@@ -654,24 +652,16 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                   <label className="block">
                     <FieldLabel>{t("panel.panels.locationsList")}</FieldLabel>
                     <textarea
-                      value={locationsText}
-                      rows={5}
-                      maxLength={1500}
-                      placeholder={"🇩🇪 آلمان\n🇫🇮 فنلاند\n🇳🇱 هلند"}
-                      onChange={(event) => {
-                        const text = event.target.value;
-                        setLocationsText(text);
+                      value={draft.subscription.locations_text ?? ""}
+                      rows={6}
+                      maxLength={3000}
+                      placeholder={"🌍 لوکیشن‌ها:\n🇩🇪 آلمان ⌁ 🇫🇮 فنلاند ⌁ 🇳🇱 هلند"}
+                      onChange={(event) =>
                         setDraft({
                           ...draft,
-                          subscription: {
-                            ...draft.subscription,
-                            locations: text
-                              .split("\n")
-                              .map((line) => line.trim())
-                              .filter(Boolean),
-                          },
-                        });
-                      }}
+                          subscription: { ...draft.subscription, locations_text: event.target.value },
+                        })
+                      }
                       className="w-full resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-muted focus:border-primary focus:ring-4 focus:ring-primary/10"
                     />
                     <Hint>{t("panel.panels.locationsListHint")}</Hint>

@@ -71,7 +71,7 @@ export interface PanelSubscriptionSettings {
   node_prefixes: string[];
   show_prefixes_in_locations: boolean;
   locations_mode: "auto" | "manual" | "hidden";
-  locations: string[];
+  locations_text: string;
   link_mode: string;
   single_config_link_indexes: string;
   admin_login_path: string;

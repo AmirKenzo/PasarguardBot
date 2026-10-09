@@ -79,7 +79,7 @@ class PanelSubscriptionSettingsPayload(BaseModel):
     node_prefixes: list[str] | None = None
     show_prefixes_in_locations: bool | None = None
     locations_mode: Literal["auto", "manual", "hidden"] | None = None
-    locations: list[str] | None = None
+    locations_text: str | None = None
     link_mode: str | None = None
     single_config_link_indexes: str | None = None
     admin_login_path: str | None = None

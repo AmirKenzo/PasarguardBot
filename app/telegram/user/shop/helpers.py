@@ -34,7 +34,7 @@ from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.custom_buy import build_custom_buy_plan, is_custom_plan_id
 from app.services.panels.groups import resolve_panel_group_ids
-from app.services.panels.locations import fill_locations, resolve_plan_locations
+from app.services.panels.locations import LocationsBlock, fill_locations, resolve_plan_locations
 from app.services.panels.settings import (
     panel_custom_buy_enabled,
     panel_display_mode,
@@ -303,14 +303,14 @@ async def _buy_username_context(user_id: int):
     return panel, gig, plan
 
 
-async def _buy_plan_locations(panel, plan) -> list[str] | None:
-    """Invoice locations for the panel's mode; ``None`` hides the line."""
+async def _buy_plan_locations(panel, plan) -> LocationsBlock | None:
+    """Invoice locations for the panel's mode; ``None`` hides the section."""
     try:
         return await resolve_plan_locations(panel, plan)
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 403:
-            return ["🇺🇸 🇹🇷 🇫🇮 🇩🇪 🇦🇲 "]
-        return ["❌ خطا در دریافت نودها، لطفاً دوباره تلاش کنید."]
+            return LocationsBlock("🇺🇸 🇹🇷 🇫🇮 🇩🇪 🇦🇲 ")
+        return LocationsBlock("❌ خطا در دریافت نودها، لطفاً دوباره تلاش کنید.")
 
 
 async def _buy_confirm_text(*, username: str, panel, gig, plan, lang: str) -> str:

@@ -4,20 +4,26 @@ Callback data here only ever carries the panel code and a fixed token or a list
 index — never admin-written text. Prefixes and locations often contain flag
 emoji (several bytes each), and a single button over Telegram's 64-byte limit
 makes the whole screen fail to send, leaving no way back in to fix it.
+
+For the same reason the screen shows the stored locations as escaped plain text
+(HTML mode, trimmed): the admin's own markdown never decides whether the screen
+can be drawn. The "preview" button sends the text as the invoice will show it.
 """
 
 from __future__ import annotations
+
+import html
 
 from telethon import Button
 
 from app.services.panels.locations import (
     LOCATIONS_MODE_LABELS,
+    LOCATIONS_TEXT_MAX_LENGTH,
+    get_manual_locations_text,
     panel_locations_mode,
-    panel_manual_locations,
+    plain_location,
 )
 from app.services.panels.settings import (
-    LOCATION_MAX_LENGTH,
-    LOCATIONS_MAX_ITEMS,
     LOCATIONS_MODE_AUTO,
     LOCATIONS_MODE_HIDDEN,
     LOCATIONS_MODE_MANUAL,
@@ -27,6 +33,7 @@ from app.services.panels.settings import (
 
 STEP_WAITING_LOCATIONS = "waiting_panel_locations"
 LOCATIONS_PANEL_KEY = "panel_locations_panel_code"
+_PREVIEW_CHARS = 600
 
 DEFAULT_NODE_PREFIXES: tuple[str, ...] = ("LT -", "HYB -", "UL -")
 
@@ -37,18 +44,26 @@ _MODE_BUTTON_LABELS: dict[str, str] = {
 }
 
 
-def build_locations_view(panel) -> tuple[str, list]:
+async def build_locations_view(panel) -> tuple[str, list]:
+    """Screen text (HTML) and buttons for a panel's invoice locations."""
     code = panel.code
     mode = panel_locations_mode(panel)
-    manual = panel_manual_locations(panel)
-    manual_text = "\n".join(f"▫️ {item}" for item in manual) if manual else "— خالی —"
+    manual = (await get_manual_locations_text(panel)).strip()
+    if manual:
+        preview = plain_location(manual)
+        if len(preview) > _PREVIEW_CHARS:
+            preview = f"{preview[:_PREVIEW_CHARS]}…"
+        manual_html = f"<blockquote expandable>{html.escape(preview)}</blockquote>"
+    else:
+        manual_html = "— ثبت نشده —"
     text = (
-        f"**📍 لوکیشن‌های فاکتور — پنل {panel.name}**\n\n"
-        f"**حالت فعلی:** {LOCATIONS_MODE_LABELS[mode]}\n\n"
-        f"**لیست دستی:**\n{manual_text}\n\n"
-        "🛰 **خودکار:** نودهای همین پنل (با فیلتر پیشوند نوع پلن) نمایش داده می‌شوند.\n"
-        "✍️ **دستی:** لیست بالا نمایش داده می‌شود؛ اگر خالی باشد، نودها نمایش داده می‌شوند.\n"
-        "🙈 **مخفی:** خط لوکیشن‌ها روی فاکتور این پنل نمایش داده نمی‌شود."
+        f"<b>📍 لوکیشن‌های فاکتور — پنل {html.escape(panel.name)}</b>\n\n"
+        f"<b>حالت فعلی:</b> {LOCATIONS_MODE_LABELS[mode]}\n\n"
+        f"<b>متن دستی:</b>\n{manual_html}\n\n"
+        "🛰 <b>خودکار:</b> نودهای همین پنل (با فیلتر پیشوند نوع پلن) نمایش داده می‌شوند.\n"
+        "✍️ <b>دستی:</b> متن شما دقیقاً همان‌طور که فرستاده‌اید جای بخش لوکیشن فاکتور می‌نشیند "
+        "(عنوان هم با خودتان است). اگر متنی ثبت نشده باشد، نودها نمایش داده می‌شوند.\n"
+        "🙈 <b>مخفی:</b> بخش لوکیشن‌ها روی فاکتور این پنل نمایش داده نمی‌شود."
     )
     mode_row = [
         Button.inline(
@@ -57,20 +72,26 @@ def build_locations_view(panel) -> tuple[str, list]:
         )
         for key, label in _MODE_BUTTON_LABELS.items()
     ]
-    buttons = [mode_row, [Button.inline("✏️ ویرایش لیست دستی", data=f"panel_locations_edit:{code}")]]
+    buttons = [mode_row, [Button.inline("✏️ ثبت / ویرایش متن دستی", data=f"panel_locations_edit:{code}")]]
     if manual:
-        buttons.append([Button.inline("🧹 پاک کردن لیست دستی", data=f"panel_locations_clear:{code}")])
+        buttons.append(
+            [
+                Button.inline("👁 پیش‌نمایش", data=f"panel_locations_preview:{code}"),
+                Button.inline("🧹 پاک کردن متن", data=f"panel_locations_clear:{code}"),
+            ]
+        )
     buttons.append([Button.inline("🔙 بازگشت", data=f"panel_info:{code}")])
     return text, buttons
 
 
 def locations_edit_prompt(panel) -> tuple[str, list]:
     text = (
-        f"**✏️ لیست لوکیشن‌های پنل {panel.name}**\n\n"
-        "هر لوکیشن را در یک خط جدا بفرستید (می‌توانید پرچم هم بگذارید).\n"
-        f"حداکثر {LOCATIONS_MAX_ITEMS} مورد و هر کدام تا {LOCATION_MAX_LENGTH} کاراکتر.\n\n"
-        "**مثال:**\n🇩🇪 آلمان\n🇫🇮 فنلاند\n🇳🇱 هلند\n\n"
-        "ارسال لیست جدید، جایگزین لیست فعلی می‌شود."
+        f"**✏️ متن لوکیشن‌های پنل {panel.name}**\n\n"
+        "متن را همان‌طور که می‌خواهید روی فاکتور دیده شود بفرستید؛ با عنوان، چینش، "
+        "بولد و ایموجی پریمیوم. دقیقاً همین متن جای بخش لوکیشن فاکتور می‌نشیند.\n"
+        f"حداکثر {LOCATIONS_TEXT_MAX_LENGTH} کاراکتر.\n\n"
+        "**مثال:**\n🌍 لوکیشن‌ها:\n🇩🇪 آلمان ⌁ 🇫🇮 فنلاند ⌁ 🇳🇱 هلند\n\n"
+        "متن جدید جایگزین متن فعلی می‌شود."
     )
     return text, [[Button.inline("❌ انصراف", data=f"panel_locations:{panel.code}")]]
 
@@ -116,7 +137,7 @@ def build_node_prefixes_view(panel) -> tuple[str, list]:
         "• **HYB -** برای نودهای ترکیبی (حجمی + نامحدود)\n"
         "• **UL -** برای نودهای نامحدود\n\n"
         "برای انتخاب/لغو انتخاب هر پیشوند روی آن کلیک کنید.\n"
-        "💡 برای نوشتن اسم و پرچم دلخواه لوکیشن‌ها از بخش «📍 لوکیشن‌های فاکتور» استفاده کنید."
+        "💡 برای نوشتن متن دلخواه لوکیشن‌ها از بخش «📍 لوکیشن‌های فاکتور» استفاده کنید."
     )
     return text, buttons
 

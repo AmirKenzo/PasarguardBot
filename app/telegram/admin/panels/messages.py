@@ -30,6 +30,7 @@ from app.services.panels.groups import (
     build_group_selection_buttons,
     cache_panel_groups,
 )
+from app.services.panels.locations import save_manual_locations_text, validate_locations_text
 from app.services.panels.settings import (
     MAX_EXPIRED_GRACE_DAYS,
     MIN_EXPIRED_GRACE_DAYS,
@@ -38,7 +39,6 @@ from app.services.panels.settings import (
     get_panel_time_plan,
     get_panel_volume_plan,
     panel_node_prefixes,
-    parse_locations_value,
     update_custom_buy_in_feature_settings,
     update_reseller_capacity_in_feature_settings,
     update_time_plan_in_feature_settings,
@@ -976,16 +976,17 @@ async def panel_admin_message_handler(event: Message):
             await event.respond("❌ پنل یافت نشد! دوباره از منوی پنل اقدام کنید.")
             await set_step(event.sender_id, "Menu_panels")
             return
-        locations = parse_locations_value(msg)
-        if not locations:
-            await event.respond("❌ لیست خالی است؛ هر لوکیشن را در یک خط بفرستید.")
+        error = validate_locations_text(msg)
+        if error:
+            await event.respond(f"❌ {error}")
             return
-        await panel_manager.update_panel(panel.code, locations=locations)
+        if not await save_manual_locations_text(panel.code, msg):
+            await event.respond("❌ ذخیره انجام نشد؛ دوباره تلاش کنید.")
+            return
         await delete_data(event.sender_id, LOCATIONS_PANEL_KEY)
         await set_step(event.sender_id, "Menu_panels")
-        panel = await panel_manager.get_panel_by_code(panel.code)
-        text, buttons = build_locations_view(panel)
-        await event.respond(f"✅ لیست لوکیشن‌ها ذخیره شد ({len(locations)} مورد).\n\n{text}", buttons=buttons)
+        text, buttons = await build_locations_view(panel)
+        await event.respond(f"✅ متن لوکیشن‌ها ذخیره شد.\n\n{text}", buttons=buttons, parse_mode="html")
         return
 
     if step == "waiting_custom_node_prefix" and msg:

@@ -60,7 +60,12 @@ from app.services.panels.auth import (
     verify_panel_api_key,
     verify_panel_password,
 )
-from app.services.panels.locations import panel_locations_mode, panel_manual_locations
+from app.services.panels.locations import (
+    get_manual_locations_text,
+    panel_locations_mode,
+    save_manual_locations_text,
+    validate_locations_text,
+)
 from app.services.panels.settings import (
     NODE_PREFIXES_MAX_ITEMS,
     apply_feature_settings_patch,
@@ -85,7 +90,6 @@ from app.services.panels.settings import (
     panel_time_plans,
     panel_user_limit,
     panel_volume_plans,
-    parse_locations_value,
     parse_node_prefixes_value,
     renewal_settings,
     validate_node_prefix,
@@ -274,7 +278,7 @@ async def get_panel_settings(payload: PanelCodeRequest, request: Request) -> Pan
                 node_prefixes=panel_node_prefixes(panel),
                 show_prefixes_in_locations=panel_show_prefixes_in_locations(panel),
                 locations_mode=panel_locations_mode(panel),
-                locations=panel_manual_locations(panel),
+                locations_text=await get_manual_locations_text(panel),
                 link_mode=panel_subscription_link_mode(panel),
                 single_config_link_indexes=panel_single_config_link_indexes(panel),
                 admin_login_path=panel_admin_login_path(panel),
@@ -312,6 +316,7 @@ async def save_panel_settings(payload: PanelSettingsSaveRequest, request: Reques
             return ActionResponse(ok=False, error="پنلی با این کد پیدا نشد.")
 
         values: dict = {}
+        locations_text: str | None = None
         if payload.buttons is not None:
             values["button_settings"] = payload.buttons.model_dump(exclude_none=True)
         if payload.subscription is not None:
@@ -325,8 +330,11 @@ async def save_panel_settings(payload: PanelSettingsSaveRequest, request: Reques
                 if len(prefixes) > NODE_PREFIXES_MAX_ITEMS:
                     return ActionResponse(ok=False, error=f"حداکثر {NODE_PREFIXES_MAX_ITEMS} پیشوند مجاز است.")
                 subscription["node_prefixes"] = prefixes
-            if "locations" in subscription:
-                subscription["locations"] = parse_locations_value(subscription["locations"])
+            locations_text = subscription.pop("locations_text", None)
+            if locations_text is not None and locations_text.strip():
+                error = validate_locations_text(locations_text)
+                if error:
+                    return ActionResponse(ok=False, error=error)
             values["subscription_settings"] = subscription
         if payload.trial is not None:
             values["test_settings"] = payload.trial.model_dump(exclude_none=True)
@@ -358,6 +366,11 @@ async def save_panel_settings(payload: PanelSettingsSaveRequest, request: Reques
                     [plan.model_dump() for plan in payload.time_plans] if payload.time_plans is not None else None
                 ),
             )
+
+        if locations_text is not None:
+            await save_manual_locations_text(payload.code, locations_text)
+            # Also drop a list saved by the earlier version on the panel row itself.
+            values.setdefault("subscription_settings", {})["locations"] = []
 
         if not values:
             return ActionResponse(message="تغییری برای ذخیره وجود نداشت.")

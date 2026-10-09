@@ -47,6 +47,7 @@ DEFAULT_SUBSCRIPTION_SETTINGS: dict[str, Any] = {
     "node_prefixes": [],
     "show_prefixes_in_locations": True,
     "locations_mode": "auto",
+    # Legacy home of the manual list; it now lives in bot texts (panel_locations_<code>).
     "locations": [],
     "link_mode": "both",
     "single_config_link_indexes": "",
@@ -993,7 +994,7 @@ LOCATIONS_MODE_AUTO = "auto"
 LOCATIONS_MODE_MANUAL = "manual"
 LOCATIONS_MODE_HIDDEN = "hidden"
 LOCATIONS_MODES: tuple[str, ...] = (LOCATIONS_MODE_AUTO, LOCATIONS_MODE_MANUAL, LOCATIONS_MODE_HIDDEN)
-LOCATIONS_MAX_ITEMS = 25
+LOCATIONS_MAX_ITEMS = 50
 LOCATION_MAX_LENGTH = 48
 
 NODE_PREFIX_MAX_LENGTH = 32
