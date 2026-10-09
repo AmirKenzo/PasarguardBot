@@ -42,6 +42,7 @@ PANEL_ADMIN_PREFIXES = (
     "panel_subscription_link_mode:",
     "panel_single_config_links",
     "panel_node_prefix",
+    "panel_locations",
     "panel_toggle_show_prefixes:",
     "panel_test_settings:",
     "panel_test_volume:",

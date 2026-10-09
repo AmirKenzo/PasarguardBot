@@ -204,7 +204,10 @@ def build_panel_admin_settings_buttons(panel: Any) -> list:
             Button.inline("🔗 لینک ساب", data=f"panel_subscription_link_mode:{code}"),
             Button.inline("🔗 لینک تکی", data=f"panel_single_config_links:{code}"),
         ],
-        [Button.inline("🌐 پیشوند نود", data=f"panel_node_prefixes:{code}")],
+        [
+            Button.inline("🌐 پیشوند نود", data=f"panel_node_prefixes:{code}"),
+            Button.inline("📍 لوکیشن‌های فاکتور", data=f"panel_locations:{code}"),
+        ],
         [Button.inline("🧪 تنظیمات تست", data=f"panel_test_settings:{code}")],
         [Button.inline(f"🗑 حذف خودکار منقضی‌ها ({expired_delete_short})", data=f"panel_expired_delete:{code}")],
         [Button.inline("🧩 خرید دلخواه (حجم/زمان)", data=f"panel_custom_buy:{code}")],

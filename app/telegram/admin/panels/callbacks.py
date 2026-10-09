@@ -40,9 +40,13 @@ from app.services.panels.groups import (
     step_data_to_group_ids,
     summarize_selected_groups,
 )
+from app.services.panels.locations import panel_manual_locations
 from app.services.panels.settings import (
+    LOCATIONS_MODE_MANUAL,
+    LOCATIONS_MODES,
     MAX_EXPIRED_GRACE_DAYS,
     MIN_EXPIRED_GRACE_DAYS,
+    NODE_PREFIX_MAX_LENGTH,
     delete_time_plan_from_feature_settings,
     delete_volume_plan_from_feature_settings,
     get_panel_time_plan,
@@ -76,6 +80,14 @@ from app.services.panels.settings import (
 from app.services.subscriptions.links import resolve_subscription_link_mode
 from app.telegram.admin.discounts import show_discount_codes
 from app.telegram.admin.panels import states
+from app.telegram.admin.panels.locations_view import (
+    LOCATIONS_PANEL_KEY,
+    STEP_WAITING_LOCATIONS,
+    build_locations_view,
+    build_node_prefixes_view,
+    locations_edit_prompt,
+    resolve_prefix_token,
+)
 from app.telegram.admin.panels.service import (
     build_panel_expired_delete_content,
     build_panel_summary_block,
@@ -1583,107 +1595,41 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
 
     elif data.startswith("panel_node_prefixes:"):
         panel_code = int(data.split(":")[1])
-        panel_manager = PanelsManager()
-        panel = await panel_manager.get_panel_by_code(panel_code)
-
+        panel = await PanelsManager().get_panel_by_code(panel_code)
         if not panel:
             await event.answer("❌ پنل یافت نشد!", alert=True)
             return
-
-        current_prefixes = panel_node_prefixes(panel)
-
-        default_prefixes = ["LT -", "HYB -", "UL -"]
-        all_prefixes = list(set(default_prefixes + current_prefixes))
-
-        buttons = []
-        for prefix in all_prefixes:
-            is_selected = prefix in current_prefixes
-            prefix_display = f"{'✅' if is_selected else '☐'} {prefix}"
-            buttons.append([Button.inline(prefix_display, data=f"panel_node_prefix_toggle:{panel_code}:{prefix}")])
-
-        buttons.append([Button.inline("➕ افزودن پیشوند سفارشی", data=f"panel_node_prefix_add_custom:{panel_code}")])
-
-        show_prefixes = panel_show_prefixes_in_locations(panel)
-        show_prefixes_status = "✅ نمایش پیشوندها" if show_prefixes else "❌ مخفی کردن پیشوندها"
-        buttons.append([Button.inline(show_prefixes_status, data=f"panel_toggle_show_prefixes:{panel_code}")])
-
-        buttons.append([Button.inline("🔙 بازگشت", data=f"panel_info:{panel_code}")])
-
-        prefix_list = ", ".join(current_prefixes) if current_prefixes else "هیچ پیشوندی انتخاب نشده"
-        show_prefixes_text = "✅ فعال" if show_prefixes else "❌ غیرفعال"
-        message = (
-            f"**🌐 مدیریت پیشوندهای نود - پنل {panel.name}**\n\n"
-            f"**پیشوندهای انتخاب شده:**\n`{prefix_list}`\n\n"
-            f"**نمایش پیشوندها در لوکیشن‌ها:** {show_prefixes_text}\n\n"
-            f"**راهنما:**\n"
-            f"• **LT -** برای نودهای حجمی\n"
-            f"• **HYB -** برای نودهای ترکیبی (حجمی + نامحدود)\n"
-            f"• **UL -** برای نودهای نامحدود\n\n"
-            f"برای انتخاب/لغو انتخاب هر پیشوند روی آن کلیک کنید."
-        )
-
-        await event.edit(message, buttons=buttons)
+        text, buttons = build_node_prefixes_view(panel)
+        await event.edit(text, buttons=buttons)
 
     elif data.startswith("panel_node_prefix_toggle:"):
         parts = data.split(":")
         panel_code = int(parts[1])
-        prefix = ":".join(parts[2:])
-
         panel_manager = PanelsManager()
         panel = await panel_manager.get_panel_by_code(panel_code)
-
         if not panel:
             await event.answer("❌ پنل یافت نشد!", alert=True)
             return
+        prefix = resolve_prefix_token(panel, ":".join(parts[2:]))
+        if not prefix:
+            await event.answer("❌ پیشوند نامعتبر است.", alert=True)
+            return
 
         current_prefixes = panel_node_prefixes(panel)
-
         if prefix in current_prefixes:
             current_prefixes.remove(prefix)
         else:
             current_prefixes.append(prefix)
+        await panel_manager.update_panel(panel_code, node_prefixes=",".join(current_prefixes))
 
-        new_prefixes_str = ",".join(current_prefixes)
-        await panel_manager.update_panel(panel_code, node_prefixes=new_prefixes_str)
-
-        default_prefixes = ["LT -", "HYB -", "UL -"]
-        all_prefixes = list(set(default_prefixes + current_prefixes))
-
-        buttons = []
-        for p in all_prefixes:
-            is_selected = p in current_prefixes
-            prefix_display = f"{'✅' if is_selected else '☐'} {p}"
-            buttons.append([Button.inline(prefix_display, data=f"panel_node_prefix_toggle:{panel_code}:{p}")])
-
-        buttons.append([Button.inline("➕ افزودن پیشوند سفارشی", data=f"panel_node_prefix_add_custom:{panel_code}")])
-
-        show_prefixes = panel_show_prefixes_in_locations(panel)
-        show_prefixes_status = "✅ نمایش پیشوندها" if show_prefixes else "❌ مخفی کردن پیشوندها"
-        buttons.append([Button.inline(show_prefixes_status, data=f"panel_toggle_show_prefixes:{panel_code}")])
-
-        buttons.append([Button.inline("🔙 بازگشت", data=f"panel_info:{panel_code}")])
-
-        prefix_list = ", ".join(current_prefixes) if current_prefixes else "هیچ پیشوندی انتخاب نشده"
-        show_prefixes_text = "✅ فعال" if show_prefixes else "❌ غیرفعال"
-        message = (
-            f"**🌐 مدیریت پیشوندهای نود - پنل {panel.name}**\n\n"
-            f"**پیشوندهای انتخاب شده:**\n`{prefix_list}`\n\n"
-            f"**نمایش پیشوندها در لوکیشن‌ها:** {show_prefixes_text}\n\n"
-            f"**راهنما:**\n"
-            f"• **LT -** برای نودهای حجمی\n"
-            f"• **HYB -** برای نودهای ترکیبی (حجمی + نامحدود)\n"
-            f"• **UL -** برای نودهای نامحدود\n\n"
-            f"برای انتخاب/لغو انتخاب هر پیشوند روی آن کلیک کنید."
-        )
-
-        await event.edit(message, buttons=buttons)
+        panel = await panel_manager.get_panel_by_code(panel_code)
+        text, buttons = build_node_prefixes_view(panel)
+        await event.edit(text, buttons=buttons)
         await event.answer("✅ پیشوند به‌روزرسانی شد!", alert=False)
 
     elif data.startswith("panel_node_prefix_add_custom:"):
         panel_code = int(data.split(":")[1])
-        panel_manager = PanelsManager()
-        panel = await panel_manager.get_panel_by_code(panel_code)
-
+        panel = await PanelsManager().get_panel_by_code(panel_code)
         if not panel:
             await event.answer("❌ پنل یافت نشد!", alert=True)
             return
@@ -1695,7 +1641,9 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
             "**➕ افزودن پیشوند سفارشی**\n\n"
             "لطفاً پیشوند مورد نظر خود را وارد کنید:\n\n"
             "**مثال:** `TUN -`\n\n"
-            "⚠️ توجه: پیشوند را دقیقاً همان‌طور که در نام نودها استفاده می‌کنید وارد کنید (با فاصله و کاراکترهای خاص).",
+            "⚠️ پیشوند را دقیقاً همان‌طور که در نام نودها استفاده می‌کنید وارد کنید.\n"
+            f"حداکثر {NODE_PREFIX_MAX_LENGTH} کاراکتر و بدون ویرگول. برای اسم و پرچم لوکیشن‌ها "
+            "از بخش «📍 لوکیشن‌های فاکتور» استفاده کنید.",
             buttons=[[Button.inline("❌ انصراف", data=f"panel_node_prefixes:{panel_code}")]],
         )
 
@@ -1703,50 +1651,73 @@ async def panel_admin_callback_handler(event: events.CallbackQuery.Event):
         panel_code = int(data.split(":")[1])
         panel_manager = PanelsManager()
         panel = await panel_manager.get_panel_by_code(panel_code)
-
         if not panel:
             await event.answer("❌ پنل یافت نشد!", alert=True)
             return
 
-        current_status = panel_show_prefixes_in_locations(panel)
-        new_status = not current_status
+        new_status = not panel_show_prefixes_in_locations(panel)
         await panel_manager.update_panel(panel_code, show_prefixes_in_locations=new_status)
-        panel.show_prefixes_in_locations = new_status
-
         status_text = "فعال ✅" if new_status else "غیرفعال ❌"
         await event.answer(f"✅ نمایش پیشوندها به {status_text} تغییر یافت!", alert=True)
 
-        current_prefixes = panel_node_prefixes(panel)
+        panel = await panel_manager.get_panel_by_code(panel_code)
+        text, buttons = build_node_prefixes_view(panel)
+        await event.edit(text, buttons=buttons)
 
-        default_prefixes = ["LT -", "HYB -", "UL -"]
-        all_prefixes = list(set(default_prefixes + current_prefixes))
+    elif data.startswith("panel_locations:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        await set_step(event.sender_id, "Menu_panels")
+        text, buttons = build_locations_view(panel)
+        await event.edit(text, buttons=buttons)
 
-        buttons = []
-        for prefix in all_prefixes:
-            is_selected = prefix in current_prefixes
-            prefix_display = f"{'✅' if is_selected else '☐'} {prefix}"
-            buttons.append([Button.inline(prefix_display, data=f"panel_node_prefix_toggle:{panel_code}:{prefix}")])
+    elif data.startswith("panel_locations_mode:"):
+        parts = data.split(":")
+        panel_code = int(parts[1])
+        mode = parts[2] if len(parts) > 2 else ""
+        if mode not in LOCATIONS_MODES:
+            await event.answer("❌ حالت نامعتبر است.", alert=True)
+            return
+        panel_manager = PanelsManager()
+        panel = await panel_manager.get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        await panel_manager.update_panel(panel_code, locations_mode=mode)
+        panel = await panel_manager.get_panel_by_code(panel_code)
+        text, buttons = build_locations_view(panel)
+        await event.edit(text, buttons=buttons)
+        notice = "✅ حالت لوکیشن‌ها ذخیره شد."
+        if mode == LOCATIONS_MODE_MANUAL and not panel_manual_locations(panel):
+            notice += "\nلیست دستی خالی است؛ تا وقتی پرش نکنید، نودها نمایش داده می‌شوند."
+        await event.answer(notice, alert=mode == LOCATIONS_MODE_MANUAL)
 
-        buttons.append([Button.inline("➕ افزودن پیشوند سفارشی", data=f"panel_node_prefix_add_custom:{panel_code}")])
+    elif data.startswith("panel_locations_edit:"):
+        panel_code = int(data.split(":")[1])
+        panel = await PanelsManager().get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        await set_data(event.sender_id, LOCATIONS_PANEL_KEY, panel_code)
+        await set_step(event.sender_id, STEP_WAITING_LOCATIONS)
+        text, buttons = locations_edit_prompt(panel)
+        await event.edit(text, buttons=buttons)
 
-        show_prefixes_status = "✅ نمایش پیشوندها" if new_status else "❌ مخفی کردن پیشوندها"
-        buttons.append([Button.inline(show_prefixes_status, data=f"panel_toggle_show_prefixes:{panel_code}")])
-
-        buttons.append([Button.inline("🔙 بازگشت", data=f"panel_info:{panel_code}")])
-
-        prefix_list = ", ".join(current_prefixes) if current_prefixes else "هیچ پیشوندی انتخاب نشده"
-        message = (
-            f"**🌐 مدیریت پیشوندهای نود - پنل {panel.name}**\n\n"
-            f"**پیشوندهای انتخاب شده:**\n`{prefix_list}`\n\n"
-            f"**نمایش پیشوندها در لوکیشن‌ها:** {status_text}\n\n"
-            f"**راهنما:**\n"
-            f"• **LT -** برای نودهای حجمی\n"
-            f"• **HYB -** برای نودهای ترکیبی (حجمی + نامحدود)\n"
-            f"• **UL -** برای نودهای نامحدود\n\n"
-            f"برای انتخاب/لغو انتخاب هر پیشوند روی آن کلیک کنید."
-        )
-
-        await event.edit(message, buttons=buttons)
+    elif data.startswith("panel_locations_clear:"):
+        panel_code = int(data.split(":")[1])
+        panel_manager = PanelsManager()
+        panel = await panel_manager.get_panel_by_code(panel_code)
+        if not panel:
+            await event.answer("❌ پنل یافت نشد!", alert=True)
+            return
+        await panel_manager.update_panel(panel_code, locations=[])
+        panel = await panel_manager.get_panel_by_code(panel_code)
+        text, buttons = build_locations_view(panel)
+        await event.edit(text, buttons=buttons)
+        await event.answer("🧹 لیست دستی پاک شد.")
 
     elif data.startswith("panel_delete_confirm:"):
         panel_code = int(data.split(":")[1])

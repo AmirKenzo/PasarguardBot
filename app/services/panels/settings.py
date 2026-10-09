@@ -46,6 +46,8 @@ DEFAULT_SUBSCRIPTION_SETTINGS: dict[str, Any] = {
     "display_mode": "classic",
     "node_prefixes": [],
     "show_prefixes_in_locations": True,
+    "locations_mode": "auto",
+    "locations": [],
     "link_mode": "both",
     "single_config_link_indexes": "",
     "admin_login_path": "",
@@ -124,6 +126,8 @@ LEGACY_FIELD_TO_JSON: dict[str, tuple[str, str]] = {
     "display_mode": ("subscription_settings", "display_mode"),
     "node_prefixes": ("subscription_settings", "node_prefixes"),
     "show_prefixes_in_locations": ("subscription_settings", "show_prefixes_in_locations"),
+    "locations_mode": ("subscription_settings", "locations_mode"),
+    "locations": ("subscription_settings", "locations"),
     "subscription_link_mode": ("subscription_settings", "link_mode"),
     "single_config_link_indexes": ("subscription_settings", "single_config_link_indexes"),
     "admin_login_path": ("subscription_settings", "admin_login_path"),
@@ -985,6 +989,48 @@ def parse_group_ids_value(raw: Any) -> list[int]:
     return []
 
 
+LOCATIONS_MODE_AUTO = "auto"
+LOCATIONS_MODE_MANUAL = "manual"
+LOCATIONS_MODE_HIDDEN = "hidden"
+LOCATIONS_MODES: tuple[str, ...] = (LOCATIONS_MODE_AUTO, LOCATIONS_MODE_MANUAL, LOCATIONS_MODE_HIDDEN)
+LOCATIONS_MAX_ITEMS = 25
+LOCATION_MAX_LENGTH = 48
+
+NODE_PREFIX_MAX_LENGTH = 32
+NODE_PREFIXES_MAX_ITEMS = 20
+
+
+def parse_locations_value(raw: Any) -> list[str]:
+    """Normalise an admin-written location list: one per line (or comma), trimmed, deduped, capped."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        parts = raw.replace("،", "\n").replace(",", "\n").split("\n")
+    elif isinstance(raw, list):
+        parts = [str(item) for item in raw]
+    else:
+        return []
+    result: list[str] = []
+    for part in parts:
+        item = " ".join(part.split())[:LOCATION_MAX_LENGTH].strip()
+        if item and item not in result:
+            result.append(item)
+        if len(result) >= LOCATIONS_MAX_ITEMS:
+            break
+    return result
+
+
+def validate_node_prefix(prefix: str) -> str | None:
+    """Return why ``prefix`` cannot be stored, or None when it is fine."""
+    if not prefix:
+        return "پیشوند نمی‌تواند خالی باشد."
+    if "," in prefix or "\n" in prefix:
+        return "پیشوند نباید ویرگول یا چند خط داشته باشد."
+    if len(prefix) > NODE_PREFIX_MAX_LENGTH:
+        return f"پیشوند حداکثر {NODE_PREFIX_MAX_LENGTH} کاراکتر می‌تواند باشد."
+    return None
+
+
 def parse_node_prefixes_value(raw: Any) -> list[str]:
     if raw is None:
         return []
@@ -1031,6 +1077,8 @@ def _normalize_legacy_update_value(field: str, value: Any) -> Any:
         return parse_group_ids_value(value)
     if field == "node_prefixes":
         return parse_node_prefixes_value(value)
+    if field == "locations":
+        return parse_locations_value(value)
     if field == "single_config_link_indexes" and value is None:
         return ""
     if field == "subscription_link_mode":

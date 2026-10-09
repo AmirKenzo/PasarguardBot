@@ -18,7 +18,7 @@ from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import LogType, get_logger
 from app.services.panels.config_links import get_selected_single_config_links_text
-from app.services.panels.nodes import filter_nodes_by_plan_type, format_node_name_for_display
+from app.services.panels.locations import resolve_plan_locations
 from app.services.panels.settings import panel_default_group_ids, panel_display_mode, panel_shop_sale_enabled
 from app.services.purchase_report import send_purchase_report
 from app.services.send_queue import enqueue
@@ -426,10 +426,6 @@ class WebAppPurchaseService:
 
     async def _get_plan_locations(self, panel: Any, plan: Any) -> list[str]:
         try:
-            nodes_stats = await PasarguardAPI(base_url=panel.base_url).get_nodes(token=panel.cookie)
-            filtered_nodes = filter_nodes_by_plan_type(nodes_stats.nodes, plan, panel)
-            return [
-                format_node_name_for_display(node.name, panel) for node in filtered_nodes if getattr(node, "name", None)
-            ]
+            return await resolve_plan_locations(panel, plan) or []
         except Exception:
             return []

@@ -34,7 +34,7 @@ from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.custom_buy import build_custom_buy_plan, is_custom_plan_id
 from app.services.panels.groups import resolve_panel_group_ids
-from app.services.panels.nodes import filter_nodes_by_plan_type, format_node_name_for_display
+from app.services.panels.locations import fill_locations, resolve_plan_locations
 from app.services.panels.settings import (
     panel_custom_buy_enabled,
     panel_display_mode,
@@ -303,16 +303,14 @@ async def _buy_username_context(user_id: int):
     return panel, gig, plan
 
 
-async def _buy_plan_locations(panel, plan) -> str:
+async def _buy_plan_locations(panel, plan) -> list[str] | None:
+    """Invoice locations for the panel's mode; ``None`` hides the line."""
     try:
-        api = PasarguardAPI(base_url=panel.base_url)
-        nodes_stats = await api.get_nodes(token=panel.cookie)
-        filtered_nodes = filter_nodes_by_plan_type(nodes_stats.nodes, plan, panel)
-        return " ⌁ ".join([format_node_name_for_display(node.name, panel) for node in filtered_nodes]) or " "
+        return await resolve_plan_locations(panel, plan)
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 403:
-            return "🇺🇸 🇹🇷 🇫🇮 🇩🇪 🇦🇲 "
-        return "❌ خطا در دریافت نودها، لطفاً دوباره تلاش کنید."
+            return ["🇺🇸 🇹🇷 🇫🇮 🇩🇪 🇦🇲 "]
+        return ["❌ خطا در دریافت نودها، لطفاً دوباره تلاش کنید."]
 
 
 async def _buy_confirm_text(*, username: str, panel, gig, plan, lang: str) -> str:
@@ -337,11 +335,11 @@ async def _buy_confirm_text(*, username: str, panel, gig, plan, lang: str) -> st
         lang=lang,
     )
     return (
-        template.replace("{volume}", volume_text)
+        fill_locations(template, locations)
+        .replace("{volume}", volume_text)
         .replace("{duration}", str(plan.duration))
         .replace("{config_name}", username)
         .replace("{config_type}", panel.name)
-        .replace("{locations}", locations)
         .replace("{user_limit}", ip_limit_text)
         .replace("{price}", f"{int(plan.price):,}")
     )

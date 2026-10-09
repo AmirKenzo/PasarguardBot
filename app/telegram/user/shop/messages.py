@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import contextlib
 
-import httpx
 from httpx import HTTPStatusError
 from pasarguard import PasarguardAPI
 from telethon import Button, events
@@ -17,7 +16,7 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
 from app.services.billing.direct_pay_flow import invoice_shortfall_notice
-from app.services.panels.nodes import filter_nodes_by_plan_type
+from app.services.panels.locations import fill_locations
 from app.services.panels.settings import (
     calculate_custom_buy_price_from_settings,
     is_custom_buy_ready,
@@ -51,6 +50,7 @@ from app.telegram.user.shop.custom_buy import (
 )
 from app.telegram.user.shop.helpers import (
     _buy_intro_text,
+    _buy_plan_locations,
     _buy_username_context,
     _confirm_buy_username,
     _format_bot_text,
@@ -259,15 +259,7 @@ async def buy_discount_code_handler(event: Message):
         raise events.StopPropagation
     new_amount = int(plan.price - (plan.price * (res.discount_percentage / 100)))
 
-    try:
-        api = PasarguardAPI(base_url=panel.base_url)
-        nodes_stats = await api.get_nodes(token=panel.cookie)
-        filtered_nodes = filter_nodes_by_plan_type(nodes_stats.nodes, plan, panel)
-        locations = " ⌁ ".join([f"{node.name}" for node in filtered_nodes]) or " "
-    except httpx.HTTPStatusError as e:
-        locations = (
-            "🇺🇸 🇹🇷 🇫🇮 🇩🇪 🇦🇲 " if e.response.status_code == 403 else "❌ خطا در دریافت نودها، لطفاً دوباره تلاش کنید."
-        )
+    locations = await _buy_plan_locations(panel, plan)
 
     ip_limit_text = format_ip_limit(getattr(plan, "ip_limit", 0))
     volume_text = convert_storage(
@@ -290,11 +282,11 @@ async def buy_discount_code_handler(event: Message):
         lang="fa",
     )
     confirm_text = (
-        confirm_text_template.replace("{volume}", volume_text)
+        fill_locations(confirm_text_template, locations)
+        .replace("{volume}", volume_text)
         .replace("{duration}", str(plan.duration))
         .replace("{config_name}", username or "")
         .replace("{config_type}", panel.name)
-        .replace("{locations}", locations)
         .replace("{user_limit}", ip_limit_text)
         .replace("{original_price}", f"{int(plan.price):,}")
         .replace("{new_price}", f"{int(new_amount):,}")

@@ -60,7 +60,9 @@ from app.services.panels.auth import (
     verify_panel_api_key,
     verify_panel_password,
 )
+from app.services.panels.locations import panel_locations_mode, panel_manual_locations
 from app.services.panels.settings import (
+    NODE_PREFIXES_MAX_ITEMS,
     apply_feature_settings_patch,
     button_settings,
     panel_admin_login_path,
@@ -83,7 +85,10 @@ from app.services.panels.settings import (
     panel_time_plans,
     panel_user_limit,
     panel_volume_plans,
+    parse_locations_value,
+    parse_node_prefixes_value,
     renewal_settings,
+    validate_node_prefix,
 )
 from app.telegram.shared.keyboards.panel_buttons import panel_display_keyboard_key
 from app.utils.security.crypto import encrypt_data
@@ -268,6 +273,8 @@ async def get_panel_settings(payload: PanelCodeRequest, request: Request) -> Pan
                 display_mode=panel_display_mode(panel),
                 node_prefixes=panel_node_prefixes(panel),
                 show_prefixes_in_locations=panel_show_prefixes_in_locations(panel),
+                locations_mode=panel_locations_mode(panel),
+                locations=panel_manual_locations(panel),
                 link_mode=panel_subscription_link_mode(panel),
                 single_config_link_indexes=panel_single_config_link_indexes(panel),
                 admin_login_path=panel_admin_login_path(panel),
@@ -308,7 +315,19 @@ async def save_panel_settings(payload: PanelSettingsSaveRequest, request: Reques
         if payload.buttons is not None:
             values["button_settings"] = payload.buttons.model_dump(exclude_none=True)
         if payload.subscription is not None:
-            values["subscription_settings"] = payload.subscription.model_dump(exclude_none=True)
+            subscription = payload.subscription.model_dump(exclude_none=True)
+            if "node_prefixes" in subscription:
+                prefixes = parse_node_prefixes_value(subscription["node_prefixes"])
+                for prefix in prefixes:
+                    error = validate_node_prefix(prefix)
+                    if error:
+                        return ActionResponse(ok=False, error=f"«{prefix[:40]}»: {error}")
+                if len(prefixes) > NODE_PREFIXES_MAX_ITEMS:
+                    return ActionResponse(ok=False, error=f"حداکثر {NODE_PREFIXES_MAX_ITEMS} پیشوند مجاز است.")
+                subscription["node_prefixes"] = prefixes
+            if "locations" in subscription:
+                subscription["locations"] = parse_locations_value(subscription["locations"])
+            values["subscription_settings"] = subscription
         if payload.trial is not None:
             values["test_settings"] = payload.trial.model_dump(exclude_none=True)
         if payload.renewal is not None:

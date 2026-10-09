@@ -1,5 +1,7 @@
 """Admin panel DTOs: the PasarGuard panels the bot sells from."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.models.panel.common import ActionResponse, PanelRequest, PanelResponse
@@ -76,6 +78,8 @@ class PanelSubscriptionSettingsPayload(BaseModel):
     display_mode: str | None = None
     node_prefixes: list[str] | None = None
     show_prefixes_in_locations: bool | None = None
+    locations_mode: Literal["auto", "manual", "hidden"] | None = None
+    locations: list[str] | None = None
     link_mode: str | None = None
     single_config_link_indexes: str | None = None
     admin_login_path: str | None = None

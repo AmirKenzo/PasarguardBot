@@ -70,6 +70,8 @@ export interface PanelSubscriptionSettings {
   display_mode: string;
   node_prefixes: string[];
   show_prefixes_in_locations: boolean;
+  locations_mode: "auto" | "manual" | "hidden";
+  locations: string[];
   link_mode: string;
   single_config_link_indexes: string;
   admin_login_path: string;

@@ -38,12 +38,19 @@ from app.services.panels.settings import (
     get_panel_time_plan,
     get_panel_volume_plan,
     panel_node_prefixes,
+    parse_locations_value,
     update_custom_buy_in_feature_settings,
     update_reseller_capacity_in_feature_settings,
     update_time_plan_in_feature_settings,
     update_volume_plan_in_feature_settings,
+    validate_node_prefix,
 )
 from app.telegram.admin.manage_user.service import delete_message
+from app.telegram.admin.panels.locations_view import (
+    LOCATIONS_PANEL_KEY,
+    STEP_WAITING_LOCATIONS,
+    build_locations_view,
+)
 from app.telegram.admin.panels.service import (
     _is_number,
     build_panel_expired_delete_content,
@@ -961,6 +968,26 @@ async def panel_admin_message_handler(event: Message):
             await event.respond("❌ لطفاً مبلغ را فقط با عدد صحیح مثبت وارد کنید.\n\nمثال: 2000")
         return
 
+    if step == STEP_WAITING_LOCATIONS and msg:
+        panel_code = await get_data(event.sender_id, LOCATIONS_PANEL_KEY)
+        panel_manager = PanelsManager()
+        panel = await panel_manager.get_panel_by_code(int(panel_code)) if panel_code else None
+        if not panel:
+            await event.respond("❌ پنل یافت نشد! دوباره از منوی پنل اقدام کنید.")
+            await set_step(event.sender_id, "Menu_panels")
+            return
+        locations = parse_locations_value(msg)
+        if not locations:
+            await event.respond("❌ لیست خالی است؛ هر لوکیشن را در یک خط بفرستید.")
+            return
+        await panel_manager.update_panel(panel.code, locations=locations)
+        await delete_data(event.sender_id, LOCATIONS_PANEL_KEY)
+        await set_step(event.sender_id, "Menu_panels")
+        panel = await panel_manager.get_panel_by_code(panel.code)
+        text, buttons = build_locations_view(panel)
+        await event.respond(f"✅ لیست لوکیشن‌ها ذخیره شد ({len(locations)} مورد).\n\n{text}", buttons=buttons)
+        return
+
     if step == "waiting_custom_node_prefix" and msg:
         panel_code = await get_data(event.sender_id, "panel_node_prefix_panel_code")
         if not panel_code:
@@ -968,8 +995,9 @@ async def panel_admin_message_handler(event: Message):
             await set_step(event.sender_id, "start")
             return
         custom_prefix = msg.strip()
-        if not custom_prefix:
-            await event.respond("❌ پیشوند نمی‌تواند خالی باشد!")
+        prefix_error = validate_node_prefix(custom_prefix)
+        if prefix_error:
+            await event.respond(f"❌ {prefix_error}")
             return
         panel_manager = PanelsManager()
         panel = await panel_manager.get_panel_by_code(panel_code)
