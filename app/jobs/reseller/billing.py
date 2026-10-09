@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass, field
 
@@ -14,7 +13,7 @@ from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_billing_snapshots import ResellerBillingSnapshotCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.crud.settings import SettingsManager
-from app.db.crud.user import UserCRUD, update_Money
+from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import LogTag, get_logger
 from app.services.billing.reseller_pricing import resolve_live_unit_price
 from app.services.panels.admins import (
@@ -145,7 +144,7 @@ async def _reactivate_account(account, panel, *, stats: _BillingRunStats | None 
             stats.errors += 1
         return
 
-    await ResellerAccountCRUD().update_account(account.code, status="active")
+    await ResellerAccountCRUD().reset_billing_clock(account.code, status="active")
     if stats:
         stats.reactivated += 1
     await _notify_user(account.telegram_id, f"✅ **نمایندگی `{account.username}` دوباره فعال شد.**")
@@ -181,10 +180,20 @@ async def _process_hourly_account(
         return
 
     elapsed_minutes = elapsed_seconds // 60
-    charge = max(1, round(hourly_rate * elapsed_minutes / 60))
-    user = await UserCRUD().read_user(account.telegram_id)
-    balance = user.amount if user else 0
-    if not user or balance < charge:
+    next_billed_at = last_billed + elapsed_minutes * 60
+    exact = hourly_rate * elapsed_minutes / 60 + float(state.get("hourly_carry") or 0)
+    charge = int(exact)
+    carry = round(exact - charge, 6)
+    if charge <= 0:
+        await ResellerAccountCRUD().patch_billing_state(
+            account.code, updates={"last_billed_at": next_billed_at, "hourly_carry": carry}
+        )
+        return
+
+    new_balance = await debit_Money_if_sufficient(user_id=account.telegram_id, amount=charge)
+    if new_balance is None:
+        user = await UserCRUD().read_user(account.telegram_id)
+        balance = user.amount if user else 0
         if panel is None:
             panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
         if not panel:
@@ -199,12 +208,13 @@ async def _process_hourly_account(
         )
         return
 
-    await update_Money(user_id=account.telegram_id, Money=-charge)
-    state["last_billed_at"] = last_billed + elapsed_minutes * 60
-    await ResellerAccountCRUD().update_account(
+    await ResellerAccountCRUD().patch_billing_state(
         account.code,
-        billing_state=json.dumps(state, ensure_ascii=False),
-        status="active",
+        updates={
+            "last_billed_at": next_billed_at,
+            "hourly_carry": carry,
+            "total_billed": int(state.get("total_billed") or 0) + charge,
+        },
     )
     await send_reseller_log(
         "⏱ کسر ساعتی نمایندگی",
@@ -216,6 +226,18 @@ async def _process_hourly_account(
     )
     if stats:
         stats.hourly_charged += 1
+
+
+def _usage_delta(used_traffic: int, snapshot) -> int:
+    """Bytes consumed since the last billed snapshot.
+
+    A panel-side usage reset makes ``used_traffic`` drop below the snapshot; in that case
+    everything used since the reset is new, instead of waiting until it passes the old value.
+    """
+    last_used = int(snapshot.used_traffic if snapshot else 0)
+    if used_traffic < last_used:
+        return max(0, used_traffic)
+    return used_traffic - last_used
 
 
 async def _process_usage_account(
@@ -240,8 +262,7 @@ async def _process_usage_account(
     used_traffic = int(getattr(admin, "used_traffic", 0) or 0)
     snapshot_crud = ResellerBillingSnapshotCRUD()
     snapshot = await snapshot_crud.get_latest_snapshot(account.code)
-    last_used = int(snapshot.used_traffic if snapshot else 0)
-    delta_bytes = max(0, used_traffic - last_used)
+    delta_bytes = _usage_delta(used_traffic, snapshot)
 
     state = ResellerAccountCRUD.load_billing_state(account.billing_state)
     rate = resolve_live_unit_price(account, plan)
@@ -261,11 +282,22 @@ async def _process_usage_account(
     delta_gb = delta_bytes / gigabytes_to_bytes(1)
     charge = round(delta_gb * rate)
     if charge <= 0:
-        await snapshot_crud.add_snapshot(account.code, used_traffic, 0, now)
         await _enforce_usage_cap(account, panel, used_traffic, stats=stats)
         return
 
-    if not user or balance < charge:
+    new_balance = await debit_Money_if_sufficient(user_id=account.telegram_id, amount=charge)
+    if new_balance is None:
+        debt_balance = await update_Money(user_id=account.telegram_id, Money=-charge)
+        if debt_balance is not None:
+            balance = debt_balance
+            await ResellerAccountCRUD().patch_billing_state(
+                account.code,
+                updates={
+                    "last_used_traffic": used_traffic,
+                    "total_billed": int(state.get("total_billed") or 0) + charge,
+                },
+            )
+            await snapshot_crud.add_snapshot(account.code, used_traffic, charge, now)
         await _suspend_account(
             account,
             panel,
@@ -276,13 +308,12 @@ async def _process_usage_account(
         )
         return
 
-    await update_Money(user_id=account.telegram_id, Money=-charge)
-    state["last_used_traffic"] = used_traffic
-    state["total_billed"] = int(state.get("total_billed") or 0) + charge
-    await ResellerAccountCRUD().update_account(
+    await ResellerAccountCRUD().patch_billing_state(
         account.code,
-        billing_state=json.dumps(state, ensure_ascii=False),
-        status="active",
+        updates={
+            "last_used_traffic": used_traffic,
+            "total_billed": int(state.get("total_billed") or 0) + charge,
+        },
     )
     await snapshot_crud.add_snapshot(account.code, used_traffic, charge, now)
     if stats:
@@ -350,9 +381,8 @@ async def _try_reactivate_suspended(settings, *, stats: _BillingRunStats | None 
             if not admin:
                 continue
             snapshot = await snapshot_crud.get_latest_snapshot(account.code)
-            last_used = int(snapshot.used_traffic if snapshot else 0)
             used_traffic = int(getattr(admin, "used_traffic", 0) or 0)
-            delta_bytes = max(0, used_traffic - last_used)
+            delta_bytes = _usage_delta(used_traffic, snapshot)
             rate = resolve_live_unit_price(account, plan)
             pending_charge = round((delta_bytes / gigabytes_to_bytes(1)) * rate)
             needed = max(needed, pending_charge if pending_charge > 0 else 1)

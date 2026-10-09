@@ -82,11 +82,7 @@ async def run_reseller_low_balance_warning() -> None:
                 continue
             warned += 1
             for account in user_accounts:
-                state = ResellerAccountCRUD.load_billing_state(account.billing_state)
-                state["low_balance_notified"] = True
-                await account_crud.update_account(
-                    account.code, billing_state=ResellerAccountCRUD.dump_billing_state(state)
-                )
+                await account_crud.patch_billing_state(account.code, updates={"low_balance_notified": True})
             await send_reseller_log(
                 "⚠️ هشدار پایین بودن موجودی",
                 extra_lines=[
@@ -98,11 +94,8 @@ async def run_reseller_low_balance_warning() -> None:
         elif already_notified:
             cleared += 1
             for account in user_accounts:
-                state = ResellerAccountCRUD.load_billing_state(account.billing_state)
-                if state.pop("low_balance_notified", None) is not None:
-                    await account_crud.update_account(
-                        account.code, billing_state=ResellerAccountCRUD.dump_billing_state(state)
-                    )
+                if ResellerAccountCRUD.load_billing_state(account.billing_state).get("low_balance_notified"):
+                    await account_crud.patch_billing_state(account.code, remove=("low_balance_notified",))
 
     elapsed = time.time() - start_time
     logger.info(

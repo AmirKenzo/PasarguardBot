@@ -1,5 +1,6 @@
 import json
 import random
+import time
 
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,6 +12,8 @@ from app.logger import get_logger
 from app.utils.formatting.conversions import as_int
 
 log = get_logger(__name__)
+
+EXPIRABLE_STATUSES = ("active", "suspended", "paused", "usage_capped", "admin_paused")
 
 
 class ResellerAccountCRUD:
@@ -81,7 +84,7 @@ class ResellerAccountCRUD:
                     select(ResellerAccount).where(
                         ResellerAccount.expiration_time.is_not(None),
                         ResellerAccount.expiration_time <= now,
-                        ResellerAccount.status.in_(("active", "suspended", "paused")),
+                        ResellerAccount.status.in_(EXPIRABLE_STATUSES),
                     )
                 )
                 return list(result.scalars().all())
@@ -183,6 +186,51 @@ class ResellerAccountCRUD:
         except SQLAlchemyError as e:
             log.error("Failed to update reseller account: %s", e)
             return False
+
+    async def patch_billing_state(
+        self,
+        code,
+        *,
+        updates: dict | None = None,
+        remove: tuple[str, ...] = (),
+        **columns,
+    ) -> dict | None:
+        """Merge ``updates`` into the stored billing_state under a row lock and return the new state.
+
+        Reads the latest JSON inside the same transaction, so concurrent jobs never overwrite
+        each other's keys with a stale copy. Extra ``columns`` are written in the same commit.
+        """
+        code = as_int(code)
+        if code is None:
+            return None
+        try:
+            async with Session() as session:
+                stmt = select(ResellerAccount).filter_by(code=code)
+                dialect = session.bind.dialect if session.bind is not None else None
+                if dialect and dialect.name != "sqlite":
+                    stmt = stmt.with_for_update()
+                account = (await session.execute(stmt)).scalars().first()
+                if not account:
+                    return None
+                state = self.load_billing_state(account.billing_state)
+                for key in remove:
+                    state.pop(key, None)
+                if updates:
+                    state.update(updates)
+                account.billing_state = self.dump_billing_state(state)
+                for key, value in columns.items():
+                    if hasattr(account, key):
+                        setattr(account, key, value)
+                await session.commit()
+                return state
+        except SQLAlchemyError as e:
+            log.error("Failed to patch reseller billing state: %s", e)
+            return None
+
+    async def reset_billing_clock(self, code, *, now: int | None = None, **columns) -> bool:
+        """Restart hourly billing from ``now`` so paused/suspended time is never charged."""
+        stamp = int(now if now is not None else time.time())
+        return await self.patch_billing_state(code, updates={"last_billed_at": stamp}, **columns) is not None
 
     async def generate_unique_code(self) -> int:
         for _ in range(20):

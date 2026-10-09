@@ -29,6 +29,11 @@ from app.panel import mutations, queries
 from app.panel.forms import parse_icon, parse_style
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
+from app.services.reseller.panel_sync import (
+    purge_reseller_from_panel,
+    sync_reseller_max_users,
+    sync_reseller_status,
+)
 
 router = APIRouter()
 
@@ -110,7 +115,13 @@ async def update_reseller(payload: PanelResellerUpdateRequest, request: Request)
             "usage_cap_bytes": int(payload.usage_cap_gb * GB) if payload.usage_cap_gb else None,
             "max_users": payload.max_users,
         }
+        ok, error = await sync_reseller_max_users(account, payload.max_users)
+        if not ok:
+            return ActionResponse(ok=False, error=error)
         if payload.status in RESELLER_STATUSES:
+            ok, error = await sync_reseller_status(account, payload.status)
+            if not ok:
+                return ActionResponse(ok=False, error=error)
             values["status"] = payload.status
         if payload.extend_days:
             base = max(int(account.expiration_time or 0), int(time.time()))
@@ -127,10 +138,16 @@ async def update_reseller(payload: PanelResellerUpdateRequest, request: Request)
 @router.post("/panel/resellers/delete", response_model=ActionResponse)
 async def delete_reseller(payload: PanelResellerDeleteRequest, request: Request) -> ActionResponse:
     async def handle(actor: PanelActor) -> ActionResponse:
+        account = await queries.get_reseller(payload.code)
+        if account is None:
+            return ActionResponse(ok=False, error="حساب نمایندگی با این کد پیدا نشد.")
+        deleted_users, admin_removed = await purge_reseller_from_panel(account)
         ok = await mutations.delete_reseller(actor, payload.code)
         if not ok:
             return ActionResponse(ok=False, error="حساب نمایندگی با این کد پیدا نشد.")
-        return ActionResponse(message="حساب نمایندگی حذف شد.")
+        if not admin_removed:
+            return ActionResponse(message="حساب از ربات حذف شد، ولی حذف ادمین از پنل ناموفق بود؛ دستی بررسی کنید.")
+        return ActionResponse(message=f"حساب نمایندگی و {deleted_users} یوزر آن از پنل حذف شد.")
 
     return await guard.run(payload, request, ActionResponse, handle)
 

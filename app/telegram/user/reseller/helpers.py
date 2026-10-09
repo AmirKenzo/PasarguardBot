@@ -47,6 +47,7 @@ from app.services.panels.admins import (
     generate_admin_password,
     get_reseller_admin,
     purge_reseller_admin,
+    remove_reseller_admin,
     suspend_reseller_admin,
 )
 from app.services.panels.settings import get_panel_login_url, panel_reseller_sale_enabled
@@ -340,7 +341,7 @@ async def create_reseller_purchase_for_user(
     expiration = compute_reseller_expiration(plan)
     billing_state = await build_initial_billing_state(plan, amount)
 
-    await ResellerAccountCRUD().create_account(
+    created_ok, created_err = await ResellerAccountCRUD().create_account(
         code=account_code,
         telegram_id=user_id,
         panel_code=int(panel_code),
@@ -357,6 +358,21 @@ async def create_reseller_purchase_for_user(
         status="active",
         billing_state=json.dumps(billing_state, ensure_ascii=False),
     )
+    if not created_ok:
+        logger.error("reseller account insert failed user=%s username=%s: %s", user_id, username, created_err)
+        try:
+            await remove_reseller_admin(panel, username)
+        except Exception as exc:
+            logger.error("rollback remove admin failed username=%s: %s", username, exc)
+        await update_Money(user_id=user_id, Money=int(amount))
+        if discount_code:
+            await DiscountCodeManager().release_discount_use(discount_code)
+        msg = "خطا در ثبت نمایندگی. مبلغ به کیف پول برگشت؛ لطفاً دوباره تلاش کنید."
+        if event is not None:
+            await event.edit(msg, buttons=await bhome_buttons(user_id, lang))
+        else:
+            await Kenzo.send_message(user_id, msg, buttons=await bhome_buttons(user_id, lang))
+        return False, "account_insert_failed"
 
     panel_url = get_panel_login_url(panel)
     volume_text = ""
@@ -683,7 +699,7 @@ async def resume_reseller_account(account) -> tuple[bool, str]:
         logger.error("resume reseller failed code=%s: %s", account.code, exc)
         return False, "خطا در فعال‌سازی پنل."
 
-    await ResellerAccountCRUD().update_account(account.code, status="active")
+    await ResellerAccountCRUD().reset_billing_clock(account.code, status="active")
     await send_reseller_log(
         "▶️ فعال‌سازی نمایندگی توسط کاربر",
         account=account,
@@ -716,7 +732,7 @@ async def resume_reseller_account_by_admin(account, *, actor_id: int | None = No
         logger.error("admin resume reseller failed code=%s: %s", account.code, exc)
         return False, "خطا در فعال‌سازی پنل."
 
-    await ResellerAccountCRUD().update_account(account.code, status="active")
+    await ResellerAccountCRUD().reset_billing_clock(account.code, status="active")
     await send_reseller_log(
         "▶️ فعال‌سازی نمایندگی توسط ادمین",
         account=account,
@@ -774,7 +790,7 @@ def _snapshot_delta_bytes(snapshots: list, index: int) -> int:
     if prev_used is None:
         delta_bytes = snap.used_traffic if snap.billed_amount > 0 else 0
     else:
-        delta_bytes = max(0, snap.used_traffic - prev_used)
+        delta_bytes = snap.used_traffic if snap.used_traffic < prev_used else snap.used_traffic - prev_used
     return int(delta_bytes or 0)
 
 
