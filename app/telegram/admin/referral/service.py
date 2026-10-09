@@ -6,6 +6,7 @@ from telethon import Button
 from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app.db.crud.referral import ReferralManager
+from app.db.crud.referral_payouts import PAYOUT_PENDING, ReferralPayoutCRUD
 from app.db.crud.user import UserCRUD
 from app.services.billing.referral import build_referral_start_param
 from app.services.billing.referral_rewards import (
@@ -22,6 +23,7 @@ from app.services.billing.referral_rewards import (
 from app.telegram.keyboards.balance import balance_back_home_button
 from app.telegram.keyboards.common import styled_copy_button
 from app.telegram.state import set_step
+from app.telegram.user.referral_earnings.service import earnings_enabled
 
 NEWLINE = "\n"
 
@@ -75,6 +77,8 @@ def referral_management_message(settings) -> str:
         "",
         *_side_lines(settings, SIDE_BONUS),
         "",
+        *_earnings_lines(settings),
+        "",
         "💡 پرداخت فقط یک بار و در **اولین خرید** کاربر دعوت‌شده انجام می‌شود. در حالت درصدی، "
         "مبنا مبلغی است که واقعاً از کیف پول کاربر کم شده (بعد از کد تخفیف). "
         "هر طرف را می‌توانید روی 0 بگذارید؛ طرفی که چیزی نگیرد پیامی هم دریافت نمی‌کند.",
@@ -107,6 +111,44 @@ def _side_buttons(settings, side: str) -> list:
     return rows
 
 
+def _earnings_lines(settings) -> list[str]:
+    if not earnings_enabled(settings):
+        return ["🏦 **مقصد پاداش دعوت کننده:** کیف پول (فوری قابل خرج)"]
+    return [
+        "🏦 **مقصد پاداش دعوت کننده:** درآمد دعوت (جدا از کیف پول)",
+        f"   💸 برداشت به کارت: {'فعال' if settings.referral_withdraw_enabled else 'غیرفعال'}"
+        f" — حداقل `{int(settings.referral_withdraw_min or 0):,}` تومان",
+        f"   👛 انتقال به کیف پول: {'فعال' if settings.referral_transfer_enabled else 'غیرفعال'}",
+    ]
+
+
+def _earnings_buttons(settings) -> list:
+    rows = [
+        [
+            Button.inline(
+                f"🏦 مقصد پاداش: {'درآمد دعوت' if earnings_enabled(settings) else 'کیف پول'} (تغییر)",
+                data="toggle_referral_destination",
+            )
+        ]
+    ]
+    if earnings_enabled(settings):
+        rows += [
+            [
+                Button.inline(
+                    f"💸 برداشت: {'✅' if settings.referral_withdraw_enabled else '❌'}",
+                    data="toggle_referral_withdraw",
+                ),
+                Button.inline(
+                    f"👛 انتقال به کیف پول: {'✅' if settings.referral_transfer_enabled else '❌'}",
+                    data="toggle_referral_transfer",
+                ),
+            ],
+            [Button.inline("📉 حداقل مبلغ برداشت", data="change_referral_withdraw_min")],
+        ]
+    rows.append([Button.inline("📋 درخواست‌های برداشت در انتظار", data="referral_pending_payouts")])
+    return rows
+
+
 def referral_management_buttons(settings) -> list:
     return [
         [
@@ -117,6 +159,7 @@ def referral_management_buttons(settings) -> list:
         ],
         *_side_buttons(settings, SIDE_REWARD),
         *_side_buttons(settings, SIDE_BONUS),
+        *_earnings_buttons(settings),
         [Button.inline("🎨 تغییر متن بنر", data="change_referral_banner")],
         [Button.inline("📊 آمار سیستم دعوت", data="referral_stats")],
         [Button.inline("🔙 بازگشت به پنل", data="back_to_admin_panel")],
@@ -153,6 +196,49 @@ async def handle_referral_callbacks(event, data):
         await event.edit(referral_management_message(settings), buttons=referral_management_buttons(settings))
         mode_text = "درصدی" if new_mode == REWARD_MODE_PERCENT else "ثابت"
         await event.answer(f"✅ نوع {SIDE_LABELS[side]} به «{mode_text}» تغییر کرد.")
+
+    elif data in ("toggle_referral_destination", "toggle_referral_withdraw", "toggle_referral_transfer"):
+        settings = await referral_manager.get_referral_settings()
+        if not settings:
+            await event.answer("❌ خطا در دریافت تنظیمات سیستم دعوت", alert=True)
+            return
+        if data == "toggle_referral_destination":
+            update = {"referral_reward_destination": "wallet" if earnings_enabled(settings) else "earnings"}
+        elif data == "toggle_referral_withdraw":
+            update = {"referral_withdraw_enabled": not settings.referral_withdraw_enabled}
+        else:
+            update = {"referral_transfer_enabled": not settings.referral_transfer_enabled}
+        settings = await referral_manager.settings_crud.update_settings(**update)
+        await event.edit(referral_management_message(settings), buttons=referral_management_buttons(settings))
+        await event.answer("✅ ذخیره شد.")
+
+    elif data == "change_referral_withdraw_min":
+        await event.edit(
+            "📉 **حداقل مبلغ برداشت به کارت**"
+            + NEWLINE * 2
+            + "کمترین مبلغی که کاربر می‌تواند درخواست برداشت بدهد را به تومان بفرستید.",
+            buttons=[_BACK_ROW],
+        )
+        await set_step(event.sender_id, data)
+
+    elif data == "referral_pending_payouts":
+        payouts, total = await ReferralPayoutCRUD().list_payouts(status=PAYOUT_PENDING, per_page=20)
+        if not payouts:
+            text = "📋 **درخواست‌های برداشت در انتظار**" + NEWLINE * 2 + "درخواستی در انتظار بررسی نیست ✅"
+        else:
+            text = (
+                "📋 **درخواست‌های برداشت در انتظار**"
+                + NEWLINE * 2
+                + f"تعداد: {total}"
+                + NEWLINE
+                + "روی هر درخواست بزنید تا جزئیات و دکمه‌های پرداخت/رد را ببینید."
+            )
+        rows = [
+            [Button.inline(f"💳 #{p.id} — {p.amount:,} تومان — {p.user_id}", data=f"refpay_view:{p.id}")]
+            for p in payouts
+        ]
+        rows.append(_BACK_ROW)
+        await event.edit(text, buttons=rows)
 
     elif data in PERCENT_STEPS:
         label = SIDE_LABELS[PERCENT_STEPS[data]]
@@ -249,13 +335,13 @@ async def handle_referral_callbacks(event, data):
         stats_button = Button.inline("📊 آمار دعوت‌های من", data="my_referral_stats")
         back_home_button = await balance_back_home_button()
 
-        custom_markup = ReplyInlineMarkup(
-            [
-                KeyboardInlineButtonRow([copy_button]),
-                KeyboardInlineButtonRow([stats_button]),
-                KeyboardInlineButtonRow([back_home_button]),
-            ]
-        )
+        rows = [KeyboardInlineButtonRow([copy_button]), KeyboardInlineButtonRow([stats_button])]
+        # Shown while earnings are on, and afterwards to anyone who still has some to cash out.
+        summary = await ReferralPayoutCRUD().earnings_summary(event.sender_id)
+        if earnings_enabled(settings) or summary.available or summary.requested:
+            rows.append(KeyboardInlineButtonRow([Button.inline("💼 درآمد دعوت و برداشت", data="refearn")]))
+        rows.append(KeyboardInlineButtonRow([back_home_button]))
+        custom_markup = ReplyInlineMarkup(rows)
 
         await event.edit(referral_message, buttons=custom_markup)
 

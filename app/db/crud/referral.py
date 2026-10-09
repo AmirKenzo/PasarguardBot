@@ -11,6 +11,8 @@ from app.logger import get_logger
 
 log = get_logger(__name__)
 
+PAID_REWARD_STATUSES: tuple[str, ...] = ("completed", "available", "requested", "paid", "converted")
+
 
 class ReferralSettingsCRUD:
     async def get_settings(self):
@@ -151,7 +153,7 @@ class ReferralRewardCRUD:
         """Referral rewards paid in [start_ts, end_ts) — count and reward_amount sum."""
         async with Session() as session:
             try:
-                cond = (ReferralReward.status == "completed") & (ReferralReward.created_at >= start_ts)
+                cond = ReferralReward.status.in_(PAID_REWARD_STATUSES) & (ReferralReward.created_at >= start_ts)
                 if end_ts is not None:
                     cond = cond & (ReferralReward.created_at < end_ts)
                 stmt = select(
@@ -175,7 +177,7 @@ class ReferralRewardCRUD:
             try:
                 today = ts["today_ts"]
                 yesterday = ts["yesterday_ts"]
-                completed = ReferralReward.status == "completed"
+                completed = ReferralReward.status.in_(PAID_REWARD_STATUSES)
                 stmt = select(
                     func.sum(
                         case(
@@ -288,6 +290,7 @@ class ReferralManager:
         if bonus_amount is None:
             bonus_amount = int(settings.referral_bonus_amount or 0)
         bonus_amount = max(int(bonus_amount), 0)
+        to_earnings = getattr(settings, "referral_reward_destination", "wallet") == "earnings"
         try:
             async with Session() as session:
                 exists = await session.execute(
@@ -309,14 +312,14 @@ class ReferralManager:
                         bonus_amount=bonus_amount,
                         transaction_id=transaction_id,
                         created_at=int(time.time()),
-                        status="completed",
+                        status="available" if to_earnings else "completed",
                         base_amount=base_amount,
                         reward_percent=reward_percent,
                         bonus_percent=bonus_percent,
                     )
                 )
                 await session.flush()
-                if reward_amount:
+                if reward_amount and not to_earnings:
                     await session.execute(
                         update(User)
                         .where(User.id == referrer_id)

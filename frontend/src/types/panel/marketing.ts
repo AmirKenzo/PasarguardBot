@@ -49,6 +49,11 @@ export interface PanelReferralSettings {
   referral_bonus_mode: "fixed" | "percent";
   referral_bonus_percent: number;
   referral_bonus_max: number;
+  /** "wallet" credits the reward at once; "earnings" keeps it apart, withdrawable. */
+  referral_reward_destination: "wallet" | "earnings";
+  referral_withdraw_enabled: boolean;
+  referral_withdraw_min: number;
+  referral_transfer_enabled: boolean;
   referral_banner_text?: string | null;
 }
 
@@ -86,5 +91,40 @@ export interface PanelReferralSaveRequest extends PanelAuthRequest {
   referral_bonus_mode: "fixed" | "percent";
   referral_bonus_percent: number;
   referral_bonus_max: number;
+  referral_reward_destination: "wallet" | "earnings";
+  referral_withdraw_enabled: boolean;
+  referral_withdraw_min: number;
+  referral_transfer_enabled: boolean;
   referral_banner_text?: string;
+}
+
+/** Mirrors PanelReferralPayoutRow: a referrer cashing out (card, reviewed) or moving earnings to the wallet. */
+export interface PanelReferralPayoutRow {
+  id: number;
+  user_id: number;
+  amount: number;
+  method: "card" | "wallet" | string;
+  status: "pending" | "paid" | "rejected" | "completed" | string;
+  card_number?: string | null;
+  card_holder?: string | null;
+  admin_id?: number | null;
+  admin_note?: string | null;
+  created_at?: number | null;
+  reviewed_at?: number | null;
+}
+
+export interface PanelReferralPayoutsRequest extends PagedRequest {
+  status?: string;
+}
+
+export interface PanelReferralPayoutsResponse extends PanelEnvelope {
+  payouts: PanelReferralPayoutRow[];
+  meta: PageMeta;
+  pending_count: number;
+}
+
+export interface PanelReferralPayoutSettleRequest extends PanelAuthRequest {
+  id: number;
+  paid: boolean;
+  note?: string;
 }

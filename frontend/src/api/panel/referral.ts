@@ -1,5 +1,8 @@
 import type {
   ActionResponse,
+  PanelReferralPayoutSettleRequest,
+  PanelReferralPayoutsRequest,
+  PanelReferralPayoutsResponse,
   PanelReferralRequest,
   PanelReferralResponse,
   PanelReferralSaveRequest,
@@ -12,4 +15,12 @@ export function getReferral(body: PanelReferralRequest) {
 
 export function saveReferral(body: PanelReferralSaveRequest) {
   return panelPost<ActionResponse>("/referral/save", body);
+}
+
+export function getReferralPayouts(body: PanelReferralPayoutsRequest) {
+  return panelPost<PanelReferralPayoutsResponse>("/referral/payouts", body);
+}
+
+export function settleReferralPayout(body: PanelReferralPayoutSettleRequest) {
+  return panelPost<ActionResponse>("/referral/payouts/settle", body);
 }

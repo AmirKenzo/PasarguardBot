@@ -49,6 +49,9 @@ class LogType(Enum):
     # Reseller related logs
     RESELLER = "reseller"
 
+    # Referral rewards, invites and earnings withdrawals
+    REFERRAL = "referral"
+
     # Service related logs
     SERVICE_CREATED = "service_created"
     SERVICE_DELETED = "service_deleted"

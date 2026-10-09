@@ -998,7 +998,8 @@
       "channelsEmpty": "No channels set",
       "lockChannels": "Membership-lock channels",
       "group": "Group / supergroup",
-      "reportPurchase": "Purchase report (public channel)"
+      "reportPurchase": "Purchase report (public channel)",
+      "reportReferral": "Referrals and withdrawals"
     },
     "tools": {
       "runsInBackground": "This runs in the background; the final result is written to the audit log.",
@@ -1348,7 +1349,35 @@
       "subtitle": "Referral rewards and payout history",
       "empty": "No rewards recorded",
       "paid": "Paid",
-      "totalRewardedInvites": "Total rewarded invites"
+      "totalRewardedInvites": "Total rewarded invites",
+      "destination": "Referrer reward destination",
+      "destinationWallet": "Wallet",
+      "destinationEarnings": "Referral earnings (withdrawable)",
+      "destinationHint": "Wallet: the reward is credited at once. Referral earnings: the reward is kept apart from the wallet; the user can withdraw it to a card (after your approval) or move it to the wallet. The invitee bonus always goes to the wallet.",
+      "withdrawEnabled": "Allow withdrawal to card",
+      "withdrawMin": "Minimum withdrawal (toman)",
+      "transferEnabled": "Allow moving to wallet",
+      "payoutsTitle": "Withdrawal requests",
+      "payoutAmount": "Amount",
+      "payoutCard": "Card",
+      "payoutToWallet": "Moved to wallet",
+      "allPayouts": "All",
+      "noPayouts": "No requests",
+      "markPaid": "Paid",
+      "reject": "Reject",
+      "payoutStatus": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "rejected": "Rejected",
+        "completed": "Done"
+      },
+      "rewardStatus": {
+        "completed": "Credited to wallet",
+        "available": "Withdrawable",
+        "requested": "Withdrawal pending",
+        "paid": "Withdrawn",
+        "converted": "Moved to wallet"
+      }
     },
     "discounts": {
       "telegramId": "Numeric Telegram ID",

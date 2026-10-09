@@ -3,7 +3,7 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, Button, ErrorState, Input, Pagination, Skeleton } from "../../components/ui";
 import { formatNumber, formatToman, formatUnixDate } from "../../lib/format";
 import { panelReferralApi } from "../../api/panel";
-import type { PanelReferralRewardRow } from "../../types/panel";
+import type { PanelReferralPayoutRow, PanelReferralRewardRow } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
 import { SegmentedControl } from "../../components/ui/Select";
 import { DataTable, SectionCard, StatTile, Toggle } from "./components";
@@ -20,6 +20,10 @@ interface Draft {
   referral_bonus_mode: "fixed" | "percent";
   referral_bonus_percent: string;
   referral_bonus_max: string;
+  referral_reward_destination: "wallet" | "earnings";
+  referral_withdraw_enabled: boolean;
+  referral_withdraw_min: string;
+  referral_transfer_enabled: boolean;
   referral_banner_text: string;
 }
 
@@ -47,6 +51,10 @@ export default function AdminReferralPage() {
       referral_bonus_mode: settings.referral_bonus_mode ?? "fixed",
       referral_bonus_percent: String(settings.referral_bonus_percent ?? 5),
       referral_bonus_max: String(settings.referral_bonus_max ?? 0),
+      referral_reward_destination: settings.referral_reward_destination ?? "wallet",
+      referral_withdraw_enabled: Boolean(settings.referral_withdraw_enabled),
+      referral_withdraw_min: String(settings.referral_withdraw_min ?? 0),
+      referral_transfer_enabled: settings.referral_transfer_enabled ?? true,
       referral_banner_text: settings.referral_banner_text || "",
     });
   }, [settings, draft]);
@@ -94,8 +102,11 @@ export default function AdminReferralPage() {
     {
       key: "status",
       header: t("panel.common.status"),
-      cell: (row) =>
-        row.status === "completed" ? <Badge tone="success">{t("panel.referral.paid")}</Badge> : <Badge tone="muted">{row.status || "—"}</Badge>,
+      cell: (row) => (
+        <Badge tone={REWARD_STATUS_TONES[row.status || ""] ?? "muted"}>
+          {t(`panel.referral.rewardStatus.${row.status}`, { defaultValue: row.status || "—" })}
+        </Badge>
+      ),
     },
     {
       key: "created",
@@ -166,6 +177,40 @@ export default function AdminReferralPage() {
               }
             />
             <p className="text-xs text-muted">{t("panel.referral.rewardModeHint")}</p>
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <span className="block text-sm text-muted">{t("panel.referral.destination")}</span>
+              <SegmentedControl
+                options={[
+                  { value: "wallet", label: t("panel.referral.destinationWallet") },
+                  { value: "earnings", label: t("panel.referral.destinationEarnings") },
+                ]}
+                value={draft.referral_reward_destination}
+                onChange={(value) =>
+                  setDraft({ ...draft, referral_reward_destination: value === "earnings" ? "earnings" : "wallet" })
+                }
+              />
+              <p className="text-xs text-muted">{t("panel.referral.destinationHint")}</p>
+              {draft.referral_reward_destination === "earnings" && (
+                <div className="space-y-3">
+                  <Toggle
+                    checked={draft.referral_withdraw_enabled}
+                    onChange={(referral_withdraw_enabled) => setDraft({ ...draft, referral_withdraw_enabled })}
+                    label={t("panel.referral.withdrawEnabled")}
+                  />
+                  <Input
+                    label={t("panel.referral.withdrawMin")}
+                    inputMode="numeric"
+                    value={draft.referral_withdraw_min}
+                    onChange={(event) => setDraft({ ...draft, referral_withdraw_min: event.target.value })}
+                  />
+                  <Toggle
+                    checked={draft.referral_transfer_enabled}
+                    onChange={(referral_transfer_enabled) => setDraft({ ...draft, referral_transfer_enabled })}
+                    label={t("panel.referral.transferEnabled")}
+                  />
+                </div>
+              )}
+            </div>
             <label className="block text-sm">
               <span className="mb-1.5 block text-muted">{t("panel.referral.bannerText")}</span>
               <textarea
@@ -190,6 +235,10 @@ export default function AdminReferralPage() {
                     referral_bonus_mode: draft.referral_bonus_mode,
                     referral_bonus_percent: Math.min(100, Math.max(1, Number(draft.referral_bonus_percent) || 5)),
                     referral_bonus_max: Math.max(0, Number(draft.referral_bonus_max) || 0),
+                    referral_reward_destination: draft.referral_reward_destination,
+                    referral_withdraw_enabled: draft.referral_withdraw_enabled,
+                    referral_withdraw_min: Math.max(0, Number(draft.referral_withdraw_min) || 0),
+                    referral_transfer_enabled: draft.referral_transfer_enabled,
                     referral_banner_text: draft.referral_banner_text,
                   })
                 }
@@ -200,6 +249,8 @@ export default function AdminReferralPage() {
           </div>
         )}
       </SectionCard>
+
+      <PayoutsSection />
 
       <SectionCard title={t("panel.referral.rewardHistory")}>
         <DataTable
@@ -269,5 +320,116 @@ function SidePayoutFields({
         )}
       </div>
     </div>
+  );
+}
+
+// "completed" means credited straight to the wallet; the rest are earnings states.
+const REWARD_STATUS_TONES: Record<string, "success" | "warning" | "muted" | "primary"> = {
+  completed: "success",
+  available: "primary",
+  requested: "warning",
+  paid: "success",
+  converted: "muted",
+};
+
+const PAYOUT_STATUS_TONES: Record<string, "success" | "warning" | "danger" | "muted"> = {
+  pending: "warning",
+  paid: "success",
+  rejected: "danger",
+  completed: "muted",
+};
+
+/** Referral earnings cash-outs: card withdrawals waiting for an admin, and wallet transfers. */
+function PayoutsSection() {
+  const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState("pending");
+  const query = usePanelQuery(["referral-payouts", status, page], (auth) =>
+    panelReferralApi.getReferralPayouts({ ...auth, status, page, limit: 25 })
+  );
+  const settle = usePanelAction(panelReferralApi.settleReferralPayout, {
+    invalidate: [["referral-payouts"], ["referral"]],
+  });
+
+  const columns: Column<PanelReferralPayoutRow>[] = [
+    { key: "id", header: "#", cell: (row) => <code className="ltr-field text-xs">{row.id}</code> },
+    { key: "user", header: t("panel.referral.referrer"), cell: (row) => <code className="ltr-field text-xs">{row.user_id}</code> },
+    { key: "amount", header: t("panel.referral.payoutAmount"), cell: (row) => formatToman(row.amount) },
+    {
+      key: "card",
+      header: t("panel.referral.payoutCard"),
+      cell: (row) =>
+        row.method === "wallet" ? (
+          <span className="text-xs text-muted">{t("panel.referral.payoutToWallet")}</span>
+        ) : (
+          <div>
+            <code className="ltr-field text-xs">{row.card_number}</code>
+            <p className="text-[11px] text-muted">{row.card_holder}</p>
+          </div>
+        ),
+    },
+    {
+      key: "status",
+      header: t("panel.common.status"),
+      cell: (row) => (
+        <Badge tone={PAYOUT_STATUS_TONES[row.status] ?? "muted"}>
+          {t(`panel.referral.payoutStatus.${row.status}`, { defaultValue: row.status })}
+        </Badge>
+      ),
+    },
+    {
+      key: "created",
+      header: t("panel.referral.date"),
+      secondary: true,
+      cell: (row) => <span className="text-xs text-muted">{row.created_at ? formatUnixDate(row.created_at) : "—"}</span>,
+    },
+    {
+      key: "actions",
+      header: "",
+      cell: (row) =>
+        row.status === "pending" ? (
+          <div className="flex gap-1.5">
+            <Button size="sm" loading={settle.isPending} onClick={() => settle.mutate({ id: row.id, paid: true })}>
+              {t("panel.referral.markPaid")}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={settle.isPending}
+              onClick={() => settle.mutate({ id: row.id, paid: false })}
+            >
+              {t("panel.referral.reject")}
+            </Button>
+          </div>
+        ) : null,
+    },
+  ];
+
+  return (
+    <SectionCard title={`${t("panel.referral.payoutsTitle")} (${query.data?.pending_count ?? 0})`}>
+      <div className="mb-3">
+        <SegmentedControl
+          options={[
+            { value: "pending", label: t("panel.referral.payoutStatus.pending") },
+            { value: "", label: t("panel.referral.allPayouts") },
+          ]}
+          value={status}
+          onChange={(value) => {
+            setStatus(value);
+            setPage(1);
+          }}
+        />
+      </div>
+      <DataTable
+        columns={columns}
+        rows={query.data?.payouts || []}
+        rowKey={(row) => row.id}
+        loading={query.isLoading}
+        emptyTitle={t("panel.referral.noPayouts")}
+      />
+      <div className="mt-4">
+        <Pagination page={page} totalPages={query.data?.meta.total_pages || 1} onChange={setPage} />
+      </div>
+    </SectionCard>
   );
 }

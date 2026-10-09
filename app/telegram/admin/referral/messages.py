@@ -73,6 +73,16 @@ async def message_handler_referral_admin(event: Message):
         await set_step(event.sender_id, "panel")
         raise events.StopPropagation
 
+    if step == "change_referral_withdraw_min":
+        if not msg.isdigit():
+            await event.respond("❌ فقط عدد بفرستید (به تومان).")
+            raise events.StopPropagation
+        minimum = int(msg)
+        await referral_manager.settings_crud.update_settings(referral_withdraw_min=minimum)
+        await event.respond(f"✅ حداقل مبلغ برداشت روی {minimum:,} تومان تنظیم شد!", buttons=back)
+        await set_step(event.sender_id, "panel")
+        raise events.StopPropagation
+
     if step == "change_referral_banner" and msg:
         await referral_manager.settings_crud.update_settings(referral_banner_text=msg)
         await event.respond(

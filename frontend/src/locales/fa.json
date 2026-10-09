@@ -998,7 +998,8 @@
       "channelsEmpty": "کانالی ثبت نشده",
       "lockChannels": "کانال‌های قفل عضویت",
       "group": "گروه / سوپرگروه",
-      "reportPurchase": "گزارش خرید (کانال عمومی)"
+      "reportPurchase": "گزارش خرید (کانال عمومی)",
+      "reportReferral": "لاگ دعوت دوستان و برداشت‌ها"
     },
     "tools": {
       "runsInBackground": "اجرا در پس‌زمینه انجام می‌شود و نتیجهٔ نهایی در گزارش فعالیت ثبت می‌شود.",
@@ -1348,7 +1349,35 @@
       "subtitle": "پاداش معرفی و تاریخچهٔ پرداخت‌ها",
       "empty": "پاداشی ثبت نشده",
       "paid": "پرداخت شده",
-      "totalRewardedInvites": "کل دعوت‌های پاداش‌گرفته"
+      "totalRewardedInvites": "کل دعوت‌های پاداش‌گرفته",
+      "destination": "مقصد پاداش دعوت کننده",
+      "destinationWallet": "کیف پول",
+      "destinationEarnings": "درآمد دعوت (قابل برداشت)",
+      "destinationHint": "کیف پول: پاداش فوری به کیف پول اضافه می‌شود. درآمد دعوت: پاداش جدا از کیف پول نگه داشته می‌شود و کاربر می‌تواند به کارت برداشت کند (با تایید شما) یا به کیف پول منتقل کند. هدیهٔ دعوت‌شده همیشه به کیف پول می‌رود.",
+      "withdrawEnabled": "برداشت به کارت فعال باشد",
+      "withdrawMin": "حداقل مبلغ برداشت (تومان)",
+      "transferEnabled": "انتقال به کیف پول فعال باشد",
+      "payoutsTitle": "درخواست‌های برداشت",
+      "payoutAmount": "مبلغ",
+      "payoutCard": "کارت",
+      "payoutToWallet": "انتقال به کیف پول",
+      "allPayouts": "همه",
+      "noPayouts": "درخواستی وجود ندارد",
+      "markPaid": "پرداخت شد",
+      "reject": "رد",
+      "payoutStatus": {
+        "pending": "در انتظار",
+        "paid": "پرداخت شده",
+        "rejected": "رد شده",
+        "completed": "انجام شده"
+      },
+      "rewardStatus": {
+        "completed": "واریز به کیف پول",
+        "available": "قابل برداشت",
+        "requested": "در صف برداشت",
+        "paid": "برداشت شده",
+        "converted": "منتقل به کیف پول"
+      }
     },
     "discounts": {
       "telegramId": "آیدی عددی تلگرام",

@@ -130,12 +130,17 @@ async def process_referral_reward_payout(referrer_id: int, referred_id: int, *, 
 
         if reward.amount > 0:
             bonus_line = f"🎁 هدیهٔ کاربر دعوت‌شده: {bonus.amount:,} تومان\n" if bonus.amount > 0 else ""
+            if getattr(settings, "referral_reward_destination", "wallet") == "earnings":
+                where = "💼 این مبلغ به «درآمد دعوت» شما اضافه شد؛ از بخش دعوت دوستان می‌توانید برداشت کنید.\n"
+            else:
+                where = "👛 این مبلغ به کیف پول شما اضافه شد.\n"
             await Kenzo.send_message(
                 referrer_id,
                 f"🎉 تبریک! شما {reward.amount:,} تومان پاداش دعوت دریافت کردید!\n\n"
                 f"👤 کاربر خریدار: {referred_id}\n"
                 f"💰 مبلغ پاداش: {reward.amount:,} تومان{_how(reward)}\n"
-                f"{bonus_line}",
+                f"{bonus_line}"
+                f"{where}",
             )
 
         log_message = (
@@ -146,7 +151,7 @@ async def process_referral_reward_payout(referrer_id: int, referred_id: int, *, 
             f"🎁 هدیهٔ کاربر: `{bonus.amount:,}` تومان{_how(bonus)}\n"
             f"⏰ زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
-        await send_log_message(LogType.OTHER, message=log_message)
+        await send_log_message(LogType.REFERRAL, message=log_message)
 
         if bonus.amount > 0:
             await Kenzo.send_message(

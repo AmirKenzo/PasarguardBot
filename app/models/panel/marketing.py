@@ -57,6 +57,10 @@ class PanelReferralSettings(BaseModel):
     referral_bonus_mode: Literal["fixed", "percent"] = "fixed"
     referral_bonus_percent: int = 5
     referral_bonus_max: int = 0
+    referral_reward_destination: Literal["wallet", "earnings"] = "wallet"
+    referral_withdraw_enabled: bool = False
+    referral_withdraw_min: int = 50000
+    referral_transfer_enabled: bool = True
     referral_banner_text: str | None = None
 
 
@@ -96,4 +100,39 @@ class PanelReferralSaveRequest(PanelRequest):
     referral_bonus_mode: Literal["fixed", "percent"] = "fixed"
     referral_bonus_percent: int = Field(5, ge=1, le=100)
     referral_bonus_max: int = Field(0, ge=0)
+    referral_reward_destination: Literal["wallet", "earnings"] = "wallet"
+    referral_withdraw_enabled: bool = False
+    referral_withdraw_min: int = Field(50000, ge=0)
+    referral_transfer_enabled: bool = True
     referral_banner_text: str = Field("", max_length=4096)
+
+
+class PanelReferralPayoutRow(BaseModel):
+    id: int
+    user_id: int
+    amount: int
+    method: str
+    status: str
+    card_number: str | None = None
+    card_holder: str | None = None
+    admin_id: int | None = None
+    admin_note: str | None = None
+    created_at: int | None = None
+    reviewed_at: int | None = None
+
+
+class PanelReferralPayoutsRequest(PagedRequest):
+    # pending, paid, rejected, completed; empty lists every payout.
+    status: str = Field("", max_length=20)
+
+
+class PanelReferralPayoutsResponse(PanelResponse):
+    payouts: list[PanelReferralPayoutRow] = Field(default_factory=list)
+    meta: PageMeta = Field(default_factory=PageMeta)
+    pending_count: int = 0
+
+
+class PanelReferralPayoutSettleRequest(PanelRequest):
+    id: int = Field(..., ge=1)
+    paid: bool
+    note: str = Field("", max_length=500)

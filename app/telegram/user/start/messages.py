@@ -67,7 +67,7 @@ async def start_command_handler(event: Message):
                     f"📊 وضعیت کاربر: موجود در دیتابیس\n"
                     f"⏰ زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
-                await send_log_message(LogType.OTHER, message=log_message)
+                await send_log_message(LogType.REFERRAL, message=log_message)
                 raise events.StopPropagation
 
             await add_user(
@@ -133,7 +133,7 @@ async def start_command_handler(event: Message):
                     f"🎁 هدیهٔ دعوت شده: {bonus or '—'}\n"
                     f"⏰ زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
-                await send_log_message(LogType.OTHER, message=log_message)
+                await send_log_message(LogType.REFERRAL, message=log_message)
                 raise events.StopPropagation
     elif param and param.lower().startswith("ref_"):
         logger.info("Invalid referral start parameter received: %s", param)
