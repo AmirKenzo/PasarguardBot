@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import BigInteger, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.pool import NullPool
 
 from app.db.crud import cryptopayments
 from app.db.models.cryptopayments import CryptoPayments
@@ -20,7 +21,7 @@ def _sqlite_bigint(type_, compiler, **kw) -> str:
 
 @pytest.fixture(autouse=True)
 def db(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'crypto.db'}")
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'crypto.db'}", poolclass=NullPool)
 
     async def setup():
         async with engine.begin() as conn:
