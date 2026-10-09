@@ -12,6 +12,7 @@ from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.crud.user import UserCRUD
 from app.services.panels.admins import find_admin_by_username
 from app.services.reseller.import_existing import format_panel_admin_preview
+from app.services.reseller.plan_changes import notify_plan_rate_change
 from app.telegram.admin.reseller_plans import states
 from app.telegram.admin.reseller_plans.callbacks import (
     _finalize_new_plan,
@@ -200,7 +201,9 @@ async def message_handler_reseller_plans(event: Message):
         if plan.pricing_mode == "fixed":
             await ResellerPlanManager().update_plan(plan_id, price=value)
         else:
+            old_rate = float(plan.unit_price or 0)
             await ResellerPlanManager().update_plan(plan_id, unit_price=value)
+            await notify_plan_rate_change(plan, old_rate=old_rate, new_rate=value, actor_id=user_id)
         await set_step(user_id, "panel")
         with contextlib.suppress(Exception):
             await event.delete()

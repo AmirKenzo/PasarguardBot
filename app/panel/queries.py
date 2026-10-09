@@ -16,6 +16,7 @@ from app.db.models.plans import Plan
 from app.db.models.referral import ReferralReward
 from app.db.models.reseller_accounts import ResellerAccount
 from app.db.models.reseller_billing_snapshots import ResellerBillingSnapshot
+from app.db.models.reseller_events import ResellerEvent
 from app.db.models.reseller_plans import ResellerPlan
 from app.db.models.services import Service
 from app.db.models.stars_transaction import StarsTransaction
@@ -531,11 +532,23 @@ async def get_plan(plan_id: int) -> Plan | None:
 # --------------------------------------------------------------------------- #
 
 
-async def list_resellers(*, status: str = "", q: str = "", page: int = 1, per_page: int = 25):
+async def list_resellers(
+    *,
+    status: str = "",
+    q: str = "",
+    panel_code: int | None = None,
+    pricing_mode: str = "",
+    page: int = 1,
+    per_page: int = 25,
+):
     offset, limit = _page_bounds(page, per_page)
     filters = []
     if status:
         filters.append(ResellerAccount.status == status)
+    if panel_code:
+        filters.append(ResellerAccount.panel_code == panel_code)
+    if pricing_mode:
+        filters.append(ResellerAccount.pricing_mode == pricing_mode)
     if q:
         like = f"%{q}%"
         filters.append(or_(ResellerAccount.username.like(like), cast(ResellerAccount.telegram_id, String).like(like)))
@@ -564,10 +577,135 @@ async def reseller_snapshots(code: int, limit: int = 20) -> list[ResellerBilling
         result = await session.execute(
             select(ResellerBillingSnapshot)
             .where(ResellerBillingSnapshot.account_code == code)
-            .order_by(ResellerBillingSnapshot.id.desc())
+            .order_by(ResellerBillingSnapshot.snapshot_at.desc(), ResellerBillingSnapshot.id.desc())
             .limit(limit)
         )
         return list(result.scalars().all())
+
+
+async def reseller_breakdown() -> list[tuple[str, str, int]]:
+    """(status, pricing_mode, count) for every combination that has accounts."""
+    async with Session() as session:
+        rows = await session.execute(
+            select(ResellerAccount.status, ResellerAccount.pricing_mode, func.count()).group_by(
+                ResellerAccount.status, ResellerAccount.pricing_mode
+            )
+        )
+        return [(str(status), str(mode), int(count)) for status, mode, count in rows.all()]
+
+
+async def burning_resellers(modes: tuple[str, ...]) -> list[ResellerAccount]:
+    async with Session() as session:
+        result = await session.execute(
+            select(ResellerAccount).where(ResellerAccount.status == "active", ResellerAccount.pricing_mode.in_(modes))
+        )
+        return list(result.scalars().all())
+
+
+async def resellers_expiring(until: int, statuses: tuple[str, ...]) -> list[ResellerAccount]:
+    """Accounts in ``statuses`` whose expiry falls before ``until``, soonest first."""
+    async with Session() as session:
+        result = await session.execute(
+            select(ResellerAccount)
+            .where(
+                ResellerAccount.expiration_time.is_not(None),
+                ResellerAccount.expiration_time <= until,
+                ResellerAccount.status.in_(statuses),
+            )
+            .order_by(ResellerAccount.expiration_time.asc())
+            .limit(100)
+        )
+        return list(result.scalars().all())
+
+
+async def user_balances(user_ids: list[int]) -> dict[int, int]:
+    if not user_ids:
+        return {}
+    async with Session() as session:
+        rows = await session.execute(select(User.id, User.amount).where(User.id.in_(user_ids)))
+        return {int(user_id): int(amount or 0) for user_id, amount in rows.all()}
+
+
+async def reseller_billed_buckets(boundaries: list[int]) -> list[int]:
+    """Pay-as-you-go charges per ``[boundaries[i], boundaries[i+1])`` window."""
+    totals = [0] * (len(boundaries) - 1)
+    async with Session() as session:
+        rows = await session.execute(
+            select(ResellerBillingSnapshot.snapshot_at, ResellerBillingSnapshot.billed_amount).where(
+                ResellerBillingSnapshot.snapshot_at >= boundaries[0],
+                ResellerBillingSnapshot.snapshot_at < boundaries[-1],
+                ResellerBillingSnapshot.billed_amount > 0,
+            )
+        )
+        for snapshot_at, amount in rows.all():
+            totals[bisect_right(boundaries, int(snapshot_at)) - 1] += int(amount or 0)
+    return totals
+
+
+async def reseller_events_between(since: int, until: int, kinds: tuple[str, ...]) -> list[ResellerEvent]:
+    async with Session() as session:
+        result = await session.execute(
+            select(ResellerEvent).where(
+                ResellerEvent.created_at >= since,
+                ResellerEvent.created_at < until,
+                ResellerEvent.kind.in_(kinds),
+            )
+        )
+        return list(result.scalars().all())
+
+
+async def reseller_ledger(
+    *,
+    account_code: int | None = None,
+    telegram_id: int | None = None,
+    since: int | None = None,
+    until: int | None = None,
+    page: int = 1,
+    per_page: int = 25,
+) -> tuple[list[tuple[ResellerBillingSnapshot, ResellerAccount | None]], int, int]:
+    """Charged ledger rows newest first with their account. Returns (rows, total_rows, total_billed)."""
+    offset, limit = _page_bounds(page, per_page)
+    filters = [ResellerBillingSnapshot.billed_amount > 0]
+    if account_code:
+        filters.append(ResellerBillingSnapshot.account_code == account_code)
+    if telegram_id:
+        filters.append(ResellerAccount.telegram_id == telegram_id)
+    if since:
+        filters.append(ResellerBillingSnapshot.snapshot_at >= since)
+    if until:
+        filters.append(ResellerBillingSnapshot.snapshot_at < until)
+    joined = ResellerBillingSnapshot.__table__.outerjoin(
+        ResellerAccount.__table__, ResellerAccount.code == ResellerBillingSnapshot.account_code
+    )
+    async with Session() as session:
+        total, billed = (
+            await session.execute(
+                select(func.count(), func.coalesce(func.sum(ResellerBillingSnapshot.billed_amount), 0))
+                .select_from(joined)
+                .where(*filters)
+            )
+        ).one()
+        rows = (
+            await session.execute(
+                select(ResellerBillingSnapshot, ResellerAccount)
+                .select_from(joined)
+                .where(*filters)
+                .order_by(ResellerBillingSnapshot.snapshot_at.desc(), ResellerBillingSnapshot.id.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+        ).all()
+    return [(snapshot, account) for snapshot, account in rows], int(total or 0), int(billed or 0)
+
+
+async def reseller_plan_link_counts() -> dict[int, int]:
+    async with Session() as session:
+        rows = await session.execute(
+            select(ResellerAccount.plan_id, func.count())
+            .where(ResellerAccount.plan_id.is_not(None))
+            .group_by(ResellerAccount.plan_id)
+        )
+        return {int(plan_id): int(count) for plan_id, count in rows.all()}
 
 
 async def list_reseller_plans() -> list[ResellerPlan]:

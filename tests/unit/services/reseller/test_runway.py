@@ -49,3 +49,14 @@ def test_format_runway_picks_a_readable_unit():
     assert format_runway(0.5) == "30 دقیقه"
     assert format_runway(5.2) == "5 ساعت"
     assert format_runway(72) == "3 روز"
+
+
+async def test_runways_are_grouped_per_user(rates):
+    rates[3] = 48_000  # usage: 2k/hour
+    first = SimpleNamespace(code=1, pricing_mode="hourly", status="active", plan_id=None, telegram_id=10)
+    second = SimpleNamespace(code=3, pricing_mode="usage", status="active", plan_id=None, telegram_id=10)
+    other = SimpleNamespace(code=4, pricing_mode="hourly", status="active", plan_id=None, telegram_id=20)
+    result = await runway.estimate_runways([first, second, other], {10: 6000, 20: 500})
+    assert result[10].burn_per_hour == 3000
+    assert result[10].hours_left == 2
+    assert result[20].hours_left == 0.5

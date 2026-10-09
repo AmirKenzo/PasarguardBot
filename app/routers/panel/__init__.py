@@ -14,7 +14,9 @@ Split by feature, mirroring ``app/routers/webapp``:
   - payments: crypto wallets, manual cards, auto-approve rules
   - panels: connected PasarGuard panels
   - plans: sale plans per panel
-  - resellers: reseller accounts, billing history and reseller plans
+  - resellers: reseller accounts, their admin actions and reseller plans
+  - reseller_insights: reseller overview, billing ledger and event history
+  - reseller_settings: global reseller rules and per-panel reseller switches
   - discounts: discount codes
   - referral: referral settings and reward history
   - broadcast: bulk message jobs
@@ -43,6 +45,8 @@ from app.routers.panel.plans import router as plans_router
 from app.routers.panel.pwa import router as pwa_router
 from app.routers.panel.referral import router as referral_router
 from app.routers.panel.reports import router as reports_router
+from app.routers.panel.reseller_insights import router as reseller_insights_router
+from app.routers.panel.reseller_settings import router as reseller_settings_router
 from app.routers.panel.resellers import router as resellers_router
 from app.routers.panel.services import router as services_router
 from app.routers.panel.settings import router as settings_router
@@ -62,6 +66,8 @@ panel_router.include_router(payments_router)
 panel_router.include_router(panels_router)
 panel_router.include_router(plans_router)
 panel_router.include_router(resellers_router)
+panel_router.include_router(reseller_insights_router)
+panel_router.include_router(reseller_settings_router)
 panel_router.include_router(discounts_router)
 panel_router.include_router(referral_router)
 panel_router.include_router(broadcast_router)

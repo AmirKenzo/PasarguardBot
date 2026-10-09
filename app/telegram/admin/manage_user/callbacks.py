@@ -17,9 +17,13 @@ from app.db.crud.user import UserCRUD, safe_mode_admin_label, user_safe_mode_val
 from app.logger import LogType, get_logger
 from app.services.billing.renewal import require_panel_userid
 from app.services.billing.reseller_renewal import renew_reseller_account
-from app.services.panels.admins import get_reseller_admin, get_reseller_admin_user_count, reset_reseller_admin_password
-from app.services.reseller.accounts import delete_account, pause_account_by_admin, resume_account_by_admin
-from app.services.reseller.logging import EVENT_PASSWORD, send_reseller_log
+from app.services.panels.admins import get_reseller_admin, get_reseller_admin_user_count
+from app.services.reseller.accounts import (
+    delete_account,
+    pause_account_by_admin,
+    reset_password,
+    resume_account_by_admin,
+)
 from app.services.reseller.usage_cap import set_reseller_usage_cap, usage_cap_menu_text
 from app.services.users.admin_profile import display_user_info_admin
 from app.telegram.admin.manage_user import states
@@ -47,7 +51,6 @@ from app.telegram.user.reseller.helpers import build_reseller_account_detail_tex
 from app.telegram.user.services.helpers import build_service_info_message_text, edit_service_view
 from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
-from app.utils.security.crypto import encrypt_data
 from app.utils.text.bot_texts import get_bot_text
 from config import ADMIN_ID
 
@@ -189,24 +192,10 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)
             return True
-        panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-        if not panel:
-            await event.answer("پنل یافت نشد.", alert=True)
+        ok, msg, _ = await reset_password(account, actor_id=event.sender_id, actor_role="ادمین")
+        if not ok:
+            await event.answer(msg, alert=True)
             return True
-        try:
-            new_password = await reset_reseller_admin_password(panel, account.panel_admin_id, account.username)
-        except Exception as exc:
-            logger.error("admin reseller password reset failed: %s", exc)
-            await event.answer("خطا در تغییر رمز.", alert=True)
-            return True
-        await ResellerAccountCRUD().update_account(account.code, password_encrypted=encrypt_data(new_password))
-        await send_reseller_log(
-            "🔑 تغییر رمز نمایندگی توسط ادمین",
-            account=account,
-            actor_id=event.sender_id,
-            actor_role="ادمین",
-            event=EVENT_PASSWORD,
-        )
         ok, account = await ResellerAccountCRUD().get_account(account_code)
         if ok:
             text = await build_reseller_account_detail_text(account, show_password=True)

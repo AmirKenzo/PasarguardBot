@@ -36,6 +36,34 @@ EVENT_LOW_BALANCE = "low_balance"
 EVENT_EXPIRE = "expire"
 EVENT_PURGE = "purge"
 EVENT_DELETE = "delete"
+EVENT_EXTEND = "extend"
+EVENT_MAX_USERS = "max_users"
+EVENT_PRICE_CHANGE = "price_change"
+
+EVENT_KINDS = (
+    EVENT_PURCHASE,
+    EVENT_IMPORT,
+    EVENT_RENEW,
+    EVENT_EXTEND,
+    EVENT_CAPACITY,
+    EVENT_MAX_USERS,
+    EVENT_PAUSE,
+    EVENT_RESUME,
+    EVENT_ADMIN_PAUSE,
+    EVENT_ADMIN_RESUME,
+    EVENT_SUSPEND,
+    EVENT_REACTIVATE,
+    EVENT_USAGE_CAP_SET,
+    EVENT_USAGE_CAP_HIT,
+    EVENT_PASSWORD,
+    EVENT_LOW_BALANCE,
+    EVENT_PRICE_CHANGE,
+    EVENT_EXPIRE,
+    EVENT_PURGE,
+    EVENT_DELETE,
+)
+# Events whose ``data["amount"]`` was taken from the wallet as a one-off payment.
+SALE_EVENT_KINDS = (EVENT_PURCHASE, EVENT_RENEW, EVENT_CAPACITY)
 
 
 async def _account_context_lines(account: ResellerAccount) -> list[str]:

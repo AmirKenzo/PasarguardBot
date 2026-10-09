@@ -32,12 +32,14 @@ from app.services.reseller.logging import (
     EVENT_ADMIN_PAUSE,
     EVENT_ADMIN_RESUME,
     EVENT_DELETE,
+    EVENT_EXTEND,
+    EVENT_MAX_USERS,
     EVENT_PASSWORD,
     EVENT_PAUSE,
     EVENT_RESUME,
     send_reseller_log,
 )
-from app.services.reseller.panel_sync import purge_reseller_from_panel
+from app.services.reseller.panel_sync import purge_reseller_from_panel, sync_reseller_max_users
 from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
 from app.utils.formatting.dates import Time_Date
 from app.utils.security.crypto import decrypt_data, encrypt_data
@@ -169,7 +171,9 @@ def reveal_password(account) -> str:
     return decrypt_data(account.password_encrypted)
 
 
-async def reset_password(account, *, actor_id: int | None = None) -> tuple[bool, str, str | None]:
+async def reset_password(
+    account, *, actor_id: int | None = None, actor_role: str | None = None
+) -> tuple[bool, str, str | None]:
     """Generate a new panel password. Returns (ok, message, new_password)."""
     panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
     if not panel:
@@ -180,7 +184,13 @@ async def reset_password(account, *, actor_id: int | None = None) -> tuple[bool,
         log.error("password reset failed code=%s: %s", account.code, exc)
         return False, "خطا در تغییر رمز.", None
     await ResellerAccountCRUD().update_account(account.code, password_encrypted=encrypt_data(new_password))
-    await send_reseller_log("🔑 تغییر رمز نمایندگی", account=account, actor_id=actor_id, event=EVENT_PASSWORD)
+    await send_reseller_log(
+        "🔑 تغییر رمز نمایندگی" + (f" توسط {actor_role}" if actor_role else ""),
+        account=account,
+        actor_id=actor_id,
+        actor_role=actor_role,
+        event=EVENT_PASSWORD,
+    )
     return True, "✅ رمز جدید اعمال شد.", new_password
 
 
@@ -312,6 +322,67 @@ async def resume_account_by_admin(account, *, actor_id: int | None = None) -> tu
         event=EVENT_ADMIN_RESUME,
     )
     return True, "نمایندگی توسط ادمین فعال شد."
+
+
+async def extend_account_by_admin(account, *, days: int, actor_id: int | None = None) -> tuple[bool, str]:
+    """Push the expiry forward for free; an expired account is switched back on."""
+    if days <= 0:
+        return False, "تعداد روز نامعتبر است."
+    if not account.expiration_time:
+        return False, "این نمایندگی تاریخ انقضا ندارد."
+
+    now = Time_Date()["stamp"]
+    new_expiry = max(int(account.expiration_time), now) + days * 86400
+    reactivated = account.status == "expired"
+    if reactivated:
+        panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
+        if not panel:
+            return False, "پنل یافت نشد."
+        try:
+            await activate_reseller_admin(panel, account.panel_admin_id)
+        except Exception as exc:
+            log.error("admin extend reactivate failed code=%s: %s", account.code, exc)
+            return False, "خطا در فعال‌سازی پنل."
+        await ResellerAccountCRUD().reset_billing_clock(account.code, status="active", expiration_time=new_expiry)
+    else:
+        await ResellerAccountCRUD().update_account(account.code, expiration_time=new_expiry)
+
+    await send_reseller_log(
+        "📅 تمدید رایگان نمایندگی توسط ادمین",
+        account=account,
+        actor_id=actor_id,
+        actor_role="ادمین",
+        extra_lines=[f"⏰ <b>روز اضافه‌شده:</b> <code>{days}</code>"],
+        event=EVENT_EXTEND,
+        data={"days": days, "expiration_time": new_expiry, "reactivated": reactivated},
+    )
+    message = f"{days} روز به اعتبار نمایندگی اضافه شد."
+    if reactivated:
+        message += " پنل دوباره فعال شد."
+    return True, message
+
+
+async def set_max_users_by_admin(account, *, max_users: int, actor_id: int | None = None) -> tuple[bool, str]:
+    """Set the panel admin's user limit; 0 removes it."""
+    if max_users < 0:
+        return False, "مقدار نامعتبر است."
+    before = int(account.max_users or 0)
+    if before == max_users:
+        return True, "سقف یوزر تغییری نکرد."
+    ok, error = await sync_reseller_max_users(account, max_users)
+    if not ok:
+        return False, error or "اعمال سقف یوزر ناموفق بود."
+    await ResellerAccountCRUD().update_account(account.code, max_users=max_users or None)
+    await send_reseller_log(
+        "👥 تغییر سقف یوزر توسط ادمین",
+        account=account,
+        actor_id=actor_id,
+        actor_role="ادمین",
+        extra_lines=[f"📉 <b>قبل:</b> <code>{before}</code>", f"📈 <b>بعد:</b> <code>{max_users}</code>"],
+        event=EVENT_MAX_USERS,
+        data={"limit_before": before, "limit_after": max_users},
+    )
+    return True, "سقف یوزر به‌روزرسانی شد." if max_users else "سقف یوزر برداشته شد."
 
 
 async def delete_account(account, *, actor_id: int | None = None, actor_role: str = "کاربر") -> tuple[bool, str]:
