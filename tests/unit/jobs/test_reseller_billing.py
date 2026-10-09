@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from app.jobs.reseller import billing
 from app.services.reseller.usage_meter import usage_delta
 
@@ -74,3 +76,30 @@ async def test_full_hour_charges_exact_rate(monkeypatch):
     assert debits == [1000]
     # The charge lands in the hourly ledger instead of a log-channel message.
     assert ledger == [(1000, 60)]
+
+
+@pytest.mark.parametrize(
+    ("suspend_fails", "admin_on_panel", "panel_up", "switched_off"),
+    [
+        (False, True, True, True),  # normal: suspended
+        (True, False, True, True),  # admin deleted on the panel: already off, may expire
+        (True, True, True, False),  # suspend failed on a live admin: retry next run
+        (True, True, False, False),  # panel unreachable: retry next run
+    ],
+)
+async def test_expiry_switches_the_admin_off_or_retries(
+    monkeypatch, suspend_fails, admin_on_panel, panel_up, switched_off
+):
+    async def suspend(panel, admin_id):
+        if suspend_fails:
+            raise RuntimeError("suspend failed")
+
+    async def get_admin(panel, admin_id):
+        if not panel_up:
+            raise RuntimeError("panel down")
+        return SimpleNamespace(id=admin_id) if admin_on_panel else None
+
+    monkeypatch.setattr(billing, "suspend_reseller_admin", suspend)
+    monkeypatch.setattr(billing, "get_reseller_admin", get_admin)
+    account = SimpleNamespace(code=1, panel_admin_id=9)
+    assert await billing._switch_off_for_expiry(object(), account) is switched_off

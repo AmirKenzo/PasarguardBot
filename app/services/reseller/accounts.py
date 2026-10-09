@@ -23,11 +23,7 @@ from app.services.panels.admins import (
     reset_reseller_admin_password,
     suspend_reseller_admin,
 )
-from app.services.panels.settings import (
-    get_panel_login_url,
-    panel_reseller_button_enabled,
-    panel_reseller_capacity_enabled,
-)
+from app.services.panels.settings import get_panel_login_url, panel_reseller_button_enabled
 from app.services.reseller.logging import (
     EVENT_ADMIN_PAUSE,
     EVENT_ADMIN_RESUME,
@@ -40,6 +36,15 @@ from app.services.reseller.logging import (
     send_reseller_log,
 )
 from app.services.reseller.panel_sync import purge_reseller_from_panel, sync_reseller_max_users
+from app.services.reseller.plan_rules import (
+    ADDON_DAYS,
+    ADDON_USERS,
+    ADDON_VOLUME,
+    PAYG_MODES,
+    addon_price,
+    is_renewable,
+    rule_for,
+)
 from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
 from app.services.reseller.usage_meter import pending_usage_charge
 from app.utils.formatting.dates import Time_Date
@@ -48,7 +53,6 @@ from app.utils.security.crypto import decrypt_data, encrypt_data
 log = get_logger(__name__)
 
 ADMIN_LOCKED_STATUS = "admin_paused"
-PAYG_MODES = ("hourly", "usage")
 
 # Actions a reseller may run on one account; front ends show a control per action.
 ACTION_CREDENTIALS = "credentials"
@@ -59,6 +63,8 @@ ACTION_RENEW = "renew"
 ACTION_USAGE_REPORT = "usage_report"
 ACTION_USAGE_CAP = "usage_cap"
 ACTION_BUY_CAPACITY = "buy_user_capacity"
+ACTION_EXTRA_DAYS = "extra_days"
+ACTION_EXTRA_VOLUME = "extra_volume"
 ACTION_DELETE = "delete"
 
 
@@ -72,8 +78,11 @@ def is_admin_locked(account) -> bool:
     return account.status == ADMIN_LOCKED_STATUS
 
 
-def account_actions(account, panel) -> frozenset[str]:
-    """Actions allowed for ``account`` given its status, plan and the panel's reseller button toggles."""
+def account_actions(account, panel, plan=None) -> frozenset[str]:
+    """Actions allowed for ``account``: its status, its plan's rules and the panel's button toggles.
+
+    ``plan`` is the account's plan; without it no add-on is offered (their prices live on the plan).
+    """
 
     def enabled(key: str) -> bool:
         return panel_reseller_button_enabled(panel, key) if panel else True
@@ -89,13 +98,22 @@ def account_actions(account, panel) -> frozenset[str]:
                 actions.add(ACTION_RESUME)
             elif account.status in ("active", "suspended"):
                 actions.add(ACTION_PAUSE)
-        if account.pricing_mode == "fixed":
+        if is_renewable(account.pricing_mode) and account.plan_id and plan is not None:
             actions.add(ACTION_RENEW)
-        if account.pricing_mode == "usage" and enabled("usage_report"):
+        if account.pricing_mode in PAYG_MODES and enabled("usage_report"):
             actions.add(ACTION_USAGE_REPORT)
-        if account.pricing_mode == "usage" and enabled("usage_cap"):
+        if rule_for(account.pricing_mode).usage_cap and enabled("usage_cap"):
             actions.add(ACTION_USAGE_CAP)
-        if account.max_users and panel and panel_reseller_capacity_enabled(panel) and enabled("buy_user_capacity"):
+        if addon_price(plan, ADDON_DAYS) and account.expiration_time and enabled(ACTION_EXTRA_DAYS):
+            actions.add(ACTION_EXTRA_DAYS)
+        if (
+            addon_price(plan, ADDON_VOLUME)
+            and int(account.data_limit or 0) > 0
+            and account.status != "expired"
+            and enabled(ACTION_EXTRA_VOLUME)
+        ):
+            actions.add(ACTION_EXTRA_VOLUME)
+        if addon_price(plan, ADDON_USERS) and int(account.max_users or 0) > 0 and enabled(ACTION_BUY_CAPACITY):
             actions.add(ACTION_BUY_CAPACITY)
     if enabled("delete"):
         actions.add(ACTION_DELETE)
@@ -380,7 +398,10 @@ async def set_max_users_by_admin(account, *, max_users: int, actor_id: int | Non
     ok, error = await sync_reseller_max_users(account, max_users)
     if not ok:
         return False, error or "اعمال سقف یوزر ناموفق بود."
-    await ResellerAccountCRUD().update_account(account.code, max_users=max_users or None)
+    plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
+    plan_max = int(plan.max_users or 0) if plan else 0
+    extra = max(0, max_users - plan_max) if max_users and plan_max else 0
+    await ResellerAccountCRUD().update_account(account.code, max_users=max_users or None, extra_users=extra or None)
     await send_reseller_log(
         "👥 تغییر سقف یوزر توسط ادمین",
         account=account,

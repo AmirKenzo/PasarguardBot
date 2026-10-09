@@ -17,11 +17,9 @@ from app.services.panels.settings import (
     compact_feature_settings,
     feature_settings,
     is_custom_buy_ready,
-    is_reseller_capacity_ready,
     panel_custom_buy_settings,
     panel_expired_auto_delete_enabled,
     panel_expired_grace_days,
-    panel_reseller_capacity_settings,
     panel_reseller_sale_flag,
     panel_shop_sale_flag,
     panel_test_duration_days,
@@ -251,22 +249,15 @@ async def show_panel_custom_buy_menu(event, panel) -> None:
     await event.edit(text, buttons=buttons)
 
 
+RESELLER_CAPACITY_MOVED_NOTE = "قیمت یوزر اضافه حالا روی هر پلن تنظیم می‌شود"
+
+
 async def show_panel_reseller_capacity_menu(event, panel) -> None:
-    settings = panel_reseller_capacity_settings(panel)
-    ready = is_reseller_capacity_ready(settings)
-    toggle_label = "✅ روشن" if settings["enabled"] else "❌ خاموش"
-    ready_label = "فعال برای نماینده ✅" if ready else "برای نماینده غیرفعال ❌"
+    """The panel-wide extra-user price is no longer used for selling; point the admin to the plans."""
     text = (
-        f"**👥 خرید ظرفیت کاربر اضافه — پنل {panel.name}**\n\n"
-        f"📌 سوییچ: {toggle_label}\n"
-        f"📣 وضعیت نهایی: {ready_label}\n"
-        f"💰 قیمت هر کاربر: `{settings['price_per_user']:,}` تومان\n\n"
-        "نماینده می‌تواند جدا از ظرفیت اصلی پلن، User Limit پنل خود را با پرداخت افزایش دهد.\n"
-        "برای فعال شدن دکمه نماینده، سوییچ باید روشن باشد و قیمت هر کاربر بزرگ‌تر از صفر باشد."
+        f"**👥 یوزر اضافه (نمایندگی) — پنل {panel.name}**\n\n"
+        f"ℹ️ {RESELLER_CAPACITY_MOVED_NOTE}.\n\n"
+        "از «🏢 پلن نمایندگی» ← «📋 مدیریت پلن‌ها»، پلن را باز کنید و «قیمت یوزر اضافه» را تنظیم کنید "
+        "(0 = خاموش). نمایش دکمه برای نماینده هم از «دکمه‌های نمایندگی» همین پنل روشن/خاموش می‌شود."
     )
-    buttons = [
-        [Button.inline(f"روشن/خاموش ({toggle_label})", data=f"panel_reseller_capacity_toggle:{panel.code}")],
-        [Button.inline("💰 تنظیم قیمت هر کاربر", data=f"panel_reseller_capacity_price:{panel.code}")],
-        [Button.inline("🔙 بازگشت", data=f"panel_info:{panel.code}")],
-    ]
-    await event.edit(text, buttons=buttons)
+    await event.edit(text, buttons=[[Button.inline("🔙 بازگشت", data=f"panel_info:{panel.code}")]])

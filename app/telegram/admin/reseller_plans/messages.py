@@ -13,11 +13,14 @@ from app.db.crud.user import UserCRUD
 from app.services.panels.admins import find_admin_by_username
 from app.services.reseller.import_existing import format_panel_admin_preview
 from app.services.reseller.plan_changes import notify_plan_rate_change
+from app.services.reseller.plan_rules import validate_plan
 from app.telegram.admin.reseller_plans import states
 from app.telegram.admin.reseller_plans.callbacks import (
-    _finalize_new_plan,
     _show_import_plan_picker,
-    is_number,
+    ask_create_field,
+    edit_error,
+    plan_model_values,
+    send_create_review,
 )
 from app.telegram.admin.reseller_plans.service import (
     format_reseller_plan_detail,
@@ -27,8 +30,15 @@ from app.telegram.admin.reseller_plans.service import (
     reseller_plan_main_menu_buttons,
 )
 from app.telegram.keyboards.common import extract_custom_emoji_document_id
+from app.telegram.shared.reseller_plan_guides import (
+    create_fields,
+    editable_fields,
+    field_prompt,
+    next_create_field,
+    parse_plan_field,
+)
 from app.telegram.state import get_data, get_step, set_data, set_step
-from app.utils.formatting.conversions import as_int
+from app.utils.formatting.conversions import as_int, gigabytes_to_bytes
 from config import ADMIN_ID
 
 
@@ -40,9 +50,74 @@ async def _show_plan_after_edit(event: Message, plan_id: int) -> None:
     await Kenzo.send_message(
         event.sender_id,
         await format_reseller_plan_detail(plan),
-        buttons=plan_manage_buttons(plan_id, plan.panel_code),
+        buttons=plan_manage_buttons(plan),
         parse_mode="markdown",
     )
+
+
+async def _process_add_field(event: Message, user_id: int, msg: str) -> None:
+    mode = await get_data(user_id, states.MODE_KEY)
+    field = await get_data(user_id, states.FIELD_KEY)
+    if not mode or not field or field not in create_fields(mode):
+        await set_step(user_id, "panel")
+        await event.respond("نشست ساخت پلن منقضی شده است. دوباره از منوی پلن نمایندگی شروع کنید.")
+        return
+    value, error = parse_plan_field(field, mode, msg)
+    if error:
+        await event.respond(f"❌ {error}\n\n{field_prompt(field, mode)}", parse_mode="markdown")
+        return
+    await set_data(user_id, f"{states.VALUE_KEY_PREFIX}{field}", str(value))
+    with contextlib.suppress(Exception):
+        await event.delete()
+    entered = {field: value}
+    if field != "max_users":
+        raw_users = await get_data(user_id, f"{states.VALUE_KEY_PREFIX}max_users")
+        if raw_users is not None:
+            entered["max_users"] = int(float(raw_users))
+    next_field = next_create_field(mode, field, entered)
+    if next_field:
+        await ask_create_field(user_id, mode, next_field)
+        return
+    await send_create_review(user_id)
+
+
+async def _process_edit_field(event: Message, user_id: int, msg: str) -> None:
+    plan_id = as_int(await get_data(user_id, states.EDIT_PLAN_KEY))
+    field = await get_data(user_id, states.EDIT_FIELD_KEY)
+    plan = await ResellerPlanManager().get_plan(plan_id) if plan_id is not None else None
+    if not plan or not field or field not in editable_fields(plan.pricing_mode, plan):
+        await set_step(user_id, "panel")
+        await event.respond("نشست ویرایش منقضی شده است. دوباره پلن را باز کنید.")
+        return
+    value, error = parse_plan_field(field, plan.pricing_mode, msg)
+    if error:
+        await event.respond(f"❌ {error}\n\n{field_prompt(field, plan.pricing_mode)}", parse_mode="markdown")
+        return
+    if field == "data_limit":
+        stored = int(gigabytes_to_bytes(value)) if value else 0
+    elif field in ("max_users", "duration"):
+        stored = int(value)
+    else:
+        stored = float(value)
+    rule_error = edit_error(plan, field, stored)
+    if rule_error:
+        await event.respond(f"❌ {rule_error}\n\n{field_prompt(field, plan.pricing_mode)}", parse_mode="markdown")
+        return
+    old_rate = float(plan.unit_price or 0)
+    if not await ResellerPlanManager().update_plan(plan.id, **{field: stored}):
+        await event.respond("❌ ذخیره تغییر ناموفق بود. دوباره تلاش کنید.")
+        return
+    if field == "unit_price":
+        await notify_plan_rate_change(plan, old_rate=old_rate, new_rate=float(stored), actor_id=user_id)
+    await set_step(user_id, "panel")
+    with contextlib.suppress(Exception):
+        await event.delete()
+    remaining = validate_plan({**plan_model_values(plan), field: stored}, existing_mode=plan.pricing_mode)
+    if remaining:
+        await event.respond(f"✅ تغییر ذخیره شد.\n⚠️ این پلن هنوز باید اصلاح شود: {remaining}")
+    else:
+        await event.respond("✅ تغییر ذخیره شد.")
+    await _show_plan_after_edit(event, plan.id)
 
 
 async def _process_reseller_import_username(event: Message, user_id: int, msg: str) -> None:
@@ -132,83 +207,12 @@ async def message_handler_reseller_plans(event: Message):
         await _process_reseller_import_telegram_id(event, user_id, msg)
         return
 
-    if step == "reseller_plan_add_price" and is_number(msg):
-        await set_data(user_id, "reseller_plan_price", msg.replace(",", ""))
-        await set_step(user_id, "reseller_plan_add_data_limit")
-        await event.respond("سقف ترافیک (گیگ — 0 برای نامحدود):")
+    if step == states.STEP_ADD_FIELD and msg:
+        await _process_add_field(event, user_id, msg)
         return
 
-    if step == "reseller_plan_add_unit_price" and is_number(msg):
-        await set_data(user_id, "reseller_plan_unit_price", msg.replace(",", ""))
-        mode = await get_data(user_id, "reseller_plan_mode")
-        if mode in ("per_gb", "per_tb"):
-            await set_step(user_id, "reseller_plan_add_min_volume")
-            await event.respond("حداقل حجم (گیگ/ترابایت بسته به پلن):")
-            return
-        if mode == "usage":
-            await set_data(user_id, "reseller_plan_price", "0")
-        elif mode == "hourly":
-            await set_data(user_id, "reseller_plan_price", msg.replace(",", ""))
-        await set_step(user_id, "reseller_plan_add_data_limit")
-        await event.respond("سقف ترافیک کل نماینده (گیگ — 0 نامحدود):")
-        return
-
-    if step == "reseller_plan_add_min_volume" and is_number(msg):
-        await set_data(user_id, "reseller_plan_min_volume", msg.replace(",", ""))
-        await set_step(user_id, "reseller_plan_add_max_volume")
-        await event.respond("حداکثر حجم:")
-        return
-
-    if step == "reseller_plan_add_max_volume" and is_number(msg):
-        await set_data(user_id, "reseller_plan_max_volume", msg.replace(",", ""))
-        await set_step(user_id, "reseller_plan_add_data_limit")
-        await event.respond("سقف ترافیک کل نماینده (گیگ — 0 نامحدود):")
-        return
-
-    if step == "reseller_plan_add_data_limit" and is_number(msg):
-        await set_data(user_id, "reseller_plan_data_limit", msg.replace(",", ""))
-        await set_step(user_id, "reseller_plan_add_max_users")
-        await event.respond("سقف تعداد یوزر (0 نامحدود):")
-        return
-
-    if step == "reseller_plan_add_max_users" and is_number(msg):
-        await set_data(user_id, "reseller_plan_max_users", msg.replace(",", ""))
-        mode = await get_data(user_id, "reseller_plan_mode")
-        if mode == "usage":
-            await set_data(user_id, "reseller_plan_duration", "0")
-            with contextlib.suppress(Exception):
-                await event.delete()
-            await _finalize_new_plan(event, user_id)
-            return
-        await set_step(user_id, "reseller_plan_add_duration")
-        await event.respond("مدت اعتبار (روز — 0 نامحدود):")
-        return
-
-    if step == "reseller_plan_add_duration" and is_number(msg):
-        await set_data(user_id, "reseller_plan_duration", msg.replace(",", ""))
-        with contextlib.suppress(Exception):
-            await event.delete()
-        await _finalize_new_plan(event, user_id)
-        return
-
-    if step == "reseller_plan_edit_price" and is_number(msg):
-        plan_id = await get_data(user_id, "reseller_edit_plan_id")
-        plan = await ResellerPlanManager().get_plan(plan_id)
-        if not plan:
-            await event.respond("پلن یافت نشد.")
-            return
-        value = float(msg.replace(",", ""))
-        if plan.pricing_mode == "fixed":
-            await ResellerPlanManager().update_plan(plan_id, price=value)
-        else:
-            old_rate = float(plan.unit_price or 0)
-            await ResellerPlanManager().update_plan(plan_id, unit_price=value)
-            await notify_plan_rate_change(plan, old_rate=old_rate, new_rate=value, actor_id=user_id)
-        await set_step(user_id, "panel")
-        with contextlib.suppress(Exception):
-            await event.delete()
-        await event.respond("✅ قیمت به‌روز شد.")
-        await _show_plan_after_edit(event, int(plan_id))
+    if step == states.STEP_EDIT_FIELD and msg:
+        await _process_edit_field(event, user_id, msg)
         return
 
     if step == "reseller_plan_edit_btn_text":

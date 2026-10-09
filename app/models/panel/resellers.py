@@ -91,6 +91,7 @@ class PanelResellerRow(BaseModel):
     data_limit: int | None = None
     usage_cap_bytes: int | None = None
     max_users: int | None = None
+    extra_users: int | None = Field(None, description="User slots bought above the plan's limit")
     createtime: int | None = None
     expiration_time: int | None = None
     status: str = "active"
@@ -144,7 +145,11 @@ class PanelResellerPlanBrief(BaseModel):
     id: int
     pricing_mode: str
     name: str | None = None
-    rate: float = 0
+    rate: float = Field(0, description="Package price (fixed/unlimited) or price per GB / hour")
+    enable: bool = True
+    duration: int = 0
+    data_limit_gb: float = 0
+    max_users: int = 0
 
 
 class PanelResellerDetailRequest(PanelRequest):
@@ -154,14 +159,21 @@ class PanelResellerDetailRequest(PanelRequest):
 class PanelResellerDetailResponse(PanelResponse):
     reseller: PanelResellerRow | None = None
     plan: PanelResellerPlanBrief | None = None
+    plan_features: dict | None = Field(None, description="plan_rules.plan_features of the account's plan")
     live: PanelResellerLive | None = None
     live_error: str | None = None
     balance: int | None = None
     billed_total: int | None = None
     runway_hours: float | None = None
     grace_days_left: int | None = None
+    grace_days: int | None = Field(None, description="Days an expired account is kept before it is purged")
     actions: list[str] = Field(default_factory=list)
-    renew_plans: list[PanelResellerPlanBrief] = Field(default_factory=list)
+    renew_plans: list[PanelResellerPlanBrief] = Field(
+        default_factory=list, description="Only the account's own plan: renewal never switches plans"
+    )
+    change_plans: list[PanelResellerPlanBrief] = Field(
+        default_factory=list, description="Other plans of the same panel and type the admin can move it to"
+    )
     snapshots: list[PanelResellerSnapshotRow] = Field(default_factory=list)
     events: list[PanelResellerEventRow] = Field(default_factory=list)
     statuses: list[str] = Field(default_factory=lambda: list(RESELLER_STATUSES))
@@ -202,6 +214,19 @@ class PanelResellerUsageCapRequest(PanelRequest):
 class PanelResellerMaxUsersRequest(PanelRequest):
     code: int
     max_users: int = Field(..., ge=0, le=1_000_000)
+
+
+class PanelResellerDataLimitRequest(PanelRequest):
+    """Set the volume to ``set_gb`` or add ``add_gb`` to it; exactly one of them."""
+
+    code: int
+    set_gb: float | None = Field(None, gt=0, le=1_000_000)
+    add_gb: float | None = Field(None, gt=0, le=1_000_000)
+
+
+class PanelResellerChangePlanRequest(PanelRequest):
+    code: int
+    plan_id: int = Field(..., gt=0)
 
 
 class PanelResellerPasswordResponse(PanelResponse):
@@ -259,6 +284,8 @@ class PanelResellerButtons(BaseModel):
     usage_report: bool = True
     usage_cap: bool = True
     buy_user_capacity: bool = True
+    extra_days: bool | None = None
+    extra_volume: bool | None = None
     delete: bool = True
 
 
@@ -309,6 +336,10 @@ class PanelResellerPlanRow(BaseModel):
     button_style: str | None = None
     button_icon: int | None = None
     linked_accounts: int = 0
+    addon_day_price: float = 0
+    addon_gb_price: float = 0
+    addon_user_price: float = 0
+    features: dict = Field(default_factory=dict, description="plan_rules.plan_features of the plan")
 
 
 class PanelResellerPlansResponse(PanelResponse):
@@ -339,6 +370,9 @@ class PanelResellerPlanSaveRequest(PanelRequest):
     button_style: str = Field("", max_length=20)
     button_icon: str = Field("", max_length=64)
     notify_resellers: bool = Field(True, description="Message linked pay-as-you-go resellers when the rate changes")
+    addon_day_price: float = Field(0, ge=0, description="Price of one extra day")
+    addon_gb_price: float = Field(0, ge=0, description="Price of one extra GB")
+    addon_user_price: float = Field(0, ge=0, description="Price of one extra user slot")
 
 
 class PanelResellerPlanDeleteRequest(PanelRequest):

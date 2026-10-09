@@ -254,6 +254,10 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                     await _keyboard_admin_button(keyboard_crud, "in.rs.delete", 5),
                 ],
                 [
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.extra_days", 5),
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.extra_volume", 5),
+                ],
+                [
                     await _keyboard_admin_button(keyboard_crud, "in.rs.buy_user_capacity", 5),
                     await _keyboard_admin_button(keyboard_crud, "in.rs.buy_random_username", 5),
                 ],

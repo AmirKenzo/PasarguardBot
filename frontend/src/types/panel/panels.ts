@@ -119,6 +119,8 @@ export interface PanelResellerButtonSettings {
   usage_report: boolean;
   usage_cap: boolean;
   buy_user_capacity: boolean;
+  extra_days: boolean;
+  extra_volume: boolean;
   delete: boolean;
 }
 

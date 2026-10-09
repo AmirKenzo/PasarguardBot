@@ -71,6 +71,8 @@ function resellerButtonDefs(t: TFunction): { key: keyof PanelResellerButtonSetti
     { key: "usage_report", label: t("panel.panels.rsBtn.usageReport"), desc: t("panel.panels.rsBtnDesc.usageReport") },
     { key: "usage_cap", label: t("panel.panels.rsBtn.usageCap"), desc: t("panel.panels.rsBtnDesc.usageCap") },
     { key: "buy_user_capacity", label: t("panel.panels.rsBtn.buyCapacity"), desc: t("panel.panels.rsBtnDesc.buyCapacity") },
+    { key: "extra_days", label: t("panel.panels.rsBtn.extraDays"), desc: t("panel.panels.rsBtnDesc.extraDays") },
+    { key: "extra_volume", label: t("panel.panels.rsBtn.extraVolume"), desc: t("panel.panels.rsBtnDesc.extraVolume") },
     { key: "delete", label: t("panel.panels.rsBtn.delete"), desc: t("panel.panels.rsBtnDesc.delete") },
   ];
 }
@@ -291,7 +293,6 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
       renewal: draft.renewal,
       sales: draft.sales,
       custom_buy: draft.custom_buy,
-      reseller_capacity: draft.reseller_capacity,
       reseller_buttons: draft.reseller_buttons,
       volume_plans: volumePlanRows.map((row) => ({
         id: row.id,
@@ -851,20 +852,9 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                   hint={t("panel.panels.resellerSaleHint")}
                 />
                 <div className="h-px bg-border/60" />
-                <Toggle
-                  checked={draft.reseller_capacity.enabled}
-                  onChange={(checked) => setDraft({ ...draft, reseller_capacity: { ...draft.reseller_capacity, enabled: checked } })}
-                  label={t("panel.panels.resellerCapacity")}
-                  hint={t("panel.panels.resellerCapacityHint")}
-                />
-                <Input
-                  label={t("panel.panels.resellerCapacityPrice")}
-                  inputMode="numeric"
-                  value={draft.reseller_capacity.price_per_user}
-                  onChange={(e) =>
-                    setDraft({ ...draft, reseller_capacity: { ...draft.reseller_capacity, price_per_user: Number(e.target.value) } })
-                  }
-                />
+                <p className="rounded-md bg-surface-2 px-3 py-2 text-xs leading-relaxed text-muted">
+                  {t("panel.resellerHub.settings.capacityMoved")}
+                </p>
                 <div className="h-px bg-border/60" />
                 <p className="text-xs font-bold text-primary">{t("panel.panels.resellerButtonsTitle")}</p>
                 <p className="text-xs text-muted">{t("panel.panels.resellerButtonsHint")}</p>

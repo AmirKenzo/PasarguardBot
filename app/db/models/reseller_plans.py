@@ -3,9 +3,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
-PRICING_MODES = ("fixed", "per_gb", "per_tb", "hourly", "usage")
+PRICING_MODES = ("fixed", "unlimited", "per_gb", "per_tb", "hourly", "usage")
 # New plans can only use these; the other modes stay billable for plans created before.
-CREATABLE_PRICING_MODES = ("fixed", "usage")
+CREATABLE_PRICING_MODES = ("fixed", "unlimited", "usage", "hourly")
 
 
 class ResellerPlan(Base):
@@ -30,3 +30,6 @@ class ResellerPlan(Base):
     display_button_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     button_style: Mapped[str | None] = mapped_column(String(20), nullable=True)
     button_icon: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    addon_day_price: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
+    addon_gb_price: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
+    addon_user_price: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")

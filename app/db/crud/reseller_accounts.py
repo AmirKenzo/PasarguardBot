@@ -14,6 +14,7 @@ from app.utils.formatting.conversions import as_int
 log = get_logger(__name__)
 
 EXPIRABLE_STATUSES = ("active", "suspended", "paused", "usage_capped", "admin_paused")
+AUTO_EXPIRE_STATUSES = tuple(s for s in EXPIRABLE_STATUSES if s != "admin_paused")
 
 
 class ResellerAccountCRUD:
@@ -84,7 +85,7 @@ class ResellerAccountCRUD:
                     select(ResellerAccount).where(
                         ResellerAccount.expiration_time.is_not(None),
                         ResellerAccount.expiration_time <= now,
-                        ResellerAccount.status.in_(EXPIRABLE_STATUSES),
+                        ResellerAccount.status.in_(AUTO_EXPIRE_STATUSES),
                     )
                 )
                 return list(result.scalars().all())

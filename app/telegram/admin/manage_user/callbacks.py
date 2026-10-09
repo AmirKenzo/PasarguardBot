@@ -16,6 +16,7 @@ from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, safe_mode_admin_label, user_safe_mode_value
 from app.logger import LogType, get_logger
 from app.services.billing.renewal import require_panel_userid
+from app.services.billing.reseller_pricing import calculate_purchase_price
 from app.services.billing.reseller_renewal import renew_reseller_account
 from app.services.panels.admins import get_reseller_admin, get_reseller_admin_user_count
 from app.services.reseller.accounts import (
@@ -24,6 +25,8 @@ from app.services.reseller.accounts import (
     reset_password,
     resume_account_by_admin,
 )
+from app.services.reseller.admin_tools import change_plan_by_admin, forgive_unbilled_usage, resync_with_panel
+from app.services.reseller.plan_rules import USAGE, is_renewable, rule_for
 from app.services.reseller.usage_cap import set_reseller_usage_cap, usage_cap_menu_text
 from app.services.users.admin_profile import display_user_info_admin
 from app.telegram.admin.manage_user import states
@@ -33,6 +36,12 @@ from app.telegram.admin.manage_user.service import (
     delete_message,
     display_user_services_Admin,
     finalize_admin_config,
+)
+from app.telegram.admin.manage_user.states import (
+    RESELLER_TOOL_CODE_KEY,
+    RESELLER_TOOL_KIND_KEY,
+    RESELLER_TOOL_USER_KEY,
+    STEP_ADMIN_RESELLER_TOOL,
 )
 from app.telegram.keyboards.admin import (
     Home_Back,
@@ -44,10 +53,16 @@ from app.telegram.keyboards.admin import (
     create_inline_manageuser,
 )
 from app.telegram.keyboards.services import create_inline_service_buttons
+from app.telegram.shared.reseller_plan_guides import admin_mode_name, format_field_value, max_users_label
 from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.shared.utils.username import generate_unique_username
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
-from app.telegram.user.reseller.helpers import build_reseller_account_detail_text, format_plan_button_text
+from app.telegram.state.lock import acquire_user_lock, release_user_lock
+from app.telegram.user.reseller.helpers import (
+    build_reseller_account_detail_text,
+    build_reseller_renew_confirm_text,
+    format_plan_button_text,
+)
 from app.telegram.user.services.helpers import build_service_info_message_text, edit_service_view
 from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
@@ -73,6 +88,49 @@ async def _admin_show_reseller_detail(event, user_id: int, account) -> None:
     )
 
 
+def _back_to_account(user_id: int, account_code: int) -> list:
+    return [[Button.inline("🔙 بازگشت", data=f"AdminReseller_view:{user_id}:{account_code}")]]
+
+
+async def _admin_tool_result(event, user_id: int, account_code: int, ok: bool, msg: str) -> None:
+    """Show a repair tool's message, then the refreshed account."""
+    await event.answer(("✅ " if ok else "❌ ") + msg, alert=True)
+    found, account = await ResellerAccountCRUD().get_account(account_code)
+    if found:
+        await _admin_show_reseller_detail(event, user_id, account)
+
+
+_TOOL_PROMPTS = {
+    "volume_set": "**📦 تعیین حجم دقیق — `{username}`**\n\nحجم فعلی: {current}\n\n"
+    "حجم جدید را به **گیگ** ارسال کنید (بیشتر از صفر). حجم دقیقاً همین مقدار می‌شود؛ رایگان است.",
+    "volume_add": "**➕ افزودن حجم — `{username}`**\n\nحجم فعلی: {current}\n\n"
+    "مقدار حجمی که اضافه شود را به **گیگ** ارسال کنید (بیشتر از صفر)؛ رایگان است.",
+    "days": "**📅 روز رایگان — `{username}`**\n\nانقضای فعلی: {current}\n\n"
+    "تعداد روز را ارسال کنید (بیشتر از صفر). روزها از انقضای فعلی اضافه می‌شوند؛ "
+    "اگر منقضی شده باشد از امروز و پنل دوباره فعال می‌شود.",
+    "maxusers": "**👥 سقف یوزر — `{username}`**\n\nسقف فعلی: {current}\n\n"
+    "سقف جدید را ارسال کنید (0 = نامحدود). مقدار بیشتر از سقف پلن، «یوزر اضافه» حساب می‌شود و با تغییر پلن حفظ می‌شود.",
+}
+
+
+async def _prompt_admin_tool(event, user_id: int, account, kind: str) -> None:
+    current = {
+        "volume_set": format_field_value("data_limit", account.data_limit),
+        "volume_add": format_field_value("data_limit", account.data_limit),
+        "days": timestamp_to_persian_expiry(account.expiration_time) if account.expiration_time else "بدون انقضا",
+        "maxusers": max_users_label(account.max_users, account.extra_users),
+    }[kind]
+    await set_data(event.sender_id, RESELLER_TOOL_USER_KEY, str(user_id))
+    await set_data(event.sender_id, RESELLER_TOOL_CODE_KEY, str(account.code))
+    await set_data(event.sender_id, RESELLER_TOOL_KIND_KEY, kind)
+    await set_step(event.sender_id, STEP_ADMIN_RESELLER_TOOL)
+    await event.edit(
+        _TOOL_PROMPTS[kind].format(username=account.username, current=current),
+        buttons=_back_to_account(user_id, account.code),
+        parse_mode="markdown",
+    )
+
+
 async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, data: str) -> bool:
     if not data.startswith("AdminReseller_"):
         return False
@@ -88,6 +146,11 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)
             return True
+        # Leaving a typed-value tool (back button): stop waiting for its input.
+        if await get_step(event.sender_id) in (STEP_ADMIN_RESELLER_TOOL, "AdminResellerUsageCapInput"):
+            for key in (RESELLER_TOOL_USER_KEY, RESELLER_TOOL_CODE_KEY, RESELLER_TOOL_KIND_KEY):
+                await delete_data(event.sender_id, key)
+            await set_step(event.sender_id, states.STEP_MTO_USER_INFO)
         await _admin_show_reseller_detail(event, user_id, account)
         return True
 
@@ -212,17 +275,24 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)
             return True
-        plan = await ResellerPlanManager().get_plan(plan_id)
-        if not plan or plan.pricing_mode != "fixed":
-            await event.answer("پلن نامعتبر است.", alert=True)
+        # Renewal is always with the account's own plan (even when that plan is off sale).
+        if not is_renewable(account.pricing_mode) or plan_id != int(account.plan_id or 0):
+            await event.answer("تمدید فقط با همان پلن خریداری‌شده امکان‌پذیر است.", alert=True)
             return True
-        success, msg = await renew_reseller_account(
-            account_code,
-            plan_id,
-            user_id,
-            actor_id=event.sender_id,
-            actor_role="ادمین",
-        )
+        # Same lock as the user's own renewal, so one wallet is never charged twice at once.
+        if not await acquire_user_lock(account.telegram_id, "reseller_renew", ttl=30):
+            await event.answer("یک عملیات دیگر روی کیف پول این کاربر در جریان است.", alert=True)
+            return True
+        try:
+            success, msg = await renew_reseller_account(
+                account_code,
+                plan_id,
+                user_id,
+                actor_id=event.sender_id,
+                actor_role="ادمین",
+            )
+        finally:
+            await release_user_lock(account.telegram_id, "reseller_renew")
         await event.answer(msg, alert=True)
         if success:
             ok, account = await ResellerAccountCRUD().get_account(account_code)
@@ -235,28 +305,185 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)
             return True
+        if not is_renewable(account.pricing_mode):
+            await event.answer("تمدید فقط برای پلن‌های ثابت و نامحدود است.", alert=True)
+            return True
+        plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
+        if not plan:
+            await event.answer("پلن این نمایندگی پیدا نشد؛ ابتدا با «تغییر پلن» یک پلن هم‌نوع انتخاب کنید.", alert=True)
+            return True
+        current_limit = int(account.data_limit or 0)
+        used_traffic = 0
+        panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
+        if panel:
+            try:
+                admin = await get_reseller_admin(panel, account.panel_admin_id)
+            except Exception:
+                admin = None
+            if admin:
+                current_limit = int(getattr(admin, "data_limit", 0) or 0)
+                used_traffic = int(getattr(admin, "used_traffic", 0) or 0)
+        target_user = await UserCRUD().read_user(user_id)
+        text = build_reseller_renew_confirm_text(
+            account,
+            plan,
+            amount=calculate_purchase_price(plan),
+            current_limit=current_limit,
+            used_traffic=used_traffic,
+            now=Time_Date()["stamp"],
+            balance=int(target_user.amount or 0) if target_user else None,
+        )
+        await event.edit(
+            f"{text}\n\n⚠️ مبلغ تمدید از کیف پول کاربر کسر می‌شود. برای افزودن رایگان روز، از «📅 روز رایگان» استفاده کنید.",
+            buttons=[
+                [Button.inline("✅ تأیید تمدید", data=f"AdminReseller_renew_plan:{user_id}:{account_code}:{plan.id}")],
+                *_back_to_account(user_id, account_code),
+            ],
+            parse_mode="markdown",
+        )
+        return True
+
+    if action in ("days", "maxusers", "volume_set", "volume_add"):
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        if action == "days" and not account.expiration_time:
+            await event.answer("این نمایندگی تاریخ انقضا ندارد.", alert=True)
+            return True
+        if action.startswith("volume") and rule_for(account.pricing_mode).volume == "none":
+            await event.answer("حجم این نوع پلن همیشه نامحدود است.", alert=True)
+            return True
+        if action == "volume_add" and int(account.data_limit or 0) <= 0:
+            await event.answer("حجم فعلی نامحدود است؛ حجم دقیق را تعیین کنید.", alert=True)
+            return True
+        await _prompt_admin_tool(event, user_id, account, action)
+        return True
+
+    if action == "volume":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        if rule_for(account.pricing_mode).volume == "none":
+            await event.answer("حجم این نوع پلن همیشه نامحدود است.", alert=True)
+            return True
+        rows = [[Button.inline("✏️ تعیین حجم دقیق", data=f"AdminReseller_volume_set:{user_id}:{account_code}")]]
+        if int(account.data_limit or 0) > 0:
+            rows.append([Button.inline("➕ افزودن حجم", data=f"AdminReseller_volume_add:{user_id}:{account_code}")])
+        rows.extend(_back_to_account(user_id, account_code))
+        await event.edit(
+            f"**📦 تنظیم حجم — `{account.username}`**\n\n"
+            f"حجم فعلی: {format_field_value('data_limit', account.data_limit)}\n\n"
+            "این تغییر رایگان است، روی پنل اعمال می‌شود و در رویدادهای نمایندگی ثبت می‌شود.",
+            buttons=rows,
+            parse_mode="markdown",
+        )
+        return True
+
+    if action == "chplan":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
         plans = [
             p
-            for p in await ResellerPlanManager().get_all_plans(panel_code=account.panel_code, enabled_only=True)
-            if p.pricing_mode == "fixed"
+            for p in await ResellerPlanManager().get_all_plans(panel_code=account.panel_code)
+            if p.pricing_mode == account.pricing_mode and p.id != account.plan_id
         ]
         if not plans:
-            await event.answer("پلن ثابت فعالی نیست.", alert=True)
+            await event.answer(
+                f"پلن دیگری از نوع {admin_mode_name(account.pricing_mode)} روی همین پنل وجود ندارد.", alert=True
+            )
             return True
         rows = [
             [
                 Button.inline(
-                    format_plan_button_text(plan), data=f"AdminReseller_renew_plan:{user_id}:{account_code}:{plan.id}"
+                    f"{format_plan_button_text(p)}{'' if p.enable else ' (غیرفعال)'}",
+                    data=f"AdminReseller_chplan_pick:{user_id}:{account_code}:{p.id}",
                 )
             ]
-            for plan in plans
+            for p in plans
         ]
-        rows.append([Button.inline("🔙 بازگشت", data=f"AdminReseller_view:{user_id}:{account_code}")])
+        rows.extend(_back_to_account(user_id, account_code))
         await event.edit(
-            f"**💎 تمدید `{account.username}`**\n\nپلن را انتخاب کنید:",
+            f"**🔁 تغییر پلن — `{account.username}`**\n\n"
+            f"پلن فعلی: #{account.plan_id or '—'} · نوع: {admin_mode_name(account.pricing_mode)}\n\n"
+            "فقط پلن‌های هم‌نوع همین پنل نمایش داده می‌شوند. تغییر پلن رایگان است.",
             buttons=rows,
             parse_mode="markdown",
         )
+        return True
+
+    if action == "chplan_pick":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        plan = await ResellerPlanManager().get_plan(plan_id) if plan_id else None
+        if not account or not plan:
+            await event.answer("نمایندگی یا پلن یافت نشد.", alert=True)
+            return True
+        await event.edit(
+            f"**⚠️ تأیید تغییر پلن — `{account.username}`**\n\n"
+            f"پلن: #{account.plan_id or '—'} ← #{plan.id} ({format_plan_button_text(plan)})\n\n"
+            "• نقش پنل و سقف یوزر پلن جدید اعمال می‌شود؛ یوزرهای اضافه خریداری‌شده حفظ می‌شوند.\n"
+            "• حجم و تاریخ انقضا همین‌طور می‌مانند؛ تمدید بعدی با پلن جدید انجام می‌شود.\n"
+            "• هزینه‌ای از کاربر کسر نمی‌شود.",
+            buttons=[
+                [
+                    Button.inline(
+                        "✅ تأیید تغییر پلن", data=f"AdminReseller_chplan_do:{user_id}:{account_code}:{plan.id}"
+                    )
+                ],
+                [Button.inline("🔙 بازگشت", data=f"AdminReseller_chplan:{user_id}:{account_code}")],
+            ],
+            parse_mode="markdown",
+        )
+        return True
+
+    if action == "chplan_do":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account or not plan_id:
+            await event.answer("نمایندگی یا پلن یافت نشد.", alert=True)
+            return True
+        ok, msg = await change_plan_by_admin(account, plan_id=plan_id, actor_id=event.sender_id)
+        await _admin_tool_result(event, user_id, account_code, ok, msg)
+        return True
+
+    if action == "resync":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        ok, msg = await resync_with_panel(account, actor_id=event.sender_id)
+        await _admin_tool_result(event, user_id, account_code, ok, msg)
+        return True
+
+    if action == "forgive":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        if account.pricing_mode != USAGE:
+            await event.answer("این ابزار فقط برای پلن مصرفی است.", alert=True)
+            return True
+        await event.edit(
+            f"**⚠️ بخشیدن مصرف کسرنشده — `{account.username}`**\n\n"
+            "حجمی که از آخرین کسر تا الان مصرف شده و هنوز هزینه‌اش کسر نشده، بخشیده می‌شود و هرگز کسر نخواهد شد.\n"
+            "این کار قابل بازگشت نیست. ادامه می‌دهید؟",
+            buttons=[
+                [Button.inline("✅ بله، ببخش", data=f"AdminReseller_forgive_do:{user_id}:{account_code}")],
+                *_back_to_account(user_id, account_code),
+            ],
+            parse_mode="markdown",
+        )
+        return True
+
+    if action == "forgive_do":
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        ok, msg = await forgive_unbilled_usage(account, actor_id=event.sender_id)
+        await _admin_tool_result(event, user_id, account_code, ok, msg)
         return True
 
     if action == "usage_cap":

@@ -27,7 +27,17 @@ export const RESELLER_EVENT_KEYS = [
   "expire",
   "purge",
   "delete",
+  "extra_days",
+  "extra_volume",
+  "data_limit",
+  "plan_change",
+  "panel_sync",
+  "usage_forgiven",
 ] as const;
+
+/** Plan types: the four offered for new plans first, then the legacy ones. */
+export const RESELLER_MODE_KEYS = ["fixed", "unlimited", "usage", "hourly", "per_gb", "per_tb"] as const;
+export const RESELLER_CREATABLE_MODES = ["fixed", "unlimited", "usage", "hourly"] as const;
 
 export const statusLabels = (t: TFunction): Record<string, string> =>
   Object.fromEntries(RESELLER_STATUS_KEYS.map((key) => [key, t(`reseller.status.${key}`)]));
@@ -65,6 +75,12 @@ export const EVENT_TONE: Record<string, ResellerTone> = {
   expire: "danger",
   purge: "danger",
   delete: "danger",
+  extra_days: "success",
+  extra_volume: "success",
+  data_limit: "primary",
+  plan_change: "primary",
+  panel_sync: "muted",
+  usage_forgiven: "success",
 };
 
 /** Hours of wallet left, in the largest readable unit. */
@@ -88,6 +104,23 @@ export function eventAmount(data: Record<string, unknown>): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+const isKnownMode = (mode: string): boolean => (RESELLER_MODE_KEYS as readonly string[]).includes(mode);
+
+/** Full plan type name, e.g. "مصرفی (بر اساس حجم مصرف)". */
 export function resellerModeLabel(t: TFunction, mode: string): string {
-  return ["fixed", "per_gb", "per_tb", "hourly", "usage"].includes(mode) ? t(`reseller.mode.${mode}`) : mode;
+  return isKnownMode(mode) ? t(`reseller.mode.${mode}`) : mode;
 }
+
+/** Short plan type name for tight spaces, e.g. "مصرفی". */
+export function resellerModeShortLabel(t: TFunction, mode: string): string {
+  return isKnownMode(mode) ? t(`reseller.modeShort.${mode}`) : mode;
+}
+
+export const MODE_TONE: Record<string, ResellerTone> = {
+  fixed: "primary",
+  unlimited: "success",
+  usage: "warning",
+  hourly: "warning",
+  per_gb: "muted",
+  per_tb: "muted",
+};

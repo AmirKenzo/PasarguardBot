@@ -16,9 +16,14 @@ def requires_wallet_for_purchase(plan: ResellerPlan) -> bool:
     return plan.pricing_mode in ("hourly", "usage")
 
 
+def is_prepaid(plan: ResellerPlan) -> bool:
+    """Fixed and unlimited plans are paid once up front; their price is ``plan.price``."""
+    return plan.pricing_mode in ("fixed", "unlimited")
+
+
 def calculate_purchase_price(plan: ResellerPlan, volume: float | None = None) -> int:
     mode = plan.pricing_mode
-    if mode == "fixed":
+    if mode in ("fixed", "unlimited"):
         return int(plan.price)
     if mode in VOLUME_MODES:
         vol = float(volume or 0)
@@ -51,10 +56,11 @@ def validate_volume(plan: ResellerPlan, volume: float) -> tuple[bool, str]:
 
 def pricing_mode_label(mode: str) -> str:
     return {
-        "fixed": "پلن ثابت",
-        "per_gb": "هر گیگابایت",
-        "per_tb": "هر ترابایت",
-        "hourly": "ساعتی",
+        "fixed": "ثابت",
+        "unlimited": "نامحدود (زمانی)",
+        "per_gb": "به‌ازای گیگ",
+        "per_tb": "به‌ازای ترابایت",
+        "hourly": "ساعتی (بر اساس زمان فعال بودن)",
         "usage": "مصرفی (بر اساس حجم مصرف)",
     }.get(mode, mode)
 
@@ -62,6 +68,7 @@ def pricing_mode_label(mode: str) -> str:
 def pricing_mode_short_label(mode: str) -> str:
     return {
         "fixed": "ثابت",
+        "unlimited": "نامحدود",
         "per_gb": "گیگ",
         "per_tb": "ترا",
         "hourly": "ساعتی",
@@ -71,7 +78,7 @@ def pricing_mode_short_label(mode: str) -> str:
 
 def format_reseller_plan_price_short(plan: ResellerPlan) -> str:
     """Compact price snippet for inline buttons."""
-    if plan.pricing_mode == "fixed":
+    if plan.pricing_mode in ("fixed", "unlimited"):
         parts = [f"{int(plan.price):,}ت"]
         if plan.duration:
             parts.append(f"{plan.duration}روز")

@@ -22,6 +22,7 @@ from app.services.panels.admins import (
 )
 from app.services.panels.settings import get_panel_login_url
 from app.services.reseller.logging import EVENT_IMPORT, send_reseller_log
+from app.services.reseller.plan_rules import PREPAID_MODES
 from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
 from app.utils.security.crypto import encrypt_data
@@ -210,7 +211,7 @@ async def import_existing_reseller_admin(
         "setup_fee": 0,
         "total_billed": 0,
     }
-    expiration = compute_reseller_expiration(plan) if plan.pricing_mode == "fixed" else None
+    expiration = compute_reseller_expiration(plan) if plan.pricing_mode in PREPAID_MODES else None
     account_code = await ResellerAccountCRUD().generate_unique_code()
 
     ok, result = await ResellerAccountCRUD().create_account(

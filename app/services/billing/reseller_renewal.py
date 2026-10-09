@@ -1,4 +1,8 @@
-"""Reseller account renewal and limit extension."""
+"""Reseller renewal: one more period of the plan that was bought (fixed and unlimited plans).
+
+Adds the plan's days from the current expiry (remaining days carry over) and the plan's volume on
+top of the current limit (unused volume carries over). User slots, bought or not, stay as they are.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +22,7 @@ from app.services.panels.admins import (
     modify_reseller_admin,
 )
 from app.services.reseller.logging import EVENT_RENEW, send_reseller_log
+from app.services.reseller.plan_rules import is_renewable
 from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_size
 
@@ -41,27 +46,30 @@ async def renew_reseller_account(
     if account.telegram_id != telegram_id:
         return False, "این نمایندگی متعلق به شما نیست."
 
-    if account.pricing_mode != "fixed":
-        return False, "تمدید فقط برای پلن‌های ثابت امکان‌پذیر است."
+    if not is_renewable(account.pricing_mode):
+        return False, "تمدید فقط برای پلن‌های ثابت و نامحدود امکان‌پذیر است."
     if account.status == "admin_paused" and actor_role is None:
         return False, "این نمایندگی توسط ادمین غیرفعال شده است."
+    if not account.plan_id or int(plan_id) != int(account.plan_id):
+        return False, "تمدید فقط با همان پلن خریداری‌شده امکان‌پذیر است."
 
+    # A disabled plan is off sale for new buyers only; existing resellers still renew it.
     plan = await ResellerPlanManager().get_plan(plan_id)
-    if not plan or not plan.enable:
-        return False, "پلن تمدید یافت نشد."
-    if plan.pricing_mode != "fixed":
-        return False, "فقط پلن‌های ثابت برای تمدید قابل انتخاب هستند."
-    if plan.panel_code != account.panel_code:
-        return False, "این پلن متعلق به پنل نمایندگی شما نیست."
+    if not plan:
+        return False, "پلن این نمایندگی پیدا نشد."
+    if plan.pricing_mode != account.pricing_mode or int(plan.panel_code) != int(account.panel_code):
+        return False, "پلن این نمایندگی با نوع یا پنل آن هم‌خوانی ندارد؛ با پشتیبانی تماس بگیرید."
 
-    charge = int(amount if amount is not None else calculate_purchase_price(plan))
-    if charge <= 0:
+    base_price = calculate_purchase_price(plan)
+    if base_price <= 0:
         return False, "قیمت پلن نامعتبر است."
-
+    charge = base_price
     if discount_code:
         status, validation = await DiscountCodeManager().validate_discount_code(code=discount_code, user_id=telegram_id)
         if not status:
             return False, str(validation)
+        percent = float(getattr(validation, "discount_percentage", 0) or 0)
+        charge = max(0, int(base_price - base_price * percent / 100))
 
     user = await UserCRUD().read_user(user_id=telegram_id)
     if user is None:
@@ -79,10 +87,10 @@ async def renew_reseller_account(
 
     added_bytes = compute_reseller_data_limit(plan, account.purchased_volume)
     current_limit = int(getattr(current, "data_limit", 0) or 0)
-    new_panel_limit = current_limit + added_bytes if added_bytes > 0 else current_limit
+    used_traffic = int(getattr(current, "used_traffic", 0) or 0)
     modify_kwargs: dict = {}
     if added_bytes > 0:
-        modify_kwargs["data_limit"] = new_panel_limit
+        modify_kwargs["data_limit"] = (current_limit if current_limit > 0 else used_traffic) + added_bytes
 
     if plan.duration and plan.duration > 0:
         base = int(account.expiration_time or Time_Date()["stamp"])
@@ -104,18 +112,20 @@ async def renew_reseller_account(
         if modify_kwargs:
             await modify_reseller_admin(panel, account.panel_admin_id, AdminModify(**modify_kwargs))
 
-        try:
-            await activate_reseller_admin(panel, account.panel_admin_id)
-        except Exception as exc:
-            log.warning("renew activate admin failed code=%s: %s", account.code, exc)
+        keep_locked = account.status == "admin_paused"
+        if not keep_locked:
+            try:
+                await activate_reseller_admin(panel, account.panel_admin_id)
+            except Exception as exc:
+                log.warning("renew activate admin failed code=%s: %s", account.code, exc)
 
-        new_account_limit = (account.data_limit or 0) + added_bytes if added_bytes > 0 else account.data_limit
+        new_account_limit = modify_kwargs.get("data_limit", account.data_limit)
         await ResellerAccountCRUD().update_account(
             account.code,
             plan_id=plan.id,
             expiration_time=account_expire,
             data_limit=new_account_limit,
-            status="active",
+            status="admin_paused" if keep_locked else "active",
         )
     except Exception as exc:
         refund_balance = await update_Money(user_id=telegram_id, Money=charge)

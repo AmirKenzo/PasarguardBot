@@ -14,9 +14,19 @@ from app.db.crud.services import ServiceCRUD, get_user_services_paginated
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.services.billing.renewal import require_panel_userid
+from app.services.reseller.accounts import extend_account_by_admin, set_max_users_by_admin
+from app.services.reseller.admin_tools import set_data_limit_by_admin
 from app.services.reseller.usage_cap import parse_usage_cap_gb, set_reseller_usage_cap
 from app.telegram.admin.manage_user.service import build_service_text, finalize_admin_config
+from app.telegram.admin.manage_user.states import (
+    RESELLER_TOOL_CODE_KEY,
+    RESELLER_TOOL_KIND_KEY,
+    RESELLER_TOOL_KINDS,
+    RESELLER_TOOL_USER_KEY,
+    STEP_ADMIN_RESELLER_TOOL,
+)
 from app.telegram.keyboards.admin import build_admin_reseller_account_buttons, create_inline_manageuser
+from app.telegram.shared.reseller_plan_guides import parse_number
 from app.telegram.shared.utils.username import is_valid_username
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from app.telegram.user.reseller.helpers import build_reseller_account_detail_text
@@ -29,6 +39,56 @@ from config import ADMIN_ID
 logger = get_logger(__name__)
 
 
+async def _clear_reseller_tool(admin_id: int) -> None:
+    await delete_data(admin_id, RESELLER_TOOL_USER_KEY)
+    await delete_data(admin_id, RESELLER_TOOL_CODE_KEY)
+    await delete_data(admin_id, RESELLER_TOOL_KIND_KEY)
+    await set_step(admin_id, "MToUserInfo")
+
+
+async def _process_reseller_tool_input(event: Message, msg: str) -> None:
+    """Typed value for an admin repair tool: set/add volume, free days or the user limit."""
+    admin_id = event.sender_id
+    user_id_raw = await get_data(admin_id, RESELLER_TOOL_USER_KEY)
+    code_raw = await get_data(admin_id, RESELLER_TOOL_CODE_KEY)
+    kind = await get_data(admin_id, RESELLER_TOOL_KIND_KEY)
+    if not user_id_raw or not code_raw or kind not in RESELLER_TOOL_KINDS:
+        await _clear_reseller_tool(admin_id)
+        await event.respond("نشست منقضی شد.")
+        return
+    target_user_id = int(user_id_raw)
+    ok, account = await ResellerAccountCRUD().get_account(int(code_raw))
+    if not ok or account.telegram_id != target_user_id:
+        await _clear_reseller_tool(admin_id)
+        await event.respond("نمایندگی یافت نشد.")
+        return
+
+    allow_zero = kind == "maxusers"
+    value, error = parse_number(msg, allow_zero=allow_zero, integer=not kind.startswith("volume"))
+    if error:
+        await event.respond(f"❌ {error} دوباره ارسال کنید.")
+        return
+    if kind == "volume_set":
+        success, result_msg = await set_data_limit_by_admin(account, set_gb=float(value), actor_id=admin_id)
+    elif kind == "volume_add":
+        success, result_msg = await set_data_limit_by_admin(account, add_gb=float(value), actor_id=admin_id)
+    elif kind == "days":
+        success, result_msg = await extend_account_by_admin(account, days=int(value), actor_id=admin_id)
+    else:
+        success, result_msg = await set_max_users_by_admin(account, max_users=int(value), actor_id=admin_id)
+
+    await _clear_reseller_tool(admin_id)
+    await event.respond(("✅ " if success else "❌ ") + result_msg)
+    ok, account = await ResellerAccountCRUD().get_account(int(code_raw))
+    if ok:
+        text = await build_reseller_account_detail_text(account, show_password=False)
+        await event.respond(
+            text,
+            buttons=build_admin_reseller_account_buttons(target_user_id, account),
+            parse_mode="markdown",
+        )
+
+
 async def msg_manage_user_admin(event: Message):
     msg = event.message.text
 
@@ -37,6 +97,9 @@ async def msg_manage_user_admin(event: Message):
             "〰️ لطفا آیدی عددی کاربر را ارسال کنید:", buttons=[Button.text("🔙 بازگشت به پنل", resize=True)]
         )
         await set_step(event.sender_id, "MToUser")
+
+    elif await get_step(event.sender_id) == STEP_ADMIN_RESELLER_TOOL and msg and msg.strip():
+        await _process_reseller_tool_input(event, msg)
 
     elif await get_step(event.sender_id) == "AdminResellerUsageCapInput" and msg and msg.strip():
         user_id_raw = await get_data(event.sender_id, "AdminResellerUsageCapUserId")

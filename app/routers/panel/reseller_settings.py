@@ -94,11 +94,6 @@ async def save_reseller_settings(payload: PanelResellerSettingsSaveRequest, requ
             missing = [item.code for item in payload.panels if item.code not in known]
             if missing:
                 return ActionResponse(ok=False, error=f"پنل با کد {missing[0]} پیدا نشد.")
-            for item in payload.panels:
-                if item.capacity_enabled and item.capacity_price_per_user <= 0:
-                    return ActionResponse(
-                        ok=False, error=f"برای فعال‌کردن خرید ظرفیت در پنل «{item.name or item.code}» قیمت لازم است."
-                    )
 
         if payload.settings is not None:
             updates = {GLOBAL_KEYS[field]: value for field, value in payload.settings.model_dump().items()}
@@ -121,8 +116,7 @@ async def save_reseller_settings(payload: PanelResellerSettingsSaveRequest, requ
             feature = apply_feature_settings_patch(
                 known[item.code],
                 sales={"reseller_enabled": item.sale_enabled},
-                reseller_capacity={"enabled": item.capacity_enabled, "price_per_user": item.capacity_price_per_user},
-                reseller_buttons=item.buttons.model_dump(),
+                reseller_buttons=item.buttons.model_dump(exclude_none=True),
             )
             await mutations.upsert_panel(actor, item.code, {"feature_settings": feature})
 

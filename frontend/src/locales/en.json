@@ -1239,8 +1239,10 @@
         "toggleStatus": "🕹 Enable/disable panel",
         "usageReport": "📊 Usage report",
         "usageCap": "📦 Usage cap",
-        "buyCapacity": "👥 Buy extra user capacity",
-        "delete": "🗑 Delete reseller account"
+        "buyCapacity": "👥 Buy extra users",
+        "delete": "🗑 Delete reseller account",
+        "extraDays": "📅 Buy extra days",
+        "extraVolume": "💾 Buy extra volume"
       },
       "rsBtnDesc": {
         "credentials": "Show the reseller panel login details to the reseller themself.",
@@ -1248,8 +1250,10 @@
         "toggleStatus": "Let the reseller temporarily enable/disable their own panel.",
         "usageReport": "Show usage reports for the reseller's sub-users.",
         "usageCap": "Show/set the reseller's usage cap.",
-        "buyCapacity": "Let the reseller buy more user capacity themself.",
-        "delete": "Let the reseller fully delete their own reseller account."
+        "buyCapacity": "Let the reseller buy extra users (when their plan has an extra-user price).",
+        "delete": "Let the reseller fully delete their own reseller account.",
+        "extraDays": "Let the reseller buy extra days (when their plan has an extra-day price).",
+        "extraVolume": "Let the reseller buy extra volume (fixed plans with an extra-volume price only)."
       },
       "defaultGroups": "Default groups",
       "defaultGroupsHint": "The group(s) a new user is assigned to when a config is created on this panel; the list is read live from the panel itself.",
@@ -1736,7 +1740,7 @@
         "pause": "Lock as admin",
         "pauseConfirm": "The admin and its users are disabled on the panel and the user can't re-enable it.",
         "resume": "Enable",
-        "renew": "Renew with a plan",
+        "renew": "Renew with current plan",
         "renewHint": "The plan price is taken from the reseller's own wallet.",
         "renewButton": "Renew",
         "renewConfirm": "The plan price is taken from the reseller's wallet. Continue?",
@@ -1752,7 +1756,45 @@
         "fullHistory": "Full history",
         "deleteTitle": "Delete reseller",
         "deleteHint": "Removes the admin and all of its users from the panel. Cannot be undone.",
-        "deleteConfirm": "Delete reseller “{{name}}” and all of its users?"
+        "deleteConfirm": "Delete reseller “{{name}}” and all of its users?",
+        "renewOwnHint": "Renewal always uses the account's own plan; the plan price is taken from the reseller's wallet.",
+        "renewDisabledPlan": "This plan is off sale for new buyers, but renewing with it still works.",
+        "renewConfirmVolume": "{{amount}} is taken from the reseller's wallet and {{days}} days are added to the expiry and {{gb}} GB to the current volume. Continue?",
+        "renewConfirmDays": "{{amount}} is taken from the reseller's wallet and {{days}} days are added to the expiry. Continue?",
+        "noOwnPlan": "This account's plan was not found; it can't be renewed.",
+        "extendConfirm": "{{count}} free days are added to the expiry; an expired account is switched back on. Continue?",
+        "maxUsersTotalHint": "Total user limit (plan + extra); 0 means no limit. Users above the plan's limit count as extra users.",
+        "maxUsersConfirm": "This reseller's user limit becomes {{count}}. Continue?",
+        "maxUsersUnlimitedConfirm": "This reseller's user limit is removed (unlimited). Continue?",
+        "usersSplit": "{{plan}} plan + {{extra}} extra",
+        "resync": "Sync with panel",
+        "resyncConfirm": "The status, volume, user limit and role stored in the bot are written to the panel admin again. Continue?",
+        "volume": "Volume (free)",
+        "volumeHint": "Add volume or set it exactly, without charging.",
+        "volumeAdd": "Add",
+        "volumeSet": "Set exactly",
+        "volumeCurrent": "Current volume: {{value}}",
+        "volumeAddUnlimited": "The current volume is unlimited; choose “Set exactly” to limit it.",
+        "volumeGb": "Volume (GB)",
+        "volumeConfirm": "The volume changes from {{before}} to {{after}}. Continue?",
+        "changePlan": "Change plan (free)",
+        "changePlanHint": "Only plans of the same type on this panel. Role and user limit follow the new plan; volume and expiry stay as they are.",
+        "changePlanConfirm": "The reseller moves to plan “{{name}}”. Role and user limit follow the new plan and bought extra users are kept; volume and expiry don't change and nothing is charged. Continue?",
+        "noChangePlans": "There is no other plan of this type on this panel.",
+        "forgive": "Forgive unbilled usage",
+        "forgiveHint": "Traffic used since the last charge is dropped without charging.",
+        "forgiveConfirm": "This account's unbilled usage is forgiven and will never be charged from the wallet. This can't be undone. Continue?",
+        "forgiveButton": "Forgive usage",
+        "summary": {
+          "renewSame": "renewed with this plan",
+          "usage": "charged from the wallet per GB used",
+          "hourly": "charged from the wallet per active hour",
+          "expires": "{{days}} days to expiry",
+          "expiresGrace": "{{days}} days to expiry, then {{grace}} days' grace",
+          "expired": "expired",
+          "expiredGrace": "expired; {{count}} days until deleted from the panel",
+          "noExpiry": "no expiry"
+        }
       },
       "billing": {
         "ledger": "Charge ledger",
@@ -1774,7 +1816,7 @@
       "plans": {
         "plan": "Plan",
         "price": "Plan price (Toman)",
-        "hourlyRate": "Rate per hour (Toman)",
+        "hourlyRate": "Price per active hour (Toman)",
         "gbRate": "Price per GB used (Toman)",
         "tbRate": "Price per TB (Toman)",
         "dataLimit": "Volume (GB)",
@@ -1809,7 +1851,7 @@
         "lowBalanceHours": "Low balance warning (hours)",
         "lowBalanceHoursHint": "Users are warned when their wallet lasts less than this.",
         "panels": "Per-panel settings",
-        "panelsHint": "Sales, capacity purchases and the buttons resellers see in the bot and web app.",
+        "panelsHint": "Reseller sales and the buttons a reseller sees in the bot and the web app.",
         "panelOff": "Panel off",
         "panelSale": "Sell resellers on this panel",
         "capacity": "User capacity purchase",
@@ -1822,13 +1864,208 @@
           "toggle_status": "Pause / resume",
           "usage_report": "Usage report",
           "usage_cap": "Usage cap",
-          "buy_user_capacity": "Buy user capacity",
-          "delete": "Delete reseller"
+          "buy_user_capacity": "Buy extra users",
+          "delete": "Delete reseller",
+          "extra_days": "Buy extra days",
+          "extra_volume": "Buy extra volume"
         },
-        "unsaved": "You have unsaved changes"
+        "unsaved": "You have unsaved changes",
+        "capacityMoved": "The extra-user price is now set on each plan (Add-ons in the plan form).",
+        "buttonHint": {
+          "buy_user_capacity": "Only shown for plans with an extra-user price.",
+          "extra_days": "Only for fixed and unlimited plans with an extra-day price.",
+          "extra_volume": "Only for fixed plans with an extra-volume price."
+        }
       },
       "planType": "Plan type",
-      "perGbUsedAmount": "{{amount}} / GB used"
+      "perGbUsedAmount": "{{amount}} / GB used",
+      "modes": {
+        "fixed": "Fixed",
+        "unlimited": "Unlimited (time-based)",
+        "usage": "Usage-based (by traffic used)",
+        "hourly": "Hourly (by active time)",
+        "per_gb": "Per GB (legacy)",
+        "per_tb": "Per TB (legacy)"
+      },
+      "modesShort": {
+        "fixed": "Fixed",
+        "unlimited": "Unlimited",
+        "usage": "Usage",
+        "hourly": "Hourly",
+        "per_gb": "Per GB",
+        "per_tb": "Per TB"
+      },
+      "events": {
+        "extra_days": "Extra days bought",
+        "extra_volume": "Extra volume bought",
+        "data_limit": "Volume changed by admin",
+        "plan_change": "Plan changed by admin",
+        "panel_sync": "Synced with panel",
+        "usage_forgiven": "Unbilled usage forgiven"
+      },
+      "planForm": {
+        "tile": {
+          "fixed": "Pay once · set volume and days",
+          "unlimited": "Pay once · unlimited volume, set days",
+          "usage": "Charged from the wallet per GB used",
+          "hourly": "Charged from the wallet per active hour"
+        },
+        "settingsSection": "Plan details",
+        "legacy": "This plan is of the legacy type “{{type}}”: it keeps working and can be edited as that type, but no new plans of it are created. You can switch it to one of the four new types.",
+        "legacyLocked": "This plan is of the legacy type “{{type}}” and stays that type because resellers are linked to it; its own fields can still be edited.",
+        "legacyBadge": "Legacy type",
+        "unlimitedVolume": "Unlimited volume",
+        "unlimitedUsers": "Unlimited users",
+        "hint": {
+          "fixedVolume": "Total volume for the reseller's users; each renewal adds this amount to the current volume.",
+          "unlimitedVolume": "This plan type always has unlimited volume, so there is no volume field.",
+          "optionalCap": "Optional; 0 means no cap. It only limits the users' total volume.",
+          "maxUsers": "0 means no limit; extra users are not sold then.",
+          "enable": "When off, new buyers don't see it; current holders can still renew with it."
+        },
+        "liveRateWarning": "The new price applies at once to all {{count}} accounts linked to this plan; their wallets are charged at the new rate from now on.",
+        "futureRateNote": "The new price only applies to future purchases and renewals; current accounts on this plan are not affected.",
+        "addons": {
+          "title": "Add-ons",
+          "hint": "Enter the price per unit; 0 turns the add-on off and hides it from resellers.",
+          "days": "Extra days — price per day (Toman)",
+          "daysHint": "Days are added to the expiry; works on expired accounts too and switches them back on.",
+          "volume": "Extra volume — price per GB (Toman)",
+          "volumeHint": "Added to the current volume; not available on expired accounts (renew first).",
+          "users": "Extra users — price per user (Toman)",
+          "usersHint": "Raises the user limit permanently; not sold when the plan's user limit is 0 (unlimited).",
+          "off": "0 = off"
+        },
+        "addonBadge": {
+          "days": "Extra days: {{amount}} / day",
+          "volume": "Extra volume: {{amount}} / GB",
+          "users": "Extra users: {{amount}} / user"
+        },
+        "errors": {
+          "type": "Invalid plan type; new plans can only be fixed, unlimited, usage-based or hourly.",
+          "price": {
+            "fixed": "A fixed plan's price must be above zero.",
+            "unlimited": "An unlimited plan's price must be above zero.",
+            "usage": "The price per GB used must be above zero.",
+            "hourly": "The price per hour must be above zero.",
+            "per_gb": "The unit price must be above zero.",
+            "per_tb": "The unit price must be above zero."
+          },
+          "volumeRequired": "A fixed plan's volume must be above zero.",
+          "durationRequired": "The plan's duration must be above zero days.",
+          "negative": "Negative values are not allowed.",
+          "maxBelowMin": "The maximum volume can't be below the minimum.",
+          "volumeStep": "The volume step must be above zero.",
+          "role": "Choose a role from the panel."
+        },
+        "fixErrors": "Fix the highlighted errors to save the plan."
+      },
+      "guide": {
+        "heading": "{{type}} plan guide",
+        "sections": {
+          "fields": "Required fields",
+          "buyer": "What the reseller can do",
+          "auto": "What the bot does automatically",
+          "notes": "Notes"
+        },
+        "minWallet": "A purchase needs at least {{amount}} in the wallet (change it in Settings).",
+        "noMinWallet": "No minimum wallet balance is set for buying (change it in Settings).",
+        "fixed": {
+          "what": "The reseller pays the plan price once and gets a set package: a given volume, a given number of days and a user limit. The total volume of the users they create is capped at the plan's volume, and the account expires when the days run out.",
+          "fields": [
+            "Plan price (Toman) — above zero",
+            "Volume (GB) — above zero",
+            "Duration (days) — above zero",
+            "User limit — optional; 0 means no limit",
+            "Admin role in the panel — required"
+          ],
+          "buyer": [
+            "Buy by paying the plan price once (discount codes work too)",
+            "Renew with this same plan only: the plan's days are added to the current expiry and its volume to the current volume; remaining days and volume are kept",
+            "Buy extra days, extra volume and extra users — each only when it has a price under Add-ons"
+          ],
+          "auto": [
+            "At the expiry date the account expires and the reseller's panel admin is disabled",
+            "If not renewed within {{grace}} days after expiry, the admin and all their users are deleted from the panel"
+          ],
+          "notes": [
+            "A price change only affects future purchases and renewals; current accounts are not affected",
+            "Disabling the plan only stops sales to new buyers; current holders can still renew with it",
+            "Extra users are permanent and are not lost on renewal"
+          ]
+        },
+        "unlimited": {
+          "what": "The reseller pays the plan price once and uses the panel for a set number of days with no volume limit. The account expires when the days run out.",
+          "fields": [
+            "Plan price (Toman) — above zero",
+            "Duration (days) — above zero",
+            "User limit — optional; 0 means no limit",
+            "Admin role in the panel — required",
+            "No volume; always unlimited"
+          ],
+          "buyer": [
+            "Buy by paying the plan price once (discount codes work too)",
+            "Renew with this same plan only: the plan's days are added to the current expiry; remaining days are kept",
+            "Buy extra days and extra users — each only when it has a price under Add-ons"
+          ],
+          "auto": [
+            "At the expiry date the account expires and the reseller's panel admin is disabled",
+            "If not renewed within {{grace}} days after expiry, the admin and all their users are deleted from the panel"
+          ],
+          "notes": [
+            "A price change only affects future purchases and renewals; current accounts are not affected",
+            "Disabling the plan only stops sales to new buyers; current holders can still renew with it",
+            "There is no extra volume for this type, since the volume is unlimited"
+          ]
+        },
+        "usage": {
+          "what": "Nothing is paid at purchase. Every minute, the traffic the reseller's users used is charged from the reseller's wallet (price per GB × traffic used). No expiry and no renewal.",
+          "fields": [
+            "Price per GB used (Toman) — above zero",
+            "Total traffic cap (GB) — optional; 0 means unlimited",
+            "User limit — optional; 0 means no limit",
+            "Admin role in the panel — required"
+          ],
+          "buyer": [
+            "Set a usage cap for themselves so they never spend more than they want",
+            "See the usage report and every wallet charge in detail",
+            "Buy extra users, when it has a price under Add-ons"
+          ],
+          "auto": [
+            "Every minute the cost of the traffic used is charged from the reseller's wallet",
+            "When the wallet runs out the account is suspended and the panel admin disabled; after a top-up it is switched back on automatically",
+            "The reseller is warned when the balance covers less than {{lowHours}} hours",
+            "When usage reaches the reseller's own cap, the account is disabled automatically"
+          ],
+          "notes": [
+            "A change of the price per GB applies at once to all active accounts on this plan",
+            "The plan price at purchase is zero; only usage is charged"
+          ]
+        },
+        "hourly": {
+          "what": "Nothing is paid at purchase. For every hour the reseller's account is active, the cost is charged minute by minute from the reseller's wallet; traffic used does not affect the cost. No expiry and no renewal.",
+          "fields": [
+            "Price per active hour (Toman) — above zero",
+            "Total traffic cap (GB) — optional; 0 means unlimited",
+            "User limit — optional; 0 means no limit",
+            "Admin role in the panel — required"
+          ],
+          "buyer": [
+            "Pause the account (when the Pause / resume button is on for this panel); nothing is charged while it is paused",
+            "See the usage report and every wallet charge in detail",
+            "Buy extra users, when it has a price under Add-ons"
+          ],
+          "auto": [
+            "Every minute the cost of the active time is charged from the reseller's wallet",
+            "When the wallet runs out the account is suspended and the panel admin disabled; after a top-up it is switched back on automatically",
+            "The reseller is warned when the balance covers less than {{lowHours}} hours"
+          ],
+          "notes": [
+            "A change of the price per hour applies at once to all active accounts on this plan",
+            "The traffic cap only limits the users' total volume; it does not affect the cost"
+          ]
+        }
+      }
     }
   },
   "reseller": {
@@ -1849,8 +2086,9 @@
       "fixed": "Fixed",
       "per_gb": "Per GB",
       "per_tb": "Per TB",
-      "hourly": "Hourly",
-      "usage": "Usage-based (by traffic used)"
+      "hourly": "Hourly (by active time)",
+      "usage": "Usage-based (by traffic used)",
+      "unlimited": "Unlimited (time-based)"
     },
     "list": {
       "title": "My reseller panels",
@@ -1940,7 +2178,19 @@
       "capacityNote": "Each extra user costs {{price}}",
       "customQuantity": "Custom amount",
       "limitChange": "User limit from {{before}} to {{after}}",
-      "buyCapacity": "Confirm & buy"
+      "buyCapacity": "Confirm & buy",
+      "suspendedNote": "Your wallet could not cover the charges, so the panel was suspended automatically. It is re-enabled automatically after you top up.",
+      "remaining": "Volume left",
+      "remainingOf": "of {{total}}",
+      "remainingOfSplit": "of {{total}} ({{base}} base + {{extra}} extra)",
+      "unlimitedVolume": "Unlimited",
+      "daysLeft": "Days left",
+      "expiredValue": "Expired",
+      "usersSplit": "{{plan}} plan + {{extra}} extra",
+      "extraDays": "Extra days",
+      "extraVolume": "Extra volume",
+      "extraUsers": "Extra users",
+      "planRules": "Plan rules"
     },
     "status": {
       "active": "Active",
@@ -1970,7 +2220,13 @@
       "price_change": "Plan rate changed",
       "expire": "Expired",
       "purge": "Purged after grace",
-      "delete": "Deleted"
+      "delete": "Deleted",
+      "extra_days": "Extra days bought",
+      "extra_volume": "Extra volume bought",
+      "data_limit": "Volume changed by admin",
+      "plan_change": "Plan changed by admin",
+      "panel_sync": "Synced with panel",
+      "usage_forgiven": "Unbilled usage forgiven"
     },
     "runwayMinutes": "{{count}} min",
     "runwayHours": "{{count}} h",
@@ -1990,6 +2246,116 @@
       "hourOf": "Hour {{from}} to {{to}}",
       "panelCounter": "Panel's total usage counter at this moment: {{value}}"
     },
-    "perGbUsed": "{{amount}} / GB used"
+    "perGbUsed": "{{amount}} / GB used",
+    "perActiveHour": "{{amount}} / active hour",
+    "modeShort": {
+      "fixed": "Fixed",
+      "unlimited": "Unlimited",
+      "usage": "Usage",
+      "hourly": "Hourly",
+      "per_gb": "Per GB",
+      "per_tb": "Per TB"
+    },
+    "plan": {
+      "type": "Plan type",
+      "oneTime": "One-time payment",
+      "unlimitedVolume": "Unlimited volume",
+      "noVolumeCap": "No volume cap",
+      "volumeCap": "Volume cap {{volume}}",
+      "allowsTitle": "What this plan allows",
+      "renewal": "Renewal",
+      "renewalOn": "Same plan · {{price}}",
+      "extraDays": "Extra days",
+      "extraVolume": "Extra volume",
+      "extraUsers": "Extra users",
+      "perDay": "{{price}} per day",
+      "perGb": "{{price}} per GB",
+      "perUser": "{{price}} per user",
+      "usageCap": "Custom usage cap",
+      "usageCapOn": "You set it",
+      "minWallet": "Minimum wallet to buy",
+      "off": "Not available",
+      "notRequired": "Not required",
+      "notNeededNoExpiry": "Not needed; no expiry",
+      "notNeededUnlimited": "Not needed; volume is unlimited",
+      "notNeededNoCap": "Not needed; no volume cap",
+      "notNeededUnlimitedUsers": "Not needed; users are unlimited",
+      "srOn": "Included",
+      "srOff": "Not included"
+    },
+    "guide": {
+      "title": "How does this plan work?",
+      "payment": "Payment",
+      "payFixed": "You pay {{price}} once, up front, and get {{volume}} of volume for {{days}} days.",
+      "payUnlimited": "You pay {{price}} once, up front, and get {{days}} days with unlimited volume.",
+      "payUsage": "No upfront fee. {{rate}} is taken from your wallet for every gigabyte your users use. Charges run every minute and only for real usage.",
+      "payHourly": "No upfront fee. {{rate}} is taken from your wallet for every hour the panel is active; charges run every minute, pro rata, whether or not your users use traffic. Nothing is charged while you pause the panel.",
+      "payLegacy": "You pay once, up front, for the volume you choose at purchase ({{rate}}).",
+      "liveRate": "The rate is always read from the plan; if it changes, the new rate applies from that moment on.",
+      "priceLocked": "A later price change does not affect this purchase; it only applies to future renewals.",
+      "minWallet": "You need at least {{amount}} in your wallet to buy this plan.",
+      "limits": "Volume and users",
+      "volumeFixed": "Your users share a total volume of {{volume}}.",
+      "volumeUnlimited": "Volume is unlimited; there is no cap on your users' total usage.",
+      "volumeCap": "Your users' total usage is capped at {{volume}}.",
+      "volumeNoCap": "There is no volume cap.",
+      "volumeNoCapUsage": "There is no volume cap; whatever is used is charged.",
+      "volumeChosen": "The volume is the amount you choose at purchase.",
+      "usageCap": "You can set your own usage cap; when usage reaches it, the panel pauses automatically so costs stop growing.",
+      "usersLimited": "You can create up to {{count}} users.",
+      "usersUnlimited": "There is no limit on the number of users.",
+      "expiry": "Duration and expiry",
+      "expires": "After {{days}} days the panel expires and is disabled.",
+      "graceRenew": "After expiry you have {{grace}} days to renew; otherwise your admin and all of its users are permanently removed from the panel.",
+      "graceRenewOrDays": "After expiry you have {{grace}} days to renew or buy extra days; otherwise your admin and all of its users are permanently removed from the panel.",
+      "graceDaysOnly": "After expiry you have {{grace}} days to buy extra days; otherwise your admin and all of its users are permanently removed from the panel.",
+      "graceOnly": "After expiry there is a {{grace}}-day grace period, then your admin and all of its users are permanently removed from the panel.",
+      "noExpiry": "It does not expire.",
+      "noExpiryWallet": "It does not expire; the panel stays active as long as your wallet has balance.",
+      "walletEmpty": "If your wallet can't cover the next charge, the panel is suspended automatically (users are not deleted) and re-enabled automatically after you top up.",
+      "renewal": "Renewal",
+      "renewRule": "Renewed only with this same plan at its current price ({{price}}). Each renewal adds {{days}} days to the current expiry; remaining days are kept, and an expired panel counts from the renewal day.",
+      "renewVolume": "Each renewal also adds {{volume}} on top of the current volume; unused volume and bought extra volume are kept.",
+      "renewNoReset": "Nothing resets on renewal: users, the user limit and bought add-ons stay as they are.",
+      "noRenew": "No renewal needed; this plan does not expire and keeps running while you have balance.",
+      "addons": "Add-ons",
+      "addonDays": "Extra days: {{price}} per day. Added to the expiry date; can be bought after expiry too (during the grace period) and re-enables the panel.",
+      "addonVolume": "Extra volume: {{price}} per GB. Added on top of the current volume and kept on renewal. An expired panel must be renewed first.",
+      "addonUsers": "Extra users: {{price}} per user. Raises the user limit permanently.",
+      "addonUsersRenewable": "Extra users: {{price}} per user. Raises the user limit permanently and is kept on renewal.",
+      "addonsPermanent": "All add-ons are permanent and carry over to the next period on renewal."
+    },
+    "addon": {
+      "quantityDays": "Number of days",
+      "quantityGb": "Volume (GB)",
+      "quantityUsers": "Number of users",
+      "presetDays": "{{count}} days",
+      "presetGb": "{{count}} GB",
+      "presetUsers": "{{count}} users",
+      "custom": "Custom amount",
+      "maxHint": "At most {{max}} per purchase.",
+      "changes": "Before and after",
+      "rowExpiry": "Expiry date",
+      "rowDaysLeft": "Days left",
+      "rowVolume": "Total volume",
+      "rowUsers": "User limit",
+      "unitPrice": "Unit price",
+      "total": "Amount to pay",
+      "calculating": "Calculating…",
+      "confirm": "Confirm and pay",
+      "noteDays": "Days are added to the current expiry; if the panel has expired they count from now and the panel is re-enabled.",
+      "noteVolume": "This volume is added on top of the current volume and is kept on renewal.",
+      "noteUsers": "The user limit is raised permanently.",
+      "noteUsersRenewable": "The user limit is raised permanently and is kept on renewal."
+    },
+    "renew": {
+      "noPlan": "This reseller's plan was not found; please contact support.",
+      "addsVolume": "adds {{volume}}",
+      "addsDays": "adds {{count}} days",
+      "ownPlanOnly": "Renewal is always with the plan you bought, at that plan's current price.",
+      "disabledPlan": "This plan is no longer sold to new buyers, but you can still renew it.",
+      "usersUnchanged": "unchanged",
+      "nothingResets": "The plan's days and volume are added to what you have; nothing resets, and users and add-ons stay as they are."
+    }
   }
 }

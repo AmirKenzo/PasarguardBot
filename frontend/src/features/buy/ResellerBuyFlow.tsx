@@ -11,10 +11,16 @@ import {
   CopyField,
   EmptyState,
   Input,
-  PlanOption,
   StepProgress,
   StickyActionBar,
 } from "../../components/ui";
+import {
+  ResellerModeBadge,
+  ResellerPlanFeatureList,
+  ResellerPlanGuide,
+  resellerPlanPrice,
+  resellerPlanSpecs,
+} from "../../components/ResellerPlanGuide";
 import { resellerApi } from "../../api/webapp";
 import { useTelegram } from "../../hooks/useTelegram";
 import { formatBytes, formatNumber, formatToman } from "../../lib/format";
@@ -32,32 +38,76 @@ type Step = "panel" | "plan" | "confirm" | "success";
 const STEPS: Step[] = ["panel", "plan", "confirm"];
 const USERNAME_RE = /^[A-Za-z0-9][A-Za-z0-9_]{1,30}[A-Za-z0-9]$/;
 
-/** What the plan costs, in its own unit (one-off price, per hour, per GB...). */
-export function resellerPlanPrice(t: TFunction, plan: ResellerPlanItem): string {
-  switch (plan.pricing_mode) {
-    case "hourly":
-      return t("reseller.perHour", { amount: formatToman(plan.unit_price) });
-    case "usage":
-      return t("reseller.perGbUsed", { amount: formatToman(plan.unit_price) });
-    case "per_gb":
-      return t("reseller.perGb", { amount: formatToman(plan.unit_price) });
-    case "per_tb":
-      return t("reseller.perTb", { amount: formatToman(plan.unit_price) });
-    default:
-      return formatToman(plan.price);
-  }
-}
+// Kept for older imports; the helper now lives with the shared plan guide.
+export { resellerPlanPrice };
+
+const PREPAID_MODES = ["fixed", "unlimited"];
 
 function planTitle(t: TFunction, plan: ResellerPlanItem): string {
   return plan.name || resellerModeLabel(t, plan.pricing_mode);
 }
 
-function planSubtitle(t: TFunction, plan: ResellerPlanItem): string {
-  const parts = [resellerModeLabel(t, plan.pricing_mode)];
-  if (plan.data_limit_bytes) parts.push(formatBytes(plan.data_limit_bytes));
-  if (plan.duration_days) parts.push(t("renewFlow.days", { count: formatNumber(plan.duration_days) }));
-  parts.push(plan.max_users ? t("reseller.usersCount", { count: formatNumber(plan.max_users) }) : t("reseller.unlimitedUsers"));
-  return parts.join(" · ");
+interface PlanCardProps {
+  plan: ResellerPlanItem;
+  selected: boolean;
+  minWallet: number;
+  graceDays: number;
+  onSelect: () => void;
+}
+
+/** A selectable plan: type, price, what it includes, what it allows and how it works. */
+function ResellerPlanCard({ plan, selected, minWallet, graceDays, onSelect }: PlanCardProps) {
+  const { t } = useTranslation();
+  const prepaid = PREPAID_MODES.includes(plan.pricing_mode);
+  return (
+    <div
+      className={`overflow-hidden rounded-lg border-[1.5px] transition-colors ${
+        selected ? "border-primary bg-primary/6" : "border-border bg-surface hover:border-primary/40"
+      }`}
+    >
+      {/* A div, not a button: the card holds a list, which a button may not contain. */}
+      <div
+        role="radio"
+        tabIndex={0}
+        aria-checked={selected}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+        className="flex w-full cursor-pointer flex-col gap-3 p-3.5 text-start outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        <div className="flex w-full items-start gap-3">
+          <span
+            className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+              selected ? "border-primary" : "border-muted/40"
+            }`}
+          >
+            {selected && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
+          </span>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <p className="text-base font-extrabold text-text">{planTitle(t, plan)}</p>
+            <ResellerModeBadge mode={plan.pricing_mode} />
+          </div>
+          <div className="shrink-0 text-end">
+            <p className="text-sm font-extrabold text-text">{resellerPlanPrice(t, plan)}</p>
+            {prepaid && <p className="mt-0.5 text-[10.5px] text-muted">{t("reseller.plan.oneTime")}</p>}
+          </div>
+        </div>
+        <p className="w-full rounded-md bg-surface-2/70 px-3 py-2 text-xs font-medium text-text">
+          {resellerPlanSpecs(t, plan)}
+        </p>
+        <div className="w-full">
+          <ResellerPlanFeatureList plan={plan} minWallet={minWallet} />
+        </div>
+      </div>
+      <div className="px-3.5 pb-3.5">
+        <ResellerPlanGuide plan={plan} graceDays={graceDays} minWallet={minWallet} />
+      </div>
+    </div>
+  );
 }
 
 /** The amount paid up front; live-billed plans only charge their setup price here. */
@@ -245,14 +295,14 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                 </div>
               )}
 
-              <div role="radiogroup" className="grid gap-2.5 md:grid-cols-2">
+              <div role="radiogroup" className="grid items-start gap-2.5 md:grid-cols-2">
                 {panel.plans.map((item) => (
-                  <PlanOption
+                  <ResellerPlanCard
                     key={item.id}
-                    title={planTitle(t, item)}
-                    subtitle={planSubtitle(t, item)}
-                    price={resellerPlanPrice(t, item)}
+                    plan={item}
                     selected={plan?.id === item.id}
+                    minWallet={options.data.min_wallet_balance}
+                    graceDays={options.data.grace_days ?? 0}
                     onSelect={() => {
                       haptic.select();
                       setPlan(item);
@@ -355,6 +405,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
 
               <Card className="space-y-2.5 p-4">
                 <InfoRow label={t("reseller.buy.username")} value={<bdi dir="ltr">{preview.username}</bdi>} />
+                <InfoRow label={t("reseller.plan.type")} value={resellerModeLabel(t, plan.pricing_mode)} />
                 <InfoRow label={t("reseller.buy.pricing")} value={resellerPlanPrice(t, plan)} />
                 {preview.volume ? (
                   <InfoRow
@@ -362,19 +413,39 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                     value={`${formatNumber(preview.volume)} ${plan.pricing_mode === "per_tb" ? t("reseller.tb") : t("reseller.gb")}`}
                   />
                 ) : null}
-                {plan.data_limit_bytes > 0 && (
-                  <InfoRow label={t("reseller.buy.traffic")} value={formatBytes(plan.data_limit_bytes)} />
+                {!plan.needs_volume && (
+                  <InfoRow
+                    label={t("reseller.buy.traffic")}
+                    value={
+                      plan.data_limit_bytes > 0
+                        ? formatBytes(plan.data_limit_bytes)
+                        : plan.pricing_mode === "usage" || plan.pricing_mode === "hourly"
+                          ? t("reseller.plan.noVolumeCap")
+                          : t("reseller.plan.unlimitedVolume")
+                    }
+                  />
                 )}
-                {plan.duration_days > 0 && (
-                  <InfoRow label={t("reseller.buy.duration")} value={t("renewFlow.days", { count: formatNumber(plan.duration_days) })} />
-                )}
+                <InfoRow
+                  label={t("reseller.buy.duration")}
+                  value={
+                    plan.duration_days > 0
+                      ? t("renewFlow.days", { count: formatNumber(plan.duration_days) })
+                      : t("reseller.noExpiry")
+                  }
+                />
                 <InfoRow
                   label={t("reseller.buy.users")}
                   value={plan.max_users ? formatNumber(plan.max_users) : t("reseller.unlimitedUsers")}
                 />
               </Card>
 
-              {plan.pricing_mode === "fixed" &&
+              <ResellerPlanGuide
+                plan={preview.plan ?? plan}
+                graceDays={options.data.grace_days ?? 0}
+                minWallet={options.data.min_wallet_balance}
+              />
+
+              {PREPAID_MODES.includes(plan.pricing_mode) &&
                 (discount ? (
                   <div className="flex items-center justify-between gap-3 rounded-md border border-success/30 bg-success/5 px-3.5 py-2.5">
                     <div className="min-w-0">

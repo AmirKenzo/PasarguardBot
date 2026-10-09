@@ -3,6 +3,8 @@
 Every value is raw (bytes, unix timestamps, Toman integers); the frontend formats them.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.models.webapp.common import WebAppAuthRequest
@@ -16,6 +18,19 @@ class WebAppResellerResponse(BaseModel):
 # --------------------------------------------------------------------------- #
 #  Buy                                                                          #
 # --------------------------------------------------------------------------- #
+
+
+class ResellerPlanFeatures(BaseModel):
+    """What a buyer of the plan gets; add-on prices are 0 when the add-on is off (plan or panel toggle)."""
+
+    renewable: bool = False
+    expires: bool = False
+    unlimited_volume: bool = False
+    usage_cap: bool = False
+    needs_wallet: bool = False
+    extra_day_price: int = 0
+    extra_gb_price: int = Field(0, description="Price of one extra GB")
+    extra_user_price: int = 0
 
 
 class ResellerPlanItem(BaseModel):
@@ -32,6 +47,7 @@ class ResellerPlanItem(BaseModel):
     duration_days: int = 0
     needs_volume: bool = False
     needs_wallet: bool = False
+    features: ResellerPlanFeatures = Field(default_factory=ResellerPlanFeatures)
 
 
 class ResellerPanelItem(BaseModel):
@@ -45,6 +61,7 @@ class WebAppResellerBuyOptionsResponse(WebAppResellerResponse):
 
     enabled: bool = False
     min_wallet_balance: int = 0
+    grace_days: int = Field(0, description="Days an expired reseller is kept before it is purged")
     balance: int = 0
     panels: list[ResellerPanelItem] = Field(default_factory=list)
 
@@ -102,6 +119,7 @@ class ResellerAccountItem(BaseModel):
     expiration_timestamp: int | None = None
     max_users: int = 0
     created_timestamp: int | None = None
+    extra_users: int = 0
 
 
 class WebAppResellerAccountsResponse(WebAppResellerResponse):
@@ -122,6 +140,9 @@ class ResellerRenewPlanItem(BaseModel):
     price: int = 0
     data_limit_bytes: int = 0
     duration_days: int = 0
+    pricing_mode: str | None = None
+    max_users: int = 0
+    enabled: bool = True
 
 
 class ResellerEventItem(BaseModel):
@@ -148,10 +169,20 @@ class WebAppResellerAccountResponse(WebAppResellerResponse):
     billed_total: int | None = None
     runway_hours: float | None = None
     grace_days_left: int | None = None
-    renew_plans: list[ResellerRenewPlanItem] = Field(default_factory=list)
+    renew_plans: list[ResellerRenewPlanItem] = Field(
+        default_factory=list, description="Only the account's own plan; renewal never switches plans"
+    )
     capacity_price_per_user: int = 0
     capacity_presets: list[int] = Field(default_factory=list)
     events: list[ResellerEventItem] = Field(default_factory=list)
+    plan: ResellerPlanItem | None = None
+    features: ResellerPlanFeatures | None = None
+    plan_max_users: int = Field(0, description="User limit of the plan itself; 0 = unlimited")
+    extra_users: int = Field(0, description="User slots bought on top of the plan limit")
+    grace_days: int = 0
+    min_wallet_balance: int = 0
+    addon_presets: dict[str, list[int]] = Field(default_factory=dict)
+    addon_max_quantity: dict[str, int] = Field(default_factory=dict)
 
 
 class WebAppResellerPasswordResponse(WebAppResellerResponse):
@@ -177,6 +208,12 @@ class WebAppResellerRenewPreviewResponse(WebAppResellerResponse):
     discount_percent: int = 0
     balance: int = 0
     can_pay: bool = False
+    balance_after: int = 0
+    expiry_before: int | None = None
+    expiry_after: int | None = None
+    data_limit_before: int = Field(0, description="Bytes; 0 = unlimited")
+    data_limit_after: int = 0
+    max_users: int = Field(0, description="Unchanged by renewal; 0 = unlimited")
 
 
 class WebAppResellerUsageCapRequest(WebAppAuthRequest):
@@ -195,6 +232,31 @@ class WebAppResellerCapacityPreviewResponse(WebAppResellerResponse):
     limit_before: int = 0
     limit_after: int = 0
     balance: int = 0
+    can_pay: bool = False
+
+
+AddonKind = Literal["extra_days", "extra_volume", "buy_user_capacity"]
+
+
+class WebAppResellerAddonRequest(WebAppAuthRequest):
+    """``quantity`` is days, GB or user slots depending on ``addon``."""
+
+    code: int
+    addon: AddonKind
+    quantity: int = Field(..., ge=1, le=100_000)
+
+
+class WebAppResellerAddonPreviewResponse(WebAppResellerResponse):
+    """``before``/``after``: expiry timestamp (days), bytes (volume) or user count (users)."""
+
+    addon: str | None = None
+    quantity: int = 0
+    unit_price: int = 0
+    total: int = 0
+    before: int = 0
+    after: int = 0
+    balance: int = 0
+    balance_after: int = 0
     can_pay: bool = False
 
 

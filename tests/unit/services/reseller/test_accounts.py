@@ -12,6 +12,8 @@ from app.services.reseller.accounts import (
     ACTION_CHANGE_PASSWORD,
     ACTION_CREDENTIALS,
     ACTION_DELETE,
+    ACTION_EXTRA_DAYS,
+    ACTION_EXTRA_VOLUME,
     ACTION_PAUSE,
     ACTION_RENEW,
     ACTION_RESUME,
@@ -21,8 +23,16 @@ from app.services.reseller.accounts import (
 )
 
 
-def _account(status: str = "active", mode: str = "usage", max_users: int = 10) -> SimpleNamespace:
-    return SimpleNamespace(status=status, pricing_mode=mode, max_users=max_users)
+def _account(status: str = "active", mode: str = "usage", max_users: int = 10, **extra) -> SimpleNamespace:
+    values = {"plan_id": 3, "expiration_time": None, "data_limit": 0}
+    values.update(extra)
+    return SimpleNamespace(status=status, pricing_mode=mode, max_users=max_users, **values)
+
+
+def _plan(mode: str = "usage", **prices) -> SimpleNamespace:
+    values = {"addon_day_price": 0, "addon_gb_price": 0, "addon_user_price": 0}
+    values.update(prices)
+    return SimpleNamespace(pricing_mode=mode, **values)
 
 
 @pytest.fixture
@@ -30,12 +40,11 @@ def buttons(monkeypatch):
     """Per-panel reseller button toggles; every button on unless a test turns it off."""
     state: dict[str, bool] = {}
     monkeypatch.setattr(accounts, "panel_reseller_button_enabled", lambda panel, key: state.get(key, True))
-    monkeypatch.setattr(accounts, "panel_reseller_capacity_enabled", lambda panel: True)
     return state
 
 
 def test_active_usage_account_gets_every_usage_action(buttons):
-    actions = account_actions(_account(), panel=object())
+    actions = account_actions(_account(), panel=object(), plan=_plan(addon_user_price=5000))
     assert actions == {
         ACTION_CREDENTIALS,
         ACTION_CHANGE_PASSWORD,
@@ -53,9 +62,17 @@ def test_paused_account_offers_resume_not_pause(buttons):
     assert ACTION_PAUSE not in actions
 
 
-def test_only_fixed_plans_can_renew(buttons):
-    assert ACTION_RENEW in account_actions(_account(mode="fixed"), panel=object())
-    assert ACTION_RENEW not in account_actions(_account(mode="hourly"), panel=object())
+def test_only_fixed_and_unlimited_plans_can_renew(buttons):
+    def renews(mode: str) -> bool:
+        return ACTION_RENEW in account_actions(_account(mode=mode), panel=object(), plan=_plan(mode))
+
+    assert renews("fixed") and renews("unlimited")
+    assert not renews("hourly") and not renews("usage")
+
+
+def test_deleted_plan_offers_no_renewal(buttons):
+    # The service refuses it anyway; the button must not promise it.
+    assert ACTION_RENEW not in account_actions(_account(mode="fixed"), panel=object(), plan=None)
 
 
 def test_admin_locked_account_can_only_be_deleted(buttons):
@@ -81,7 +98,32 @@ def test_bot_handlers_import_the_shared_service():
 
 def test_unlimited_account_is_not_offered_capacity(buttons):
     # Buying 5 on an unlimited account would cap it at 5.
-    assert ACTION_BUY_CAPACITY not in account_actions(_account(max_users=0), panel=object())
+    plan = _plan(addon_user_price=5000)
+    assert ACTION_BUY_CAPACITY not in account_actions(_account(max_users=0), panel=object(), plan=plan)
+
+
+def test_addons_follow_the_plan_prices_and_type(buttons):
+    fixed = _account(mode="fixed", expiration_time=1, data_limit=10)
+    plan = _plan("fixed", addon_day_price=1000, addon_gb_price=500)
+    actions = account_actions(fixed, panel=object(), plan=plan)
+    assert {ACTION_EXTRA_DAYS, ACTION_EXTRA_VOLUME} <= actions
+    assert ACTION_BUY_CAPACITY not in actions  # its price is 0
+    # No plan, no add-ons: their prices live on the plan.
+    assert not {ACTION_EXTRA_DAYS, ACTION_EXTRA_VOLUME} & account_actions(fixed, panel=object())
+
+
+def test_unlimited_plan_never_offers_extra_volume(buttons):
+    account = _account(mode="unlimited", expiration_time=1, data_limit=10)
+    plan = _plan("unlimited", addon_day_price=1000, addon_gb_price=500)
+    actions = account_actions(account, panel=object(), plan=plan)
+    assert ACTION_EXTRA_DAYS in actions and ACTION_EXTRA_VOLUME not in actions
+
+
+def test_expired_account_can_buy_days_but_not_volume(buttons):
+    account = _account(status="expired", mode="fixed", expiration_time=1, data_limit=10)
+    plan = _plan("fixed", addon_day_price=1000, addon_gb_price=500)
+    actions = account_actions(account, panel=object(), plan=plan)
+    assert ACTION_EXTRA_DAYS in actions and ACTION_EXTRA_VOLUME not in actions
 
 
 def _resume_env(monkeypatch, *, balance: int, pending: int | None):

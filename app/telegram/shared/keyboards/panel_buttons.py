@@ -58,7 +58,9 @@ PANEL_MS_RESELLER_BUTTON_TOGGLES: tuple[tuple[str, str], ...] = (
     ("toggle_status", "🕹 فعال/غیرفعال سازی پنل"),
     ("usage_report", "📊 گزارش مصرف"),
     ("usage_cap", "📦 محدودیت مصرف"),
-    ("buy_user_capacity", "👥 خرید ظرفیت کاربر اضافه"),
+    ("extra_days", "📅 روز اضافه"),
+    ("extra_volume", "📦 حجم اضافه"),
+    ("buy_user_capacity", "👥 یوزر اضافه"),
     ("delete", "🗑 حذف نمایندگی"),
 )
 
@@ -211,7 +213,7 @@ def build_panel_admin_settings_buttons(panel: Any) -> list:
         [Button.inline("🧪 تنظیمات تست", data=f"panel_test_settings:{code}")],
         [Button.inline(f"🗑 حذف خودکار منقضی‌ها ({expired_delete_short})", data=f"panel_expired_delete:{code}")],
         [Button.inline("🧩 خرید دلخواه (حجم/زمان)", data=f"panel_custom_buy:{code}")],
-        [Button.inline("👥 خرید ظرفیت کاربر (نمایندگی)", data=f"panel_reseller_capacity:{code}")],
+        [Button.inline("👥 یوزر اضافه (نمایندگی)", data=f"panel_reseller_capacity:{code}")],
         [
             Button.inline("♾️ پلن‌های حجم اضافه", data=f"panel_volume_plans:{code}"),
             Button.inline("⏰ پلن‌های زمان اضافه", data=f"panel_time_plans:{code}"),

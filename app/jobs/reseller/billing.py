@@ -368,16 +368,33 @@ async def _try_reactivate_suspended(settings, *, stats: _BillingRunStats | None 
         await _reactivate_account(account, panel, stats=stats)
 
 
+async def _switch_off_for_expiry(panel, account) -> bool:
+    """Disable the panel admin of an expired account; True when it is off (or no longer exists)."""
+    try:
+        await suspend_reseller_admin(panel, account.panel_admin_id)
+        return True
+    except Exception as exc:
+        log.error("expire reseller suspend failed code=%s: %s", account.code, exc)
+    if not account.panel_admin_id:
+        return True
+    try:
+        return await get_reseller_admin(panel, account.panel_admin_id) is None
+    except Exception:
+        return False
+
+
 async def _expire_timed_accounts(now: int, settings, *, stats: _BillingRunStats | None = None) -> None:
     grace_days = grace_seconds(settings) // 86400
     accounts = await ResellerAccountCRUD().get_accounts_to_expire(now)
     for account in accounts:
         panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-        if panel:
-            try:
-                await suspend_reseller_admin(panel, account.panel_admin_id)
-            except Exception as exc:
-                log.error("expire reseller suspend failed code=%s: %s", account.code, exc)
+        if panel and not await _switch_off_for_expiry(panel, account):
+            if stats:
+                stats.errors += 1
+            continue
+        ok, current = await ResellerAccountCRUD().get_account(account.code)
+        if not ok or not current.expiration_time or int(current.expiration_time) > now:
+            continue
         await ResellerAccountCRUD().update_account(account.code, status="expired")
         if stats:
             stats.expired += 1

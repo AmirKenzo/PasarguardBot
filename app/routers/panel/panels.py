@@ -342,20 +342,11 @@ async def save_panel_settings(payload: PanelSettingsSaveRequest, request: Reques
             values["renewal_settings"] = payload.renewal.model_dump(exclude_none=True)
 
         plans_changed = payload.volume_plans is not None or payload.time_plans is not None
-        if (
-            payload.sales
-            or payload.custom_buy
-            or payload.reseller_capacity
-            or payload.reseller_buttons
-            or plans_changed
-        ):
+        if payload.sales or payload.custom_buy or payload.reseller_buttons or plans_changed:
             values["feature_settings"] = apply_feature_settings_patch(
                 panel,
                 sales=payload.sales.model_dump(exclude_none=True) if payload.sales else None,
                 custom_buy=payload.custom_buy.model_dump(exclude_none=True) if payload.custom_buy else None,
-                reseller_capacity=(
-                    payload.reseller_capacity.model_dump(exclude_none=True) if payload.reseller_capacity else None
-                ),
                 reseller_buttons=(
                     payload.reseller_buttons.model_dump(exclude_none=True) if payload.reseller_buttons else None
                 ),

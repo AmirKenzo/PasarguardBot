@@ -29,3 +29,4 @@ class ResellerAccount(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     billing_state: Mapped[str | None] = mapped_column(Text, nullable=True)
     billed_traffic: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    extra_users: Mapped[int | None] = mapped_column(Integer, nullable=True)

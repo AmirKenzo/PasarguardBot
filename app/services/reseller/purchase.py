@@ -20,6 +20,7 @@ from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import get_logger
 from app.services.billing.reseller_pricing import (
     calculate_purchase_price,
+    is_prepaid,
     pricing_mode_label,
     requires_volume_input,
     requires_wallet_for_purchase,
@@ -135,8 +136,8 @@ async def quote_reseller_purchase(
     else:
         volume = None
 
-    if discount_code and plan.pricing_mode != "fixed":
-        return None, "کد تخفیف فقط برای پلن ثابت است."
+    if discount_code and not is_prepaid(plan):
+        return None, "کد تخفیف فقط برای پلن ثابت و نامحدود است."
     price, error = await apply_reseller_discount(user_id, calculate_purchase_price(plan, volume), discount_code)
     if error:
         return None, error

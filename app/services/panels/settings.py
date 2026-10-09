@@ -104,6 +104,8 @@ DEFAULT_RESELLER_BUTTON_SETTINGS: dict[str, bool] = {
     "usage_report": True,
     "usage_cap": True,
     "buy_user_capacity": True,
+    "extra_days": True,
+    "extra_volume": True,
     "delete": True,
 }
 

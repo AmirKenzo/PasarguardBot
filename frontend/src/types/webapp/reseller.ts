@@ -10,6 +10,19 @@ export interface WebAppResellerEnvelope {
 //  Buy                                                                          //
 // --------------------------------------------------------------------------- //
 
+/** What a buyer of the plan gets; an add-on price of 0 means the add-on is off (plan or panel toggle). */
+export interface ResellerPlanFeatures {
+  renewable: boolean;
+  expires: boolean;
+  unlimited_volume: boolean;
+  usage_cap: boolean;
+  needs_wallet: boolean;
+  extra_day_price: number;
+  /** Price of one extra GB. */
+  extra_gb_price: number;
+  extra_user_price: number;
+}
+
 export interface ResellerPlanItem {
   id: number;
   pricing_mode: string;
@@ -24,6 +37,8 @@ export interface ResellerPlanItem {
   duration_days: number;
   needs_volume: boolean;
   needs_wallet: boolean;
+  /** Optional for older servers. */
+  features?: ResellerPlanFeatures;
 }
 
 export interface ResellerPanelItem {
@@ -36,6 +51,8 @@ export interface WebAppResellerBuyOptionsResponse extends WebAppResellerEnvelope
   /** False when reseller sales are off or nothing is on sale; the buy card is hidden. */
   enabled: boolean;
   min_wallet_balance: number;
+  /** Days an expired reseller is kept before it is purged. */
+  grace_days?: number;
   balance: number;
   panels: ResellerPanelItem[];
 }
@@ -92,6 +109,7 @@ export interface ResellerAccountItem {
   expiration_timestamp?: number | null;
   max_users: number;
   created_timestamp?: number | null;
+  extra_users?: number;
 }
 
 export interface WebAppResellerAccountsResponse extends WebAppResellerEnvelope {
@@ -112,6 +130,10 @@ export interface ResellerRenewPlanItem {
   price: number;
   data_limit_bytes: number;
   duration_days: number;
+  pricing_mode?: string | null;
+  max_users?: number;
+  /** False when the plan is off sale for new buyers; the owner can still renew it. */
+  enabled?: boolean;
 }
 
 export interface ResellerEventItem {
@@ -139,10 +161,21 @@ export interface WebAppResellerAccountResponse extends WebAppResellerEnvelope {
   billed_total?: number | null;
   runway_hours?: number | null;
   grace_days_left?: number | null;
+  /** Only the account's own plan; renewal never switches plans. */
   renew_plans: ResellerRenewPlanItem[];
   capacity_price_per_user: number;
   capacity_presets: number[];
   events: ResellerEventItem[];
+  plan?: ResellerPlanItem | null;
+  features?: ResellerPlanFeatures | null;
+  /** User limit of the plan itself; 0 = unlimited. */
+  plan_max_users?: number;
+  /** User slots bought on top of the plan limit. */
+  extra_users?: number;
+  grace_days?: number;
+  min_wallet_balance?: number;
+  addon_presets?: Partial<Record<ResellerAddonKind, number[]>>;
+  addon_max_quantity?: Partial<Record<ResellerAddonKind, number>>;
 }
 
 export interface WebAppResellerPasswordResponse extends WebAppResellerEnvelope {
@@ -168,6 +201,14 @@ export interface WebAppResellerRenewPreviewResponse extends WebAppResellerEnvelo
   discount_percent: number;
   balance: number;
   can_pay: boolean;
+  balance_after?: number;
+  expiry_before?: number | null;
+  expiry_after?: number | null;
+  /** Bytes; 0 = unlimited. */
+  data_limit_before?: number;
+  data_limit_after?: number;
+  /** Unchanged by renewal; 0 = unlimited. */
+  max_users?: number;
 }
 
 export interface WebAppResellerUsageCapRequest extends WebAppAuthRequest {
@@ -187,6 +228,28 @@ export interface WebAppResellerCapacityPreviewResponse extends WebAppResellerEnv
   limit_before: number;
   limit_after: number;
   balance: number;
+  can_pay: boolean;
+}
+
+export type ResellerAddonKind = "extra_days" | "extra_volume" | "buy_user_capacity";
+
+export interface WebAppResellerAddonRequest extends WebAppAuthRequest {
+  code: number;
+  addon: ResellerAddonKind;
+  /** Days, GB or user slots depending on `addon`. */
+  quantity: number;
+}
+
+/** `before`/`after`: expiry timestamp (days), bytes (volume) or user count (users). */
+export interface WebAppResellerAddonPreviewResponse extends WebAppResellerEnvelope {
+  addon?: string | null;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  before: number;
+  after: number;
+  balance: number;
+  balance_after: number;
   can_pay: boolean;
 }
 

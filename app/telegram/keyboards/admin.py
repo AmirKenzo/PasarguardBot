@@ -3,6 +3,7 @@
 from telethon import Button
 
 from app.db.crud.user import UserCRUD
+from app.services.reseller.plan_rules import USAGE, is_renewable, rule_for
 from config import WEBAPP_URL
 
 from .common import create_button, glass_inline_button, glass_text_button, styled_simple_webview_button
@@ -64,13 +65,37 @@ def build_admin_reseller_account_buttons(user_id: int, account) -> list:
             rows.append([Button.inline("▶️ فعال‌سازی پنل", data=f"AdminReseller_resume:{user_id}:{code}")])
     elif account.status in ("active", "suspended"):
         rows.append([Button.inline("⏸ غیرفعال‌سازی پنل", data=f"AdminReseller_pause:{user_id}:{code}")])
-    if account.pricing_mode == "fixed":
-        rows.append([Button.inline("💎 تمدید", data=f"AdminReseller_renew:{user_id}:{code}")])
-    if account.pricing_mode == "usage":
+    if is_renewable(account.pricing_mode) and account.plan_id:
+        rows.append([Button.inline("💎 تمدید با پلن خودش", data=f"AdminReseller_renew:{user_id}:{code}")])
+    if account.pricing_mode == USAGE:
         rows.append([Button.inline("📦 محدودیت مصرف", data=f"AdminReseller_usage_cap:{user_id}:{code}")])
+    rows.extend(admin_reseller_tool_rows(user_id, account))
     rows.append([Button.inline("🗑 حذف نمایندگی", data=f"AdminReseller_delete:{user_id}:{code}")])
     rows.append([Button.inline("🔙 بازگشت به لیست", data=f"MToUser_resellers:{user_id}")])
     return rows
+
+
+def admin_reseller_tools(account) -> list[tuple[str, str]]:
+    """(action, label) of the free repair tools that apply to ``account``'s plan type."""
+    tools: list[tuple[str, str]] = []
+    if account.expiration_time:
+        tools.append(("days", "📅 روز رایگان"))
+    if rule_for(account.pricing_mode).volume != "none":
+        tools.append(("volume", "📦 تنظیم حجم"))
+    tools.append(("maxusers", "👥 سقف یوزر"))
+    tools.append(("chplan", "🔁 تغییر پلن"))
+    tools.append(("resync", "🔄 همگام‌سازی با پنل"))
+    if account.pricing_mode == USAGE:
+        tools.append(("forgive", "🎁 بخشیدن مصرف کسرنشده"))
+    return tools
+
+
+def admin_reseller_tool_rows(user_id: int, account) -> list:
+    buttons = [
+        Button.inline(label, data=f"AdminReseller_{action}:{user_id}:{account.code}")
+        for action, label in admin_reseller_tools(account)
+    ]
+    return [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
 
 
 def build_admin_reseller_usage_cap_buttons(user_id: int, account_code: int, *, has_cap: bool) -> list:

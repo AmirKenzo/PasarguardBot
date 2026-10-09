@@ -14,6 +14,13 @@ STEP_ADMIN_SEARCH_CONFIG = "AdminSearchConfig"
 STEP_CONFIRM_USER_PHONE = "confirmUserPhone"
 ADMIN_SERVICE_LIST_PREFIX = "BackToServiceListAdmin"
 
+# Admin repair tools on one reseller account that take a typed value.
+STEP_ADMIN_RESELLER_TOOL = "AdminResellerToolInput"
+RESELLER_TOOL_USER_KEY = "AdminResellerToolUserId"
+RESELLER_TOOL_CODE_KEY = "AdminResellerToolCode"
+RESELLER_TOOL_KIND_KEY = "AdminResellerToolKind"
+RESELLER_TOOL_KINDS = ("volume_set", "volume_add", "days", "maxusers")
+
 MANAGE_USER_SERVICE_CALLBACK_PREFIXES = (
     "DeleteServiceAdmin:",
     "DeleteServiceAdmin_confirm:",

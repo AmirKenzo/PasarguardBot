@@ -22,6 +22,7 @@ def _account(**overrides) -> SimpleNamespace:
         "status": "active",
         "expiration_time": NOW + DAY,
         "max_users": 3,
+        "plan_id": None,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -90,7 +91,7 @@ async def test_max_users_writes_db_only_after_the_panel_accepts(env):
     env["sync"] = (True, None)
     ok, _ = await accounts.set_max_users_by_admin(_account(), max_users=0)
     assert ok
-    assert env["updates"] == [(5, {"max_users": None})]
+    assert env["updates"] == [(5, {"max_users": None, "extra_users": None})]
     assert env["events"] == [("max_users", {"limit_before": 3, "limit_after": 0})]
 
 

@@ -18,8 +18,13 @@ const BUTTON_KEYS: (keyof PanelResellerButtons)[] = [
   "usage_report",
   "usage_cap",
   "buy_user_capacity",
+  "extra_days",
+  "extra_volume",
   "delete",
 ];
+
+/** Add-on buttons get a hint: they also need a price on the plan to show. */
+const BUTTON_HINTS: ReadonlySet<keyof PanelResellerButtons> = new Set(["buy_user_capacity", "extra_days", "extra_volume"]);
 
 export default function SettingsTab() {
   const { t } = useTranslation();
@@ -113,28 +118,9 @@ export default function SettingsTab() {
                   onChange={(sale_enabled) => patchPanel(panel.code, { sale_enabled })}
                   label={t("panel.resellerHub.settings.panelSale")}
                 />
-                <div className="rounded-lg bg-surface-2/60 p-3">
-                  <Toggle
-                    checked={panel.capacity_enabled}
-                    onChange={(capacity_enabled) => patchPanel(panel.code, { capacity_enabled })}
-                    label={t("panel.resellerHub.settings.capacity")}
-                    hint={t("panel.resellerHub.settings.capacityHint")}
-                  />
-                  {panel.capacity_enabled && (
-                    <div className="mt-2 max-w-[14rem]">
-                      <Input
-                        label={t("panel.resellerHub.settings.pricePerUser")}
-                        inputMode="numeric"
-                        value={String(panel.capacity_price_per_user || "")}
-                        onChange={(event) =>
-                          patchPanel(panel.code, {
-                            capacity_price_per_user: Number(event.target.value.replace(/\D/g, "")) || 0,
-                          })
-                        }
-                      />
-                    </div>
-                  )}
-                </div>
+                <p className="rounded-lg bg-surface-2/60 px-3 py-2 text-xs leading-6 text-muted">
+                  {t("panel.resellerHub.settings.capacityMoved")}
+                </p>
                 <div>
                   <p className="mb-1 text-xs font-semibold text-muted">{t("panel.resellerHub.settings.buttons")}</p>
                   <div className="grid gap-x-4 sm:grid-cols-2">
@@ -144,6 +130,7 @@ export default function SettingsTab() {
                         checked={panel.buttons[key]}
                         onChange={(value) => patchPanel(panel.code, { buttons: { ...panel.buttons, [key]: value } })}
                         label={t(`panel.resellerHub.settings.button.${key}`)}
+                        hint={BUTTON_HINTS.has(key) ? t(`panel.resellerHub.settings.buttonHint.${key}`) : undefined}
                       />
                     ))}
                   </div>

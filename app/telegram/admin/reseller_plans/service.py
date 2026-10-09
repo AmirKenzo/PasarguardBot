@@ -5,17 +5,28 @@ from telethon import Button
 from app.db.crud.panels import PanelsManager
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.services.billing.reseller_pricing import (
-    format_reseller_plan_admin_list_label,
     format_reseller_plan_price_short,
-    pricing_mode_label,
-    pricing_mode_short_label,
     volume_unit_label,
 )
+from app.services.reseller.plan_rules import ADDON_PRICE_FIELDS, rule_for
 from app.telegram.keyboards.common import styled_callback_button
 from app.telegram.keyboards.registry import STYLE_LABELS
 from app.telegram.shared.keyboards.plan_buttons import resolve_plan_button_style
+from app.telegram.shared.reseller_plan_guides import (
+    ADDON_NAMES,
+    HOURLY,
+    SETUP_FEE_LABEL,
+    USAGE,
+    admin_guide_summary,
+    admin_mode_name,
+    admin_mode_short_name,
+    editable_fields,
+    field_label,
+    format_field_value,
+    is_creatable,
+    setup_fee,
+)
 from app.telegram.user.reseller.helpers import format_plan_button_text
-from app.utils.formatting.traffic import format_size
 
 
 def reseller_plan_main_menu_buttons() -> list:
@@ -31,15 +42,16 @@ def reseller_plan_title(plan) -> str:
     custom = (plan.display_button_text or "").strip()
     if custom:
         return custom.split("\n", 1)[0].strip()
-    return pricing_mode_short_label(plan.pricing_mode)
+    return admin_mode_short_name(plan.pricing_mode)
 
 
 def format_reseller_plan_list_label(plan) -> str:
-    return format_reseller_plan_admin_list_label(plan)
+    """Admin list label: name, type, price and on/off, so plans of different types are told apart."""
+    return format_reseller_import_plan_button(plan)
 
 
 def format_reseller_import_plan_button(plan) -> str:
-    mode = pricing_mode_short_label(plan.pricing_mode)
+    mode = admin_mode_short_name(plan.pricing_mode)
     status = "✅" if plan.enable else "❌"
     custom = (plan.display_button_text or "").strip()
     name = custom.split("\n", 1)[0].strip()[:20] if custom else ""
@@ -49,6 +61,37 @@ def format_reseller_import_plan_button(plan) -> str:
     return f"#{plan.id} · {mode} · {price} {status}"
 
 
+def plan_type_text(plan) -> str:
+    name = admin_mode_name(plan.pricing_mode)
+    return name if is_creatable(plan.pricing_mode) else f"{name} — فقط ویرایش، ساخت پلن جدید از این نوع ممکن نیست"
+
+
+def plan_values_lines(plan) -> list[str]:
+    """Prices, limits and add-ons of a stored plan, labelled for its type."""
+    mode = plan.pricing_mode
+    rule = rule_for(mode)
+    lines = [
+        f"**💰 {field_label(rule.price_field, mode)}:** {format_field_value('price', getattr(plan, rule.price_field))}"
+    ]
+    if mode in ("per_gb", "per_tb"):
+        lines.append(f"**📦 محدوده حجم:** {plan.min_volume:g} — {plan.max_volume:g} {volume_unit_label(mode)}")
+    if rule.volume != "none" or plan.data_limit:
+        lines.append(f"**📥 {field_label('data_limit', mode)}:** {format_field_value('data_limit', plan.data_limit)}")
+    lines.append(f"**👥 حداکثر یوزر:** {format_field_value('max_users', plan.max_users)}")
+    if rule.duration == "required" or plan.duration:
+        lines.append(f"**⏰ مدت:** {format_field_value('duration', plan.duration)}")
+    if mode in (USAGE, HOURLY):
+        fee = setup_fee(plan)
+        lines.append(f"**💳 {SETUP_FEE_LABEL}:** {fee:,} تومان" if fee else "**💳 پرداخت اولیه:** ندارد")
+    if rule.addons:
+        lines.append("")
+        lines.append("**🧩 افزودنی‌ها (0 = خاموش):**")
+        for addon in rule.addons:
+            field = ADDON_PRICE_FIELDS[addon]
+            lines.append(f"• {ADDON_NAMES[addon]}: {format_field_value(field, getattr(plan, field, 0))}")
+    return lines
+
+
 async def format_reseller_plan_detail(plan) -> str:
     panel = await PanelsManager().get_panel_by_code(code=plan.panel_code)
     panel_name = panel.name if panel else str(plan.panel_code)
@@ -56,24 +99,15 @@ async def format_reseller_plan_detail(plan) -> str:
     lines = [
         f"**پلن #{plan.id}** — {title}",
         f"**📛 پنل:** {panel_name}",
-        f"**📋 نوع:** {pricing_mode_label(plan.pricing_mode)}",
+        f"**📋 نوع:** {plan_type_text(plan)}",
         f"**🛡 نقش:** {plan.role_name or plan.role_id}",
         f"**⚙️ وضعیت:** {'✅ فعال' if plan.enable else '❌ غیرفعال'}",
+        "",
+        *plan_values_lines(plan),
+        "",
+        f"**ℹ️ خلاصه راهنما:** {admin_guide_summary(plan)}",
+        "",
     ]
-    if plan.pricing_mode == "fixed":
-        lines.append(f"**💰 قیمت:** {int(plan.price):,} تومان")
-    else:
-        lines.append(f"**💰 قیمت واحد:** {int(plan.unit_price):,} تومان")
-        if plan.pricing_mode in ("per_gb", "per_tb"):
-            lines.append(
-                f"**📦 محدوده حجم:** {plan.min_volume:g} — {plan.max_volume:g} {volume_unit_label(plan.pricing_mode)}"
-            )
-    if plan.data_limit:
-        lines.append(f"**📥 سقف ترافیک:** {format_size(plan.data_limit)}")
-    if plan.max_users:
-        lines.append(f"**👥 سقف یوزر:** {plan.max_users}")
-    if plan.duration:
-        lines.append(f"**⏰ مدت:** {plan.duration} روز")
 
     btn_text = (plan.display_button_text or "").strip() or format_plan_button_text(plan)
     style_label = STYLE_LABELS.get(plan.button_style, "پیش‌فرض")
@@ -82,7 +116,6 @@ async def format_reseller_plan_detail(plan) -> str:
     icon_label = str(plan.button_icon) if plan.button_icon else "ندارد"
     lines.extend(
         [
-            "",
             "**🎨 نمایش دکمه خرید:**",
             f"• متن: `{btn_text}`",
             f"• رنگ: {style_label}",
@@ -134,13 +167,43 @@ def build_reseller_plan_list_button(plan):
     return styled_callback_button(text, f"ResellerPlanView_{plan.id}", style)
 
 
-def plan_manage_buttons(plan_id: int, panel_code: int) -> list:
-    return [
-        [
-            Button.inline("✏️ قیمت", data=f"ResellerPlanEditPrice_{plan_id}"),
-            Button.inline("🔄 وضعیت", data=f"ResellerPlanToggle_{plan_id}"),
-        ],
-        [Button.inline("🎨 نمایش دکمه", data=f"ResellerPlanDisplay_{plan_id}")],
-        [Button.inline("🗑 حذف", data=f"ResellerPlanDelete_{plan_id}")],
-        [Button.inline("🔙 بازگشت", data=f"ResellerPlanManage_{panel_code}")],
+_EDIT_BUTTON_LABELS = {
+    "price": "قیمت",
+    "max_users": "سقف یوزر",
+    "duration": "مدت",
+    "addon_day_price": "قیمت روز اضافه",
+    "addon_gb_price": "قیمت حجم اضافه",
+    "addon_user_price": "قیمت یوزر اضافه",
+}
+
+
+def edit_button_label(field: str, mode: str) -> str:
+    if field == "price" and mode in (USAGE, HOURLY):
+        return "هزینه راه‌اندازی"
+    if field == "unit_price":
+        return "قیمت هر ساعت" if mode == HOURLY else "قیمت هر گیگ" if mode == USAGE else "قیمت واحد"
+    if field == "data_limit":
+        return "حجم" if rule_for(mode).volume == "required" else "سقف ترافیک"
+    return _EDIT_BUTTON_LABELS.get(field, field)
+
+
+def plan_manage_buttons(plan) -> list:
+    plan_id = plan.id
+    edit_buttons = [
+        Button.inline(
+            f"✏️ {edit_button_label(field, plan.pricing_mode)}", data=f"ResellerPlanEditField_{plan_id}:{field}"
+        )
+        for field in editable_fields(plan.pricing_mode, plan)
     ]
+    rows = [edit_buttons[i : i + 2] for i in range(0, len(edit_buttons), 2)]
+    rows.extend(
+        [
+            [
+                Button.inline("🔄 وضعیت", data=f"ResellerPlanToggle_{plan_id}"),
+                Button.inline("🎨 نمایش دکمه", data=f"ResellerPlanDisplay_{plan_id}"),
+            ],
+            [Button.inline("🗑 حذف", data=f"ResellerPlanDelete_{plan_id}")],
+            [Button.inline("🔙 بازگشت", data=f"ResellerPlanManage_{plan.panel_code}")],
+        ]
+    )
+    return rows

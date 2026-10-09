@@ -3,6 +3,8 @@ import type {
   WebAppResellerAccountResponse,
   WebAppResellerAccountsResponse,
   WebAppResellerActionResponse,
+  WebAppResellerAddonPreviewResponse,
+  WebAppResellerAddonRequest,
   WebAppResellerBuyConfirmResponse,
   WebAppResellerBuyOptionsResponse,
   WebAppResellerBuyPreviewResponse,
@@ -80,6 +82,14 @@ export function previewCapacity(body: WebAppResellerCapacityRequest) {
 
 export function confirmCapacity(body: WebAppResellerCapacityRequest) {
   return apiPost<WebAppResellerActionResponse>("/reseller/account/capacity/confirm", body);
+}
+
+export function previewAddon(body: WebAppResellerAddonRequest) {
+  return apiPost<WebAppResellerAddonPreviewResponse>("/reseller/account/addon/preview", body);
+}
+
+export function confirmAddon(body: WebAppResellerAddonRequest) {
+  return apiPost<WebAppResellerActionResponse>("/reseller/account/addon/confirm", body);
 }
 
 export function getUsage(body: WebAppResellerPageRequest) {

@@ -14,13 +14,16 @@ from fastapi import APIRouter, Request
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_events import ResellerEventCRUD
 from app.db.crud.reseller_plans import ResellerPlanManager
+from app.db.crud.settings import SettingsManager
 from app.db.models.reseller_events import ResellerEvent
 from app.db.models.reseller_plans import CREATABLE_PRICING_MODES, PRICING_MODES
 from app.logger import get_logger
 from app.models.panel.common import ActionResponse, PanelRequest, page_meta
 from app.models.panel.resellers import (
     RESELLER_STATUSES,
+    PanelResellerChangePlanRequest,
     PanelResellerCodeRequest,
+    PanelResellerDataLimitRequest,
     PanelResellerDeleteRequest,
     PanelResellerDetailRequest,
     PanelResellerDetailResponse,
@@ -57,6 +60,7 @@ from app.services.reseller.accounts import (
     PAYG_MODES,
     delete_account,
     extend_account_by_admin,
+    grace_seconds,
     load_account_live_info,
     pause_account_by_admin,
     reset_password,
@@ -64,8 +68,23 @@ from app.services.reseller.accounts import (
     reveal_password,
     set_max_users_by_admin,
 )
+from app.services.reseller.admin_tools import (
+    change_plan_by_admin,
+    forgive_unbilled_usage,
+    resync_with_panel,
+    set_data_limit_by_admin,
+)
 from app.services.reseller.ledger import LedgerEntry, describe_charges
-from app.services.reseller.plan_changes import LIVE_RATE_MODES, notify_plan_rate_change
+from app.services.reseller.plan_changes import notify_plan_rate_change
+from app.services.reseller.plan_rules import (
+    ADDON_PRICE_FIELDS,
+    LIVE_RATE_MODES,
+    USAGE,
+    normalize_plan,
+    plan_features,
+    rule_for,
+    validate_plan,
+)
 from app.services.reseller.runway import estimate_runway
 from app.services.reseller.usage_cap import set_reseller_usage_cap
 from app.telegram.state.lock import acquire_user_lock, release_user_lock
@@ -88,6 +107,10 @@ ADMIN_ACTION_EXTEND = "extend"
 ADMIN_ACTION_USAGE_CAP = "usage_cap"
 ADMIN_ACTION_MAX_USERS = "max_users"
 ADMIN_ACTION_DELETE = "delete"
+ADMIN_ACTION_DATA_LIMIT = "data_limit"
+ADMIN_ACTION_CHANGE_PLAN = "change_plan"
+ADMIN_ACTION_RESYNC = "resync"
+ADMIN_ACTION_FORGIVE_USAGE = "forgive_usage"
 
 # Rate-change notices run after the response so a large plan never stalls the request.
 _background_tasks: set[asyncio.Task] = set()
@@ -107,6 +130,7 @@ def reseller_row(account, panels: dict[int, str]) -> PanelResellerRow:
         data_limit=account.data_limit,
         usage_cap_bytes=account.usage_cap_bytes,
         max_users=account.max_users,
+        extra_users=getattr(account, "extra_users", None),
         createtime=account.createtime,
         expiration_time=account.expiration_time,
         status=account.status,
@@ -148,22 +172,38 @@ def event_row(event: ResellerEvent) -> PanelResellerEventRow:
 
 def plan_brief(plan) -> PanelResellerPlanBrief:
     name = (plan.display_button_text or "").strip().split("\n", 1)[0][:40] or None
-    rate = float(plan.price or 0) if plan.pricing_mode == "fixed" else float(plan.unit_price or 0)
-    return PanelResellerPlanBrief(id=int(plan.id), pricing_mode=plan.pricing_mode, name=name, rate=rate)
+    rate = float(getattr(plan, rule_for(plan.pricing_mode).price_field, 0) or 0)
+    return PanelResellerPlanBrief(
+        id=int(plan.id),
+        pricing_mode=plan.pricing_mode,
+        name=name,
+        rate=rate,
+        enable=bool(getattr(plan, "enable", True)),
+        duration=int(getattr(plan, "duration", 0) or 0),
+        data_limit_gb=round(int(getattr(plan, "data_limit", 0) or 0) / GB, 2),
+        max_users=int(getattr(plan, "max_users", 0) or 0),
+    )
 
 
 def admin_actions(account) -> list[str]:
-    actions = [ADMIN_ACTION_PASSWORD, ADMIN_ACTION_MAX_USERS, ADMIN_ACTION_DELETE]
+    rule = rule_for(account.pricing_mode)
+    actions = [ADMIN_ACTION_PASSWORD, ADMIN_ACTION_MAX_USERS, ADMIN_ACTION_RESYNC, ADMIN_ACTION_DELETE]
     if account.status in ("paused", ADMIN_LOCKED_STATUS):
         actions.append(ADMIN_ACTION_RESUME)
     elif account.status != "expired":
         actions.append(ADMIN_ACTION_PAUSE)
-    if account.pricing_mode == "fixed":
+    # Renewal is only ever with the account's own plan.
+    if rule.renewable and account.plan_id:
         actions.append(ADMIN_ACTION_RENEW)
     if account.expiration_time:
         actions.append(ADMIN_ACTION_EXTEND)
-    if account.pricing_mode == "usage":
+    if account.pricing_mode == USAGE:
         actions.append(ADMIN_ACTION_USAGE_CAP)
+        actions.append(ADMIN_ACTION_FORGIVE_USAGE)
+    if rule.volume != "none":
+        actions.append(ADMIN_ACTION_DATA_LIMIT)
+    if account.plan_id:
+        actions.append(ADMIN_ACTION_CHANGE_PLAN)
     return actions
 
 
@@ -254,6 +294,7 @@ async def reseller_detail(payload: PanelResellerDetailRequest, request: Request)
 
         if plan is not None:
             response.plan = plan_brief(plan)
+            response.plan_features = plan_features(plan)
 
         if account.pricing_mode in PAYG_MODES:
             if response.balance is None:
@@ -261,11 +302,19 @@ async def reseller_detail(payload: PanelResellerDetailRequest, request: Request)
             user_accounts = await ResellerAccountCRUD().get_accounts_by_user(account.telegram_id)
             response.runway_hours = (await estimate_runway(response.balance, user_accounts)).hours_left
 
-        if account.pricing_mode == "fixed":
-            response.renew_plans = [
+        if account.expiration_time:
+            try:
+                response.grace_days = grace_seconds(await SettingsManager().get_settings()) // 86400
+            except Exception as exc:
+                log.warning("reseller detail grace days failed code=%s: %s", account.code, exc)
+
+        if plan is not None and rule_for(account.pricing_mode).renewable and int(plan.id) == int(account.plan_id or 0):
+            response.renew_plans = [plan_brief(plan)]
+        if account.plan_id:
+            response.change_plans = [
                 plan_brief(item)
-                for item in await ResellerPlanManager().get_all_plans(panel_code=account.panel_code, enabled_only=True)
-                if item.pricing_mode == "fixed"
+                for item in await ResellerPlanManager().get_all_plans(panel_code=account.panel_code)
+                if item.pricing_mode == account.pricing_mode and int(item.id) != int(account.plan_id)
             ]
         return response
 
@@ -472,6 +521,79 @@ async def set_reseller_max_users(payload: PanelResellerMaxUsersRequest, request:
     return await guard.run(payload, request, ActionResponse, handle)
 
 
+@router.post("/panel/resellers/data-limit", response_model=ActionResponse)
+async def set_reseller_data_limit(payload: PanelResellerDataLimitRequest, request: Request) -> ActionResponse:
+    """Set or add volume for free (admin correction, no wallet charge)."""
+
+    async def handle(actor: PanelActor) -> ActionResponse:
+        if (payload.set_gb is None) == (payload.add_gb is None):
+            return ActionResponse(ok=False, error="یکی از «تعیین حجم» یا «افزودن حجم» را وارد کنید.")
+        account = await queries.get_reseller(payload.code)
+        if account is None:
+            return ActionResponse(ok=False, error=NOT_FOUND)
+        ok, message = await set_data_limit_by_admin(
+            account, set_gb=payload.set_gb, add_gb=payload.add_gb, actor_id=actor.user_id
+        )
+        if ok:
+            await _record(
+                actor, "reseller_data_limit", payload.code, {"set_gb": payload.set_gb, "add_gb": payload.add_gb}
+            )
+        return _result(ok, message)
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/resellers/change-plan", response_model=ActionResponse)
+async def change_reseller_plan(payload: PanelResellerChangePlanRequest, request: Request) -> ActionResponse:
+    """Move the account to another plan of the same panel and type, without charging."""
+
+    async def handle(actor: PanelActor) -> ActionResponse:
+        account = await queries.get_reseller(payload.code)
+        if account is None:
+            return ActionResponse(ok=False, error=NOT_FOUND)
+        old_plan_id = account.plan_id
+        ok, message = await change_plan_by_admin(account, plan_id=payload.plan_id, actor_id=actor.user_id)
+        if ok and int(payload.plan_id) != int(old_plan_id or 0):
+            await _record(
+                actor, "reseller_change_plan", payload.code, {"plan_before": old_plan_id, "plan_after": payload.plan_id}
+            )
+        return _result(ok, message)
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/resellers/resync", response_model=ActionResponse)
+async def resync_reseller(payload: PanelResellerCodeRequest, request: Request) -> ActionResponse:
+    """Write the stored status, volume, user limit and role onto the panel admin again."""
+
+    async def handle(actor: PanelActor) -> ActionResponse:
+        account = await queries.get_reseller(payload.code)
+        if account is None:
+            return ActionResponse(ok=False, error=NOT_FOUND)
+        ok, message = await resync_with_panel(account, actor_id=actor.user_id)
+        if ok:
+            await _record(actor, "reseller_resync", payload.code)
+        return _result(ok, message)
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/resellers/forgive-usage", response_model=ActionResponse)
+async def forgive_reseller_usage(payload: PanelResellerCodeRequest, request: Request) -> ActionResponse:
+    """Usage plans: drop the traffic used since the last charge so it is never billed."""
+
+    async def handle(actor: PanelActor) -> ActionResponse:
+        account = await queries.get_reseller(payload.code)
+        if account is None:
+            return ActionResponse(ok=False, error=NOT_FOUND)
+        ok, message = await forgive_unbilled_usage(account, actor_id=actor.user_id)
+        if ok:
+            await _record(actor, "reseller_forgive_usage", payload.code)
+        return _result(ok, message)
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
 @router.post("/panel/resellers/delete", response_model=ActionResponse)
 async def delete_reseller(payload: PanelResellerDeleteRequest, request: Request) -> ActionResponse:
     async def handle(actor: PanelActor) -> ActionResponse:
@@ -521,6 +643,10 @@ async def list_reseller_plans(payload: PanelRequest, request: Request) -> PanelR
                     button_style=plan.button_style,
                     button_icon=plan.button_icon,
                     linked_accounts=linked.get(int(plan.id), 0),
+                    addon_day_price=float(plan.addon_day_price or 0),
+                    addon_gb_price=float(plan.addon_gb_price or 0),
+                    addon_user_price=float(plan.addon_user_price or 0),
+                    features=plan_features(plan),
                 )
                 for plan in plans
             ],
@@ -555,22 +681,31 @@ async def list_panel_roles(payload: PanelResellerRolesRequest, request: Request)
     return await guard.run(payload, request, PanelResellerRolesResponse, handle)
 
 
-def _plan_price_error(payload: PanelResellerPlanSaveRequest, existing) -> str | None:
-    if payload.pricing_mode not in PRICING_MODES:
-        return "نوع پلن معتبر نیست."
-    # Older plans of another type stay editable as they are, but nothing new of that type is created.
-    keeps_old_type = existing is not None and payload.pricing_mode == existing.pricing_mode
-    if payload.pricing_mode not in CREATABLE_PRICING_MODES and not keeps_old_type:
-        return "فقط پلن ثابت یا مصرفی قابل ساخت است."
-    if payload.pricing_mode == "fixed" and payload.price <= 0:
-        return "قیمت پلن ثابت باید بیشتر از صفر باشد."
-    if payload.pricing_mode == "usage" and payload.unit_price <= 0:
-        return "قیمت هر گیگ مصرف باید بیشتر از صفر باشد."
-    if payload.pricing_mode not in ("fixed", "usage") and payload.unit_price <= 0:
-        return "قیمت واحد باید بیشتر از صفر باشد."
-    if payload.max_volume and payload.max_volume < payload.min_volume:
-        return "حداکثر حجم نمی‌تواند از حداقل کمتر باشد."
-    return None
+def _plan_values(payload: PanelResellerPlanSaveRequest, existing) -> dict[str, Any]:
+    """The plan's pricing fields under model names, for ``plan_rules`` to validate and normalize.
+
+    ``data_limit_gb`` null and add-on prices left out keep what the edited plan stores.
+    """
+    values: dict[str, Any] = {
+        "pricing_mode": payload.pricing_mode,
+        "price": payload.price,
+        "unit_price": payload.unit_price,
+        "min_volume": payload.min_volume,
+        "max_volume": payload.max_volume,
+        "volume_step": payload.volume_step,
+        "max_users": payload.max_users,
+        "duration": payload.duration,
+    }
+    if payload.data_limit_gb is not None:
+        values["data_limit"] = int(gigabytes_to_bytes(payload.data_limit_gb)) if payload.data_limit_gb else 0
+    else:
+        values["data_limit"] = int(getattr(existing, "data_limit", 0) or 0) if existing is not None else 0
+    for field in ADDON_PRICE_FIELDS.values():
+        if field in payload.model_fields_set or existing is None:
+            values[field] = float(getattr(payload, field) or 0)
+        else:
+            values[field] = float(getattr(existing, field, 0) or 0)
+    return values
 
 
 def _schedule_rate_notice(plan, old_rate: float, new_rate: float, actor_id: int) -> None:
@@ -596,9 +731,12 @@ async def save_reseller_plan(payload: PanelResellerPlanSaveRequest, request: Req
             existing = await queries.get_reseller_plan(payload.plan_id)
             if existing is None:
                 return ActionResponse(ok=False, error="پلنی با این شناسه پیدا نشد.")
-        error = _plan_price_error(payload, existing)
+        plan_values = _plan_values(payload, existing)
+        # Older plans of a legacy type stay editable as that type, but nothing new of it is created.
+        error = validate_plan(plan_values, existing_mode=existing.pricing_mode if existing is not None else None)
         if error:
             return ActionResponse(ok=False, error=error)
+        plan_values = normalize_plan(plan_values)
         try:
             icon = parse_icon(payload.button_icon)
         except ValueError:
@@ -631,15 +769,8 @@ async def save_reseller_plan(payload: PanelResellerPlanSaveRequest, request: Req
             return ActionResponse(ok=False, error="نقش‌ها از پنل دریافت نشد؛ اتصال پنل را بررسی کنید.")
 
         values = {
+            **plan_values,
             "panel_code": payload.panel_code,
-            "pricing_mode": payload.pricing_mode,
-            "price": payload.price,
-            "unit_price": payload.unit_price,
-            "min_volume": payload.min_volume,
-            "max_volume": payload.max_volume,
-            "volume_step": payload.volume_step,
-            "max_users": payload.max_users,
-            "duration": payload.duration,
             "role_id": payload.role_id,
             "role_name": role_name,
             "enable": payload.enable,
@@ -647,18 +778,19 @@ async def save_reseller_plan(payload: PanelResellerPlanSaveRequest, request: Req
             "button_style": parse_style(payload.button_style),
             "button_icon": icon,
         }
-        if payload.data_limit_gb is not None:
-            values["data_limit"] = int(gigabytes_to_bytes(payload.data_limit_gb)) if payload.data_limit_gb else 0
 
         await mutations.upsert_reseller_plan(actor, payload.plan_id, values)
 
+        # Only usage/hourly accounts bill from the live plan, so only they hear about a new rate.
+        new_rate = float(plan_values["unit_price"] or 0)
         if (
             existing is not None
             and payload.notify_resellers
             and existing.pricing_mode in LIVE_RATE_MODES
-            and int(existing.unit_price or 0) != int(payload.unit_price)
+            and payload.pricing_mode == existing.pricing_mode
+            and int(existing.unit_price or 0) != int(new_rate)
         ):
-            _schedule_rate_notice(existing, float(existing.unit_price or 0), float(payload.unit_price), actor.user_id)
+            _schedule_rate_notice(existing, float(existing.unit_price or 0), new_rate, actor.user_id)
         return ActionResponse(message="پلن نمایندگی ذخیره شد." if payload.plan_id else "پلن نمایندگی اضافه شد.")
 
     return await guard.run(payload, request, ActionResponse, handle)

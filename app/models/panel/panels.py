@@ -127,6 +127,8 @@ class PanelResellerButtonSettingsPayload(BaseModel):
     usage_report: bool | None = None
     usage_cap: bool | None = None
     buy_user_capacity: bool | None = None
+    extra_days: bool | None = None
+    extra_volume: bool | None = None
     delete: bool | None = None
 
 

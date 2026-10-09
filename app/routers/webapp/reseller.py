@@ -7,6 +7,7 @@ also a refused request here.
 
 from __future__ import annotations
 
+import contextlib
 import random
 
 from fastapi import APIRouter
@@ -24,12 +25,15 @@ from app.models.webapp.reseller import (
     ResellerAccountItem,
     ResellerEventItem,
     ResellerPanelItem,
+    ResellerPlanFeatures,
     ResellerPlanItem,
     ResellerRenewPlanItem,
     ResellerUsageRow,
     WebAppResellerAccountResponse,
     WebAppResellerAccountsResponse,
     WebAppResellerActionResponse,
+    WebAppResellerAddonPreviewResponse,
+    WebAppResellerAddonRequest,
     WebAppResellerBuyConfirmResponse,
     WebAppResellerBuyOptionsResponse,
     WebAppResellerBuyPreviewResponse,
@@ -54,13 +58,15 @@ from app.services.billing.reseller_pricing import (
     requires_wallet_for_purchase,
 )
 from app.services.billing.reseller_renewal import renew_reseller_account
-from app.services.panels.admins import admin_username_exists
-from app.services.panels.settings import panel_reseller_capacity_settings, panel_reseller_sale_enabled
+from app.services.panels.admins import admin_username_exists, compute_reseller_data_limit
+from app.services.panels.settings import panel_reseller_button_enabled, panel_reseller_sale_enabled
 from app.services.reseller.accounts import (
     ACTION_BUY_CAPACITY,
     ACTION_CHANGE_PASSWORD,
     ACTION_CREDENTIALS,
     ACTION_DELETE,
+    ACTION_EXTRA_DAYS,
+    ACTION_EXTRA_VOLUME,
     ACTION_PAUSE,
     ACTION_RENEW,
     ACTION_RESUME,
@@ -70,6 +76,7 @@ from app.services.reseller.accounts import (
     account_actions,
     delete_account,
     get_owned_account,
+    grace_seconds,
     is_admin_locked,
     load_account_live_info,
     pause_account,
@@ -77,8 +84,10 @@ from app.services.reseller.accounts import (
     resume_account,
     reveal_password,
 )
-from app.services.reseller.capacity import CAPACITY_PRESETS, calculate_capacity_price, increase_reseller_capacity
+from app.services.reseller.addons import ADDON_LOCK, ADDON_MAX_QUANTITY, buy_addon, quote_addon
+from app.services.reseller.capacity import CAPACITY_PRESETS, capacity_price_per_user
 from app.services.reseller.ledger import describe_charges
+from app.services.reseller.plan_rules import ADDON_DAYS, ADDON_USERS, ADDON_VOLUME, plan_features
 from app.services.reseller.purchase import (
     apply_reseller_discount,
     purchase_reseller_account,
@@ -89,6 +98,7 @@ from app.services.reseller.runway import estimate_runway
 from app.services.reseller.usage_cap import set_reseller_usage_cap
 from app.services.webapp_purchase import is_valid_config_username
 from app.telegram.state.lock import acquire_user_lock, release_user_lock
+from app.utils.formatting.dates import Time_Date
 
 log = get_logger(__name__)
 router = APIRouter()
@@ -96,6 +106,17 @@ router = APIRouter()
 GENERIC_ERROR = "اجرای این عملیات با خطا روبه‌رو شد. دوباره تلاش کنید."
 USERNAME_RULE = "نام کاربری باید ۳ تا ۳۲ کاراکتر و فقط شامل حروف انگلیسی، عدد و زیرخط باشد."
 LOCK_BUSY = "درخواست قبلی شما هنوز در حال انجام است."
+RENEW_OWN_PLAN_ONLY = "تمدید فقط با همان پلن خریداری‌شده امکان‌پذیر است."
+
+# Each add-on is gated by the account action of the same name (also the panel's button toggle key).
+ADDON_ACTIONS = {ADDON_DAYS: ACTION_EXTRA_DAYS, ADDON_VOLUME: ACTION_EXTRA_VOLUME, ADDON_USERS: ACTION_BUY_CAPACITY}
+# Quick picks for the add-on sheets: days, GB and user slots.
+ADDON_PRESETS: dict[str, list[int]] = {
+    ADDON_DAYS: [7, 15, 30, 60, 90, 180],
+    ADDON_VOLUME: [10, 25, 50, 100, 200, 500],
+    ADDON_USERS: list(CAPACITY_PRESETS),
+}
+_FEATURE_PRICE_KEYS = {ADDON_DAYS: "extra_day_price", ADDON_VOLUME: "extra_gb_price", ADDON_USERS: "extra_user_price"}
 
 
 class _Refused(Exception):
@@ -110,16 +131,17 @@ async def _user(request: WebAppAuthRequest) -> int:
 
 
 async def _owned(code: int, user_id: int, action: str | None = None):
-    """The caller's account and its panel; ``action`` must be one the bot would offer."""
+    """The caller's account, its panel and its plan; ``action`` must be one the bot would offer."""
     account = await get_owned_account(code, user_id)
     if account is None:
         raise _Refused("نمایندگی یافت نشد.")
     panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    if action is not None and action not in account_actions(account, panel):
+    plan = await ResellerPlanManager().get_plan(account.plan_id) if account.plan_id else None
+    if action is not None and action not in account_actions(account, panel, plan):
         if is_admin_locked(account):
             raise _Refused("این نمایندگی توسط ادمین غیرفعال شده است.")
         raise _Refused("این عملیات برای این نمایندگی فعال نیست.")
-    return account, panel
+    return account, panel, plan
 
 
 async def _balance(user_id: int) -> int:
@@ -142,7 +164,19 @@ def _plan_name(plan) -> str | None:
     return (plan.display_button_text or "").strip().split("\n", 1)[0][:48] or None
 
 
-def _plan_item(plan) -> ResellerPlanItem:
+def _plan_features(plan, panel=None) -> ResellerPlanFeatures:
+    """The plan's features as the buyer sees them: an add-on the panel switched off is shown as off."""
+    values = plan_features(plan)
+    if panel is not None:
+        for addon, key in _FEATURE_PRICE_KEYS.items():
+            if not panel_reseller_button_enabled(panel, addon):
+                values[key] = 0
+        if not panel_reseller_button_enabled(panel, "usage_cap"):
+            values["usage_cap"] = False
+    return ResellerPlanFeatures(**{key: values[key] for key in ResellerPlanFeatures.model_fields})
+
+
+def _plan_item(plan, panel=None) -> ResellerPlanItem:
     return ResellerPlanItem(
         id=int(plan.id),
         pricing_mode=plan.pricing_mode,
@@ -157,17 +191,25 @@ def _plan_item(plan) -> ResellerPlanItem:
         duration_days=int(plan.duration or 0),
         needs_volume=requires_volume_input(plan),
         needs_wallet=requires_wallet_for_purchase(plan),
+        features=_plan_features(plan, panel),
     )
 
 
-def _renew_item(plan) -> ResellerRenewPlanItem:
+def _renew_item(plan, account=None) -> ResellerRenewPlanItem:
     return ResellerRenewPlanItem(
         id=int(plan.id),
         name=_plan_name(plan),
         price=calculate_purchase_price(plan),
-        data_limit_bytes=int(plan.data_limit or 0),
+        data_limit_bytes=compute_reseller_data_limit(plan, account.purchased_volume if account else None),
         duration_days=int(plan.duration or 0),
+        pricing_mode=plan.pricing_mode,
+        max_users=int(plan.max_users or 0),
+        enabled=bool(plan.enable),
     )
+
+
+def _grace_days(settings) -> int:
+    return grace_seconds(settings) // 86400
 
 
 def _account_item(account, panel_name: str | None) -> ResellerAccountItem:
@@ -180,6 +222,7 @@ def _account_item(account, panel_name: str | None) -> ResellerAccountItem:
         expiration_timestamp=account.expiration_time,
         max_users=int(account.max_users or 0),
         created_timestamp=account.createtime,
+        extra_users=int(account.extra_users or 0),
     )
 
 
@@ -200,11 +243,36 @@ def _check_username(username: str) -> str:
     return username
 
 
-async def _renew_plan(account, plan_id: int):
-    plan = await ResellerPlanManager().get_plan(plan_id)
-    if not plan or not plan.enable or plan.pricing_mode != "fixed" or int(plan.panel_code) != int(account.panel_code):
-        raise _Refused("پلن تمدید یافت نشد.")
+def _renew_plan(account, plan, plan_id: int):
+    """Renewal is always with the account's own plan, even when that plan is now off sale."""
+    if not account.plan_id or int(plan_id) != int(account.plan_id):
+        raise _Refused(RENEW_OWN_PLAN_ONLY)
+    if plan is None:
+        raise _Refused("پلن این نمایندگی پیدا نشد.")
+    if plan.pricing_mode != account.pricing_mode or int(plan.panel_code) != int(account.panel_code):
+        raise _Refused("پلن این نمایندگی با نوع یا پنل آن هم‌خوانی ندارد؛ با پشتیبانی تماس بگیرید.")
+    if calculate_purchase_price(plan) <= 0:
+        raise _Refused("قیمت پلن نامعتبر است.")
     return plan
+
+
+def _renewal_after(
+    account, plan, used_traffic: int = 0, live_limit: int | None = None
+) -> tuple[int | None, int | None, int, int]:
+    """(expiry before, expiry after, data limit before, data limit after), as the renewal service applies them.
+
+    ``used_traffic`` matters only for an unlimited (0) limit getting volume: the service then starts
+    the new limit from what is used now.
+    """
+    expiry_before = int(account.expiration_time) if account.expiration_time else None
+    expiry_after = expiry_before
+    if plan.duration and int(plan.duration) > 0:
+        now = Time_Date()["stamp"]
+        expiry_after = max(expiry_before or now, now) + int(plan.duration) * 86400
+    limit_before = int(live_limit if live_limit is not None else account.data_limit or 0)
+    added = compute_reseller_data_limit(plan, account.purchased_volume)
+    limit_after = limit_before if added <= 0 else (limit_before if limit_before > 0 else used_traffic) + added
+    return expiry_before, expiry_after, limit_before, limit_after
 
 
 # --------------------------------------------------------------------------- #
@@ -230,11 +298,14 @@ async def reseller_buy_options(request: WebAppAuthRequest) -> WebAppResellerBuyO
             plans = await ResellerPlanManager().get_all_plans(panel_code=panel_code, enabled_only=True)
             if plans:
                 panels.append(
-                    ResellerPanelItem(code=int(panel.code), name=panel.name, plans=[_plan_item(p) for p in plans])
+                    ResellerPanelItem(
+                        code=int(panel.code), name=panel.name, plans=[_plan_item(p, panel) for p in plans]
+                    )
                 )
         return WebAppResellerBuyOptionsResponse(
             enabled=bool(panels),
             min_wallet_balance=int(getattr(settings, "reseller_min_wallet_balance", 0) or 0),
+            grace_days=_grace_days(settings),
             balance=await _balance(user_id),
             panels=panels,
         )
@@ -280,7 +351,7 @@ async def reseller_buy_preview(request: WebAppResellerBuyRequest) -> WebAppResel
         price = quote.price.final_price
         return WebAppResellerBuyPreviewResponse(
             panel_name=quote.panel.name,
-            plan=_plan_item(quote.plan),
+            plan=_plan_item(quote.plan, quote.panel),
             username=username,
             volume=quote.volume,
             base_price=quote.price.base_price,
@@ -376,15 +447,29 @@ async def reseller_accounts(request: WebAppAuthRequest) -> WebAppResellerAccount
 async def reseller_account(request: WebAppResellerCodeRequest) -> WebAppResellerAccountResponse:
     async def call() -> WebAppResellerAccountResponse:
         user_id = await _user(request)
-        account, panel = await _owned(request.code, user_id)
-        actions = account_actions(account, panel)
+        account, panel, plan = await _owned(request.code, user_id)
+        actions = account_actions(account, panel, plan)
+        settings = await SettingsManager().get_settings()
         response = WebAppResellerAccountResponse(
             account=_account_item(account, panel.name if panel else None),
             actions=sorted(actions),
             admin_locked=is_admin_locked(account),
             usage_cap_bytes=account.usage_cap_bytes,
             purchased_volume=account.purchased_volume,
+            extra_users=int(account.extra_users or 0),
+            grace_days=_grace_days(settings),
+            min_wallet_balance=int(getattr(settings, "reseller_min_wallet_balance", 0) or 0),
+            addon_max_quantity=dict(ADDON_MAX_QUANTITY),
         )
+        if plan is not None:
+            response.plan = _plan_item(plan, panel)
+            response.features = response.plan.features
+            response.plan_max_users = int(plan.max_users or 0)
+            response.addon_presets = {
+                addon: [value for value in presets if value <= ADDON_MAX_QUANTITY[addon]]
+                for addon, presets in ADDON_PRESETS.items()
+                if ADDON_ACTIONS[addon] in actions
+            }
 
         try:
             info = await load_account_live_info(account)
@@ -407,14 +492,13 @@ async def reseller_account(request: WebAppResellerCodeRequest) -> WebAppReseller
             runway = await estimate_runway(response.balance, user_accounts)
             response.runway_hours = round(runway.hours_left, 2) if runway.hours_left is not None else None
 
-        if ACTION_RENEW in actions:
-            response.renew_plans = [
-                _renew_item(plan)
-                for plan in await ResellerPlanManager().get_all_plans(panel_code=account.panel_code, enabled_only=True)
-                if plan.pricing_mode == "fixed"
-            ]
-        if ACTION_BUY_CAPACITY in actions and panel:
-            response.capacity_price_per_user = int(panel_reseller_capacity_settings(panel)["price_per_user"])
+        if ACTION_RENEW in actions and plan is not None:
+            try:
+                response.renew_plans = [_renew_item(_renew_plan(account, plan, plan.id), account)]
+            except _Refused:
+                response.renew_plans = []
+        if ACTION_BUY_CAPACITY in actions:
+            response.capacity_price_per_user = capacity_price_per_user(plan)
             response.capacity_presets = list(CAPACITY_PRESETS)
 
         events, _ = await ResellerEventCRUD().list_events(account_code=account.code, limit=10)
@@ -428,7 +512,7 @@ async def reseller_account(request: WebAppResellerCodeRequest) -> WebAppReseller
 async def reseller_password(request: WebAppResellerCodeRequest) -> WebAppResellerPasswordResponse:
     async def call() -> WebAppResellerPasswordResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_CREDENTIALS)
+        account, _, _ = await _owned(request.code, user_id, ACTION_CREDENTIALS)
         return WebAppResellerPasswordResponse(password=reveal_password(account))
 
     return await _run(WebAppResellerPasswordResponse, call)
@@ -438,7 +522,7 @@ async def reseller_password(request: WebAppResellerCodeRequest) -> WebAppReselle
 async def reseller_password_reset(request: WebAppResellerCodeRequest) -> WebAppResellerPasswordResponse:
     async def call() -> WebAppResellerPasswordResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_CHANGE_PASSWORD)
+        account, _, _ = await _owned(request.code, user_id, ACTION_CHANGE_PASSWORD)
         ok, message, password = await reset_password(account, actor_id=user_id)
         if not ok:
             raise _Refused(message)
@@ -451,7 +535,7 @@ async def reseller_password_reset(request: WebAppResellerCodeRequest) -> WebAppR
 async def reseller_pause(request: WebAppResellerCodeRequest) -> WebAppResellerActionResponse:
     async def call() -> WebAppResellerActionResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_PAUSE)
+        account, _, _ = await _owned(request.code, user_id, ACTION_PAUSE)
         ok, message = await pause_account(account)
         if not ok:
             raise _Refused(message)
@@ -464,7 +548,7 @@ async def reseller_pause(request: WebAppResellerCodeRequest) -> WebAppResellerAc
 async def reseller_resume(request: WebAppResellerCodeRequest) -> WebAppResellerActionResponse:
     async def call() -> WebAppResellerActionResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_RESUME)
+        account, _, _ = await _owned(request.code, user_id, ACTION_RESUME)
         ok, message = await resume_account(account)
         if not ok:
             raise _Refused(message)
@@ -477,19 +561,32 @@ async def reseller_resume(request: WebAppResellerCodeRequest) -> WebAppResellerA
 async def reseller_renew_preview(request: WebAppResellerRenewRequest) -> WebAppResellerRenewPreviewResponse:
     async def call() -> WebAppResellerRenewPreviewResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_RENEW)
-        plan = await _renew_plan(account, request.plan_id)
+        account, _, plan = await _owned(request.code, user_id, ACTION_RENEW)
+        plan = _renew_plan(account, plan, request.plan_id)
         price, error = await apply_reseller_discount(user_id, calculate_purchase_price(plan), request.discount_code)
         if error:
             raise _Refused(error)
         balance = await _balance(user_id)
+        # The renewal adds to the panel's live limit, so the preview starts from it too.
+        used_traffic, live_limit = 0, None
+        if int(plan.data_limit or 0) > 0:
+            with contextlib.suppress(Exception):
+                info = await load_account_live_info(account)
+                used_traffic, live_limit = info.used_traffic, info.data_limit
+        expiry_before, expiry_after, limit_before, limit_after = _renewal_after(account, plan, used_traffic, live_limit)
         return WebAppResellerRenewPreviewResponse(
-            plan=_renew_item(plan),
+            plan=_renew_item(plan, account),
             base_price=price.base_price,
             final_price=price.final_price,
             discount_percent=price.discount_percent,
             balance=balance,
+            balance_after=balance - price.final_price,
             can_pay=balance >= price.final_price,
+            expiry_before=expiry_before,
+            expiry_after=expiry_after,
+            data_limit_before=limit_before,
+            data_limit_after=limit_after,
+            max_users=int(account.max_users or 0),
         )
 
     return await _run(WebAppResellerRenewPreviewResponse, call)
@@ -499,8 +596,8 @@ async def reseller_renew_preview(request: WebAppResellerRenewRequest) -> WebAppR
 async def reseller_renew_confirm(request: WebAppResellerRenewRequest) -> WebAppResellerActionResponse:
     async def call() -> WebAppResellerActionResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_RENEW)
-        plan = await _renew_plan(account, request.plan_id)
+        account, _, plan = await _owned(request.code, user_id, ACTION_RENEW)
+        plan = _renew_plan(account, plan, request.plan_id)
         if not await acquire_user_lock(user_id, "reseller_renew", ttl=30):
             raise _Refused(LOCK_BUSY)
         try:
@@ -528,7 +625,7 @@ async def reseller_renew_confirm(request: WebAppResellerRenewRequest) -> WebAppR
 async def reseller_usage_cap(request: WebAppResellerUsageCapRequest) -> WebAppResellerActionResponse:
     async def call() -> WebAppResellerActionResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_USAGE_CAP)
+        account, _, _ = await _owned(request.code, user_id, ACTION_USAGE_CAP)
         gigabytes = request.usage_cap_gb if request.usage_cap_gb and request.usage_cap_gb > 0 else None
         ok, message = await set_reseller_usage_cap(account, gigabytes=gigabytes, actor_id=user_id)
         if not ok:
@@ -538,22 +635,83 @@ async def reseller_usage_cap(request: WebAppResellerUsageCapRequest) -> WebAppRe
     return await _run(WebAppResellerActionResponse, call)
 
 
+# --------------------------------------------------------------------------- #
+#  Add-ons (extra days / extra volume / extra users)                            #
+# --------------------------------------------------------------------------- #
+
+
+async def _quote_addon(user_id: int, code: int, addon: str, quantity: int):
+    """Price an add-on the account may buy now. Returns (quote, balance)."""
+    account, _, plan = await _owned(code, user_id, ADDON_ACTIONS[addon])
+    quote, error = await quote_addon(account, plan, addon, quantity)
+    if error:
+        raise _Refused(error)
+    return quote, await _balance(user_id)
+
+
+async def _confirm_addon(user_id: int, code: int, addon: str, quantity: int) -> WebAppResellerActionResponse:
+    account, panel, plan = await _owned(code, user_id, ADDON_ACTIONS[addon])
+    # Same lock name as the bot, so a tap in Telegram and one in the web app can't both charge.
+    if not await acquire_user_lock(user_id, ADDON_LOCK, ttl=20):
+        raise _Refused(LOCK_BUSY)
+    try:
+        ok, message, _ = await buy_addon(
+            account, panel, plan, addon, quantity, telegram_id=user_id, actor_id=user_id, source="webapp"
+        )
+    finally:
+        await release_user_lock(user_id, ADDON_LOCK)
+    if not ok:
+        raise _Refused(message)
+    return WebAppResellerActionResponse(message=message, new_balance=await _balance(user_id))
+
+
+@router.post("/webapp/reseller/account/addon/preview", response_model=WebAppResellerAddonPreviewResponse)
+async def reseller_addon_preview(request: WebAppResellerAddonRequest) -> WebAppResellerAddonPreviewResponse:
+    """What an add-on costs and changes (before -> after), without charging anything."""
+
+    async def call() -> WebAppResellerAddonPreviewResponse:
+        user_id = await _user(request)
+        quote, balance = await _quote_addon(user_id, request.code, request.addon, request.quantity)
+        return WebAppResellerAddonPreviewResponse(
+            addon=quote.addon,
+            quantity=quote.quantity,
+            unit_price=quote.unit_price,
+            total=quote.total,
+            before=quote.before,
+            after=quote.after,
+            balance=balance,
+            balance_after=balance - quote.total,
+            can_pay=balance >= quote.total,
+        )
+
+    return await _run(WebAppResellerAddonPreviewResponse, call)
+
+
+@router.post("/webapp/reseller/account/addon/confirm", response_model=WebAppResellerActionResponse)
+async def reseller_addon_confirm(request: WebAppResellerAddonRequest) -> WebAppResellerActionResponse:
+    """Re-check and re-price on the server, then charge the wallet and apply the add-on."""
+
+    async def call() -> WebAppResellerActionResponse:
+        user_id = await _user(request)
+        return await _confirm_addon(user_id, request.code, request.addon, request.quantity)
+
+    return await _run(WebAppResellerActionResponse, call)
+
+
 @router.post("/webapp/reseller/account/capacity/preview", response_model=WebAppResellerCapacityPreviewResponse)
 async def reseller_capacity_preview(request: WebAppResellerCapacityRequest) -> WebAppResellerCapacityPreviewResponse:
+    """Older clients: extra users priced by the account's plan (same as the add-on preview)."""
+
     async def call() -> WebAppResellerCapacityPreviewResponse:
         user_id = await _user(request)
-        account, panel = await _owned(request.code, user_id, ACTION_BUY_CAPACITY)
-        price_per_user = int(panel_reseller_capacity_settings(panel)["price_per_user"])
-        total = calculate_capacity_price(panel, request.quantity, price_per_user=price_per_user)
-        balance = await _balance(user_id)
-        limit_before = int(account.max_users or 0)
+        quote, balance = await _quote_addon(user_id, request.code, ADDON_USERS, request.quantity)
         return WebAppResellerCapacityPreviewResponse(
-            price_per_user=price_per_user,
-            total_price=total,
-            limit_before=limit_before,
-            limit_after=limit_before + request.quantity,
+            price_per_user=quote.unit_price,
+            total_price=quote.total,
+            limit_before=quote.before,
+            limit_after=quote.after,
             balance=balance,
-            can_pay=balance >= total,
+            can_pay=balance >= quote.total,
         )
 
     return await _run(WebAppResellerCapacityPreviewResponse, call)
@@ -561,21 +719,11 @@ async def reseller_capacity_preview(request: WebAppResellerCapacityRequest) -> W
 
 @router.post("/webapp/reseller/account/capacity/confirm", response_model=WebAppResellerActionResponse)
 async def reseller_capacity_confirm(request: WebAppResellerCapacityRequest) -> WebAppResellerActionResponse:
+    """Older clients: buys extra users through the add-on flow."""
+
     async def call() -> WebAppResellerActionResponse:
         user_id = await _user(request)
-        account, panel = await _owned(request.code, user_id, ACTION_BUY_CAPACITY)
-        # Same lock name as the bot, so a tap in Telegram and one in the web app can't both charge.
-        if not await acquire_user_lock(user_id, "reseller_capacity_buy", ttl=20):
-            raise _Refused(LOCK_BUSY)
-        try:
-            ok, message = await increase_reseller_capacity(
-                account, panel, quantity=request.quantity, telegram_id=user_id, source="webapp"
-            )
-        finally:
-            await release_user_lock(user_id, "reseller_capacity_buy")
-        if not ok:
-            raise _Refused(message)
-        return WebAppResellerActionResponse(message=message, new_balance=await _balance(user_id))
+        return await _confirm_addon(user_id, request.code, ADDON_USERS, request.quantity)
 
     return await _run(WebAppResellerActionResponse, call)
 
@@ -586,7 +734,7 @@ async def reseller_usage(request: WebAppResellerPageRequest) -> WebAppResellerUs
 
     async def call() -> WebAppResellerUsageResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_USAGE_REPORT)
+        account, _, _ = await _owned(request.code, user_id, ACTION_USAGE_REPORT)
         crud = ResellerBillingSnapshotCRUD()
         offset = (request.page - 1) * request.limit
         # One extra row tells whether another page exists.
@@ -619,7 +767,7 @@ async def reseller_events(request: WebAppResellerPageRequest) -> WebAppResellerE
 
     async def call() -> WebAppResellerEventsResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id)
+        account, _, _ = await _owned(request.code, user_id)
         events, total = await ResellerEventCRUD().list_events(
             account_code=account.code, limit=request.limit, offset=(request.page - 1) * request.limit
         )
@@ -632,7 +780,7 @@ async def reseller_events(request: WebAppResellerPageRequest) -> WebAppResellerE
 async def reseller_delete(request: WebAppResellerCodeRequest) -> WebAppResellerActionResponse:
     async def call() -> WebAppResellerActionResponse:
         user_id = await _user(request)
-        account, _ = await _owned(request.code, user_id, ACTION_DELETE)
+        account, _, _ = await _owned(request.code, user_id, ACTION_DELETE)
         ok, message = await delete_account(account, actor_id=user_id)
         if not ok:
             raise _Refused(message)

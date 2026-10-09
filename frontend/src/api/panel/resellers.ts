@@ -1,7 +1,9 @@
 import type {
   ActionResponse,
   PanelAuthRequest,
+  PanelResellerChangePlanRequest,
   PanelResellerCodeRequest,
+  PanelResellerDataLimitRequest,
   PanelResellerDeleteRequest,
   PanelResellerDetailRequest,
   PanelResellerDetailResponse,
@@ -69,6 +71,22 @@ export function setUsageCap(body: PanelResellerUsageCapRequest) {
 
 export function setMaxUsers(body: PanelResellerMaxUsersRequest) {
   return panelPost<ActionResponse>("/resellers/max-users", body);
+}
+
+export function setDataLimit(body: PanelResellerDataLimitRequest) {
+  return panelPost<ActionResponse>("/resellers/data-limit", body);
+}
+
+export function changePlan(body: PanelResellerChangePlanRequest) {
+  return panelPost<ActionResponse>("/resellers/change-plan", body);
+}
+
+export function resyncReseller(body: PanelResellerCodeRequest) {
+  return panelPost<ActionResponse>("/resellers/resync", body);
+}
+
+export function forgiveUsage(body: PanelResellerCodeRequest) {
+  return panelPost<ActionResponse>("/resellers/forgive-usage", body);
 }
 
 export function deleteReseller(body: PanelResellerDeleteRequest) {

@@ -10,7 +10,7 @@ import { DataTable, SectionCard, SelectField, Toolbar } from "../components";
 import type { Column } from "../components";
 import AccountDetailModal from "./AccountDetailModal";
 import { StatusBadge } from "./parts";
-import { pricingLabels, statusLabels } from "./labels";
+import { pricingShortLabels, statusLabels } from "./labels";
 
 type Navigate = (tab: string, extra?: Record<string, string>) => void;
 
@@ -60,7 +60,9 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
   };
 
   const statuses = query.data?.statuses || [];
-  const modes = query.data?.pricing_modes || [];
+  // A legacy type (opened from the overview) stays selectable even though it is no longer sold.
+  const modes = [...(query.data?.pricing_modes || [])];
+  if (draft.mode && !modes.includes(draft.mode)) modes.push(draft.mode);
   const panels = query.data?.panels || [];
 
   const columns: Column<PanelResellerRow>[] = [
@@ -84,7 +86,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
       key: "mode",
       header: t("panel.resellerHub.planType"),
       secondary: true,
-      cell: (row) => pricingLabels(t)[row.pricing_mode] || row.pricing_mode,
+      cell: (row) => pricingShortLabels(t)[row.pricing_mode] || row.pricing_mode,
     },
     {
       key: "expires",
@@ -140,7 +142,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
             label={t("panel.resellerHub.planType")}
             options={[
               { value: "", label: t("panel.common.all") },
-              ...modes.map((value) => ({ value, label: pricingLabels(t)[value] || value })),
+              ...modes.map((value) => ({ value, label: pricingShortLabels(t)[value] || value })),
             ]}
             value={draft.mode}
             onChange={(event) => setDraft((prev) => ({ ...prev, mode: event.target.value }))}

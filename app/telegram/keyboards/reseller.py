@@ -66,6 +66,28 @@ async def rs_buy_capacity_button(account_code: int):
     return await _rs_inline_button("in.rs.buy_user_capacity", f"ResellerAccount_capacity:{account_code}")
 
 
+async def rs_extra_days_button(account_code: int):
+    return await _rs_inline_button("in.rs.extra_days", f"ResellerAccount_addon:{account_code}:d")
+
+
+async def rs_extra_volume_button(account_code: int):
+    return await _rs_inline_button("in.rs.extra_volume", f"ResellerAccount_addon:{account_code}:v")
+
+
+async def rs_addon_confirm_button(account_code: int, token: str, *, topup: bool = False):
+    return await _rs_inline_button(
+        _KEY_BUY_TOPUP if topup else _KEY_BUY_CONFIRM, f"ResellerAccount_addon_confirm:{account_code}:{token}"
+    )
+
+
+async def rs_addon_back_button(account_code: int, token: str):
+    return await _rs_inline_button(_KEY_BACK, f"ResellerAccount_addon:{account_code}:{token}")
+
+
+async def rs_addon_cancel_button(account_code: int):
+    return await _rs_inline_button(_KEY_CANCEL, f"ResellerAccount_view:{account_code}")
+
+
 async def rs_capacity_confirm_button(account_code: int):
     return await _rs_inline_button(_KEY_BUY_CONFIRM, f"ResellerAccount_capacity_confirm:{account_code}")
 
@@ -106,6 +128,10 @@ async def rs_buy_random_username_button():
     return await _rs_inline_button("in.rs.buy_random_username", "ResellerBuy_random_username")
 
 
+async def rs_account_back_button(account_code: int):
+    return await _rs_inline_button(_KEY_BACK, f"ResellerAccount_view:{account_code}")
+
+
 async def rs_renew_discount_button(account_code: int, plan_id: int):
     return await _rs_inline_button(_KEY_DISCOUNT, f"ResellerAccount_renew_discount:{account_code}:{plan_id}")
 
@@ -115,7 +141,8 @@ async def rs_renew_confirm_button(account_code: int, plan_id: int):
 
 
 async def rs_renew_back_button(account_code: int):
-    return await _rs_inline_button(_KEY_BACK, f"ResellerAccount_renew:{account_code}")
+    # Renewal has no plan list any more (own plan only): back goes to the account.
+    return await _rs_inline_button(_KEY_BACK, f"ResellerAccount_view:{account_code}")
 
 
 async def rs_delete_confirm_button(account_code: int):

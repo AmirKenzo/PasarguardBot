@@ -7,7 +7,7 @@ import { usePanelQuery } from "../../../queries/usePanelApi";
 import { SectionCard, StatTile, TrendChart } from "../components";
 import { RESELLER_STATUSES } from "../../../types/panel";
 import { EventList, StatusBadge } from "./parts";
-import { STATUS_TONE, formatRunway, pricingLabels, runwayTone, statusLabels } from "./labels";
+import { STATUS_TONE, formatRunway, pricingLabels, pricingShortLabels, runwayTone, statusLabels } from "./labels";
 
 type Navigate = (tab: string, extra?: Record<string, string>) => void;
 
@@ -121,7 +121,9 @@ export default function OverviewTab({ onNavigate }: { onNavigate: Navigate }) {
                   onClick={() => openAccounts({ mode })}
                   className="flex w-full items-center gap-2 text-sm"
                 >
-                  <span className="w-36 shrink-0 truncate text-start text-muted">{pricingLabels(t)[mode] || mode}</span>
+                  <span className="w-36 shrink-0 truncate text-start text-muted" title={pricingLabels(t)[mode] || mode}>
+                    {pricingShortLabels(t)[mode] || mode}
+                  </span>
                   <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
                     <span
                       className="block h-full rounded-full bg-primary"

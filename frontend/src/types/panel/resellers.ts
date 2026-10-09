@@ -83,6 +83,8 @@ export interface PanelResellerRow {
   data_limit?: number | null;
   usage_cap_bytes?: number | null;
   max_users?: number | null;
+  /** User slots bought above the plan's limit. */
+  extra_users?: number | null;
   createtime?: number | null;
   expiration_time?: number | null;
   status: string;
@@ -139,7 +141,25 @@ export interface PanelResellerPlanBrief {
   id: number;
   pricing_mode: string;
   name?: string | null;
+  /** Package price (fixed/unlimited) or price per GB / hour. */
   rate: number;
+  enable: boolean;
+  duration: number;
+  data_limit_gb: number;
+  max_users: number;
+}
+
+/** Mirrors app/services/reseller/plan_rules.plan_features. */
+export interface PanelResellerPlanFeatures {
+  mode: string;
+  renewable: boolean;
+  expires: boolean;
+  unlimited_volume: boolean;
+  usage_cap: boolean;
+  needs_wallet: boolean;
+  extra_day_price: number;
+  extra_gb_price: number;
+  extra_user_price: number;
 }
 
 export interface PanelResellerDetailRequest extends PanelAuthRequest {
@@ -149,14 +169,20 @@ export interface PanelResellerDetailRequest extends PanelAuthRequest {
 export interface PanelResellerDetailResponse extends PanelEnvelope {
   reseller?: PanelResellerRow | null;
   plan?: PanelResellerPlanBrief | null;
+  plan_features?: PanelResellerPlanFeatures | null;
   live?: PanelResellerLive | null;
   live_error?: string | null;
   balance?: number | null;
   billed_total?: number | null;
   runway_hours?: number | null;
   grace_days_left?: number | null;
+  /** Days an expired account is kept before it is purged. */
+  grace_days?: number | null;
   actions: string[];
+  /** Only the account's own plan: renewal never switches plans. */
   renew_plans: PanelResellerPlanBrief[];
+  /** Other plans of the same panel and type the admin can move the account to. */
+  change_plans?: PanelResellerPlanBrief[];
   snapshots: PanelResellerSnapshotRow[];
   events: PanelResellerEventRow[];
   statuses: string[];
@@ -187,6 +213,18 @@ export interface PanelResellerUsageCapRequest extends PanelAuthRequest {
 export interface PanelResellerMaxUsersRequest extends PanelAuthRequest {
   code: number;
   max_users: number;
+}
+
+/** Exactly one of `set_gb` / `add_gb`. */
+export interface PanelResellerDataLimitRequest extends PanelAuthRequest {
+  code: number;
+  set_gb?: number | null;
+  add_gb?: number | null;
+}
+
+export interface PanelResellerChangePlanRequest extends PanelAuthRequest {
+  code: number;
+  plan_id: number;
 }
 
 export interface PanelResellerPasswordResponse extends PanelEnvelope {
@@ -242,6 +280,8 @@ export interface PanelResellerButtons {
   usage_report: boolean;
   usage_cap: boolean;
   buy_user_capacity: boolean;
+  extra_days: boolean;
+  extra_volume: boolean;
   delete: boolean;
 }
 
@@ -250,7 +290,9 @@ export interface PanelResellerPanelSettings {
   name: string;
   enable: boolean;
   sale_enabled: boolean;
+  /** Ignored by the server: the extra-user price is set on each plan now. */
   capacity_enabled: boolean;
+  /** Ignored by the server: the extra-user price is set on each plan now. */
   capacity_price_per_user: number;
   buttons: PanelResellerButtons;
 }
@@ -289,6 +331,10 @@ export interface PanelResellerPlanRow {
   button_style?: string | null;
   button_icon?: number | null;
   linked_accounts: number;
+  addon_day_price: number;
+  addon_gb_price: number;
+  addon_user_price: number;
+  features?: PanelResellerPlanFeatures;
 }
 
 export interface PanelResellerPlansResponse extends PanelEnvelope {
@@ -319,6 +365,10 @@ export interface PanelResellerPlanSaveRequest extends PanelAuthRequest {
   button_icon?: string;
   /** Message linked pay-as-you-go resellers when the rate changes. */
   notify_resellers?: boolean;
+  /** Add-on prices per unit; 0 = off. Left out on an edit, the stored price is kept. */
+  addon_day_price?: number;
+  addon_gb_price?: number;
+  addon_user_price?: number;
 }
 
 export interface PanelResellerPlanDeleteRequest extends PanelAuthRequest {

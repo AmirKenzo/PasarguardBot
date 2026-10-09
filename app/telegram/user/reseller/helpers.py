@@ -24,7 +24,6 @@ from app.services.billing.direct_pay_store import KIND_RESELLER
 from app.services.billing.reseller_pricing import (
     calculate_purchase_price,
     format_reseller_plan_button_short,
-    pricing_mode_label,
     validate_volume,
     volume_unit_label,
 )
@@ -47,6 +46,18 @@ from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
 from app.services.telegram.rich_message import USAGE_HISTORY_PER_PAGE, prepare_rich_markdown
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.keyboards.panel_buttons import build_panel_display_button
+from app.telegram.shared.reseller_plan_guides import (
+    HOURLY,
+    SETUP_FEE_LABEL,
+    USAGE,
+    format_active_minutes,
+    max_users_label,
+    mode_name,
+    plan_price_line,
+    renew_preview_lines,
+    setup_fee,
+    toman,
+)
 from app.telegram.state import clear_user, get_data, set_data, set_step
 from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
 from app.utils.formatting.dates import timestamp_to_persian_expiry
@@ -175,34 +186,65 @@ def build_reseller_confirm_text(
         original = calculate_purchase_price(plan, volume)
         discount_line = f"**🎟 کد تخفیف:** `{discount_code}`\n**💸 قبل از تخفیف:** {original:,} تومان\n"
     data_line = ""
-    if plan.pricing_mode == "fixed" and plan.data_limit:
-        data_line = f"**📊 حجم پلن:** {format_size(plan.data_limit)}\n"
-    duration_line = f"**⏰ مدت:** {plan.duration} روز\n" if plan.duration else ""
+    if plan.data_limit:
+        label = "حجم پلن" if plan.pricing_mode == "fixed" else "سقف کل ترافیک"
+        data_line = f"**📊 {label}:** {format_size(plan.data_limit)}\n"
+    elif not volume:
+        data_line = "**📊 حجم:** نامحدود\n"
+    duration_line = f"**⏰ مدت:** {plan.duration} روز\n" if plan.duration else "**⏰ مدت:** بدون انقضا\n"
+    if plan.pricing_mode in (USAGE, HOURLY):
+        fee = setup_fee(plan)
+        fee_line = (
+            f"**💳 {SETUP_FEE_LABEL}:** {amount:,} تومان (یک‌بار، الان کسر می‌شود)\n"
+            if fee
+            else "**💳 پرداخت اولیه:** ندارد\n"
+        )
+        amount_line = f"{fee_line}**💰 هزینه:** {plan_price_line(plan)} (کسر دقیقه‌ای از کیف پول)\n"
+    else:
+        amount_line = f"**💰 مبلغ:** {amount:,} تومان\n"
     return (
         f"**✅ تأیید خرید نمایندگی**\n\n"
-        f"**پلن:** {pricing_mode_label(plan.pricing_mode)}\n"
+        f"**📋 نوع پلن:** {mode_name(plan.pricing_mode)}\n"
         f"{volume_line}{data_line}{duration_line}"
         f"**👤 یوزر:** `{username}`\n"
         f"**👥 سقف یوزر:** {plan.max_users or 'نامحدود'}\n"
         f"{discount_line}"
-        f"**💰 مبلغ:** {amount:,} تومان\n"
+        f"{amount_line}"
     )
 
 
-def build_reseller_renew_confirm_text(plan, *, amount: int, discount_code: str | None = None) -> str:
-    discount_line = ""
+def build_reseller_renew_confirm_text(
+    account,
+    plan,
+    *,
+    amount: int,
+    discount_code: str | None = None,
+    current_limit: int = 0,
+    used_traffic: int = 0,
+    now: int = 0,
+    balance: int | None = None,
+) -> str:
+    """Renewal review: before → after of volume, expiry and users, then the price."""
+    lines = [
+        f"**💎 تمدید نمایندگی `{account.username}`**",
+        "",
+        f"**📋 پلن:** {mode_name(plan.pricing_mode)} (همان پلن خریداری‌شده)",
+        "",
+        "**🔄 قبل ← بعد از تمدید:**",
+        *renew_preview_lines(account, plan, current_limit=current_limit, used_traffic=used_traffic, now=now),
+        "",
+        "ℹ️ تمدید چیزی را ریست نمی‌کند: روز و حجم باقی‌مانده و یوزرهای اضافه حفظ می‌شوند.",
+        "",
+    ]
     if discount_code:
-        original = calculate_purchase_price(plan)
-        discount_line = f"**🎟 کد تخفیف:** `{discount_code}`\n**💸 قبل از تخفیف:** {original:,} تومان\n"
-    data_line = f"**📊 حجم اضافه:** {format_size(plan.data_limit)}\n" if plan.data_limit else ""
-    duration_line = f"**⏰ تمدید:** {plan.duration} روز\n" if plan.duration else ""
-    return (
-        f"**💎 تأیید تمدید نمایندگی**\n\n"
-        f"**پلن:** {pricing_mode_label(plan.pricing_mode)}\n"
-        f"{data_line}{duration_line}"
-        f"{discount_line}"
-        f"**💰 مبلغ:** {amount:,} تومان\n"
-    )
+        lines.append(f"**🎟 کد تخفیف:** `{discount_code}`")
+        lines.append(f"**💸 قبل از تخفیف:** {toman(calculate_purchase_price(plan))}")
+    lines.append(f"**💰 مبلغ تمدید:** {toman(amount)}")
+    if balance is not None:
+        lines.append(f"**👛 موجودی فعلی:** {toman(balance)}")
+        if balance < amount:
+            lines.append(f"⚠️ برای تمدید {toman(amount - balance)} موجودی کم دارید.")
+    return "\n".join(lines)
 
 
 def format_plan_button_text(plan) -> str:
@@ -264,6 +306,10 @@ async def create_reseller_purchase_for_user(
     duration_text = f"**⏰ مدت:** {plan.duration} روز\n" if plan.duration else ""
     users_text = f"**👥 سقف یوزر:** {plan.max_users or 'نامحدود'}\n"
     traffic_text = f"**📊 سقف ترافیک:** {format_size(outcome.data_limit)}\n" if outcome.data_limit else ""
+    if plan.pricing_mode not in (USAGE, HOURLY) or int(amount) > 0:
+        paid_text = f"💵 مبلغ `{int(amount):,}` تومان از موجودی کسر شد.\n"
+    else:
+        paid_text = "💳 پرداخت اولیه نداشت؛ هزینه به‌صورت دقیقه‌ای از کیف پول کسر می‌شود.\n"
 
     success_text = (
         f"**🎉 نمایندگی پنل با موفقیت فعال شد!**\n\n"
@@ -272,7 +318,7 @@ async def create_reseller_purchase_for_user(
         f"**👤 نام کاربری:** `{username}`\n"
         f"**🔑 رمز عبور:** `{outcome.password}`\n\n"
         f"{volume_text}{duration_text}{users_text}{traffic_text}\n"
-        f"💵 مبلغ `{int(amount):,}` تومان از موجودی کسر شد.\n"
+        f"{paid_text}"
         f"💰 موجودی جدید: `{outcome.new_balance:,}` تومان\n\n"
         f"⚠️ رمز را در جای امن ذخیره کنید."
     )
@@ -356,7 +402,7 @@ async def build_reseller_account_detail_text(account, *, show_password: bool = F
     total_users = info.total_users
     live_rate = info.live_rate
 
-    mode_label = pricing_mode_label(account.pricing_mode)
+    mode_label = mode_name(account.pricing_mode)
     status_fa = await reseller_status_label(account, account.telegram_id)
 
     lines = [
@@ -373,7 +419,7 @@ async def build_reseller_account_detail_text(account, *, show_password: bool = F
     lines.extend(
         [
             "",
-            f"**📋 نوع پلن:** {mode_label}",
+            f"**📋 نوع پلن:** {mode_label}" + (f" · پلن #{info.plan.id}" if info.plan else ""),
             f"**📊 وضعیت ربات:** {status_fa}",
             f"**📡 وضعیت پنل:** `{info.admin_status}`",
         ]
@@ -404,10 +450,8 @@ async def build_reseller_account_detail_text(account, *, show_password: bool = F
         else:
             lines.append("**🚦 سقف مصرف دستی:** بدون محدودیت")
 
-    if account.max_users:
-        lines.append(f"**👥 سقف یوزر:** {total_users} / {account.max_users}")
-    else:
-        lines.append(f"**👥 یوزرهای ساخته‌شده:** {total_users}")
+    lines.append(f"**👥 سقف یوزر:** {max_users_label(account.max_users, account.extra_users)}")
+    lines.append(f"**👤 یوزرهای ساخته‌شده:** {total_users}")
 
     if account.expiration_time:
         lines.append(f"**⏰ انقضا:** {timestamp_to_persian_expiry(account.expiration_time)}")
@@ -481,6 +525,22 @@ def _snapshot_delta_bytes(snapshots: list, index: int) -> int:
     return int(delta_bytes or 0)
 
 
+def snapshot_usage_text(snapshots: list, index: int) -> str:
+    """What one billing row charged for: active time for hourly rows, traffic for usage rows."""
+    snap = snapshots[index]
+    minutes = getattr(snap, "billed_minutes", None)
+    if minutes is not None:
+        return format_active_minutes(minutes)
+    return format_size(_snapshot_delta_bytes(snapshots, index), decimal_places=2)
+
+
+def usage_history_header(account) -> tuple[str, str]:
+    """(page title, usage column) of the charge report; hourly plans are charged for time, not traffic."""
+    if account.pricing_mode == HOURLY:
+        return f"# 🧾 گزارش کسر `{account.username}`", "زمان فعال"
+    return f"# 📊 گزارش مصرف `{account.username}`", "مصرف"
+
+
 def _format_charged_toman(amount: int) -> str:
     if amount <= 0:
         return "0 تومان"
@@ -496,8 +556,9 @@ async def _build_usage_history_rich_markdown(
     snapshots = snapshots[:per_page]
     count, total_billed = await ResellerBillingSnapshotCRUD().get_usage_totals(account.code)
 
+    title, usage_column = usage_history_header(account)
     lines = [
-        f"# 📊 گزارش مصرف `{account.username}`",
+        title,
         "",
         f"**💸 مجموع شارژ:** `{total_billed:,}` تومان",
         f"**🧾 Records:** `{count}`",
@@ -507,7 +568,7 @@ async def _build_usage_history_rich_markdown(
         "<details>",
         "<summary>📋 Usage History</summary>",
         "",
-        "| تاریخ | مصرف | مبلغ |",
+        f"| تاریخ | {usage_column} | مبلغ |",
         "|------|------|------|",
     ]
 
@@ -515,8 +576,7 @@ async def _build_usage_history_rich_markdown(
         lines.append("| — | — | — |")
     else:
         for index, snap in enumerate(snapshots):
-            delta_bytes = _snapshot_delta_bytes(snapshots, index)
-            usage = format_size(delta_bytes, decimal_places=2)
+            usage = snapshot_usage_text(snapshots, index)
             charged = _format_charged_toman(snap.billed_amount)
             lines.append(f"| {_format_billing_datetime(snap.snapshot_at)} | {usage} | {charged} |")
 
