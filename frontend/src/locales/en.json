@@ -268,7 +268,17 @@
     "phoneVerifyCancelled": "Phone number sharing was cancelled",
     "phoneVerifySuccess": "Phone number verified",
     "phoneVerifyTimeout": "No confirmation received. Please try again.",
-    "phoneVerifyUnsupported": "Please update Telegram to use this."
+    "phoneVerifyUnsupported": "Please update Telegram to use this.",
+    "payableTitle": "Exact transfer amount (reserved for you)",
+    "payableToman": "Toman",
+    "payableRial": "Rial",
+    "copyAmount": "Copy amount",
+    "autoVerifyNotice": "Transfer exactly this amount; the payment is verified automatically and added to your wallet — no receipt needed. This amount is valid for {{minutes}} minutes.",
+    "waitingAuto": "Waiting for automatic approval...",
+    "autoApproved": "Payment approved",
+    "autoApprovedDesc": "{{amount}} Toman was automatically added to your wallet.",
+    "receiptFallback": "Only send a receipt if automatic approval did not happen.",
+    "alreadyApproved": "This payment was already approved automatically."
   },
   "starsDeposit": {
     "title": "Pay with Stars",

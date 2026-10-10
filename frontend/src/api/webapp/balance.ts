@@ -4,6 +4,7 @@ import type {
   BalanceDepositManualReceiptResponse,
   BalanceDepositManualRequest,
   BalanceDepositManualResponse,
+  BalanceDepositManualStatusResponse,
   BalanceDepositStarsRequest,
   BalanceDepositStarsResponse,
   BalanceMethodsResponse,
@@ -36,6 +37,10 @@ export function depositManualReceipt(auth: AuthPayload, amount: number, file: Fi
   form.set("amount", String(amount));
   form.set("file", file);
   return apiPostForm<BalanceDepositManualReceiptResponse>("/balance/deposit/manual/receipt", form, auth);
+}
+
+export function checkManualDeposit(auth: AuthPayload, txId: number) {
+  return apiPost<BalanceDepositManualStatusResponse>("/balance/deposit/manual/status", { tx_id: txId }, auth);
 }
 
 export function depositStars(body: BalanceDepositStarsRequest) {

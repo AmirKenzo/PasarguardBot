@@ -77,11 +77,35 @@ class BalanceDepositManualResponse(BaseModel):
     card_number: str | None = None
     card_name: str | None = None
     error: str | None = None
+    # ForApp unique-amount flow (present only when enabled).
+    forapp_enabled: bool = False
+    tx_id: int | None = None
+    base_amount: int | None = None
+    payable_amount: int | None = None
+    payable_rial: int | None = None
+    amount_offset: int | None = None
+    forapp_ttl_minutes: int | None = None
 
 
 class BalanceDepositManualReceiptResponse(BaseModel):
     ok: bool
     message: str | None = None
+    error: str | None = None
+    already_approved: bool = False
+
+
+class BalanceDepositManualStatusRequest(BaseModel):
+    """Poll a manual top-up created via deposit/manual."""
+
+    tx_id: int
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceDepositManualStatusResponse(BaseModel):
+    ok: bool
+    status: str | None = None  # pending | approved | rejected
+    payable_amount: int | None = None
     error: str | None = None
 
 

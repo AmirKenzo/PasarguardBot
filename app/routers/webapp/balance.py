@@ -18,7 +18,7 @@ from app.db.crud.log_channels import LogChannelManager
 from app.db.crud.manual_auto_approve_rules import WEBAPP_RECEIPT_TAG, ManualAutoApproveRuleCRUD
 from app.db.crud.receipt_hash import ReceiptHashCRUD, compute_receipt_phash
 from app.db.crud.settings import SettingsManager
-from app.db.crud.transactions import TransactionCRUD
+from app.db.crud.transactions import TransactionCRUD, reserve_unique_payable_for_manual
 from app.db.crud.user import UserCRUD
 from app.db.crud.wallets import WalletCRUD
 from app.logger import LogType, get_logger
@@ -28,6 +28,8 @@ from app.models.webapp import (
     BalanceDepositManualReceiptResponse,
     BalanceDepositManualRequest,
     BalanceDepositManualResponse,
+    BalanceDepositManualStatusRequest,
+    BalanceDepositManualStatusResponse,
     BalanceDepositStarsRequest,
     BalanceDepositStarsResponse,
     BalanceMethodsRequest,
@@ -189,10 +191,48 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
                 active = cards[0]
         card_number = getattr(active, "number", None) if active else None
         card_name = getattr(active, "name", None) if active else None
+        # ForApp unique-amount flow: reserve the exact payable now so the bank
+        # SMS can auto-match it — same as the in-bot manual flow.
+        forapp_enabled = bool(getattr(settings, "forapp_enabled", False))
+        tx_id = payable = offset = None
+        if forapp_enabled:
+            try:
+                min_offset = int(getattr(settings, "forapp_offset_min", 1) or 1)
+                max_offset = int(getattr(settings, "forapp_offset_max", 999) or 999)
+                ttl_minutes = int(getattr(settings, "forapp_ttl_minutes", 30) or 30)
+            except (TypeError, ValueError):
+                min_offset, max_offset, ttl_minutes = 1, 999, 30
+            try:
+                payable, offset = await reserve_unique_payable_for_manual(
+                    int(amount),
+                    ttl_seconds=max(int(ttl_minutes) * 60, 60),
+                    min_offset=min_offset,
+                    max_offset=max_offset,
+                )
+                tx = await TransactionCRUD().create(
+                    user_id=user_id,
+                    amount=int(amount),
+                    method="manual",
+                    payable_amount=int(payable),
+                    amount_offset=int(offset),
+                )
+                tx_id = int(tx.id)
+            except Exception as e:
+                logger.warning("ForApp reserve failed for webapp user=%s: %s", user_id, e)
+                payable, offset, tx_id = None, None, None
+        else:
+            ttl_minutes = None
         return BalanceDepositManualResponse(
             ok=True,
             card_number=card_number,
             card_name=card_name,
+            forapp_enabled=forapp_enabled and payable is not None,
+            tx_id=tx_id,
+            base_amount=int(amount),
+            payable_amount=int(payable) if payable else None,
+            payable_rial=int(payable) * 10 if payable else None,
+            amount_offset=int(offset) if offset is not None else None,
+            forapp_ttl_minutes=int(ttl_minutes) if ttl_minutes else None,
         )
     except ValueError as e:
         return BalanceDepositManualResponse(ok=False, error=str(e))
@@ -246,11 +286,39 @@ async def deposit_manual_receipt(
             return BalanceDepositManualReceiptResponse(ok=False, error="ابتدا باید شماره تلفن خود را تایید کنید.")
         min_a = int(settings.manual_deposit_min or 0)
         max_a = int(settings.manual_deposit_max or 0)
-        if amount < min_a or amount > max_a:
+        # The payable includes the ForApp offset headroom on top of the base.
+        forapp_on = bool(getattr(settings, "forapp_enabled", False))
+        try:
+            headroom = int(getattr(settings, "forapp_offset_max", 999) or 999) if forapp_on else 0
+        except (TypeError, ValueError):
+            headroom = 999 if forapp_on else 0
+        if amount < min_a or amount > max_a + headroom:
             return BalanceDepositManualReceiptResponse(
                 ok=False,
                 error=f"مبلغ باید بین {min_a:,} تا {max_a:,} تومان باشد",
             )
+
+        # ForApp flow: the frontend sends the reserved payable as `amount`.
+        # Reuse the pre-created pending tx so SMS and receipt point at one
+        # record; refuse when that transfer was already auto-credited.
+        tx = None
+        if getattr(settings, "forapp_enabled", False):
+            candidate = await TransactionCRUD().find_pending_manual_by_payable(int(amount))
+            if candidate is not None and int(candidate.user_id) == int(user_id):
+                tx = candidate
+            else:
+                import time as _time
+
+                since = int(_time.time()) - 24 * 60 * 60
+                approved = await TransactionCRUD().find_recent_approved_payable_without_receipt(
+                    user_id, since
+                )
+                if approved is not None and int(approved.payable_amount or 0) == int(amount):
+                    return BalanceDepositManualReceiptResponse(
+                        ok=True,
+                        already_approved=True,
+                        message="این پرداخت قبلاً به صورت خودکار تایید و به کیف پول اضافه شده است.",
+                    )
 
         filename = (file.filename or "").lower()
         content_type = (file.content_type or "").lower()
@@ -272,7 +340,7 @@ async def deposit_manual_receipt(
                 message="رسید ارسال شد و در انتظار تایید پشتیبانی است.",
             )
 
-        tx = await TransactionCRUD().create(user_id=user_id, amount=amount, method="manual")
+        tx = tx or await TransactionCRUD().create(user_id=user_id, amount=amount, method="manual")
         if phash:
             await ReceiptHashCRUD().update_transaction_id(phash, tx.id)
         rule_crud = ManualAutoApproveRuleCRUD()
@@ -327,6 +395,32 @@ async def deposit_manual_receipt(
         return BalanceDepositManualReceiptResponse(ok=False, error=str(e))
     except Exception as e:
         return BalanceDepositManualReceiptResponse(ok=False, error=str(e))
+
+
+@router.post("/webapp/balance/deposit/manual/status", response_model=BalanceDepositManualStatusResponse)
+async def deposit_manual_status(request: BalanceDepositManualStatusRequest) -> BalanceDepositManualStatusResponse:
+    """Poll a manual top-up (created via deposit/manual) for auto-approval.
+
+    The webapp polls this after showing the ForApp payable so it can display
+    the credit the moment the bank SMS is matched — no receipt needed.
+    """
+    try:
+        user_id = await authenticate_user(
+            init_data=request.init_data,
+            session_token=request.session_token,
+        )
+        tx = await TransactionCRUD().get(int(request.tx_id))
+        if tx is None or int(tx.user_id) != int(user_id) or tx.method != "manual":
+            return BalanceDepositManualStatusResponse(ok=False, error="تراکنش یافت نشد")
+        return BalanceDepositManualStatusResponse(
+            ok=True,
+            status=tx.status,
+            payable_amount=int(tx.payable_amount) if tx.payable_amount else None,
+        )
+    except ValueError as e:
+        return BalanceDepositManualStatusResponse(ok=False, error=str(e))
+    except Exception as e:
+        return BalanceDepositManualStatusResponse(ok=False, error=str(e))
 
 
 @router.post("/webapp/balance/deposit/crypto", response_model=BalanceDepositCryptoResponse)
