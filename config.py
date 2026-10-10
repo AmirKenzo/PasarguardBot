@@ -59,6 +59,10 @@ API_DOCS_ENABLED = config("API_DOCS_ENABLED", cast=bool, default=False)
 # Enable or disable FastAPI based on port configuration
 ENABLE_FASTAPI = FAST_API_PORT is not None
 
+# --- ForApp SMS webhook (card-to-card auto-verify) ---
+# Comma-separated API keys; the Android app sends one via X-API-Key header.
+FORAPP_API_KEYS = config("FORAPP_API_KEYS", default="")
+FORAPP_API_KEY = config("FORAPP_API_KEY", default="")
 # --- Outbound message send-queue (rate-limited delivery via app/services/send_queue.py) ---
 SEND_QUEUE_ENABLED = config("SEND_QUEUE_ENABLED", cast=bool, default=False)
 SEND_QUEUE_DELAY_SEC = config("SEND_QUEUE_DELAY_SEC", cast=float, default=1.0)
