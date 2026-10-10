@@ -3,6 +3,7 @@
 from telethon import Button
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
+from app.services.payments.ir_gateways.providers import GATEWAYS
 
 from .common import _get_keyboard_button_config, styled_callback_button
 from .registry import (
@@ -176,6 +177,12 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                 [await _keyboard_admin_button(keyboard_crud, "in.balance.referral", 3)],
                 [await _keyboard_admin_button(keyboard_crud, "in.balance.back_home", 3)],
                 [await _keyboard_admin_button(keyboard_crud, "in.balance.disabled", 3)],
+                [Button.inline("📋 ━━━━ درگاه‌های آنلاین ━━━━", data="no_action")],
+                [
+                    await _keyboard_admin_button(keyboard_crud, "in.balance.stars", 3),
+                    await _keyboard_admin_button(keyboard_crud, "in.balance.tonpays", 3),
+                ],
+                *[[await _keyboard_admin_button(keyboard_crud, f"in.balance.{key}", 3)] for key in GATEWAYS],
                 [Button.inline("📋 ━━━━ زیرمنوی پرداخت ارزی ━━━━", data="no_action")],
                 [
                     await _keyboard_admin_button(keyboard_crud, "in.balance.trx", 3),
