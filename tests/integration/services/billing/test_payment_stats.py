@@ -11,6 +11,7 @@ from app.db.models.stars_transaction import StarsTransaction
 from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
 from app.db.models.zarinpal_payment import ZarinpalPayment
+from app.db.models.zibal_payment import ZibalPayment
 from app.services.billing import payment_stats
 
 T0 = 1_000_000  # period start
@@ -89,6 +90,27 @@ def _seed() -> list:
         ZarinpalPayment(
             id=3, order_id="ZP3", user_id=4, sandbox=False, amount=888, status="pending", created_at=INSIDE
         ),
+        # zibal: same rule as zarinpal, test-mode payments never count
+        ZibalPayment(
+            id=1,
+            order_id="ZB1",
+            user_id=5,
+            sandbox=False,
+            amount=30,
+            status="completed",
+            created_at=INSIDE,
+            paid_at=INSIDE,
+        ),
+        ZibalPayment(
+            id=2,
+            order_id="ZB2",
+            user_id=5,
+            sandbox=True,
+            amount=777,
+            status="completed",
+            created_at=INSIDE,
+            paid_at=INSIDE,
+        ),
     ]
 
 
@@ -101,6 +123,7 @@ def db(monkeypatch):
         StarsTransaction.__table__,
         TonPaysInvoice.__table__,
         ZarinpalPayment.__table__,
+        ZibalPayment.__table__,
     ]
 
     async def setup():
@@ -124,19 +147,20 @@ def test_method_totals_in_period(db):
         "stars": 400,
         "tonpays": 500,
         "zarinpal": 50,
+        "zibal": 30,
     }
-    assert totals["total"] == {"count": 6, "total_amount": 1550}
+    assert totals["total"] == {"count": 7, "total_amount": 1580}
 
 
 def test_method_totals_all_time_and_per_user(db):
-    assert asyncio.run(db.method_totals())["total"] == {"count": 7, "total_amount": 2549}
+    assert asyncio.run(db.method_totals())["total"] == {"count": 8, "total_amount": 2579}
     user1 = asyncio.run(db.method_totals(user_id=1))
     assert user1["manual"]["total_amount"] == 100 and user1["stars"]["total_amount"] == 400
     assert user1["total"]["total_amount"] == 500
 
 
 def test_bucket_revenue(db):
-    assert asyncio.run(db.bucket_revenue([BEFORE, T0, T1])) == [999, 1550]
+    assert asyncio.run(db.bucket_revenue([BEFORE, T0, T1])) == [999, 1580]
 
 
 def test_top_users(db):

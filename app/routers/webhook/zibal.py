@@ -1,6 +1,6 @@
-"""Zarinpal return URL: the buyer's browser lands here after paying (or canceling) on Zarinpal.
+"""Zibal return URL: the buyer's browser lands here after paying (or canceling) on Zibal.
 
-The query string is never trusted; `handle_callback` re-verifies the payment with Zarinpal.
+The query string is never trusted; `handle_callback` re-verifies the payment with Zibal.
 """
 
 from __future__ import annotations
@@ -10,34 +10,34 @@ from fastapi.responses import HTMLResponse
 
 from app.logger import get_logger
 from app.routers.webhook.payment_page import ResultView, render_result_page, return_links
-from app.services.payments.zarinpal import ZarinpalError, handle_callback, status_label
+from app.services.payments.zibal import ZibalError, handle_callback, status_label
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
-GATEWAY_NAME = "زرین‌پال"
+GATEWAY_NAME = "زیبال"
 
 
-@router.get("/payments/zarinpal/callback", response_class=HTMLResponse)
-async def zarinpal_callback(
-    authority: str = Query("", alias="Authority", max_length=64),
-    status: str = Query("", alias="Status", max_length=8),
+@router.get("/payments/zibal/callback", response_class=HTMLResponse)
+async def zibal_callback(
+    track_id: str = Query("", alias="trackId", max_length=64),
+    success: str = Query("", max_length=4),
 ) -> HTMLResponse:
     links = await return_links()
 
-    authority = authority.strip()
-    if not authority:
+    track_id = track_id.strip()
+    if not track_id:
         return render_result_page(
             ResultView("danger", "درخواست نامعتبر", "شناسه پرداخت در این لینک وجود ندارد."), links, GATEWAY_NAME
         )
     try:
-        payment = await handle_callback(authority, status)
-    except ZarinpalError as e:
-        logger.warning("Zarinpal callback for %s failed: %s", authority, e.message)
+        payment = await handle_callback(track_id, success)
+    except ZibalError as e:
+        logger.warning("Zibal callback for %s failed: %s", track_id, e.message)
         payment = None
     except Exception:
-        logger.exception("Zarinpal callback for %s crashed", authority)
+        logger.exception("Zibal callback for %s crashed", track_id)
         payment = None
 
     if payment is None:

@@ -73,6 +73,13 @@ DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
     "zarinpal_deposit_max": 10000000,
     "zarinpal_bonus_enabled": False,
     "zarinpal_bonus_percent": 0,
+    "zibal_enabled": False,
+    "zibal_sandbox": True,
+    "zibal_merchant": "",
+    "zibal_deposit_min": 10000,
+    "zibal_deposit_max": 10000000,
+    "zibal_bonus_enabled": False,
+    "zibal_bonus_percent": 0,
 }
 
 DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {

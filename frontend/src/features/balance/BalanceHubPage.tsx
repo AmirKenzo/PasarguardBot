@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronLeft, CreditCard, DollarSign, Gem, History, Landmark, Star } from "lucide-react";
+import { Banknote, ChevronLeft, CreditCard, DollarSign, Gem, History, Landmark, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Card, EmptyState, IconBadge } from "../../components/ui";
@@ -58,6 +58,16 @@ export default function BalanceHubPage() {
               )}${bonusText(methods.zarinpal_bonus_percent, t)}`}
             />
           )}
+          {methods.zibal_enabled && (
+            <MethodLink
+              to="/balance/zibal"
+              icon={Banknote}
+              title={`${methods.zibal_sandbox ? "🧪 " : ""}${t("balanceHub.zibalPay")}`}
+              description={`${t(
+                methods.zibal_sandbox ? "balanceHub.zibalSandboxDesc" : "balanceHub.zibalDesc"
+              )}${bonusText(methods.zibal_bonus_percent, t)}`}
+            />
+          )}
           {methods.cart_sta && (
             <MethodLink
               to="/balance/stars"
@@ -90,7 +100,9 @@ export default function BalanceHubPage() {
 
 function hasAnyMethod(methods: NonNullable<ReturnType<typeof useBalanceMethodsQuery>["data"]>) {
   return (
-    methods.pay_mode || methods.arz_mode || methods.cart_sta || methods.tonpays_enabled || methods.zarinpal_enabled
+    methods.pay_mode || methods.arz_mode || methods.cart_sta || methods.tonpays_enabled ||
+    methods.zarinpal_enabled ||
+    methods.zibal_enabled
   );
 }
 

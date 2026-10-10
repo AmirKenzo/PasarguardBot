@@ -20,6 +20,7 @@ export interface PanelReportTotals {
   stars_approved_sum?: number;
   tonpays_approved_sum?: number;
   zarinpal_approved_sum?: number;
+  zibal_approved_sum?: number;
   /** Paid top-ups from every gateway. */
   total_revenue?: number;
   pending_sum: number;

@@ -21,16 +21,18 @@ from app.db.models.stars_transaction import StarsTransaction
 from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
 from app.db.models.zarinpal_payment import ZarinpalPayment
+from app.db.models.zibal_payment import ZibalPayment
 
 TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
-METHODS: tuple[str, ...] = ("manual", "crypto", "stars", "tonpays", "zarinpal")
+METHODS: tuple[str, ...] = ("manual", "crypto", "stars", "tonpays", "zarinpal", "zibal")
 METHOD_LABELS_FA: dict[str, str] = {
     "manual": "کارت‌به‌کارت دستی",
     "crypto": "ارز دیجیتال",
     "stars": "استارز",
     "tonpays": "TonPays",
     "zarinpal": "زرین‌پال",
+    "zibal": "زیبال",
 }
 
 
@@ -81,6 +83,13 @@ def _sources() -> list[_Source]:
             ZarinpalPayment.amount,
             func.coalesce(ZarinpalPayment.paid_at, ZarinpalPayment.created_at),
             (ZarinpalPayment.status == "completed") & ZarinpalPayment.sandbox.is_(False),
+        ),
+        _Source(
+            "zibal",
+            ZibalPayment.user_id,
+            ZibalPayment.amount,
+            func.coalesce(ZibalPayment.paid_at, ZibalPayment.created_at),
+            (ZibalPayment.status == "completed") & ZibalPayment.sandbox.is_(False),
         ),
     ]
 

@@ -62,6 +62,7 @@ export interface TransactionStatsSummary {
   stars?: TransactionStats;
   tonpays?: TransactionStats;
   zarinpal?: TransactionStats;
+  zibal?: TransactionStats;
 }
 
 export interface DiscountInfo {

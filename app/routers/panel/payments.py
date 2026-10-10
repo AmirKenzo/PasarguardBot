@@ -13,6 +13,7 @@ from app.db.crud.settings import SettingsManager
 from app.db.crud.tonpays_invoices import tonpays_stats_since
 from app.db.crud.wallets import WalletCRUD
 from app.db.crud.zarinpal_payments import zarinpal_stats_since
+from app.db.crud.zibal_payments import zibal_stats_since
 from app.models.panel.common import ActionResponse, PanelRequest
 from app.models.panel.payments import (
     WALLET_TYPES,
@@ -34,12 +35,15 @@ from app.models.panel.payments import (
     PanelZarinpalResponse,
     PanelZarinpalSaveRequest,
     PanelZarinpalTestRequest,
+    PanelZibalResponse,
+    PanelZibalSaveRequest,
+    PanelZibalTestRequest,
 )
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
 from app.services.billing import payment_stats
-from app.services.payments import zarinpal_config
+from app.services.payments import zarinpal_config, zibal_config
 from app.services.payments.tonpays import test_connection
 from app.services.payments.tonpays_config import (
     api_key_for,
@@ -50,6 +54,7 @@ from app.services.payments.tonpays_config import (
     mask_key,
 )
 from app.services.payments.zarinpal import test_connection as zarinpal_test_connection
+from app.services.payments.zibal import test_connection as zibal_test_connection
 
 router = APIRouter()
 
@@ -404,6 +409,99 @@ async def zarinpal_test(payload: PanelZarinpalTestRequest, request: Request) -> 
             return ActionResponse(ok=False, error="مرچنت کد ثبت نشده است.")
         started = time.monotonic()
         ok, message = await zarinpal_test_connection(merchant, payload.sandbox)
+        elapsed = int((time.monotonic() - started) * 1000)
+        return ActionResponse(ok=ok, message=f"{message} ({elapsed}ms)" if ok else None, error=None if ok else message)
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/payments/zibal", response_model=PanelZibalResponse)
+async def zibal_overview(payload: PanelRequest, request: Request) -> PanelZibalResponse:
+    async def handle(_: PanelActor) -> PanelZibalResponse:
+        settings = await SettingsManager().get_settings()
+        if settings is None:
+            return PanelZibalResponse(ok=False, error="تنظیمات ربات هنوز ساخته نشده است.")
+        merchant = zibal_config.stored_merchant(settings)
+        deposit_min, deposit_max = zibal_config.deposit_limits(settings)
+        return PanelZibalResponse(
+            enabled=bool(settings.zibal_enabled),
+            sandbox=zibal_config.is_sandbox(settings),
+            merchant_masked=zibal_config.mask_merchant(merchant),
+            has_merchant=bool(merchant),
+            ready=zibal_config.is_ready(settings),
+            deposit_min=deposit_min,
+            deposit_max=deposit_max,
+            bonus_enabled=bool(settings.zibal_bonus_enabled),
+            bonus_percent=int(settings.zibal_bonus_percent or 0),
+            callback_url=zibal_config.callback_url(),
+            stats=PanelTonPaysStats(**await zibal_stats_since(_start_of_today())),
+        )
+
+    return await guard.run(payload, request, PanelZibalResponse, handle)
+
+
+@router.post("/panel/payments/zibal/save", response_model=ActionResponse)
+async def zibal_save(payload: PanelZibalSaveRequest, request: Request) -> ActionResponse:
+    async def handle(actor: PanelActor) -> ActionResponse:
+        manager = SettingsManager()
+        settings = await manager.get_settings()
+        if settings is None:
+            return ActionResponse(ok=False, error="تنظیمات ربات هنوز ساخته نشده است.")
+        updates: dict = {}
+        if payload.enabled is not None:
+            updates["zibal_enabled"] = payload.enabled
+        merchant = zibal_config.stored_merchant(settings)
+        if payload.clear_merchant:
+            merchant = ""
+            updates["zibal_merchant"] = ""
+        elif payload.merchant.strip():
+            merchant = payload.merchant.strip()
+            if not zibal_config.is_valid_merchant(merchant):
+                return ActionResponse(ok=False, error="مرچنت زیبال نامعتبر است.")
+            updates["zibal_merchant"] = merchant
+        sandbox = payload.sandbox if payload.sandbox is not None else zibal_config.is_sandbox(settings)
+        if not sandbox and not zibal_config.is_valid_merchant(merchant):
+            return ActionResponse(ok=False, error="برای حالت واقعی، اول مرچنت زیبال را ثبت کنید.")
+        updates["zibal_sandbox"] = sandbox
+        current_min, current_max = zibal_config.deposit_limits(settings)
+        new_min = payload.deposit_min if payload.deposit_min is not None else current_min
+        new_max = payload.deposit_max if payload.deposit_max is not None else current_max
+        if new_max < new_min:
+            return ActionResponse(ok=False, error="حداکثر مبلغ باید بیشتر از حداقل باشد.")
+        updates["zibal_deposit_min"] = new_min
+        updates["zibal_deposit_max"] = new_max
+        if payload.bonus_enabled is not None:
+            updates["zibal_bonus_enabled"] = payload.bonus_enabled
+        if payload.bonus_percent is not None:
+            updates["zibal_bonus_percent"] = payload.bonus_percent
+        await manager.update_setting(settings.id, **updates)
+        await _log(
+            actor,
+            "zibal_settings_update",
+            target_type="settings",
+            target_id="zibal",
+            detail={key: value for key, value in updates.items() if key != "zibal_merchant"},
+        )
+        return ActionResponse(message="تنظیمات زیبال ذخیره شد.")
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/payments/zibal/test", response_model=ActionResponse)
+async def zibal_test(payload: PanelZibalTestRequest, request: Request) -> ActionResponse:
+    async def handle(_: PanelActor) -> ActionResponse:
+        merchant = payload.merchant.strip()
+        if payload.sandbox:
+            merchant = zibal_config.SANDBOX_MERCHANT
+        elif merchant and not zibal_config.is_valid_merchant(merchant):
+            return ActionResponse(ok=False, error="مرچنت زیبال نامعتبر است.")
+        if not merchant:
+            settings = await SettingsManager().get_settings()
+            merchant = zibal_config.merchant_for(settings, False) if settings else ""
+        if not merchant:
+            return ActionResponse(ok=False, error="مرچنت زیبال ثبت نشده است.")
+        started = time.monotonic()
+        ok, message = await zibal_test_connection(merchant)
         elapsed = int((time.monotonic() - started) * 1000)
         return ActionResponse(ok=ok, message=f"{message} ({elapsed}ms)" if ok else None, error=None if ok else message)
 

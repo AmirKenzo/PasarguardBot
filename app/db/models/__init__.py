@@ -28,6 +28,7 @@ from . import (
     user,
     wallet,
     zarinpal_payment,
+    zibal_payment,
 )
 
 __all__ = [
@@ -60,4 +61,5 @@ __all__ = [
     "user",
     "wallet",
     "zarinpal_payment",
+    "zibal_payment",
 ]

@@ -4,6 +4,7 @@ import type { AuthPayload } from "../api/webapp/client";
 import type {
   BalanceTonPaysInvoiceResponse,
   BalanceZarinpalPaymentResponse,
+  BalanceZibalPaymentResponse,
   CryptoCurrency,
 } from "../types/webapp";
 import { useWebAppAuth } from "../hooks/useWebAppAuth";
@@ -160,4 +161,35 @@ export function useDepositZarinpalMutation() {
 
 export function useCheckZarinpalMutation() {
   return useZarinpalAction((auth, payment: number) => balanceApi.checkZarinpalPayment(auth, payment));
+}
+
+export function useOpenZibalPaymentQuery(enabled: boolean) {
+  const { auth, ready } = useWebAppAuth();
+
+  return useQuery({
+    queryKey: ["zibal-open"],
+    queryFn: () => balanceApi.getOpenZibalPayment(auth!),
+    enabled: enabled && ready && auth != null,
+  });
+}
+
+function useZibalAction<TArgs>(fn: (auth: AuthPayload, args: TArgs) => Promise<BalanceZibalPaymentResponse>) {
+  const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (args: TArgs) => fn(auth!, args),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useDepositZibalMutation() {
+  return useZibalAction((auth, amount: number) => balanceApi.depositZibal(auth, amount));
+}
+
+export function useCheckZibalMutation() {
+  return useZibalAction((auth, payment: number) => balanceApi.checkZibalPayment(auth, payment));
 }

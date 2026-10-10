@@ -86,6 +86,7 @@ async def reports(payload: PanelReportsRequest, request: Request) -> PanelReport
                 stars_approved_sum=paid["stars"]["total_amount"],
                 tonpays_approved_sum=paid["tonpays"]["total_amount"],
                 zarinpal_approved_sum=paid["zarinpal"]["total_amount"],
+                zibal_approved_sum=paid["zibal"]["total_amount"],
                 total_revenue=paid["total"]["total_amount"],
                 pending_sum=int(breakdown.get("manual_pending_total_sum", 0)),
                 pending_count=int(breakdown.get("manual_pending_total_count", 0)),

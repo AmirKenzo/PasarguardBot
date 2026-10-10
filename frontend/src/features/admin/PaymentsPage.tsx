@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CreditCard, Gem, Landmark, Wallet } from "lucide-react";
+import { Banknote, CreditCard, Gem, Landmark, Wallet } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, Button, ErrorState, Input, Skeleton, Tabs } from "../../components/ui";
 import type { TabItem } from "../../components/ui";
@@ -12,9 +12,10 @@ import type { Column } from "./components";
 import { useTranslation } from "react-i18next";
 import TonPaysTab from "./TonPaysTab";
 import ZarinpalTab from "./ZarinpalTab";
+import ZibalTab from "./ZibalTab";
 
 const INVALIDATE = [["payments"]];
-const SECTIONS = ["crypto", "manual", "tonpays", "zarinpal"] as const;
+const SECTIONS = ["crypto", "manual", "tonpays", "zarinpal", "zibal"] as const;
 type Section = (typeof SECTIONS)[number];
 
 export default function AdminPaymentsPage() {
@@ -48,6 +49,7 @@ export default function AdminPaymentsPage() {
     { value: "manual", label: t("panel.payments.tabManual"), icon: CreditCard },
     { value: "tonpays", label: t("panel.payments.tabTonPays"), icon: Gem },
     { value: "zarinpal", label: t("panel.payments.tabZarinpal"), icon: Landmark },
+    { value: "zibal", label: t("panel.payments.tabZibal"), icon: Banknote },
   ];
   const header = (
     <>
@@ -63,6 +65,14 @@ export default function AdminPaymentsPage() {
       <>
         {header}
         <TonPaysTab />
+      </>
+    );
+  }
+  if (section === "zibal") {
+    return (
+      <>
+        {header}
+        <ZibalTab />
       </>
     );
   }

@@ -32,6 +32,11 @@ export interface BalanceMethodsResponse {
   zarinpal_deposit_min: number;
   zarinpal_deposit_max: number;
   zarinpal_bonus_percent: number;
+  zibal_enabled: boolean;
+  zibal_sandbox: boolean;
+  zibal_deposit_min: number;
+  zibal_deposit_max: number;
+  zibal_bonus_percent: number;
   error?: string | null;
 }
 
@@ -131,5 +136,23 @@ export interface BalanceZarinpalPaymentResponse {
   ok: boolean;
   message?: string | null;
   payment?: ZarinpalPayment | null;
+  error?: string | null;
+}
+
+export interface ZibalPayment {
+  id: number;
+  order_id: string;
+  amount: number;
+  status: string;
+  status_label: string;
+  sandbox: boolean;
+  payment_url?: string | null;
+  ref_id?: string | null;
+}
+
+export interface BalanceZibalPaymentResponse {
+  ok: boolean;
+  message?: string | null;
+  payment?: ZibalPayment | null;
   error?: string | null;
 }

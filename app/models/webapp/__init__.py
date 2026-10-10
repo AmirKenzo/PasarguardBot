@@ -34,8 +34,13 @@ from app.models.webapp.balance import (
     BalanceZarinpalOpenRequest,
     BalanceZarinpalPaymentRequest,
     BalanceZarinpalPaymentResponse,
+    BalanceZibalDepositRequest,
+    BalanceZibalOpenRequest,
+    BalanceZibalPaymentRequest,
+    BalanceZibalPaymentResponse,
     TonPaysInvoiceView,
     ZarinpalPaymentView,
+    ZibalPaymentView,
 )
 from app.models.webapp.buy import (
     WebAppBuyConfirmRequest,
@@ -133,6 +138,10 @@ __all__ = [
     "BalanceZarinpalOpenRequest",
     "BalanceZarinpalPaymentRequest",
     "BalanceZarinpalPaymentResponse",
+    "BalanceZibalDepositRequest",
+    "BalanceZibalOpenRequest",
+    "BalanceZibalPaymentRequest",
+    "BalanceZibalPaymentResponse",
     "DiscountInfo",
     "LogoutRequest",
     "PanelGroupItem",
@@ -198,4 +207,5 @@ __all__ = [
     "WebAppUsageChartSeriesItem",
     "WebAppUserData",
     "ZarinpalPaymentView",
+    "ZibalPaymentView",
 ]

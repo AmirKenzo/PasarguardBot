@@ -83,6 +83,7 @@ SETTINGS_MENU_SECTIONS = (
             SettingsMenuItem("دکمه پرداخت استارز", "cart_sta"),
             SettingsMenuItem("درگاه TonPays", "tonpays_enabled"),
             SettingsMenuItem("درگاه زرین‌پال", "zarinpal_enabled"),
+            SettingsMenuItem("درگاه زیبال", "zibal_enabled"),
             SettingsMenuItem("درخواست شماره برای کارت‌به‌کارت", "pay_phone_verify", default=True, wide=True),
         ),
         columns=2,

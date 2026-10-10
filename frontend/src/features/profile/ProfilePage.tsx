@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   CalendarDays,
+  Banknote,
   ChevronLeft,
   Copy,
   CreditCard,
@@ -206,6 +207,9 @@ export default function ProfilePage() {
                   count={tx.zarinpal.count}
                   total={tx.zarinpal.total_amount}
                 />
+              )}
+              {!!tx.zibal?.count && (
+                <TxStat icon={Banknote} label={t("profile.zibal")} count={tx.zibal.count} total={tx.zibal.total_amount} />
               )}
             </div>
           </Card>

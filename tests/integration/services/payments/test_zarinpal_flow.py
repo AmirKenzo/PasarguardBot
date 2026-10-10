@@ -229,7 +229,9 @@ def test_callback_page_renders_result(monkeypatch: pytest.MonkeyPatch) -> None:
         return paid if authority == "S1" else None
 
     monkeypatch.setattr(callback_route, "handle_callback", fake_handle)
-    monkeypatch.setattr(callback_route, "_bot_link", _async("https://t.me/test_bot"))
+    from app.routers.webhook import payment_page
+
+    monkeypatch.setattr(payment_page, "_bot_link", _async("https://t.me/test_bot"))
     app = FastAPI()
     app.include_router(callback_route.router, prefix="/api")
     client = TestClient(app)

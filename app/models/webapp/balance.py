@@ -41,6 +41,11 @@ class BalanceMethodsResponse(BaseModel):
     zarinpal_deposit_min: int = 0
     zarinpal_deposit_max: int = 0
     zarinpal_bonus_percent: int = 0
+    zibal_enabled: bool = False
+    zibal_sandbox: bool = False
+    zibal_deposit_min: int = 0
+    zibal_deposit_max: int = 0
+    zibal_bonus_percent: int = 0
     error: str | None = None
 
 
@@ -197,4 +202,43 @@ class BalanceZarinpalPaymentResponse(BaseModel):
     ok: bool
     message: str | None = None
     payment: ZarinpalPaymentView | None = None
+    error: str | None = None
+
+
+class BalanceZibalDepositRequest(BaseModel):
+    """Zibal deposit: amount in toman."""
+
+    amount: int = Field(..., ge=1)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceZibalPaymentRequest(BaseModel):
+    """Act on one of the caller's Zibal payments by its local id."""
+
+    payment: int = Field(..., ge=1)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceZibalOpenRequest(BaseModel):
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class ZibalPaymentView(BaseModel):
+    id: int
+    order_id: str
+    amount: int
+    status: str
+    status_label: str
+    sandbox: bool = False
+    payment_url: str | None = None
+    ref_id: str | None = None
+
+
+class BalanceZibalPaymentResponse(BaseModel):
+    ok: bool
+    message: str | None = None
+    payment: ZibalPaymentView | None = None
     error: str | None = None

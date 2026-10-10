@@ -204,7 +204,8 @@
     },
     "stars": "Stars",
     "tonpays": "TonPays",
-    "zarinpal": "Zarinpal"
+    "zarinpal": "Zarinpal",
+    "zibal": "Zibal"
   },
   "balanceHub": {
     "title": "Wallet",
@@ -224,6 +225,9 @@
     "zarinpalPay": "Zarinpal online payment",
     "zarinpalDesc": "Pay with any Shetab bank card",
     "zarinpalSandboxDesc": "Test mode (sandbox) — admins only, no real payment",
+    "zibalPay": "Zibal online payment",
+    "zibalDesc": "Pay with any Shetab bank card",
+    "zibalSandboxDesc": "Test mode — admins only, no real payment",
     "bonus": " • {{percent}}% bonus"
   },
   "cryptoDeposit": {
@@ -315,6 +319,21 @@
   "zarinpalDeposit": {
     "title": "Pay with Zarinpal",
     "sandboxNote": "The gateway is in test mode (sandbox): no real payment is made and only admins can see this method.",
+    "orderId": "Order ID",
+    "paidTitle": "Payment succeeded and your wallet was charged",
+    "refId": "Reference ID",
+    "chargeAmount": "Top-up amount",
+    "payButton": "Go to payment page",
+    "checkButton": "Check payment",
+    "autoCheckNote": "The status is checked automatically after you pay.",
+    "newPayment": "New payment",
+    "submitButton": "Create payment link",
+    "paidToast": "Payment confirmed and balance charged.",
+    "notPaidYet": "No payment has been recorded yet."
+  },
+  "zibalDeposit": {
+    "title": "Pay with Zibal",
+    "sandboxNote": "The gateway is in test mode: no real payment is made and only admins can see this method.",
     "orderId": "Order ID",
     "paidTitle": "Payment succeeded and your wallet was charged",
     "refId": "Reference ID",
@@ -519,6 +538,7 @@
     "crypto": "Crypto Transaction ({{currency}})",
     "tonpays": "Online payment (TonPays)",
     "zarinpal": "Zarinpal",
+    "zibal": "Zibal",
     "stars": "Stars payment"
   },
   "common": {
@@ -779,7 +799,8 @@
       "statVolume7d": "Approved volume (7d)",
       "methodStars": "Stars",
       "methodTonpays": "TonPays",
-      "methodZarinpal": "Zarinpal"
+      "methodZarinpal": "Zarinpal",
+      "methodZibal": "Zibal"
     },
     "pwa": {
       "tab": "PWA",
@@ -1137,7 +1158,8 @@
       "tabCrypto": "Crypto wallets",
       "tabManual": "Manual card transfer",
       "tabTonPays": "TonPays",
-      "tabZarinpal": "Zarinpal"
+      "tabZarinpal": "Zarinpal",
+      "tabZibal": "Zibal"
     },
     "resellers": {
       "telegram": "Telegram",
@@ -1459,7 +1481,8 @@
       "cryptoTopUp": "Crypto top-up",
       "starsTopUp": "Stars top-up",
       "tonpaysTopUp": "TonPays top-up",
-      "zarinpalTopUp": "Zarinpal top-ups"
+      "zarinpalTopUp": "Zarinpal top-ups",
+      "zibalTopUp": "Zibal top-ups"
     },
     "texts": {
       "subtitle": "Write your own text for any part of the bot. When a text isn’t set, the bot shows its default.",
@@ -1724,6 +1747,38 @@
       "callbackHint": "Sent to Zarinpal automatically; its domain must be registered in your Zarinpal panel.",
       "sandboxNote": "In test mode payments go through the Zarinpal sandbox and only admins can try them. A test payment charges the admin's balance but is never counted as revenue.",
       "save": "Save Zarinpal settings"
+    },
+    "zibal": {
+      "title": "Zibal gateway",
+      "modeSandbox": "Test mode",
+      "modeLive": "Live mode",
+      "merchantSet": "Merchant ID set",
+      "merchantMissing": "No merchant ID",
+      "enabled": "Enabled",
+      "statusSandbox": "Active (test)",
+      "statusActive": "Active",
+      "statusNotReady": "Not ready",
+      "statusOff": "Off",
+      "openPayments": "Open payments",
+      "connection": "Connection",
+      "connectionHint": "Test mode uses Zibal's test merchant and needs no account; live mode needs your merchant.",
+      "mode": "Gateway mode",
+      "sandbox": "Test",
+      "live": "Live",
+      "sandboxHint": "Payments are simulated and the button is shown to admins only.",
+      "liveHint": "Real payments; the button is shown to every user.",
+      "merchantId": "Zibal merchant",
+      "merchantInvalid": "Invalid merchant (letters, digits, - and _ only).",
+      "merchantEmptyHint": "Test mode uses Zibal's \"zibal\" test merchant.",
+      "testConnection": "Test connection",
+      "connected": "Connected.",
+      "notConnected": "Connection failed.",
+      "rangeError": "Maximum amount must be greater than the minimum.",
+      "callback": "Return URL (callback)",
+      "noCallback": "WEBAPP_URL is not set with https; Zibal cannot work without a return URL.",
+      "callbackHint": "Sent to Zibal automatically; its domain must be registered in your Zibal panel.",
+      "sandboxNote": "In test mode payments are simulated with Zibal's test merchant and only admins can try them. A test payment charges the admin's balance but is never counted as revenue.",
+      "save": "Save Zibal settings"
     },
     "resellerHub": {
       "title": "Pasarguard panel resellers",

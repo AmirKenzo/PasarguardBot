@@ -14,6 +14,7 @@ from app.models.router_models import WebhookResponse
 from app.routers.webhook.processor import process_webhook_events
 from app.routers.webhook.tonpays import router as tonpays_router
 from app.routers.webhook.zarinpal import router as zarinpal_router
+from app.routers.webhook.zibal import router as zibal_router
 from app.utils.security.secrets_cache import get_webhook_secret
 
 logger = get_logger(__name__)
@@ -21,6 +22,7 @@ logger = get_logger(__name__)
 webhook_router = APIRouter()
 webhook_router.include_router(tonpays_router)
 webhook_router.include_router(zarinpal_router)
+webhook_router.include_router(zibal_router)
 
 
 # Credentials that must never reach the logs, even at DEBUG level.

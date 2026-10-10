@@ -75,7 +75,7 @@ class PanelTransactionsRequest(PagedRequest):
     tx_id: str = Field("", description="Filter by the raw per-source id")
     user_id: str = Field("")
     amount: str = Field("")
-    method: str = Field("", description="empty | manual_card | crypto | stars | tonpays | zarinpal")
+    method: str = Field("", description="empty | manual_card | crypto | stars | tonpays | zarinpal | zibal")
     status: str = Field("", description="empty | pending | approved | rejected | needs_fix | expired")
     days: int = Field(0, description="0 = all time, else last N days")
 

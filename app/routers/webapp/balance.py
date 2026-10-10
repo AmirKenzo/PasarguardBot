@@ -36,7 +36,7 @@ from app.models.webapp import (
     BalancePhoneRequestResponse,
 )
 from app.routers.webapp.auth import authenticate_user
-from app.services.payments import zarinpal_config
+from app.services.payments import zarinpal_config, zibal_config
 from app.services.payments.tonpays_config import (
     deposit_limits as tonpays_limits,
     gateway_mode as tonpays_mode,
@@ -123,6 +123,11 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
             zarinpal_deposit_min=zarinpal_config.deposit_limits(settings)[0],
             zarinpal_deposit_max=zarinpal_config.deposit_limits(settings)[1],
             zarinpal_bonus_percent=zarinpal_config.bonus_percent(settings),
+            zibal_enabled=zibal_config.is_available_for(settings, user_id),
+            zibal_sandbox=zibal_config.is_sandbox(settings),
+            zibal_deposit_min=zibal_config.deposit_limits(settings)[0],
+            zibal_deposit_max=zibal_config.deposit_limits(settings)[1],
+            zibal_bonus_percent=zibal_config.bonus_percent(settings),
         )
     except ValueError as e:
         return BalanceMethodsResponse(ok=False, error=str(e))

@@ -14,6 +14,7 @@ from app.jobs.payments import (
     USDTNetworksProcessor,
     USDTProcessor,
     ZarinpalProcessor,
+    ZibalProcessor,
 )
 from app.logger import LogTag, get_logger
 
@@ -28,6 +29,7 @@ usdt_networks_processor = USDTNetworksProcessor()
 pol_processor = POLProcessor()
 tonpays_processor = TonPaysProcessor()
 zarinpal_processor = ZarinpalProcessor()
+zibal_processor = ZibalProcessor()
 
 
 async def auto_confirm_job():
@@ -92,6 +94,14 @@ async def zarinpal_checking():
     await zarinpal_processor.check_payments()
     elapsed = time.time() - start_time
     logger.debug(f"{LogTag.JOB} zarinpal_checking completed: {elapsed:.2f}s")
+
+
+async def zibal_checking():
+    start_time = time.time()
+    logger.debug("%s zibal_checking started", LogTag.JOB)
+    await zibal_processor.check_payments()
+    elapsed = time.time() - start_time
+    logger.debug(f"{LogTag.JOB} zibal_checking completed: {elapsed:.2f}s")
 
 
 async def expire_star_transactions() -> None:

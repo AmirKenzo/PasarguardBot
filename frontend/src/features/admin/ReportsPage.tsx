@@ -1,4 +1,4 @@
-import { Calendar, Coins, CreditCard, Gem, Landmark, Package, Star, User, Users, Wallet } from "lucide-react";
+import { Banknote, Calendar, Coins, CreditCard, Gem, Landmark, Package, Star, User, Users, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { ErrorState, Skeleton } from "../../components/ui";
@@ -95,6 +95,12 @@ export default function AdminReportsPage() {
             icon={Landmark}
             label={t("panel.reports.zarinpalTopUp")}
             value={formatToman(totals.zarinpal_approved_sum ?? 0)}
+          />
+          <StatTile
+            dense
+            icon={Banknote}
+            label={t("panel.reports.zibalTopUp")}
+            value={formatToman(totals.zibal_approved_sum ?? 0)}
           />
           <StatTile
             dense

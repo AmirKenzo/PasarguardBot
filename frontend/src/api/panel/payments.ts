@@ -15,6 +15,9 @@ import type {
   PanelZarinpalResponse,
   PanelZarinpalSaveRequest,
   PanelZarinpalTestRequest,
+  PanelZibalResponse,
+  PanelZibalSaveRequest,
+  PanelZibalTestRequest,
 } from "../../types/panel";
 import { panelPost } from "./client";
 
@@ -76,4 +79,16 @@ export function saveZarinpal(body: PanelZarinpalSaveRequest) {
 
 export function testZarinpal(body: PanelZarinpalTestRequest) {
   return panelPost<ActionResponse>("/payments/zarinpal/test", body);
+}
+
+export function getZibal(body: PanelAuthRequest) {
+  return panelPost<PanelZibalResponse>("/payments/zibal", body);
+}
+
+export function saveZibal(body: PanelZibalSaveRequest) {
+  return panelPost<ActionResponse>("/payments/zibal/save", body);
+}
+
+export function testZibal(body: PanelZibalTestRequest) {
+  return panelPost<ActionResponse>("/payments/zibal/test", body);
 }

@@ -7,6 +7,10 @@ from app.services.payments.zarinpal_config import (
     is_available_for as zarinpal_available_for,
     is_sandbox as zarinpal_sandbox,
 )
+from app.services.payments.zibal_config import (
+    is_available_for as zibal_available_for,
+    is_sandbox as zibal_sandbox,
+)
 from app.telegram.admin.settings_payment.texts import is_manual_card_visible
 
 from .common import _get_keyboard_button_config, styled_callback_button
@@ -77,6 +81,21 @@ async def create_inline_cartbcard(settings, user=None) -> list:
                     bonus_enabled=settings.zarinpal_bonus_enabled,
                     bonus_percent=settings.zarinpal_bonus_percent,
                     prefix="🧪 " if zarinpal_sandbox(settings) else "",
+                )
+            ]
+        )
+
+    if settings and zibal_available_for(settings, getattr(user, "id", None)):
+        buttons.append(
+            [
+                await _balance_inline_button(
+                    keyboard_crud,
+                    "in.balance.zibal",
+                    KEYBOARD_BUTTON_DEFAULTS["in.balance.zibal"],
+                    b"ZibalPayment",
+                    bonus_enabled=settings.zibal_bonus_enabled,
+                    bonus_percent=settings.zibal_bonus_percent,
+                    prefix="🧪 " if zibal_sandbox(settings) else "",
                 )
             ]
         )

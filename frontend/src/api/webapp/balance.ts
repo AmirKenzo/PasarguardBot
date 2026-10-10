@@ -10,6 +10,7 @@ import type {
   BalancePhoneRequestResponse,
   BalanceTonPaysInvoiceResponse,
   BalanceZarinpalPaymentResponse,
+  BalanceZibalPaymentResponse,
   WebAppBalanceMethodsRequest,
 } from "../../types/webapp";
 import type { AuthPayload } from "./client";
@@ -75,4 +76,16 @@ export function getOpenZarinpalPayment(auth: AuthPayload) {
 
 export function checkZarinpalPayment(auth: AuthPayload, payment: number) {
   return apiPost<BalanceZarinpalPaymentResponse>("/balance/zarinpal/status", { payment }, auth);
+}
+
+export function depositZibal(auth: AuthPayload, amount: number) {
+  return apiPost<BalanceZibalPaymentResponse>("/balance/deposit/zibal", { amount }, auth);
+}
+
+export function getOpenZibalPayment(auth: AuthPayload) {
+  return apiPost<BalanceZibalPaymentResponse>("/balance/zibal/open", {}, auth);
+}
+
+export function checkZibalPayment(auth: AuthPayload, payment: number) {
+  return apiPost<BalanceZibalPaymentResponse>("/balance/zibal/status", { payment }, auth);
 }

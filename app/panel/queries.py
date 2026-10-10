@@ -24,6 +24,7 @@ from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
 from app.db.models.user import User
 from app.db.models.zarinpal_payment import ZarinpalPayment
+from app.db.models.zibal_payment import ZibalPayment
 from app.services.billing import payment_stats
 
 INACTIVE_STATUSES = ("ban", "BlockedBot", "DeleteAccount")
@@ -351,10 +352,28 @@ def _zarinpal_branch():
     )
 
 
-def _unified(name: str):
-    return union_all(_tx_branch(), _crypto_branch(), _stars_branch(), _tonpays_branch(), _zarinpal_branch()).subquery(
-        name
+def _zibal_branch():
+    normalized_status = case(
+        (ZibalPayment.status == "completed", "approved"),
+        (ZibalPayment.status == "pending", "pending"),
+        (ZibalPayment.status == "failed", "rejected"),
+        else_="expired",
     )
+    return select(
+        cast(ZibalPayment.id, String).label("raw_id"),
+        literal("zibal").label("source"),
+        literal("zibal").label("method"),
+        ZibalPayment.user_id.label("user_id"),
+        cast(ZibalPayment.amount, BigInteger).label("amount"),
+        normalized_status.label("status"),
+        ZibalPayment.created_at.label("created_at"),
+    )
+
+
+def _unified(name: str):
+    return union_all(
+        _tx_branch(), _crypto_branch(), _stars_branch(), _tonpays_branch(), _zarinpal_branch(), _zibal_branch()
+    ).subquery(name)
 
 
 async def list_unified_transactions(

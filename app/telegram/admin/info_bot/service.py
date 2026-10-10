@@ -303,10 +303,10 @@ def _revenue_totals(payload: dict) -> tuple[int, int]:
 
 
 def _online_gateway_rows(payload: dict) -> list[tuple[str, int, int]]:
-    """Gateways outside card-to-card and crypto (Stars, TonPays, Zarinpal) as (label, count, amount)."""
+    """Gateways outside card-to-card and crypto (Stars, TonPays, Zarinpal, Zibal) as (label, count, amount)."""
     methods = payload.get("methods") or {}
     rows = []
-    for method, emoji in (("stars", "⭐"), ("tonpays", "💎"), ("zarinpal", "🟡")):
+    for method, emoji in (("stars", "⭐"), ("tonpays", "💎"), ("zarinpal", "🟡"), ("zibal", "🔵")):
         item = methods.get(method) or {}
         rows.append(
             (
