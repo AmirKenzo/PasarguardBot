@@ -1,5 +1,7 @@
 """Keyboard customization registry: titles, defaults, and style labels."""
 
+from app.services.payments.ir_gateways.providers import GATEWAYS
+
 KEYBOARD_BUTTON_TITLES = {
     "bt.menu_my_services": "سرویس های من",
     "bt.menu_get_trial": "دریافت تست",
@@ -39,8 +41,6 @@ KEYBOARD_BUTTON_TITLES = {
     "in.balance.crypto": "پرداخت ارزی",
     "in.balance.stars": "پرداخت با استارز",
     "in.balance.tonpays": "پرداخت با TonPays",
-    "in.balance.zarinpal": "پرداخت با زرین‌پال",
-    "in.balance.zibal": "پرداخت با زیبال",
     "in.balance.manual": "کارت به کارت (دستی)",
     "in.balance.disabled": "شارژ غیرفعال",
     "in.balance.referral": "دعوت دوستان",
@@ -121,8 +121,6 @@ KEYBOARD_BUTTON_DEFAULTS = {
     "in.balance.crypto": "💵 پرداخت ارزی",
     "in.balance.stars": "⭐ پرداخت با استارز",
     "in.balance.tonpays": "💎 پرداخت آنلاین (TonPays)",
-    "in.balance.zarinpal": "🟡 پرداخت آنلاین (زرین‌پال)",
-    "in.balance.zibal": "🔵 پرداخت آنلاین (زیبال)",
     "in.balance.manual": "💳 کارت به کارت (تایید زیر 5 دقیقه)",
     "in.balance.disabled": "❌ شارژ حساب غیرفعال می‌باشد",
     "in.balance.referral": "🎁 دعوت دوستان",
@@ -162,6 +160,11 @@ KEYBOARD_BUTTON_DEFAULTS = {
     "in.rs.delete_confirm": "✅ بله، کامل حذف شود",
     "in.rs.chpwd_confirm": "✅ بله، رمز عوض شود",
 }
+
+# One balance button per Iranian direct gateway, generated so a new provider needs no edit here.
+for _provider in GATEWAYS.values():
+    KEYBOARD_BUTTON_TITLES[f"in.balance.{_provider.key}"] = f"پرداخت با {_provider.title}"
+    KEYBOARD_BUTTON_DEFAULTS[f"in.balance.{_provider.key}"] = f"{_provider.emoji} پرداخت آنلاین ({_provider.title})"
 
 
 KEYBOARD_BUTTON_DEFAULT_STYLES = {

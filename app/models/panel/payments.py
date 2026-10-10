@@ -116,60 +116,43 @@ class PanelTonPaysTestRequest(PanelRequest):
     api_key: str = Field("", max_length=256)
 
 
-class PanelZarinpalResponse(PanelResponse):
+class PanelIrGatewayStats(BaseModel):
+    paid_today: int = 0
+    amount_today: int = 0
+    open_payments: int = 0
+    failed_today: int = 0
+
+
+class PanelIrGatewayRow(BaseModel):
+    key: str
+    title: str
     enabled: bool = False
     sandbox: bool = True
-    merchant_masked: str = ""
-    has_merchant: bool = False
     ready: bool = False
+    has_merchant: bool = False
+    merchant_masked: str = ""
+    merchant_pattern: str = ""
+    merchant_hint: str = ""
+    sandbox_hint: str = ""
     deposit_min: int = 0
     deposit_max: int = 0
     bonus_enabled: bool = False
     bonus_percent: int = 0
     callback_url: str | None = None
-    stats: PanelTonPaysStats = Field(default_factory=PanelTonPaysStats)
+    stats: PanelIrGatewayStats = Field(default_factory=PanelIrGatewayStats)
 
 
-class PanelZarinpalSaveRequest(PanelRequest):
-    """An empty merchant id keeps the stored one; `clear_merchant` removes it."""
-
-    enabled: bool | None = None
-    sandbox: bool | None = None
-    merchant_id: str = Field("", max_length=64)
-    clear_merchant: bool = False
-    deposit_min: int | None = Field(None, ge=1000)
-    deposit_max: int | None = Field(None, ge=1000)
-    bonus_enabled: bool | None = None
-    bonus_percent: int | None = Field(None, ge=0, le=100)
+class PanelIrGatewaysResponse(PanelResponse):
+    gateways: list[PanelIrGatewayRow] = Field(default_factory=list)
 
 
-class PanelZarinpalTestRequest(PanelRequest):
-    """Test the given merchant id, or the stored one when `merchant_id` is empty."""
-
-    sandbox: bool = True
-    merchant_id: str = Field("", max_length=64)
-
-
-class PanelZibalResponse(PanelResponse):
-    enabled: bool = False
-    sandbox: bool = True
-    merchant_masked: str = ""
-    has_merchant: bool = False
-    ready: bool = False
-    deposit_min: int = 0
-    deposit_max: int = 0
-    bonus_enabled: bool = False
-    bonus_percent: int = 0
-    callback_url: str | None = None
-    stats: PanelTonPaysStats = Field(default_factory=PanelTonPaysStats)
-
-
-class PanelZibalSaveRequest(PanelRequest):
+class PanelIrGatewaySaveRequest(PanelRequest):
     """An empty merchant keeps the stored one; `clear_merchant` removes it."""
 
+    gateway: str = Field(..., min_length=1, max_length=20)
     enabled: bool | None = None
     sandbox: bool | None = None
-    merchant: str = Field("", max_length=64)
+    merchant_id: str = Field("", max_length=64)
     clear_merchant: bool = False
     deposit_min: int | None = Field(None, ge=1000)
     deposit_max: int | None = Field(None, ge=1000)
@@ -177,8 +160,9 @@ class PanelZibalSaveRequest(PanelRequest):
     bonus_percent: int | None = Field(None, ge=0, le=100)
 
 
-class PanelZibalTestRequest(PanelRequest):
-    """Test the given merchant, or the configured one (test merchant in test mode) when empty."""
+class PanelIrGatewayTestRequest(PanelRequest):
+    """Test the given merchant, or the stored one when `merchant_id` is empty."""
 
+    gateway: str = Field(..., min_length=1, max_length=20)
     sandbox: bool = True
-    merchant: str = Field("", max_length=64)
+    merchant_id: str = Field("", max_length=64)

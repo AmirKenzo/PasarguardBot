@@ -17,22 +17,21 @@ from sqlalchemy import case, func, literal, select, union_all
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.cryptopayments import CryptoPayments
+from app.db.models.ir_gateway_payment import IrGatewayPayment
 from app.db.models.stars_transaction import StarsTransaction
 from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
-from app.db.models.zarinpal_payment import ZarinpalPayment
-from app.db.models.zibal_payment import ZibalPayment
+from app.services.payments.ir_gateways.providers import GATEWAYS
 
 TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
-METHODS: tuple[str, ...] = ("manual", "crypto", "stars", "tonpays", "zarinpal", "zibal")
+METHODS: tuple[str, ...] = ("manual", "crypto", "stars", "tonpays", *GATEWAYS)
 METHOD_LABELS_FA: dict[str, str] = {
     "manual": "کارت‌به‌کارت دستی",
     "crypto": "ارز دیجیتال",
     "stars": "استارز",
     "tonpays": "TonPays",
-    "zarinpal": "زرین‌پال",
-    "zibal": "زیبال",
+    **{key: provider.title for key, provider in GATEWAYS.items()},
 }
 
 
@@ -76,20 +75,18 @@ def _sources() -> list[_Source]:
             func.coalesce(TonPaysInvoice.paid_at, TonPaysInvoice.created_at),
             TonPaysInvoice.status == "completed",
         ),
-        # Sandbox (test-mode) payments move no real money, so they never count as revenue.
-        _Source(
-            "zarinpal",
-            ZarinpalPayment.user_id,
-            ZarinpalPayment.amount,
-            func.coalesce(ZarinpalPayment.paid_at, ZarinpalPayment.created_at),
-            (ZarinpalPayment.status == "completed") & ZarinpalPayment.sandbox.is_(False),
-        ),
-        _Source(
-            "zibal",
-            ZibalPayment.user_id,
-            ZibalPayment.amount,
-            func.coalesce(ZibalPayment.paid_at, ZibalPayment.created_at),
-            (ZibalPayment.status == "completed") & ZibalPayment.sandbox.is_(False),
+        # One source per Iranian gateway; test-mode payments move no real money, so they never count.
+        *(
+            _Source(
+                key,
+                IrGatewayPayment.user_id,
+                IrGatewayPayment.amount,
+                func.coalesce(IrGatewayPayment.paid_at, IrGatewayPayment.created_at),
+                (IrGatewayPayment.gateway == key)
+                & (IrGatewayPayment.status == "completed")
+                & IrGatewayPayment.sandbox.is_(False),
+            )
+            for key in GATEWAYS
         ),
     ]
 

@@ -34,9 +34,10 @@ from app.models.webapp import (
     BalanceMethodsResponse,
     BalancePhoneRequestRequest,
     BalancePhoneRequestResponse,
+    IrGatewayMethod,
 )
 from app.routers.webapp.auth import authenticate_user
-from app.services.payments import zarinpal_config, zibal_config
+from app.services.payments.ir_gateways import config as ir_gateway_config
 from app.services.payments.tonpays_config import (
     deposit_limits as tonpays_limits,
     gateway_mode as tonpays_mode,
@@ -118,16 +119,17 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
             tonpays_bonus_percent=int(getattr(settings, "tonpays_bonus_percent", 0) or 0)
             if getattr(settings, "tonpays_bonus_enabled", False)
             else 0,
-            zarinpal_enabled=zarinpal_config.is_available_for(settings, user_id),
-            zarinpal_sandbox=zarinpal_config.is_sandbox(settings),
-            zarinpal_deposit_min=zarinpal_config.deposit_limits(settings)[0],
-            zarinpal_deposit_max=zarinpal_config.deposit_limits(settings)[1],
-            zarinpal_bonus_percent=zarinpal_config.bonus_percent(settings),
-            zibal_enabled=zibal_config.is_available_for(settings, user_id),
-            zibal_sandbox=zibal_config.is_sandbox(settings),
-            zibal_deposit_min=zibal_config.deposit_limits(settings)[0],
-            zibal_deposit_max=zibal_config.deposit_limits(settings)[1],
-            zibal_bonus_percent=zibal_config.bonus_percent(settings),
+            ir_gateways=[
+                IrGatewayMethod(
+                    key=provider.key,
+                    title=provider.title,
+                    sandbox=ir_gateway_config.is_sandbox(settings, provider.key),
+                    deposit_min=ir_gateway_config.deposit_limits(settings, provider.key)[0],
+                    deposit_max=ir_gateway_config.deposit_limits(settings, provider.key)[1],
+                    bonus_percent=ir_gateway_config.bonus_percent(settings, provider.key),
+                )
+                for provider in ir_gateway_config.available_gateways(settings, user_id)
+            ],
         )
     except ValueError as e:
         return BalanceMethodsResponse(ok=False, error=str(e))

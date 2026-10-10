@@ -3,6 +3,16 @@ import type { WebAppAuthRequest } from "./common";
 
 export type WebAppBalanceMethodsRequest = WebAppAuthRequest;
 
+/** An Iranian direct gateway this user may pay with (mirrors IrGatewayMethod). */
+export interface IrGatewayMethod {
+  key: string;
+  title: string;
+  sandbox: boolean;
+  deposit_min: number;
+  deposit_max: number;
+  bonus_percent: number;
+}
+
 export interface BalanceMethodsResponse {
   ok: boolean;
   pay_mode: boolean;
@@ -27,16 +37,7 @@ export interface BalanceMethodsResponse {
   tonpays_deposit_min: number;
   tonpays_deposit_max: number;
   tonpays_bonus_percent: number;
-  zarinpal_enabled: boolean;
-  zarinpal_sandbox: boolean;
-  zarinpal_deposit_min: number;
-  zarinpal_deposit_max: number;
-  zarinpal_bonus_percent: number;
-  zibal_enabled: boolean;
-  zibal_sandbox: boolean;
-  zibal_deposit_min: number;
-  zibal_deposit_max: number;
-  zibal_bonus_percent: number;
+  ir_gateways: IrGatewayMethod[];
   error?: string | null;
 }
 
@@ -121,8 +122,10 @@ export interface BalanceTonPaysInvoiceResponse {
   error?: string | null;
 }
 
-export interface ZarinpalPayment {
+export interface IrGatewayPayment {
   id: number;
+  gateway: string;
+  gateway_title: string;
   order_id: string;
   amount: number;
   status: string;
@@ -132,27 +135,9 @@ export interface ZarinpalPayment {
   ref_id?: string | null;
 }
 
-export interface BalanceZarinpalPaymentResponse {
+export interface BalanceIrGatewayPaymentResponse {
   ok: boolean;
   message?: string | null;
-  payment?: ZarinpalPayment | null;
-  error?: string | null;
-}
-
-export interface ZibalPayment {
-  id: number;
-  order_id: string;
-  amount: number;
-  status: string;
-  status_label: string;
-  sandbox: boolean;
-  payment_url?: string | null;
-  ref_id?: string | null;
-}
-
-export interface BalanceZibalPaymentResponse {
-  ok: boolean;
-  message?: string | null;
-  payment?: ZibalPayment | null;
+  payment?: IrGatewayPayment | null;
   error?: string | null;
 }

@@ -29,8 +29,7 @@ def btn_cardtocard_settings(settings=None):
         [Button.inline(text="🎁 تنظیمات بونوس", data="bonus_settings_menu")],
         [Button.inline(text="💼 مدیریت کیف پول‌ها", data="wallet_management")],
         [Button.inline(text="💎 درگاه TonPays", data="tonpays_admin")],
-        [Button.inline(text="🟡 درگاه زرین‌پال", data="zarinpal_admin")],
-        [Button.inline(text="🔵 درگاه زیبال", data="zibal_admin")],
+        [Button.inline(text="🏦 درگاه‌های ایرانی", data="irgw_admin")],
     ]
 
 

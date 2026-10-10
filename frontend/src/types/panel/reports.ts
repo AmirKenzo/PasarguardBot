@@ -19,8 +19,8 @@ export interface PanelReportTotals {
   crypto_approved_sum?: number;
   stars_approved_sum?: number;
   tonpays_approved_sum?: number;
-  zarinpal_approved_sum?: number;
-  zibal_approved_sum?: number;
+  /** Iranian direct gateways keyed by provider. */
+  ir_gateway_sums?: Record<string, number>;
   /** Paid top-ups from every gateway. */
   total_revenue?: number;
   pending_sum: number;

@@ -43,6 +43,7 @@ from app.routers.webapp.state import (
     try_register_otp_start,
 )
 from app.services.billing import payment_stats
+from app.services.payments.ir_gateways.providers import GATEWAYS
 from app.services.send_queue import enqueue
 from app.utils.formatting.conversions import to_unix_timestamp
 from app.utils.formatting.dates import Time_Date
@@ -131,16 +132,18 @@ def _convert_decimals(obj: Any) -> Any:
 
 
 async def _get_transaction_stats(user_id: int) -> dict[str, Any]:
-    """Get user's transaction statistics."""
+    """Get user's transaction statistics; Iranian gateways are grouped under `ir_gateways`."""
 
-    default_stats = {method: {"count": 0, "total_amount": 0} for method in payment_stats.METHODS}
+    def shape(totals: dict[str, dict[str, int]]) -> dict[str, Any]:
+        stats: dict[str, Any] = {m: totals[m] for m in payment_stats.METHODS if m not in GATEWAYS}
+        stats["ir_gateways"] = {key: totals[key] for key in GATEWAYS}
+        return stats
 
     try:
-        totals = await payment_stats.method_totals(user_id=user_id)
-        return {method: totals[method] for method in payment_stats.METHODS}
+        return shape(await payment_stats.method_totals(user_id=user_id))
     except Exception as e:
         logger.error("Error getting transaction stats: %s", e)
-        return default_stats
+        return shape({method: {"count": 0, "total_amount": 0} for method in payment_stats.METHODS})
 
 
 async def _build_user_profile(

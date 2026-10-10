@@ -8,6 +8,7 @@ from telethon import Button
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import UserCRUD, get_user_status, safe_mode_admin_label, user_safe_mode_value
 from app.services.billing import payment_stats
+from app.services.payments.ir_gateways.providers import GATEWAYS
 from app.telegram.state import get_step
 from app.telegram.state.store import get_all_user_state
 
@@ -40,8 +41,7 @@ _PAYMENT_LINE_LABELS: tuple[tuple[str, str], ...] = (
     ("crypto", "💰 تراکنش‌های ارزی"),
     ("stars", "⭐ استارز"),
     ("tonpays", "💎 TonPays"),
-    ("zarinpal", "🟡 زرین‌پال"),
-    ("zibal", "🔵 زیبال"),
+    *((key, f"{p.emoji} {p.title}") for key, p in GATEWAYS.items()),
 )
 
 

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Banknote, ChevronLeft, CreditCard, DollarSign, Gem, History, Landmark, Star } from "lucide-react";
+import { ChevronLeft, CreditCard, DollarSign, Gem, History, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Card, EmptyState, IconBadge } from "../../components/ui";
@@ -7,6 +7,7 @@ import { ErrorState } from "../../components/ui/EmptyState";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { useAuth } from "../../context/AuthContext";
 import { formatToman } from "../../lib/format";
+import { irGatewayIcon } from "../../lib/irGateways";
 import { useBalanceMethodsQuery } from "../../queries/useBalance";
 
 export default function BalanceHubPage() {
@@ -48,26 +49,17 @@ export default function BalanceHubPage() {
               )}${bonusText(methods.tonpays_bonus_percent, t)}`}
             />
           )}
-          {methods.zarinpal_enabled && (
+          {methods.ir_gateways.map((gateway) => (
             <MethodLink
-              to="/balance/zarinpal"
-              icon={Landmark}
-              title={`${methods.zarinpal_sandbox ? "🧪 " : ""}${t("balanceHub.zarinpalPay")}`}
+              key={gateway.key}
+              to={`/balance/gateway/${gateway.key}`}
+              icon={irGatewayIcon(gateway.key)}
+              title={`${gateway.sandbox ? "🧪 " : ""}${t("balanceHub.irGatewayPay", { name: gateway.title })}`}
               description={`${t(
-                methods.zarinpal_sandbox ? "balanceHub.zarinpalSandboxDesc" : "balanceHub.zarinpalDesc"
-              )}${bonusText(methods.zarinpal_bonus_percent, t)}`}
+                gateway.sandbox ? "balanceHub.irGatewaySandboxDesc" : "balanceHub.irGatewayDesc"
+              )}${bonusText(gateway.bonus_percent, t)}`}
             />
-          )}
-          {methods.zibal_enabled && (
-            <MethodLink
-              to="/balance/zibal"
-              icon={Banknote}
-              title={`${methods.zibal_sandbox ? "🧪 " : ""}${t("balanceHub.zibalPay")}`}
-              description={`${t(
-                methods.zibal_sandbox ? "balanceHub.zibalSandboxDesc" : "balanceHub.zibalDesc"
-              )}${bonusText(methods.zibal_bonus_percent, t)}`}
-            />
-          )}
+          ))}
           {methods.cart_sta && (
             <MethodLink
               to="/balance/stars"
@@ -101,8 +93,7 @@ export default function BalanceHubPage() {
 function hasAnyMethod(methods: NonNullable<ReturnType<typeof useBalanceMethodsQuery>["data"]>) {
   return (
     methods.pay_mode || methods.arz_mode || methods.cart_sta || methods.tonpays_enabled ||
-    methods.zarinpal_enabled ||
-    methods.zibal_enabled
+    methods.ir_gateways.length > 0
   );
 }
 

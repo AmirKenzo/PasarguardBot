@@ -7,11 +7,10 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.db.models.cryptopayments import CryptoPayments
+from app.db.models.ir_gateway_payment import IrGatewayPayment
 from app.db.models.stars_transaction import StarsTransaction
 from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
-from app.db.models.zarinpal_payment import ZarinpalPayment
-from app.db.models.zibal_payment import ZibalPayment
 from app.services.billing import payment_stats
 
 T0 = 1_000_000  # period start
@@ -65,53 +64,29 @@ def _seed() -> list:
             status="pending",
             created_at=INSIDE,
         ),
-        # zarinpal: only live completed payments count; sandbox (test-mode) payments are never revenue
-        ZarinpalPayment(
-            id=1,
-            order_id="ZP1",
-            user_id=4,
-            sandbox=False,
-            amount=50,
-            credited_amount=55,
-            status="completed",
-            created_at=INSIDE,
-            paid_at=INSIDE,
-        ),
-        ZarinpalPayment(
-            id=2,
-            order_id="ZP2",
-            user_id=4,
-            sandbox=True,
-            amount=777,
-            status="completed",
-            created_at=INSIDE,
-            paid_at=INSIDE,
-        ),
-        ZarinpalPayment(
-            id=3, order_id="ZP3", user_id=4, sandbox=False, amount=888, status="pending", created_at=INSIDE
-        ),
-        # zibal: same rule as zarinpal, test-mode payments never count
-        ZibalPayment(
-            id=1,
-            order_id="ZB1",
-            user_id=5,
-            sandbox=False,
-            amount=30,
-            status="completed",
-            created_at=INSIDE,
-            paid_at=INSIDE,
-        ),
-        ZibalPayment(
-            id=2,
-            order_id="ZB2",
-            user_id=5,
-            sandbox=True,
-            amount=777,
-            status="completed",
-            created_at=INSIDE,
-            paid_at=INSIDE,
-        ),
+        # Iranian gateways (one table): only live completed payments count; test-mode payments never do
+        _gw(1, "zarinpal", user_id=4, amount=50, status="completed", credited_amount=55),
+        _gw(2, "zarinpal", user_id=4, amount=777, status="completed", sandbox=True),
+        _gw(3, "zarinpal", user_id=4, amount=888, status="pending"),
+        _gw(4, "zibal", user_id=5, amount=30, status="completed"),
+        _gw(5, "zibal", user_id=5, amount=777, status="completed", sandbox=True),
     ]
+
+
+def _gw(row_id: int, gateway: str, *, user_id: int, amount: int, status: str, sandbox: bool = False, **extra):
+    paid_at = INSIDE if status == "completed" else None
+    return IrGatewayPayment(
+        id=row_id,
+        gateway=gateway,
+        order_id=f"GW{row_id}",
+        user_id=user_id,
+        sandbox=sandbox,
+        amount=amount,
+        status=status,
+        created_at=INSIDE,
+        paid_at=paid_at,
+        **extra,
+    )
 
 
 @pytest.fixture
@@ -122,8 +97,7 @@ def db(monkeypatch):
         CryptoPayments.__table__,
         StarsTransaction.__table__,
         TonPaysInvoice.__table__,
-        ZarinpalPayment.__table__,
-        ZibalPayment.__table__,
+        IrGatewayPayment.__table__,
     ]
 
     async def setup():

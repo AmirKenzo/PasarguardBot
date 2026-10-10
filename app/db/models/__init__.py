@@ -7,6 +7,7 @@ from . import (
     cryptopayments,
     discount_codes,
     help_buttons,
+    ir_gateway_payment,
     keyboards,
     log_channels,
     manual_auto_approve_rule,
@@ -27,8 +28,6 @@ from . import (
     transaction,
     user,
     wallet,
-    zarinpal_payment,
-    zibal_payment,
 )
 
 __all__ = [
@@ -40,6 +39,7 @@ __all__ = [
     "cryptopayments",
     "discount_codes",
     "help_buttons",
+    "ir_gateway_payment",
     "keyboards",
     "log_channels",
     "manual_auto_approve_rule",
@@ -60,6 +60,4 @@ __all__ = [
     "transaction",
     "user",
     "wallet",
-    "zarinpal_payment",
-    "zibal_payment",
 ]

@@ -24,6 +24,7 @@ from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.logger.tags import LogTag
 from app.services.billing import payment_stats
+from app.services.payments.ir_gateways.providers import GATEWAYS
 from app.services.telegram.rich_message import rt as _rt, rt_bold as _rt_bold
 from app.telegram.admin.info_bot.states import (
     HIDDEN_LINK,
@@ -303,10 +304,10 @@ def _revenue_totals(payload: dict) -> tuple[int, int]:
 
 
 def _online_gateway_rows(payload: dict) -> list[tuple[str, int, int]]:
-    """Gateways outside card-to-card and crypto (Stars, TonPays, Zarinpal, Zibal) as (label, count, amount)."""
+    """Gateways outside card-to-card and crypto (Stars, TonPays, Iranian gateways) as (label, count, amount)."""
     methods = payload.get("methods") or {}
     rows = []
-    for method, emoji in (("stars", "⭐"), ("tonpays", "💎"), ("zarinpal", "🟡"), ("zibal", "🔵")):
+    for method, emoji in (("stars", "⭐"), ("tonpays", "💎"), *((key, p.emoji) for key, p in GATEWAYS.items())):
         item = methods.get(method) or {}
         rows.append(
             (

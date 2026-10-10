@@ -25,8 +25,8 @@ class PanelReportTotals(BaseModel):
     crypto_approved_sum: int = 0
     stars_approved_sum: int = 0
     tonpays_approved_sum: int = 0
-    zarinpal_approved_sum: int = 0
-    zibal_approved_sum: int = 0
+    # Iranian direct gateways, keyed by provider.
+    ir_gateway_sums: dict[str, int] = Field(default_factory=dict)
     total_revenue: int = 0
     pending_sum: int = 0
     pending_count: int = 0

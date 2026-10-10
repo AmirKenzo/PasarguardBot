@@ -25,6 +25,7 @@ from app.logger import get_logger
 from app.routers.webapp.auth import router as auth_router
 from app.routers.webapp.balance import router as balance_router
 from app.routers.webapp.buy import router as buy_router
+from app.routers.webapp.ir_gateways import router as ir_gateways_router
 from app.routers.webapp.pwa import router as pwa_router
 from app.routers.webapp.renew import router as renew_router
 from app.routers.webapp.reseller import router as reseller_router
@@ -33,8 +34,6 @@ from app.routers.webapp.tonpays import router as tonpays_router
 from app.routers.webapp.transactions import router as transactions_router
 from app.routers.webapp.upgrade import router as upgrade_router
 from app.routers.webapp.usage_chart import router as usage_chart_router
-from app.routers.webapp.zarinpal import router as zarinpal_router
-from app.routers.webapp.zibal import router as zibal_router
 
 logger = get_logger(__name__)
 webapp_router = APIRouter()
@@ -50,8 +49,7 @@ webapp_router.include_router(renew_router)
 webapp_router.include_router(buy_router)
 webapp_router.include_router(balance_router)
 webapp_router.include_router(tonpays_router)
-webapp_router.include_router(zarinpal_router)
-webapp_router.include_router(zibal_router)
+webapp_router.include_router(ir_gateways_router)
 webapp_router.include_router(transactions_router)
 webapp_router.include_router(upgrade_router)
 webapp_router.include_router(reseller_router)

@@ -1,11 +1,11 @@
-"""Package entry point for the admin Zibal settings module."""
+"""Package entry point for the admin Iranian gateways settings module."""
 
-from app.telegram.admin.zibal import handlers
+from app.telegram.admin.ir_gateways import handlers
 
-MODULE_NAME = "admin.zibal"
+MODULE_NAME = "admin.ir_gateways"
 MODULE_ENABLED = True
 MODULE_ORDER = 1000
-MODULE_DESCRIPTION = "Admin Zibal gateway settings"
+MODULE_DESCRIPTION = "Admin Iranian direct gateway settings"
 
 _registered_clients: set[int] = set()
 

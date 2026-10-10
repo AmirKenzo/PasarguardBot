@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Copy, FlaskConical, Landmark, PlugZap, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, FlaskConical, PlugZap, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, ErrorState, Input, Skeleton } from "../../components/ui";
 import { SegmentedControl } from "../../components/ui/Select";
 import { useToast } from "../../components/ui/Toast";
 import { panelPaymentsApi } from "../../api/panel";
+import { irGatewayIcon } from "../../lib/irGateways";
 import { copyToClipboard, formatNumber } from "../../lib/format";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
-import type { PanelZarinpalResponse } from "../../types/panel";
+import type { PanelIrGatewayRow } from "../../types/panel";
 import { SectionCard, Toggle } from "./components";
 
-const QUERY_KEY = ["zarinpal"];
-const MERCHANT_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const QUERY_KEY = ["ir-gateways"];
 
 interface Draft {
   enabled: boolean;
@@ -23,15 +23,15 @@ interface Draft {
   bonus_percent: string;
 }
 
-function toDraft(data: PanelZarinpalResponse): Draft {
+function toDraft(row: PanelIrGatewayRow): Draft {
   return {
-    enabled: data.enabled,
-    sandbox: data.sandbox,
+    enabled: row.enabled,
+    sandbox: row.sandbox,
     merchant_id: "",
-    deposit_min: String(data.deposit_min),
-    deposit_max: String(data.deposit_max),
-    bonus_enabled: data.bonus_enabled,
-    bonus_percent: String(data.bonus_percent),
+    deposit_min: String(row.deposit_min),
+    deposit_max: String(row.deposit_max),
+    bonus_enabled: row.bonus_enabled,
+    bonus_percent: String(row.bonus_percent),
   };
 }
 
@@ -39,42 +39,63 @@ function digits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-export default function ZarinpalTab() {
-  const { t } = useTranslation();
-  const { show } = useToast();
-  const query = usePanelQuery(QUERY_KEY, (auth) => panelPaymentsApi.getZarinpal(auth));
-  const save = usePanelAction(panelPaymentsApi.saveZarinpal, { invalidate: [QUERY_KEY] });
-  const test = usePanelAction(panelPaymentsApi.testZarinpal);
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+/** Python's `re` pattern for the merchant, as sent by the backend; null when JS cannot compile it. */
+function merchantRegex(pattern: string): RegExp | null {
+  try {
+    return pattern ? new RegExp(pattern) : null;
+  } catch {
+    return null;
+  }
+}
 
-  useEffect(() => {
-    if (query.data) setDraft(toDraft(query.data));
-  }, [query.data]);
+export default function IrGatewaysTab() {
+  const { t } = useTranslation();
+  const query = usePanelQuery(QUERY_KEY, (auth) => panelPaymentsApi.getIrGateways(auth));
 
   if (query.isError) {
     return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
   }
-  if (query.isLoading || !query.data || !draft) {
+  if (query.isLoading || !query.data) {
     return <Skeleton className="h-96 w-full" />;
   }
+  return (
+    <div className="space-y-8">
+      <p className="text-sm text-muted">{t("panel.irGateways.intro")}</p>
+      {query.data.gateways.map((row) => (
+        <GatewayCard key={row.key} row={row} />
+      ))}
+    </div>
+  );
+}
 
-  const data = query.data;
+function GatewayCard({ row }: { row: PanelIrGatewayRow }) {
+  const { t } = useTranslation();
+  const { show } = useToast();
+  const save = usePanelAction(panelPaymentsApi.saveIrGateway, { invalidate: [QUERY_KEY] });
+  const test = usePanelAction(panelPaymentsApi.testIrGateway);
+  const [draft, setDraft] = useState<Draft>(() => toDraft(row));
+  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => setDraft(toDraft(row)), [row]);
+
+  const Icon = irGatewayIcon(row.key);
   const typedMerchant = draft.merchant_id.trim();
-  const merchantInvalid = typedMerchant !== "" && !MERCHANT_PATTERN.test(typedMerchant);
+  const pattern = merchantRegex(row.merchant_pattern);
+  const merchantInvalid = typedMerchant !== "" && !!pattern && !pattern.test(typedMerchant);
 
   const handleSave = () => {
     const min = Number(digits(draft.deposit_min)) || 0;
     const max = Number(digits(draft.deposit_max)) || 0;
     if (max < min) {
-      show(t("panel.zarinpal.rangeError"), "error");
+      show(t("panel.irGateways.rangeError"), "error");
       return;
     }
     if (merchantInvalid) {
-      show(t("panel.zarinpal.merchantInvalid"), "error");
+      show(row.merchant_hint, "error");
       return;
     }
     save.mutate({
+      gateway: row.key,
       enabled: draft.enabled,
       sandbox: draft.sandbox,
       merchant_id: typedMerchant,
@@ -88,38 +109,38 @@ export default function ZarinpalTab() {
   const handleTest = async () => {
     setTestResult(null);
     if (merchantInvalid) {
-      setTestResult({ ok: false, text: t("panel.zarinpal.merchantInvalid") });
+      setTestResult({ ok: false, text: row.merchant_hint });
       return;
     }
     try {
-      const res = await test.mutateAsync({ sandbox: draft.sandbox, merchant_id: typedMerchant });
-      setTestResult({ ok: true, text: res.message || t("panel.zarinpal.connected") });
+      const res = await test.mutateAsync({ gateway: row.key, sandbox: draft.sandbox, merchant_id: typedMerchant });
+      setTestResult({ ok: true, text: res.message || t("panel.irGateways.connected") });
     } catch (err) {
-      setTestResult({ ok: false, text: err instanceof Error ? err.message : t("panel.zarinpal.notConnected") });
+      setTestResult({ ok: false, text: err instanceof Error ? err.message : t("panel.irGateways.notConnected") });
     }
   };
 
-  const statusTone = data.ready ? (data.sandbox ? "primary" : "success") : data.enabled ? "warning" : "muted";
-  const statusText = data.ready
-    ? data.sandbox
-      ? t("panel.zarinpal.statusSandbox")
-      : t("panel.zarinpal.statusActive")
-    : data.enabled
-      ? t("panel.zarinpal.statusNotReady")
-      : t("panel.zarinpal.statusOff");
+  const statusTone = row.ready ? (row.sandbox ? "primary" : "success") : row.enabled ? "warning" : "muted";
+  const statusText = row.ready
+    ? row.sandbox
+      ? t("panel.irGateways.statusSandbox")
+      : t("panel.irGateways.statusActive")
+    : row.enabled
+      ? t("panel.irGateways.statusNotReady")
+      : t("panel.irGateways.statusOff");
 
   return (
-    <div className="space-y-4">
+    <section className="space-y-4">
       <Card className="flex flex-wrap items-center gap-3 p-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Landmark size={22} />
+          <Icon size={22} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-text">{t("panel.zarinpal.title")}</p>
+          <p className="font-semibold text-text">{row.title}</p>
           <p className="text-xs text-muted">
-            {data.sandbox ? t("panel.zarinpal.modeSandbox") : t("panel.zarinpal.modeLive")}
+            {row.sandbox ? t("panel.irGateways.modeSandbox") : t("panel.irGateways.modeLive")}
             {" · "}
-            {data.has_merchant ? t("panel.zarinpal.merchantSet") : t("panel.zarinpal.merchantMissing")}
+            {row.has_merchant ? t("panel.irGateways.merchantSet") : t("panel.irGateways.merchantMissing")}
           </p>
         </div>
         <Badge tone={statusTone}>{statusText}</Badge>
@@ -127,31 +148,31 @@ export default function ZarinpalTab() {
           <Toggle
             checked={draft.enabled}
             onChange={(enabled) => setDraft({ ...draft, enabled })}
-            label={t("panel.zarinpal.enabled")}
+            label={t("panel.irGateways.enabled")}
           />
         </div>
       </Card>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label={t("panel.tonpays.paidToday")} value={formatNumber(data.stats.paid_today)} />
+        <Stat label={t("panel.tonpays.paidToday")} value={formatNumber(row.stats.paid_today)} />
         <Stat
           label={t("panel.tonpays.amountToday")}
-          value={formatNumber(data.stats.amount_today)}
+          value={formatNumber(row.stats.amount_today)}
           suffix={t("common.toman")}
         />
-        <Stat label={t("panel.zarinpal.openPayments")} value={formatNumber(data.stats.open_invoices)} />
-        <Stat label={t("panel.tonpays.failedToday")} value={formatNumber(data.stats.failed_today)} />
+        <Stat label={t("panel.irGateways.openPayments")} value={formatNumber(row.stats.open_payments)} />
+        <Stat label={t("panel.tonpays.failedToday")} value={formatNumber(row.stats.failed_today)} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard title={t("panel.zarinpal.connection")} description={t("panel.zarinpal.connectionHint")}>
+        <SectionCard title={t("panel.irGateways.connection")} description={t("panel.irGateways.connectionHint")}>
           <div className="space-y-4">
             <div>
-              <p className="mb-1.5 text-sm text-muted">{t("panel.zarinpal.mode")}</p>
+              <p className="mb-1.5 text-sm text-muted">{t("panel.irGateways.mode")}</p>
               <SegmentedControl
                 options={[
-                  { value: "sandbox", label: t("panel.zarinpal.sandbox") },
-                  { value: "live", label: t("panel.zarinpal.live") },
+                  { value: "sandbox", label: t("panel.irGateways.sandbox") },
+                  { value: "live", label: t("panel.irGateways.live") },
                 ]}
                 value={draft.sandbox ? "sandbox" : "live"}
                 onChange={(mode) => {
@@ -160,30 +181,30 @@ export default function ZarinpalTab() {
                 }}
               />
               <p className="mt-1.5 text-xs text-muted">
-                {draft.sandbox ? t("panel.zarinpal.sandboxHint") : t("panel.zarinpal.liveHint")}
+                {draft.sandbox ? row.sandbox_hint : t("panel.irGateways.liveHint")}
               </p>
             </div>
             <div>
               <Input
-                label={t("panel.zarinpal.merchantId")}
+                label={t("panel.irGateways.merchantId")}
                 ltr
                 autoComplete="off"
-                placeholder={data.merchant_masked || "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
+                placeholder={row.merchant_masked || "merchant"}
                 value={draft.merchant_id}
                 onChange={(e) => setDraft({ ...draft, merchant_id: e.target.value })}
               />
               <p className={`mt-1 text-xs ${merchantInvalid ? "text-danger" : "text-muted"}`}>
                 {merchantInvalid
-                  ? t("panel.zarinpal.merchantInvalid")
-                  : data.merchant_masked
-                    ? t("panel.tonpays.keyKeepHint", { masked: data.merchant_masked })
-                    : t("panel.zarinpal.merchantEmptyHint")}
+                  ? row.merchant_hint
+                  : row.merchant_masked
+                    ? t("panel.tonpays.keyKeepHint", { masked: row.merchant_masked })
+                    : row.merchant_hint}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Button variant="secondary" size="sm" loading={test.isPending} onClick={() => void handleTest()}>
                 <PlugZap size={15} />
-                {t("panel.zarinpal.testConnection")}
+                {t("panel.irGateways.testConnection")}
               </Button>
               {testResult && (
                 <span className={`flex items-center gap-1 text-xs ${testResult.ok ? "text-success" : "text-danger"}`}>
@@ -230,18 +251,18 @@ export default function ZarinpalTab() {
               </div>
             </div>
             <div>
-              <p className="mb-1.5 text-sm text-muted">{t("panel.zarinpal.callback")}</p>
-              {data.callback_url ? (
+              <p className="mb-1.5 text-sm text-muted">{t("panel.irGateways.callback")}</p>
+              {row.callback_url ? (
                 <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
                   <code className="ltr-field min-w-0 flex-1 break-all text-[11px] text-primary" dir="ltr">
-                    {data.callback_url}
+                    {row.callback_url}
                   </code>
                   <Button
                     variant="ghost"
                     size="sm"
                     aria-label={t("panel.tonpays.copy")}
                     onClick={() =>
-                      void copyToClipboard(data.callback_url!).then(() => show(t("panel.tonpays.copied"), "success"))
+                      void copyToClipboard(row.callback_url!).then(() => show(t("panel.tonpays.copied"), "success"))
                     }
                   >
                     <Copy size={14} />
@@ -249,10 +270,10 @@ export default function ZarinpalTab() {
                 </div>
               ) : (
                 <p className="rounded-md border border-warning/30 bg-warning/10 p-2 text-xs text-warning">
-                  {t("panel.zarinpal.noCallback")}
+                  {t("panel.irGateways.noCallback")}
                 </p>
               )}
-              <p className="mt-1.5 text-xs text-muted">{t("panel.zarinpal.callbackHint")}</p>
+              <p className="mt-1.5 text-xs text-muted">{t("panel.irGateways.callbackHint")}</p>
             </div>
           </div>
         </SectionCard>
@@ -261,16 +282,16 @@ export default function ZarinpalTab() {
       {draft.sandbox && (
         <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3">
           <FlaskConical size={15} className="mt-0.5 shrink-0 text-primary" />
-          <p className="text-xs leading-relaxed text-primary">{t("panel.zarinpal.sandboxNote")}</p>
+          <p className="text-xs leading-relaxed text-primary">{t("panel.irGateways.sandboxNote")}</p>
         </div>
       )}
 
       <div className="flex justify-end">
         <Button loading={save.isPending} onClick={handleSave}>
-          {t("panel.zarinpal.save")}
+          {t("panel.irGateways.save", { name: row.title })}
         </Button>
       </div>
-    </div>
+    </section>
   );
 }
 

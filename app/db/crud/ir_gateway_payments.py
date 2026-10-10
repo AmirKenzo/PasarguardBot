@@ -1,4 +1,4 @@
-"""CRUD for Zarinpal top-up payments."""
+"""CRUD for Iranian direct-gateway top-ups (all gateways share one table)."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
 
 from app.db.base import AsyncSessionLocal as Session
+from app.db.models.ir_gateway_payment import IrGatewayPayment
 from app.db.models.user import User
-from app.db.models.zarinpal_payment import ZarinpalPayment
 from app.logger import get_logger
 
 logger = get_logger(__name__)
@@ -24,17 +24,20 @@ _ID_MIN = 100_000_000_000
 _ID_MAX = 999_999_999_999
 
 
-class ZarinpalPaymentCRUD:
-    async def create(self, *, user_id: int, amount: int, sandbox: bool, source: str) -> ZarinpalPayment:
+class IrGatewayPaymentCRUD:
+    async def create(
+        self, *, gateway: str, order_prefix: str, user_id: int, amount: int, sandbox: bool, source: str
+    ) -> IrGatewayPayment:
         last_error: Exception | None = None
         for _ in range(5):
             local_id = random.randint(_ID_MIN, _ID_MAX)
             now = int(time.time())
             try:
                 async with Session() as session:
-                    payment = ZarinpalPayment(
+                    payment = IrGatewayPayment(
                         id=local_id,
-                        order_id=f"ZP{local_id}",
+                        gateway=gateway,
+                        order_id=f"{order_prefix}{local_id}",
                         user_id=user_id,
                         amount=amount,
                         sandbox=sandbox,
@@ -48,25 +51,25 @@ class ZarinpalPaymentCRUD:
                     return payment
             except IntegrityError as e:
                 last_error = e
-        raise ValueError(f"Could not allocate a unique Zarinpal order id: {last_error}")
+        raise ValueError(f"Could not allocate a unique gateway payment id: {last_error}")
 
-    async def get(self, local_id: int) -> ZarinpalPayment | None:
+    async def get(self, local_id: int) -> IrGatewayPayment | None:
         async with Session() as session:
-            return (await session.execute(select(ZarinpalPayment).filter_by(id=local_id))).scalar_one_or_none()
+            return (await session.execute(select(IrGatewayPayment).filter_by(id=local_id))).scalar_one_or_none()
 
-    async def get_by_authority(self, authority: str) -> ZarinpalPayment | None:
+    async def get_by_authority(self, gateway: str, authority: str) -> IrGatewayPayment | None:
         async with Session() as session:
-            result = await session.execute(select(ZarinpalPayment).filter_by(authority=authority))
+            result = await session.execute(select(IrGatewayPayment).filter_by(gateway=gateway, authority=authority))
             return result.scalars().first()
 
-    async def get_for_user(self, local_id: int, user_id: int) -> ZarinpalPayment | None:
+    async def get_for_user(self, local_id: int, user_id: int) -> IrGatewayPayment | None:
         async with Session() as session:
-            result = await session.execute(select(ZarinpalPayment).filter_by(id=local_id, user_id=user_id))
+            result = await session.execute(select(IrGatewayPayment).filter_by(id=local_id, user_id=user_id))
             return result.scalar_one_or_none()
 
-    async def update(self, local_id: int, **fields) -> ZarinpalPayment | None:
+    async def update(self, local_id: int, **fields) -> IrGatewayPayment | None:
         async with Session() as session:
-            payment = (await session.execute(select(ZarinpalPayment).filter_by(id=local_id))).scalar_one_or_none()
+            payment = (await session.execute(select(IrGatewayPayment).filter_by(id=local_id))).scalar_one_or_none()
             if not payment:
                 return None
             for key, value in fields.items():
@@ -76,10 +79,10 @@ class ZarinpalPaymentCRUD:
             await session.commit()
             return payment
 
-    async def close_if_open(self, local_id: int, status: str) -> ZarinpalPayment | None:
+    async def close_if_open(self, local_id: int, status: str) -> IrGatewayPayment | None:
         """Move a pending payment to a final status; None when it was already final."""
         async with Session() as session, session.begin():
-            payment = (await session.execute(select(ZarinpalPayment).filter_by(id=local_id))).scalar_one_or_none()
+            payment = (await session.execute(select(IrGatewayPayment).filter_by(id=local_id))).scalar_one_or_none()
             if not payment or payment.status not in OPEN_STATUSES:
                 return None
             payment.status = status
@@ -88,49 +91,51 @@ class ZarinpalPaymentCRUD:
 
     async def delete(self, local_id: int) -> None:
         async with Session() as session:
-            payment = (await session.execute(select(ZarinpalPayment).filter_by(id=local_id))).scalar_one_or_none()
+            payment = (await session.execute(select(IrGatewayPayment).filter_by(id=local_id))).scalar_one_or_none()
             if payment:
                 await session.delete(payment)
                 await session.commit()
 
     async def count_open_for_user(self, user_id: int) -> int:
+        """Open payments across every gateway: the cap is per user, not per gateway."""
         async with Session() as session:
             result = await session.execute(
                 select(func.count())
-                .select_from(ZarinpalPayment)
-                .where(ZarinpalPayment.user_id == user_id, ZarinpalPayment.status.in_(OPEN_STATUSES))
+                .select_from(IrGatewayPayment)
+                .where(IrGatewayPayment.user_id == user_id, IrGatewayPayment.status.in_(OPEN_STATUSES))
             )
             return int(result.scalar() or 0)
 
-    async def list_open(self, limit: int = 30) -> list[ZarinpalPayment]:
-        """Pending payments, least recently checked first."""
+    async def list_open(self, limit: int = 30) -> list[IrGatewayPayment]:
+        """Pending payments of every gateway, least recently checked first."""
         async with Session() as session:
             result = await session.execute(
-                select(ZarinpalPayment)
-                .where(ZarinpalPayment.status.in_(OPEN_STATUSES), ZarinpalPayment.authority.isnot(None))
-                .order_by(ZarinpalPayment.updated_at.asc())
+                select(IrGatewayPayment)
+                .where(IrGatewayPayment.status.in_(OPEN_STATUSES), IrGatewayPayment.authority.isnot(None))
+                .order_by(IrGatewayPayment.updated_at.asc())
                 .limit(limit)
             )
             return list(result.scalars().all())
 
-    async def list_for_user(self, user_id: int) -> list[ZarinpalPayment]:
+    async def list_for_user(self, user_id: int, gateway: str | None = None) -> list[IrGatewayPayment]:
         async with Session() as session:
-            result = await session.execute(
-                select(ZarinpalPayment)
-                .where(ZarinpalPayment.user_id == user_id, ZarinpalPayment.authority.isnot(None))
-                .order_by(ZarinpalPayment.created_at.desc())
+            stmt = select(IrGatewayPayment).where(
+                IrGatewayPayment.user_id == user_id, IrGatewayPayment.authority.isnot(None)
             )
+            if gateway:
+                stmt = stmt.where(IrGatewayPayment.gateway == gateway)
+            result = await session.execute(stmt.order_by(IrGatewayPayment.created_at.desc()))
             return list(result.scalars().all())
 
     async def approve_and_credit(
         self, local_id: int, total_amount: int, *, ref_id: str | None, card_pan: str | None
-    ) -> tuple[ZarinpalPayment, int] | None:
+    ) -> tuple[IrGatewayPayment, int] | None:
         """Mark a pending payment completed and credit the user exactly once."""
         try:
             async with Session() as session, session.begin():
                 dialect = session.bind.dialect if session.bind is not None else None
                 lock = bool(dialect and dialect.name != "sqlite")
-                stmt = select(ZarinpalPayment).where(ZarinpalPayment.id == local_id)
+                stmt = select(IrGatewayPayment).where(IrGatewayPayment.id == local_id)
                 if lock:
                     stmt = stmt.with_for_update()
                 payment = (await session.execute(stmt)).scalar_one_or_none()
@@ -152,30 +157,38 @@ class ZarinpalPaymentCRUD:
                 payment.updated_at = now
                 return payment, int(user.amount or 0)
         except SQLAlchemyError as e:
-            logger.error("Zarinpal approve_and_credit failed for %s: %s", local_id, e)
+            logger.error("Gateway approve_and_credit failed for %s: %s", local_id, e)
             return None
 
 
-async def zarinpal_stats_since(since: int) -> dict[str, int]:
-    """Gateway numbers for the admin dashboard: paid/failed since `since`, plus currently open."""
+def _empty_stats() -> dict[str, int]:
+    return {"paid_today": 0, "amount_today": 0, "open_payments": 0, "failed_today": 0}
+
+
+async def ir_gateway_stats_since(since: int) -> dict[str, dict[str, int]]:
+    """Per-gateway numbers for the admin panel: paid/failed since `since`, plus currently open."""
+    stats: dict[str, dict[str, int]] = {}
     async with Session() as session:
         paid = await session.execute(
-            select(func.count(), func.coalesce(func.sum(ZarinpalPayment.amount), 0)).where(
-                ZarinpalPayment.status == "completed", ZarinpalPayment.paid_at >= since
-            )
+            select(IrGatewayPayment.gateway, func.count(), func.coalesce(func.sum(IrGatewayPayment.amount), 0))
+            .where(IrGatewayPayment.status == "completed", IrGatewayPayment.paid_at >= since)
+            .group_by(IrGatewayPayment.gateway)
         )
-        paid_count, paid_amount = paid.one()
-        open_count = await session.execute(
-            select(func.count()).select_from(ZarinpalPayment).where(ZarinpalPayment.status.in_(OPEN_STATUSES))
+        for gateway, count, amount in paid.all():
+            row = stats.setdefault(gateway, _empty_stats())
+            row["paid_today"], row["amount_today"] = int(count or 0), int(amount or 0)
+        open_rows = await session.execute(
+            select(IrGatewayPayment.gateway, func.count())
+            .where(IrGatewayPayment.status.in_(OPEN_STATUSES))
+            .group_by(IrGatewayPayment.gateway)
         )
+        for gateway, count in open_rows.all():
+            stats.setdefault(gateway, _empty_stats())["open_payments"] = int(count or 0)
         failed = await session.execute(
-            select(func.count())
-            .select_from(ZarinpalPayment)
-            .where(ZarinpalPayment.status.in_(FAILED_STATUSES), ZarinpalPayment.updated_at >= since)
+            select(IrGatewayPayment.gateway, func.count())
+            .where(IrGatewayPayment.status.in_(FAILED_STATUSES), IrGatewayPayment.updated_at >= since)
+            .group_by(IrGatewayPayment.gateway)
         )
-        return {
-            "paid_today": int(paid_count or 0),
-            "amount_today": int(paid_amount or 0),
-            "open_invoices": int(open_count.scalar() or 0),
-            "failed_today": int(failed.scalar() or 0),
-        }
+        for gateway, count in failed.all():
+            stats.setdefault(gateway, _empty_stats())["failed_today"] = int(count or 0)
+    return stats

@@ -1,6 +1,6 @@
 """Package entry point for the user balance module."""
 
-from app.telegram.user.balance import callbacks, messages, tonpays, zarinpal, zibal
+from app.telegram.user.balance import callbacks, ir_gateways, messages, tonpays
 
 MODULE_NAME = "user.balance"
 MODULE_ENABLED = True
@@ -17,6 +17,5 @@ def setup(client):
     messages.register(client)
     callbacks.register(client)
     tonpays.register(client)
-    zarinpal.register(client)
-    zibal.register(client)
+    ir_gateways.register(client)
     _registered_clients.add(client_id)

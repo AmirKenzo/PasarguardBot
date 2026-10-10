@@ -66,20 +66,8 @@ DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
     "tonpays_deposit_max": 10000000,
     "tonpays_bonus_enabled": False,
     "tonpays_bonus_percent": 0,
-    "zarinpal_enabled": False,
-    "zarinpal_sandbox": True,
-    "zarinpal_merchant_id": "",
-    "zarinpal_deposit_min": 10000,
-    "zarinpal_deposit_max": 10000000,
-    "zarinpal_bonus_enabled": False,
-    "zarinpal_bonus_percent": 0,
-    "zibal_enabled": False,
-    "zibal_sandbox": True,
-    "zibal_merchant": "",
-    "zibal_deposit_min": 10000,
-    "zibal_deposit_max": 10000000,
-    "zibal_bonus_enabled": False,
-    "zibal_bonus_percent": 0,
+    # Iranian direct gateways, keyed by provider: see app/services/payments/ir_gateways/config.py
+    "ir_gateways": {},
 }
 
 DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {

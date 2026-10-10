@@ -5,6 +5,7 @@ Payment job orchestration — coordinates payment processors on a schedule.
 import time
 
 from app.jobs.payments import (
+    IrGatewaysProcessor,
     ManualCardProcessor,
     POLProcessor,
     StarsExpiryProcessor,
@@ -13,8 +14,6 @@ from app.jobs.payments import (
     TRXProcessor,
     USDTNetworksProcessor,
     USDTProcessor,
-    ZarinpalProcessor,
-    ZibalProcessor,
 )
 from app.logger import LogTag, get_logger
 
@@ -28,8 +27,7 @@ stars_expiry_processor = StarsExpiryProcessor()
 usdt_networks_processor = USDTNetworksProcessor()
 pol_processor = POLProcessor()
 tonpays_processor = TonPaysProcessor()
-zarinpal_processor = ZarinpalProcessor()
-zibal_processor = ZibalProcessor()
+ir_gateways_processor = IrGatewaysProcessor()
 
 
 async def auto_confirm_job():
@@ -88,20 +86,12 @@ async def tonpays_checking():
     logger.debug(f"{LogTag.JOB} tonpays_checking completed: {elapsed:.2f}s")
 
 
-async def zarinpal_checking():
+async def ir_gateways_checking():
     start_time = time.time()
-    logger.debug("%s zarinpal_checking started", LogTag.JOB)
-    await zarinpal_processor.check_payments()
+    logger.debug("%s ir_gateways_checking started", LogTag.JOB)
+    await ir_gateways_processor.check_payments()
     elapsed = time.time() - start_time
-    logger.debug(f"{LogTag.JOB} zarinpal_checking completed: {elapsed:.2f}s")
-
-
-async def zibal_checking():
-    start_time = time.time()
-    logger.debug("%s zibal_checking started", LogTag.JOB)
-    await zibal_processor.check_payments()
-    elapsed = time.time() - start_time
-    logger.debug(f"{LogTag.JOB} zibal_checking completed: {elapsed:.2f}s")
+    logger.debug(f"{LogTag.JOB} ir_gateways_checking completed: {elapsed:.2f}s")
 
 
 async def expire_star_transactions() -> None:

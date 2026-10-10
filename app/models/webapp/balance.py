@@ -10,6 +10,17 @@ class BalanceMethodsRequest(BaseModel):
     init_data: str | None = None
 
 
+class IrGatewayMethod(BaseModel):
+    """An Iranian direct gateway this user may pay with."""
+
+    key: str
+    title: str
+    sandbox: bool = False
+    deposit_min: int = 0
+    deposit_max: int = 0
+    bonus_percent: int = 0
+
+
 class BalanceMethodsResponse(BaseModel):
     """Balance top-up methods (same as bot)."""
 
@@ -36,16 +47,7 @@ class BalanceMethodsResponse(BaseModel):
     tonpays_deposit_min: int = 0
     tonpays_deposit_max: int = 0
     tonpays_bonus_percent: int = 0
-    zarinpal_enabled: bool = False
-    zarinpal_sandbox: bool = False
-    zarinpal_deposit_min: int = 0
-    zarinpal_deposit_max: int = 0
-    zarinpal_bonus_percent: int = 0
-    zibal_enabled: bool = False
-    zibal_sandbox: bool = False
-    zibal_deposit_min: int = 0
-    zibal_deposit_max: int = 0
-    zibal_bonus_percent: int = 0
+    ir_gateways: list[IrGatewayMethod] = Field(default_factory=list)
     error: str | None = None
 
 
@@ -166,29 +168,35 @@ class BalanceTonPaysInvoiceResponse(BaseModel):
     error: str | None = None
 
 
-class BalanceZarinpalDepositRequest(BaseModel):
-    """Zarinpal deposit: amount in toman."""
+class BalanceIrGatewayDepositRequest(BaseModel):
+    """Iranian gateway deposit: amount in toman."""
 
+    gateway: str = Field(..., min_length=1, max_length=20)
     amount: int = Field(..., ge=1)
     session_token: str | None = None
     init_data: str | None = None
 
 
-class BalanceZarinpalPaymentRequest(BaseModel):
-    """Act on one of the caller's Zarinpal payments by its local id."""
+class BalanceIrGatewayOpenRequest(BaseModel):
+    """The caller's newest pending payment for one gateway."""
+
+    gateway: str = Field(..., min_length=1, max_length=20)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceIrGatewayPaymentRequest(BaseModel):
+    """Act on one of the caller's gateway payments by its local id."""
 
     payment: int = Field(..., ge=1)
     session_token: str | None = None
     init_data: str | None = None
 
 
-class BalanceZarinpalOpenRequest(BaseModel):
-    session_token: str | None = None
-    init_data: str | None = None
-
-
-class ZarinpalPaymentView(BaseModel):
+class IrGatewayPaymentView(BaseModel):
     id: int
+    gateway: str
+    gateway_title: str
     order_id: str
     amount: int
     status: str
@@ -198,47 +206,8 @@ class ZarinpalPaymentView(BaseModel):
     ref_id: str | None = None
 
 
-class BalanceZarinpalPaymentResponse(BaseModel):
+class BalanceIrGatewayPaymentResponse(BaseModel):
     ok: bool
     message: str | None = None
-    payment: ZarinpalPaymentView | None = None
-    error: str | None = None
-
-
-class BalanceZibalDepositRequest(BaseModel):
-    """Zibal deposit: amount in toman."""
-
-    amount: int = Field(..., ge=1)
-    session_token: str | None = None
-    init_data: str | None = None
-
-
-class BalanceZibalPaymentRequest(BaseModel):
-    """Act on one of the caller's Zibal payments by its local id."""
-
-    payment: int = Field(..., ge=1)
-    session_token: str | None = None
-    init_data: str | None = None
-
-
-class BalanceZibalOpenRequest(BaseModel):
-    session_token: str | None = None
-    init_data: str | None = None
-
-
-class ZibalPaymentView(BaseModel):
-    id: int
-    order_id: str
-    amount: int
-    status: str
-    status_label: str
-    sandbox: bool = False
-    payment_url: str | None = None
-    ref_id: str | None = None
-
-
-class BalanceZibalPaymentResponse(BaseModel):
-    ok: bool
-    message: str | None = None
-    payment: ZibalPaymentView | None = None
+    payment: IrGatewayPaymentView | None = None
     error: str | None = None

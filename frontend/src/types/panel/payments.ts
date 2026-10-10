@@ -110,21 +110,38 @@ export interface PanelTonPaysTestRequest extends PanelAuthRequest {
   api_key?: string;
 }
 
-export interface PanelZarinpalResponse extends PanelEnvelope {
+export interface PanelIrGatewayStats {
+  paid_today: number;
+  amount_today: number;
+  open_payments: number;
+  failed_today: number;
+}
+
+export interface PanelIrGatewayRow {
+  key: string;
+  title: string;
   enabled: boolean;
   sandbox: boolean;
-  merchant_masked: string;
-  has_merchant: boolean;
   ready: boolean;
+  has_merchant: boolean;
+  merchant_masked: string;
+  merchant_pattern: string;
+  merchant_hint: string;
+  sandbox_hint: string;
   deposit_min: number;
   deposit_max: number;
   bonus_enabled: boolean;
   bonus_percent: number;
   callback_url?: string | null;
-  stats: PanelTonPaysStats;
+  stats: PanelIrGatewayStats;
 }
 
-export interface PanelZarinpalSaveRequest extends PanelAuthRequest {
+export interface PanelIrGatewaysResponse extends PanelEnvelope {
+  gateways: PanelIrGatewayRow[];
+}
+
+export interface PanelIrGatewaySaveRequest extends PanelAuthRequest {
+  gateway: string;
   enabled?: boolean;
   sandbox?: boolean;
   merchant_id?: string;
@@ -135,37 +152,8 @@ export interface PanelZarinpalSaveRequest extends PanelAuthRequest {
   bonus_percent?: number;
 }
 
-export interface PanelZarinpalTestRequest extends PanelAuthRequest {
+export interface PanelIrGatewayTestRequest extends PanelAuthRequest {
+  gateway: string;
   sandbox: boolean;
   merchant_id?: string;
-}
-
-export interface PanelZibalResponse extends PanelEnvelope {
-  enabled: boolean;
-  sandbox: boolean;
-  merchant_masked: string;
-  has_merchant: boolean;
-  ready: boolean;
-  deposit_min: number;
-  deposit_max: number;
-  bonus_enabled: boolean;
-  bonus_percent: number;
-  callback_url?: string | null;
-  stats: PanelTonPaysStats;
-}
-
-export interface PanelZibalSaveRequest extends PanelAuthRequest {
-  enabled?: boolean;
-  sandbox?: boolean;
-  merchant?: string;
-  clear_merchant?: boolean;
-  deposit_min?: number;
-  deposit_max?: number;
-  bonus_enabled?: boolean;
-  bonus_percent?: number;
-}
-
-export interface PanelZibalTestRequest extends PanelAuthRequest {
-  sandbox: boolean;
-  merchant?: string;
 }

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   CalendarDays,
-  Banknote,
   ChevronLeft,
   Copy,
   CreditCard,
@@ -10,7 +9,6 @@ import {
   Gem,
   HelpCircle,
   KeyRound,
-  Landmark,
   LogOut,
   Percent,
   Phone,
@@ -20,6 +18,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { irGatewayIcon, irGatewayName } from "../../lib/irGateways";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { AppVersion, Avatar, Badge, Button, Card, IconBadge, Modal, SkeletonCard } from "../../components/ui";
@@ -200,17 +199,17 @@ export default function ProfilePage() {
               {!!tx.tonpays?.count && (
                 <TxStat icon={Gem} label={t("profile.tonpays")} count={tx.tonpays.count} total={tx.tonpays.total_amount} />
               )}
-              {!!tx.zarinpal?.count && (
-                <TxStat
-                  icon={Landmark}
-                  label={t("profile.zarinpal")}
-                  count={tx.zarinpal.count}
-                  total={tx.zarinpal.total_amount}
-                />
-              )}
-              {!!tx.zibal?.count && (
-                <TxStat icon={Banknote} label={t("profile.zibal")} count={tx.zibal.count} total={tx.zibal.total_amount} />
-              )}
+              {Object.entries(tx.ir_gateways ?? {})
+                .filter(([, stats]) => stats.count > 0)
+                .map(([key, stats]) => (
+                  <TxStat
+                    key={key}
+                    icon={irGatewayIcon(key)}
+                    label={irGatewayName(key)}
+                    count={stats.count}
+                    total={stats.total_amount}
+                  />
+                ))}
             </div>
           </Card>
 

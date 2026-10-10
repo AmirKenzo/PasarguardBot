@@ -9,8 +9,7 @@ import type {
   BalanceMethodsResponse,
   BalancePhoneRequestResponse,
   BalanceTonPaysInvoiceResponse,
-  BalanceZarinpalPaymentResponse,
-  BalanceZibalPaymentResponse,
+  BalanceIrGatewayPaymentResponse,
   WebAppBalanceMethodsRequest,
 } from "../../types/webapp";
 import type { AuthPayload } from "./client";
@@ -66,26 +65,14 @@ export function sendTonPaysReceipt(auth: AuthPayload, invoice: number, file: Fil
   return apiPostForm<BalanceTonPaysInvoiceResponse>("/balance/tonpays/receipt", form, auth);
 }
 
-export function depositZarinpal(auth: AuthPayload, amount: number) {
-  return apiPost<BalanceZarinpalPaymentResponse>("/balance/deposit/zarinpal", { amount }, auth);
+export function depositIrGateway(auth: AuthPayload, gateway: string, amount: number) {
+  return apiPost<BalanceIrGatewayPaymentResponse>("/balance/ir-gateway/deposit", { gateway, amount }, auth);
 }
 
-export function getOpenZarinpalPayment(auth: AuthPayload) {
-  return apiPost<BalanceZarinpalPaymentResponse>("/balance/zarinpal/open", {}, auth);
+export function getOpenIrGatewayPayment(auth: AuthPayload, gateway: string) {
+  return apiPost<BalanceIrGatewayPaymentResponse>("/balance/ir-gateway/open", { gateway }, auth);
 }
 
-export function checkZarinpalPayment(auth: AuthPayload, payment: number) {
-  return apiPost<BalanceZarinpalPaymentResponse>("/balance/zarinpal/status", { payment }, auth);
-}
-
-export function depositZibal(auth: AuthPayload, amount: number) {
-  return apiPost<BalanceZibalPaymentResponse>("/balance/deposit/zibal", { amount }, auth);
-}
-
-export function getOpenZibalPayment(auth: AuthPayload) {
-  return apiPost<BalanceZibalPaymentResponse>("/balance/zibal/open", {}, auth);
-}
-
-export function checkZibalPayment(auth: AuthPayload, payment: number) {
-  return apiPost<BalanceZibalPaymentResponse>("/balance/zibal/status", { payment }, auth);
+export function checkIrGatewayPayment(auth: AuthPayload, payment: number) {
+  return apiPost<BalanceIrGatewayPaymentResponse>("/balance/ir-gateway/status", { payment }, auth);
 }

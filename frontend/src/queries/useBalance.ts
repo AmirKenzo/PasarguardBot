@@ -3,8 +3,7 @@ import { balanceApi } from "../api/webapp";
 import type { AuthPayload } from "../api/webapp/client";
 import type {
   BalanceTonPaysInvoiceResponse,
-  BalanceZarinpalPaymentResponse,
-  BalanceZibalPaymentResponse,
+  BalanceIrGatewayPaymentResponse,
   CryptoCurrency,
 } from "../types/webapp";
 import { useWebAppAuth } from "../hooks/useWebAppAuth";
@@ -130,18 +129,18 @@ export function useSendTonPaysReceiptMutation() {
   );
 }
 
-export function useOpenZarinpalPaymentQuery(enabled: boolean) {
+export function useOpenIrGatewayPaymentQuery(gateway: string, enabled: boolean) {
   const { auth, ready } = useWebAppAuth();
 
   return useQuery({
-    queryKey: ["zarinpal-open"],
-    queryFn: () => balanceApi.getOpenZarinpalPayment(auth!),
+    queryKey: ["ir-gateway-open", gateway],
+    queryFn: () => balanceApi.getOpenIrGatewayPayment(auth!, gateway),
     enabled: enabled && ready && auth != null,
   });
 }
 
-function useZarinpalAction<TArgs>(
-  fn: (auth: AuthPayload, args: TArgs) => Promise<BalanceZarinpalPaymentResponse>
+function useIrGatewayAction<TArgs>(
+  fn: (auth: AuthPayload, args: TArgs) => Promise<BalanceIrGatewayPaymentResponse>
 ) {
   const { auth } = useWebAppAuth();
   const queryClient = useQueryClient();
@@ -155,41 +154,12 @@ function useZarinpalAction<TArgs>(
   });
 }
 
-export function useDepositZarinpalMutation() {
-  return useZarinpalAction((auth, amount: number) => balanceApi.depositZarinpal(auth, amount));
+export function useDepositIrGatewayMutation() {
+  return useIrGatewayAction((auth, args: { gateway: string; amount: number }) =>
+    balanceApi.depositIrGateway(auth, args.gateway, args.amount)
+  );
 }
 
-export function useCheckZarinpalMutation() {
-  return useZarinpalAction((auth, payment: number) => balanceApi.checkZarinpalPayment(auth, payment));
-}
-
-export function useOpenZibalPaymentQuery(enabled: boolean) {
-  const { auth, ready } = useWebAppAuth();
-
-  return useQuery({
-    queryKey: ["zibal-open"],
-    queryFn: () => balanceApi.getOpenZibalPayment(auth!),
-    enabled: enabled && ready && auth != null,
-  });
-}
-
-function useZibalAction<TArgs>(fn: (auth: AuthPayload, args: TArgs) => Promise<BalanceZibalPaymentResponse>) {
-  const { auth } = useWebAppAuth();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (args: TArgs) => fn(auth!, args),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["profile"] });
-      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    },
-  });
-}
-
-export function useDepositZibalMutation() {
-  return useZibalAction((auth, amount: number) => balanceApi.depositZibal(auth, amount));
-}
-
-export function useCheckZibalMutation() {
-  return useZibalAction((auth, payment: number) => balanceApi.checkZibalPayment(auth, payment));
+export function useCheckIrGatewayMutation() {
+  return useIrGatewayAction((auth, payment: number) => balanceApi.checkIrGatewayPayment(auth, payment));
 }

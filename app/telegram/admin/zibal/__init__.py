@@ -1,1 +1,0 @@
-"""Admin Zibal gateway settings."""

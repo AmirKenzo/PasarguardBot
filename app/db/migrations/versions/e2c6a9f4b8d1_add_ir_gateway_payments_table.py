@@ -1,7 +1,7 @@
-"""add zibal payments table
+"""add ir gateway payments table
 
-Revision ID: d4a8c2e6f1b7
-Revises: b9e3f7a1c5d2
+Revision ID: e2c6a9f4b8d1
+Revises: c8d4f2a6e9b3
 Create Date: 2026-10-10 00:00:00.000000
 
 """
@@ -14,17 +14,17 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "d4a8c2e6f1b7"
-down_revision: str | None = "b9e3f7a1c5d2"
+revision: str = "e2c6a9f4b8d1"
+down_revision: str | None = "c8d4f2a6e9b3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-TABLE = "zibal_payments"
+TABLE = "ir_gateway_payments"
 INDEXES = (
-    ("ix_zibal_order_id", ["order_id"], True),
-    ("ix_zibal_track_id", ["track_id"], False),
-    ("ix_zibal_user_status", ["user_id", "status"], False),
-    ("ix_zibal_status", ["status"], False),
+    ("ix_irgw_order_id", ["order_id"], True),
+    ("ix_irgw_gateway_authority", ["gateway", "authority"], False),
+    ("ix_irgw_user_status", ["user_id", "status"], False),
+    ("ix_irgw_status", ["status"], False),
 )
 
 
@@ -37,15 +37,16 @@ def upgrade() -> None:
         op.create_table(
             TABLE,
             sa.Column("id", sa.BigInteger(), autoincrement=False, nullable=False),
-            sa.Column("order_id", sa.String(length=20), nullable=False),
-            sa.Column("track_id", sa.String(length=64), nullable=True),
+            sa.Column("gateway", sa.String(length=20), nullable=False),
+            sa.Column("order_id", sa.String(length=24), nullable=False),
+            sa.Column("authority", sa.String(length=64), nullable=True),
             sa.Column("user_id", sa.BigInteger(), nullable=False),
             sa.Column("sandbox", sa.Boolean(), nullable=False, server_default=sa.false()),
             sa.Column("source", sa.String(length=10), nullable=False, server_default="bot"),
             sa.Column("amount", sa.BigInteger(), nullable=False),
             sa.Column("credited_amount", sa.BigInteger(), nullable=True),
             sa.Column("status", sa.String(length=20), nullable=False, server_default="pending"),
-            sa.Column("ref_id", sa.String(length=32), nullable=True),
+            sa.Column("ref_id", sa.String(length=64), nullable=True),
             sa.Column("card_pan", sa.String(length=32), nullable=True),
             sa.Column("message_id", sa.BigInteger(), nullable=True),
             sa.Column("created_at", sa.BigInteger(), nullable=False),

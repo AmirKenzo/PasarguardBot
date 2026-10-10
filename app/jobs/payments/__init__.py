@@ -6,6 +6,7 @@ Each processor handles checking and confirming payments for a specific payment t
 """
 
 from app.jobs.payments.base import BasePaymentProcessor
+from app.jobs.payments.ir_gateways import IrGatewaysProcessor
 from app.jobs.payments.manual_card import ManualCardProcessor
 from app.jobs.payments.pol import POLProcessor
 from app.jobs.payments.stars import StarsExpiryProcessor
@@ -14,11 +15,10 @@ from app.jobs.payments.tonpays import TonPaysProcessor
 from app.jobs.payments.trx import TRXProcessor
 from app.jobs.payments.usdt import USDTProcessor
 from app.jobs.payments.usdt_networks import USDTNetworksProcessor
-from app.jobs.payments.zarinpal import ZarinpalProcessor
-from app.jobs.payments.zibal import ZibalProcessor
 
 __all__ = [
     "BasePaymentProcessor",
+    "IrGatewaysProcessor",
     "ManualCardProcessor",
     "POLProcessor",
     "StarsExpiryProcessor",
@@ -27,6 +27,4 @@ __all__ = [
     "TonPaysProcessor",
     "USDTNetworksProcessor",
     "USDTProcessor",
-    "ZarinpalProcessor",
-    "ZibalProcessor",
 ]

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { IR_GATEWAYS, irGatewayName } from "../../lib/irGateways";
 import {
   Banknote,
   Calendar,
@@ -10,7 +11,6 @@ import {
   Coins,
   CreditCard,
   Gem,
-  Landmark,
   Star,
   Eye,
   Filter,
@@ -40,8 +40,7 @@ const METHOD_ICONS: Record<string, LucideIcon> = {
   crypto: Coins,
   stars: Star,
   tonpays: Gem,
-  zarinpal: Landmark,
-  zibal: Banknote,
+  ...Object.fromEntries(IR_GATEWAYS.map((gateway) => [gateway.key, gateway.icon])),
 };
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "muted" | "primary"> = {
@@ -65,8 +64,7 @@ const methodLabels = (t: TFunction): Record<string, string> => ({
   crypto: t("panel.transactions.methodCrypto"),
   stars: t("panel.transactions.methodStars"),
   tonpays: t("panel.transactions.methodTonpays"),
-  zarinpal: t("panel.transactions.methodZarinpal"),
-  zibal: t("panel.transactions.methodZibal"),
+  ...Object.fromEntries(IR_GATEWAYS.map((gateway) => [gateway.key, irGatewayName(gateway.key)])),
 });
 
 const statusLabels = (t: TFunction): Record<string, string> => ({
@@ -94,8 +92,7 @@ const methodOptions = (t: TFunction) => [
   { value: "crypto", label: t("panel.transactions.methodCrypto"), icon: Coins },
   { value: "stars", label: t("panel.transactions.methodStars"), icon: Star },
   { value: "tonpays", label: t("panel.transactions.methodTonpays"), icon: Gem },
-  { value: "zarinpal", label: t("panel.transactions.methodZarinpal"), icon: Landmark },
-  { value: "zibal", label: t("panel.transactions.methodZibal"), icon: Banknote },
+  ...IR_GATEWAYS.map((gateway) => ({ value: gateway.key, label: irGatewayName(gateway.key), icon: gateway.icon })),
 ];
 
 const dayOptions = (t: TFunction) => [

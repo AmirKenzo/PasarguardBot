@@ -11,6 +11,7 @@ from sqlalchemy import BigInteger, String, case, cast, func, literal, or_, selec
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.cryptopayments import CryptoPayments
 from app.db.models.discount_codes import DiscountCode
+from app.db.models.ir_gateway_payment import IrGatewayPayment
 from app.db.models.panels import Panels
 from app.db.models.plans import Plan
 from app.db.models.referral import ReferralReward
@@ -23,8 +24,6 @@ from app.db.models.stars_transaction import StarsTransaction
 from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
 from app.db.models.user import User
-from app.db.models.zarinpal_payment import ZarinpalPayment
-from app.db.models.zibal_payment import ZibalPayment
 from app.services.billing import payment_stats
 
 INACTIVE_STATUSES = ("ban", "BlockedBot", "DeleteAccount")
@@ -334,45 +333,28 @@ def _tonpays_branch():
     )
 
 
-def _zarinpal_branch():
+def _ir_gateways_branch():
+    """Every Iranian direct gateway in one branch; the gateway key is the method."""
     normalized_status = case(
-        (ZarinpalPayment.status == "completed", "approved"),
-        (ZarinpalPayment.status == "pending", "pending"),
-        (ZarinpalPayment.status == "failed", "rejected"),
+        (IrGatewayPayment.status == "completed", "approved"),
+        (IrGatewayPayment.status == "pending", "pending"),
+        (IrGatewayPayment.status == "failed", "rejected"),
         else_="expired",
     )
     return select(
-        cast(ZarinpalPayment.id, String).label("raw_id"),
-        literal("zarinpal").label("source"),
-        literal("zarinpal").label("method"),
-        ZarinpalPayment.user_id.label("user_id"),
-        cast(ZarinpalPayment.amount, BigInteger).label("amount"),
+        cast(IrGatewayPayment.id, String).label("raw_id"),
+        IrGatewayPayment.gateway.label("source"),
+        IrGatewayPayment.gateway.label("method"),
+        IrGatewayPayment.user_id.label("user_id"),
+        cast(IrGatewayPayment.amount, BigInteger).label("amount"),
         normalized_status.label("status"),
-        ZarinpalPayment.created_at.label("created_at"),
-    )
-
-
-def _zibal_branch():
-    normalized_status = case(
-        (ZibalPayment.status == "completed", "approved"),
-        (ZibalPayment.status == "pending", "pending"),
-        (ZibalPayment.status == "failed", "rejected"),
-        else_="expired",
-    )
-    return select(
-        cast(ZibalPayment.id, String).label("raw_id"),
-        literal("zibal").label("source"),
-        literal("zibal").label("method"),
-        ZibalPayment.user_id.label("user_id"),
-        cast(ZibalPayment.amount, BigInteger).label("amount"),
-        normalized_status.label("status"),
-        ZibalPayment.created_at.label("created_at"),
+        IrGatewayPayment.created_at.label("created_at"),
     )
 
 
 def _unified(name: str):
     return union_all(
-        _tx_branch(), _crypto_branch(), _stars_branch(), _tonpays_branch(), _zarinpal_branch(), _zibal_branch()
+        _tx_branch(), _crypto_branch(), _stars_branch(), _tonpays_branch(), _ir_gateways_branch()
     ).subquery(name)
 
 

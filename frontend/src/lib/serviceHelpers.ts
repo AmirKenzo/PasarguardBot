@@ -1,4 +1,5 @@
 import i18n from "../i18n";
+import { irGatewayName, isIrGateway } from "./irGateways";
 import { formatBytes } from "./format";
 
 type BadgeTone = "success" | "warning" | "danger" | "muted";
@@ -35,6 +36,7 @@ export function statusTone(status: string | null): { icon: string; chip: string;
 
 export function transactionTypeLabel(typeKey: string, currency?: string | null): string {
   if (typeKey === "crypto") return i18n.t("transaction.crypto", { currency: currency || "" });
+  if (isIrGateway(typeKey)) return irGatewayName(typeKey);
   return i18n.t(`transaction.${typeKey}`, i18n.t("transaction.manual_card"));
 }
 

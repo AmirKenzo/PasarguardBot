@@ -98,22 +98,8 @@ HIDDEN_FIELDS: frozenset[str] = frozenset(
         "tonpays_deposit_max",
         "tonpays_bonus_enabled",
         "tonpays_bonus_percent",
-        # Managed from the Zarinpal tab of the payments page.
-        "zarinpal_enabled",
-        "zarinpal_sandbox",
-        "zarinpal_merchant_id",
-        "zarinpal_deposit_min",
-        "zarinpal_deposit_max",
-        "zarinpal_bonus_enabled",
-        "zarinpal_bonus_percent",
-        # Managed from the Zibal tab of the payments page.
-        "zibal_enabled",
-        "zibal_sandbox",
-        "zibal_merchant",
-        "zibal_deposit_min",
-        "zibal_deposit_max",
-        "zibal_bonus_enabled",
-        "zibal_bonus_percent",
+        # Managed from the Iranian gateways tab of the payments page.
+        "ir_gateways",
     }
 )
 
@@ -125,8 +111,6 @@ TEXT_FIELD_KEYS: frozenset[str] = frozenset(
         "cart_name",
         "tonpays_api_key",
         "tonpays_custom_key",
-        "zarinpal_merchant_id",
-        "zibal_merchant",
     }
 )
 

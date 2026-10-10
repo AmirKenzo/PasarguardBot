@@ -19,6 +19,7 @@ from app.models.panel.reports import (
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
 from app.services.billing import payment_stats
+from app.services.payments.ir_gateways.providers import GATEWAYS
 
 router = APIRouter()
 
@@ -85,8 +86,7 @@ async def reports(payload: PanelReportsRequest, request: Request) -> PanelReport
                 crypto_approved_sum=paid["crypto"]["total_amount"],
                 stars_approved_sum=paid["stars"]["total_amount"],
                 tonpays_approved_sum=paid["tonpays"]["total_amount"],
-                zarinpal_approved_sum=paid["zarinpal"]["total_amount"],
-                zibal_approved_sum=paid["zibal"]["total_amount"],
+                ir_gateway_sums={key: paid[key]["total_amount"] for key in GATEWAYS},
                 total_revenue=paid["total"]["total_amount"],
                 pending_sum=int(breakdown.get("manual_pending_total_sum", 0)),
                 pending_count=int(breakdown.get("manual_pending_total_count", 0)),

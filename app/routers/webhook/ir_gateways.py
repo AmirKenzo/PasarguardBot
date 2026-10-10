@@ -1,43 +1,45 @@
-"""Zarinpal return URL: the buyer's browser lands here after paying (or canceling) on Zarinpal.
+"""Return URL for every Iranian direct gateway: /api/payments/<gateway>/callback.
 
-The query string is never trusted; `handle_callback` re-verifies the payment with Zarinpal.
+The buyer's browser lands here after paying (or canceling). The query string is never trusted:
+`handle_callback` re-verifies the payment with the gateway before anything is credited.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.logger import get_logger
 from app.routers.webhook.payment_page import ResultView, render_result_page, return_links
-from app.services.payments.zarinpal import ZarinpalError, handle_callback, status_label
+from app.services.payments.ir_gateways.providers import GATEWAYS, GatewayError
+from app.services.payments.ir_gateways.service import handle_callback, status_label
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
-GATEWAY_NAME = "زرین‌پال"
+_MAX_PARAM_LENGTH = 128
 
 
-@router.get("/payments/zarinpal/callback", response_class=HTMLResponse)
-async def zarinpal_callback(
-    authority: str = Query("", alias="Authority", max_length=64),
-    status: str = Query("", alias="Status", max_length=8),
-) -> HTMLResponse:
+@router.get("/payments/{gateway}/callback", response_class=HTMLResponse)
+async def ir_gateway_callback(gateway: str, request: Request) -> HTMLResponse:
+    provider = GATEWAYS.get(gateway)
+    if provider is None:
+        raise HTTPException(status_code=404, detail="Unknown gateway")
+    query = {key: value[:_MAX_PARAM_LENGTH] for key, value in request.query_params.items()}
     links = await return_links()
 
-    authority = authority.strip()
+    authority, _ = provider.parse_callback(query)
     if not authority:
-        return render_result_page(
-            ResultView("danger", "درخواست نامعتبر", "شناسه پرداخت در این لینک وجود ندارد."), links, GATEWAY_NAME
-        )
+        view = ResultView("danger", "درخواست نامعتبر", "شناسه پرداخت در این لینک وجود ندارد.")
+        return render_result_page(view, links, provider.title)
     try:
-        payment = await handle_callback(authority, status)
-    except ZarinpalError as e:
-        logger.warning("Zarinpal callback for %s failed: %s", authority, e.message)
+        payment = await handle_callback(gateway, query)
+    except GatewayError as e:
+        logger.warning("%s callback for %s failed: %s", gateway, authority, e.message)
         payment = None
     except Exception:
-        logger.exception("Zarinpal callback for %s crashed", authority)
+        logger.exception("%s callback for %s crashed", gateway, authority)
         payment = None
 
     if payment is None:
@@ -47,7 +49,7 @@ async def zarinpal_callback(
             "این پرداخت در ربات ثبت نشده یا بررسی آن با خطا روبه‌رو شد.",
             note="اگر مبلغی از حساب شما کسر شده، از داخل ربات «بررسی پرداخت» را بزنید یا با پشتیبانی تماس بگیرید.",
         )
-        return render_result_page(view, links, GATEWAY_NAME)
+        return render_result_page(view, links, provider.title)
 
     order_row = ("شناسه سفارش", payment.order_id, True)
     if payment.status == "completed":
@@ -82,4 +84,4 @@ async def zarinpal_callback(
             note="اگر مبلغی از حساب شما کسر شده، طبق قوانین بانکی حداکثر تا ۷۲ ساعت به حساب‌تان برمی‌گردد.",
             sandbox=payment.sandbox,
         )
-    return render_result_page(view, links, GATEWAY_NAME)
+    return render_result_page(view, links, provider.title)

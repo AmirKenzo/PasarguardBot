@@ -61,8 +61,8 @@ export interface TransactionStatsSummary {
   crypto: TransactionStats;
   stars?: TransactionStats;
   tonpays?: TransactionStats;
-  zarinpal?: TransactionStats;
-  zibal?: TransactionStats;
+  /** Iranian direct gateways keyed by provider (zarinpal, zibal, ...). */
+  ir_gateways?: Record<string, TransactionStats>;
 }
 
 export interface DiscountInfo {

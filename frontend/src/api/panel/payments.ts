@@ -12,12 +12,9 @@ import type {
   PanelTonPaysTestRequest,
   PanelWalletCreateRequest,
   PanelWalletDeleteRequest,
-  PanelZarinpalResponse,
-  PanelZarinpalSaveRequest,
-  PanelZarinpalTestRequest,
-  PanelZibalResponse,
-  PanelZibalSaveRequest,
-  PanelZibalTestRequest,
+  PanelIrGatewaySaveRequest,
+  PanelIrGatewaysResponse,
+  PanelIrGatewayTestRequest,
 } from "../../types/panel";
 import { panelPost } from "./client";
 
@@ -69,26 +66,14 @@ export function testTonPays(body: PanelTonPaysTestRequest) {
   return panelPost<ActionResponse>("/payments/tonpays/test", body);
 }
 
-export function getZarinpal(body: PanelAuthRequest) {
-  return panelPost<PanelZarinpalResponse>("/payments/zarinpal", body);
+export function getIrGateways(body: PanelAuthRequest) {
+  return panelPost<PanelIrGatewaysResponse>("/payments/ir-gateways", body);
 }
 
-export function saveZarinpal(body: PanelZarinpalSaveRequest) {
-  return panelPost<ActionResponse>("/payments/zarinpal/save", body);
+export function saveIrGateway(body: PanelIrGatewaySaveRequest) {
+  return panelPost<ActionResponse>("/payments/ir-gateways/save", body);
 }
 
-export function testZarinpal(body: PanelZarinpalTestRequest) {
-  return panelPost<ActionResponse>("/payments/zarinpal/test", body);
-}
-
-export function getZibal(body: PanelAuthRequest) {
-  return panelPost<PanelZibalResponse>("/payments/zibal", body);
-}
-
-export function saveZibal(body: PanelZibalSaveRequest) {
-  return panelPost<ActionResponse>("/payments/zibal/save", body);
-}
-
-export function testZibal(body: PanelZibalTestRequest) {
-  return panelPost<ActionResponse>("/payments/zibal/test", body);
+export function testIrGateway(body: PanelIrGatewayTestRequest) {
+  return panelPost<ActionResponse>("/payments/ir-gateways/test", body);
 }
