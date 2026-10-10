@@ -78,6 +78,7 @@ class TransactionStatsSummary(BaseModel):
     crypto: TransactionStats
     stars: TransactionStats = TransactionStats(count=0, total_amount=0)
     tonpays: TransactionStats = TransactionStats(count=0, total_amount=0)
+    zarinpal: TransactionStats = TransactionStats(count=0, total_amount=0)
 
 
 class DiscountInfo(BaseModel):

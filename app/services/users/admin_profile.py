@@ -40,6 +40,7 @@ _PAYMENT_LINE_LABELS: tuple[tuple[str, str], ...] = (
     ("crypto", "💰 تراکنش‌های ارزی"),
     ("stars", "⭐ استارز"),
     ("tonpays", "💎 TonPays"),
+    ("zarinpal", "🟡 زرین‌پال"),
 )
 
 

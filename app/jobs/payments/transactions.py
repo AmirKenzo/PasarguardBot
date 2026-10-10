@@ -13,6 +13,7 @@ from app.jobs.payments import (
     TRXProcessor,
     USDTNetworksProcessor,
     USDTProcessor,
+    ZarinpalProcessor,
 )
 from app.logger import LogTag, get_logger
 
@@ -26,6 +27,7 @@ stars_expiry_processor = StarsExpiryProcessor()
 usdt_networks_processor = USDTNetworksProcessor()
 pol_processor = POLProcessor()
 tonpays_processor = TonPaysProcessor()
+zarinpal_processor = ZarinpalProcessor()
 
 
 async def auto_confirm_job():
@@ -82,6 +84,14 @@ async def tonpays_checking():
     await tonpays_processor.check_payments()
     elapsed = time.time() - start_time
     logger.debug(f"{LogTag.JOB} tonpays_checking completed: {elapsed:.2f}s")
+
+
+async def zarinpal_checking():
+    start_time = time.time()
+    logger.debug("%s zarinpal_checking started", LogTag.JOB)
+    await zarinpal_processor.check_payments()
+    elapsed = time.time() - start_time
+    logger.debug(f"{LogTag.JOB} zarinpal_checking completed: {elapsed:.2f}s")
 
 
 async def expire_star_transactions() -> None:

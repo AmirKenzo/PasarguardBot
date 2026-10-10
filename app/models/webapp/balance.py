@@ -36,6 +36,11 @@ class BalanceMethodsResponse(BaseModel):
     tonpays_deposit_min: int = 0
     tonpays_deposit_max: int = 0
     tonpays_bonus_percent: int = 0
+    zarinpal_enabled: bool = False
+    zarinpal_sandbox: bool = False
+    zarinpal_deposit_min: int = 0
+    zarinpal_deposit_max: int = 0
+    zarinpal_bonus_percent: int = 0
     error: str | None = None
 
 
@@ -153,4 +158,43 @@ class BalanceTonPaysInvoiceResponse(BaseModel):
     ok: bool
     message: str | None = None
     invoice: TonPaysInvoiceView | None = None
+    error: str | None = None
+
+
+class BalanceZarinpalDepositRequest(BaseModel):
+    """Zarinpal deposit: amount in toman."""
+
+    amount: int = Field(..., ge=1)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceZarinpalPaymentRequest(BaseModel):
+    """Act on one of the caller's Zarinpal payments by its local id."""
+
+    payment: int = Field(..., ge=1)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceZarinpalOpenRequest(BaseModel):
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class ZarinpalPaymentView(BaseModel):
+    id: int
+    order_id: str
+    amount: int
+    status: str
+    status_label: str
+    sandbox: bool = False
+    payment_url: str | None = None
+    ref_id: str | None = None
+
+
+class BalanceZarinpalPaymentResponse(BaseModel):
+    ok: bool
+    message: str | None = None
+    payment: ZarinpalPaymentView | None = None
     error: str | None = None

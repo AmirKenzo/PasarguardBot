@@ -203,7 +203,8 @@
       "genericError": "Failed to generate the API key"
     },
     "stars": "Stars",
-    "tonpays": "TonPays"
+    "tonpays": "TonPays",
+    "zarinpal": "Zarinpal"
   },
   "balanceHub": {
     "title": "Wallet",
@@ -220,6 +221,9 @@
     "tonpaysPay": "Online payment (TonPays)",
     "tonpaysDesc": "Pay in the TonPays bot, confirmed automatically",
     "tonpaysCustomDesc": "Card transfer with automatic confirmation",
+    "zarinpalPay": "Zarinpal online payment",
+    "zarinpalDesc": "Pay with any Shetab bank card",
+    "zarinpalSandboxDesc": "Test mode (sandbox) — admins only, no real payment",
     "bonus": " • {{percent}}% bonus"
   },
   "cryptoDeposit": {
@@ -307,6 +311,21 @@
     "newInvoice": "Create a new invoice",
     "copyCard": "Copy card",
     "copied": "Copied"
+  },
+  "zarinpalDeposit": {
+    "title": "Pay with Zarinpal",
+    "sandboxNote": "The gateway is in test mode (sandbox): no real payment is made and only admins can see this method.",
+    "orderId": "Order ID",
+    "paidTitle": "Payment succeeded and your wallet was charged",
+    "refId": "Reference ID",
+    "chargeAmount": "Top-up amount",
+    "payButton": "Go to payment page",
+    "checkButton": "Check payment",
+    "autoCheckNote": "The status is checked automatically after you pay.",
+    "newPayment": "New payment",
+    "submitButton": "Create payment link",
+    "paidToast": "Payment confirmed and balance charged.",
+    "notPaidYet": "No payment has been recorded yet."
   },
   "extendTime": {
     "title": "Extend Time",
@@ -499,6 +518,7 @@
     "manual_card": "Manual Card Deposit",
     "crypto": "Crypto Transaction ({{currency}})",
     "tonpays": "Online payment (TonPays)",
+    "zarinpal": "Zarinpal",
     "stars": "Stars payment"
   },
   "common": {
@@ -758,7 +778,8 @@
       "statRejected7d": "Rejected (7d)",
       "statVolume7d": "Approved volume (7d)",
       "methodStars": "Stars",
-      "methodTonpays": "TonPays"
+      "methodTonpays": "TonPays",
+      "methodZarinpal": "Zarinpal"
     },
     "pwa": {
       "tab": "PWA",
@@ -1115,7 +1136,8 @@
       "walletDeleteConfirm": "Delete the {{type}} wallet?",
       "tabCrypto": "Crypto wallets",
       "tabManual": "Manual card transfer",
-      "tabTonPays": "TonPays"
+      "tabTonPays": "TonPays",
+      "tabZarinpal": "Zarinpal"
     },
     "resellers": {
       "telegram": "Telegram",
@@ -1436,7 +1458,8 @@
       "period": "Time range",
       "cryptoTopUp": "Crypto top-up",
       "starsTopUp": "Stars top-up",
-      "tonpaysTopUp": "TonPays top-up"
+      "tonpaysTopUp": "TonPays top-up",
+      "zarinpalTopUp": "Zarinpal top-ups"
     },
     "texts": {
       "subtitle": "Write your own text for any part of the bot. When a text isn’t set, the bot shows its default.",
@@ -1669,6 +1692,38 @@
       "webhookHint": "Register this URL in the TonPays panel so payments are confirmed instantly.",
       "rangeError": "Maximum must be at least the minimum.",
       "save": "Save changes"
+    },
+    "zarinpal": {
+      "title": "Zarinpal gateway",
+      "modeSandbox": "Test mode (sandbox)",
+      "modeLive": "Live mode",
+      "merchantSet": "Merchant ID set",
+      "merchantMissing": "No merchant ID",
+      "enabled": "Enabled",
+      "statusSandbox": "Active (test)",
+      "statusActive": "Active",
+      "statusNotReady": "Not ready",
+      "statusOff": "Off",
+      "openPayments": "Open payments",
+      "connection": "Connection",
+      "connectionHint": "Test mode works without a Zarinpal account; live mode needs a merchant ID.",
+      "mode": "Gateway mode",
+      "sandbox": "Test (sandbox)",
+      "live": "Live",
+      "sandboxHint": "Payments are simulated and the button is shown to admins only.",
+      "liveHint": "Real payments; the button is shown to every user.",
+      "merchantId": "Merchant ID",
+      "merchantInvalid": "The merchant ID must be a 36-character UUID.",
+      "merchantEmptyHint": "Leaving it empty is fine in test mode.",
+      "testConnection": "Test connection",
+      "connected": "Connected.",
+      "notConnected": "Connection failed.",
+      "rangeError": "Maximum amount must be greater than the minimum.",
+      "callback": "Return URL (callback)",
+      "noCallback": "WEBAPP_URL is not set with https; Zarinpal cannot work without a return URL.",
+      "callbackHint": "Sent to Zarinpal automatically; its domain must be registered in your Zarinpal panel.",
+      "sandboxNote": "In test mode payments go through the Zarinpal sandbox and only admins can try them. A test payment charges the admin's balance but is never counted as revenue.",
+      "save": "Save Zarinpal settings"
     },
     "resellerHub": {
       "title": "Pasarguard panel resellers",

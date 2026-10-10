@@ -109,3 +109,33 @@ export interface PanelTonPaysTestRequest extends PanelAuthRequest {
   mode: PanelTonPaysMode;
   api_key?: string;
 }
+
+export interface PanelZarinpalResponse extends PanelEnvelope {
+  enabled: boolean;
+  sandbox: boolean;
+  merchant_masked: string;
+  has_merchant: boolean;
+  ready: boolean;
+  deposit_min: number;
+  deposit_max: number;
+  bonus_enabled: boolean;
+  bonus_percent: number;
+  callback_url?: string | null;
+  stats: PanelTonPaysStats;
+}
+
+export interface PanelZarinpalSaveRequest extends PanelAuthRequest {
+  enabled?: boolean;
+  sandbox?: boolean;
+  merchant_id?: string;
+  clear_merchant?: boolean;
+  deposit_min?: number;
+  deposit_max?: number;
+  bonus_enabled?: boolean;
+  bonus_percent?: number;
+}
+
+export interface PanelZarinpalTestRequest extends PanelAuthRequest {
+  sandbox: boolean;
+  merchant_id?: string;
+}

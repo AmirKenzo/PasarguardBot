@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronLeft, CreditCard, DollarSign, Gem, History, Star } from "lucide-react";
+import { ChevronLeft, CreditCard, DollarSign, Gem, History, Landmark, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Card, EmptyState, IconBadge } from "../../components/ui";
@@ -48,6 +48,16 @@ export default function BalanceHubPage() {
               )}${bonusText(methods.tonpays_bonus_percent, t)}`}
             />
           )}
+          {methods.zarinpal_enabled && (
+            <MethodLink
+              to="/balance/zarinpal"
+              icon={Landmark}
+              title={`${methods.zarinpal_sandbox ? "🧪 " : ""}${t("balanceHub.zarinpalPay")}`}
+              description={`${t(
+                methods.zarinpal_sandbox ? "balanceHub.zarinpalSandboxDesc" : "balanceHub.zarinpalDesc"
+              )}${bonusText(methods.zarinpal_bonus_percent, t)}`}
+            />
+          )}
           {methods.cart_sta && (
             <MethodLink
               to="/balance/stars"
@@ -79,7 +89,9 @@ export default function BalanceHubPage() {
 }
 
 function hasAnyMethod(methods: NonNullable<ReturnType<typeof useBalanceMethodsQuery>["data"]>) {
-  return methods.pay_mode || methods.arz_mode || methods.cart_sta || methods.tonpays_enabled;
+  return (
+    methods.pay_mode || methods.arz_mode || methods.cart_sta || methods.tonpays_enabled || methods.zarinpal_enabled
+  );
 }
 
 function bonusText(percent: number, t: (key: string, opts?: Record<string, unknown>) => string) {

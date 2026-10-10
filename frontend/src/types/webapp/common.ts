@@ -61,6 +61,7 @@ export interface TransactionStatsSummary {
   crypto: TransactionStats;
   stars?: TransactionStats;
   tonpays?: TransactionStats;
+  zarinpal?: TransactionStats;
 }
 
 export interface DiscountInfo {

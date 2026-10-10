@@ -16,6 +16,7 @@ STEP_CRYPTO_POL_2 = "CryptoPayments_POL_2"
 STEP_STARS_2 = "StarsPayment_2"
 STEP_TONPAYS_2 = "TonPaysPayment_2"
 STEP_TONPAYS_RECEIPT = "TonPaysPayment_receipt"
+STEP_ZARINPAL_2 = "ZarinpalPayment_2"
 STEP_CONF_NUMBER = "conf_number"
 STEP_HOME = "home"
 STEP_START = "start"
@@ -35,6 +36,7 @@ BALANCE_FLOW_CANCEL_STEPS = frozenset(
         STEP_STARS_2,
         STEP_TONPAYS_2,
         STEP_TONPAYS_RECEIPT,
+        STEP_ZARINPAL_2,
     }
 )
 
@@ -54,6 +56,8 @@ CALLBACK_TONPAYS = "TonPaysPayment"
 CALLBACK_TONPAYS_CHECK_PREFIX = "tonpays_check:"
 CALLBACK_TONPAYS_CARD_PREFIX = "tonpays_card:"
 CALLBACK_TONPAYS_RECEIPT_PREFIX = "tonpays_receipt:"
+CALLBACK_ZARINPAL = "ZarinpalPayment"
+CALLBACK_ZARINPAL_CHECK_PREFIX = "zarinpal_check:"
 CALLBACK_CART_PAYMENT = "cart_payment"
 CALLBACK_CART_PAYMENT_SENDPHOTO = "cart_payment_sendphoto"
 CALLBACK_FLOW_CANCEL = "balance_flow_cancel"

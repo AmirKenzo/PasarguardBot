@@ -12,6 +12,7 @@ from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.tonpays_invoices import tonpays_stats_since
 from app.db.crud.wallets import WalletCRUD
+from app.db.crud.zarinpal_payments import zarinpal_stats_since
 from app.models.panel.common import ActionResponse, PanelRequest
 from app.models.panel.payments import (
     WALLET_TYPES,
@@ -30,11 +31,15 @@ from app.models.panel.payments import (
     PanelWalletCreateRequest,
     PanelWalletDeleteRequest,
     PanelWalletRow,
+    PanelZarinpalResponse,
+    PanelZarinpalSaveRequest,
+    PanelZarinpalTestRequest,
 )
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
 from app.services.billing import payment_stats
+from app.services.payments import zarinpal_config
 from app.services.payments.tonpays import test_connection
 from app.services.payments.tonpays_config import (
     api_key_for,
@@ -44,6 +49,7 @@ from app.services.payments.tonpays_config import (
     is_ready,
     mask_key,
 )
+from app.services.payments.zarinpal import test_connection as zarinpal_test_connection
 
 router = APIRouter()
 
@@ -307,6 +313,97 @@ async def tonpays_test(payload: PanelTonPaysTestRequest, request: Request) -> Ac
             return ActionResponse(ok=False, error="کلید این نوع درگاه ثبت نشده است.")
         started = time.monotonic()
         ok, message = await test_connection(key, payload.mode)
+        elapsed = int((time.monotonic() - started) * 1000)
+        return ActionResponse(ok=ok, message=f"{message} ({elapsed}ms)" if ok else None, error=None if ok else message)
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/payments/zarinpal", response_model=PanelZarinpalResponse)
+async def zarinpal_overview(payload: PanelRequest, request: Request) -> PanelZarinpalResponse:
+    async def handle(_: PanelActor) -> PanelZarinpalResponse:
+        settings = await SettingsManager().get_settings()
+        if settings is None:
+            return PanelZarinpalResponse(ok=False, error="تنظیمات ربات هنوز ساخته نشده است.")
+        merchant = zarinpal_config.stored_merchant_id(settings)
+        deposit_min, deposit_max = zarinpal_config.deposit_limits(settings)
+        return PanelZarinpalResponse(
+            enabled=bool(settings.zarinpal_enabled),
+            sandbox=zarinpal_config.is_sandbox(settings),
+            merchant_masked=zarinpal_config.mask_merchant(merchant),
+            has_merchant=bool(merchant),
+            ready=zarinpal_config.is_ready(settings),
+            deposit_min=deposit_min,
+            deposit_max=deposit_max,
+            bonus_enabled=bool(settings.zarinpal_bonus_enabled),
+            bonus_percent=int(settings.zarinpal_bonus_percent or 0),
+            callback_url=zarinpal_config.callback_url(),
+            stats=PanelTonPaysStats(**await zarinpal_stats_since(_start_of_today())),
+        )
+
+    return await guard.run(payload, request, PanelZarinpalResponse, handle)
+
+
+@router.post("/panel/payments/zarinpal/save", response_model=ActionResponse)
+async def zarinpal_save(payload: PanelZarinpalSaveRequest, request: Request) -> ActionResponse:
+    async def handle(actor: PanelActor) -> ActionResponse:
+        manager = SettingsManager()
+        settings = await manager.get_settings()
+        if settings is None:
+            return ActionResponse(ok=False, error="تنظیمات ربات هنوز ساخته نشده است.")
+        updates: dict = {}
+        if payload.enabled is not None:
+            updates["zarinpal_enabled"] = payload.enabled
+        merchant = zarinpal_config.stored_merchant_id(settings)
+        if payload.clear_merchant:
+            merchant = ""
+            updates["zarinpal_merchant_id"] = ""
+        elif payload.merchant_id.strip():
+            merchant = payload.merchant_id.strip()
+            if not zarinpal_config.is_valid_merchant_id(merchant):
+                return ActionResponse(ok=False, error="مرچنت کد باید ۳۶ کاراکتر به شکل UUID باشد.")
+            updates["zarinpal_merchant_id"] = merchant
+        sandbox = payload.sandbox if payload.sandbox is not None else zarinpal_config.is_sandbox(settings)
+        if not sandbox and not zarinpal_config.is_valid_merchant_id(merchant):
+            return ActionResponse(ok=False, error="برای حالت واقعی، اول مرچنت کد معتبر ثبت کنید.")
+        updates["zarinpal_sandbox"] = sandbox
+        current_min, current_max = zarinpal_config.deposit_limits(settings)
+        new_min = payload.deposit_min if payload.deposit_min is not None else current_min
+        new_max = payload.deposit_max if payload.deposit_max is not None else current_max
+        if new_max < new_min:
+            return ActionResponse(ok=False, error="حداکثر مبلغ باید بیشتر از حداقل باشد.")
+        updates["zarinpal_deposit_min"] = new_min
+        updates["zarinpal_deposit_max"] = new_max
+        if payload.bonus_enabled is not None:
+            updates["zarinpal_bonus_enabled"] = payload.bonus_enabled
+        if payload.bonus_percent is not None:
+            updates["zarinpal_bonus_percent"] = payload.bonus_percent
+        await manager.update_setting(settings.id, **updates)
+        await _log(
+            actor,
+            "zarinpal_settings_update",
+            target_type="settings",
+            target_id="zarinpal",
+            detail={key: value for key, value in updates.items() if key != "zarinpal_merchant_id"},
+        )
+        return ActionResponse(message="تنظیمات زرین‌پال ذخیره شد.")
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/payments/zarinpal/test", response_model=ActionResponse)
+async def zarinpal_test(payload: PanelZarinpalTestRequest, request: Request) -> ActionResponse:
+    async def handle(_: PanelActor) -> ActionResponse:
+        merchant = payload.merchant_id.strip()
+        if merchant and not zarinpal_config.is_valid_merchant_id(merchant):
+            return ActionResponse(ok=False, error="مرچنت کد باید ۳۶ کاراکتر به شکل UUID باشد.")
+        if not merchant:
+            settings = await SettingsManager().get_settings()
+            merchant = zarinpal_config.merchant_id_for(settings, payload.sandbox) if settings else ""
+        if not merchant:
+            return ActionResponse(ok=False, error="مرچنت کد ثبت نشده است.")
+        started = time.monotonic()
+        ok, message = await zarinpal_test_connection(merchant, payload.sandbox)
         elapsed = int((time.monotonic() - started) * 1000)
         return ActionResponse(ok=ok, message=f"{message} ({elapsed}ms)" if ok else None, error=None if ok else message)
 

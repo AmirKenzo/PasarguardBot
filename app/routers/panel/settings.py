@@ -98,6 +98,14 @@ HIDDEN_FIELDS: frozenset[str] = frozenset(
         "tonpays_deposit_max",
         "tonpays_bonus_enabled",
         "tonpays_bonus_percent",
+        # Managed from the Zarinpal tab of the payments page.
+        "zarinpal_enabled",
+        "zarinpal_sandbox",
+        "zarinpal_merchant_id",
+        "zarinpal_deposit_min",
+        "zarinpal_deposit_max",
+        "zarinpal_bonus_enabled",
+        "zarinpal_bonus_percent",
     }
 )
 
@@ -109,6 +117,7 @@ TEXT_FIELD_KEYS: frozenset[str] = frozenset(
         "cart_name",
         "tonpays_api_key",
         "tonpays_custom_key",
+        "zarinpal_merchant_id",
     }
 )
 

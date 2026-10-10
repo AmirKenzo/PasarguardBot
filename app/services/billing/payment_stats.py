@@ -20,15 +20,17 @@ from app.db.models.cryptopayments import CryptoPayments
 from app.db.models.stars_transaction import StarsTransaction
 from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
+from app.db.models.zarinpal_payment import ZarinpalPayment
 
 TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
-METHODS: tuple[str, ...] = ("manual", "crypto", "stars", "tonpays")
+METHODS: tuple[str, ...] = ("manual", "crypto", "stars", "tonpays", "zarinpal")
 METHOD_LABELS_FA: dict[str, str] = {
     "manual": "کارت‌به‌کارت دستی",
     "crypto": "ارز دیجیتال",
     "stars": "استارز",
     "tonpays": "TonPays",
+    "zarinpal": "زرین‌پال",
 }
 
 
@@ -71,6 +73,14 @@ def _sources() -> list[_Source]:
             TonPaysInvoice.amount,
             func.coalesce(TonPaysInvoice.paid_at, TonPaysInvoice.created_at),
             TonPaysInvoice.status == "completed",
+        ),
+        # Sandbox (test-mode) payments move no real money, so they never count as revenue.
+        _Source(
+            "zarinpal",
+            ZarinpalPayment.user_id,
+            ZarinpalPayment.amount,
+            func.coalesce(ZarinpalPayment.paid_at, ZarinpalPayment.created_at),
+            (ZarinpalPayment.status == "completed") & ZarinpalPayment.sandbox.is_(False),
         ),
     ]
 

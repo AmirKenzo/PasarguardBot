@@ -23,6 +23,7 @@ from app.db.models.stars_transaction import StarsTransaction
 from app.db.models.tonpays_invoice import TonPaysInvoice
 from app.db.models.transaction import Transaction
 from app.db.models.user import User
+from app.db.models.zarinpal_payment import ZarinpalPayment
 from app.services.billing import payment_stats
 
 INACTIVE_STATUSES = ("ban", "BlockedBot", "DeleteAccount")
@@ -332,8 +333,28 @@ def _tonpays_branch():
     )
 
 
+def _zarinpal_branch():
+    normalized_status = case(
+        (ZarinpalPayment.status == "completed", "approved"),
+        (ZarinpalPayment.status == "pending", "pending"),
+        (ZarinpalPayment.status == "failed", "rejected"),
+        else_="expired",
+    )
+    return select(
+        cast(ZarinpalPayment.id, String).label("raw_id"),
+        literal("zarinpal").label("source"),
+        literal("zarinpal").label("method"),
+        ZarinpalPayment.user_id.label("user_id"),
+        cast(ZarinpalPayment.amount, BigInteger).label("amount"),
+        normalized_status.label("status"),
+        ZarinpalPayment.created_at.label("created_at"),
+    )
+
+
 def _unified(name: str):
-    return union_all(_tx_branch(), _crypto_branch(), _stars_branch(), _tonpays_branch()).subquery(name)
+    return union_all(_tx_branch(), _crypto_branch(), _stars_branch(), _tonpays_branch(), _zarinpal_branch()).subquery(
+        name
+    )
 
 
 async def list_unified_transactions(

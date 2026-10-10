@@ -27,6 +27,11 @@ export interface BalanceMethodsResponse {
   tonpays_deposit_min: number;
   tonpays_deposit_max: number;
   tonpays_bonus_percent: number;
+  zarinpal_enabled: boolean;
+  zarinpal_sandbox: boolean;
+  zarinpal_deposit_min: number;
+  zarinpal_deposit_max: number;
+  zarinpal_bonus_percent: number;
   error?: string | null;
 }
 
@@ -108,5 +113,23 @@ export interface BalanceTonPaysInvoiceResponse {
   ok: boolean;
   message?: string | null;
   invoice?: TonPaysInvoice | null;
+  error?: string | null;
+}
+
+export interface ZarinpalPayment {
+  id: number;
+  order_id: string;
+  amount: number;
+  status: string;
+  status_label: string;
+  sandbox: boolean;
+  payment_url?: string | null;
+  ref_id?: string | null;
+}
+
+export interface BalanceZarinpalPaymentResponse {
+  ok: boolean;
+  message?: string | null;
+  payment?: ZarinpalPayment | null;
   error?: string | null;
 }

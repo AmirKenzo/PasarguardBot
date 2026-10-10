@@ -10,6 +10,7 @@ import {
   Coins,
   CreditCard,
   Gem,
+  Landmark,
   Star,
   Eye,
   Filter,
@@ -39,6 +40,7 @@ const METHOD_ICONS: Record<string, LucideIcon> = {
   crypto: Coins,
   stars: Star,
   tonpays: Gem,
+  zarinpal: Landmark,
 };
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "muted" | "primary"> = {
@@ -62,6 +64,7 @@ const methodLabels = (t: TFunction): Record<string, string> => ({
   crypto: t("panel.transactions.methodCrypto"),
   stars: t("panel.transactions.methodStars"),
   tonpays: t("panel.transactions.methodTonpays"),
+  zarinpal: t("panel.transactions.methodZarinpal"),
 });
 
 const statusLabels = (t: TFunction): Record<string, string> => ({
@@ -89,6 +92,7 @@ const methodOptions = (t: TFunction) => [
   { value: "crypto", label: t("panel.transactions.methodCrypto"), icon: Coins },
   { value: "stars", label: t("panel.transactions.methodStars"), icon: Star },
   { value: "tonpays", label: t("panel.transactions.methodTonpays"), icon: Gem },
+  { value: "zarinpal", label: t("panel.transactions.methodZarinpal"), icon: Landmark },
 ];
 
 const dayOptions = (t: TFunction) => [

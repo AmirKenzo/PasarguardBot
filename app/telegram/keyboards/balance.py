@@ -3,6 +3,10 @@
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.referral import ReferralManager
 from app.services.payments.tonpays_config import is_ready as tonpays_ready
+from app.services.payments.zarinpal_config import (
+    is_available_for as zarinpal_available_for,
+    is_sandbox as zarinpal_sandbox,
+)
 from app.telegram.admin.settings_payment.texts import is_manual_card_visible
 
 from .common import _get_keyboard_button_config, styled_callback_button
@@ -23,9 +27,10 @@ async def _balance_inline_button(
     *,
     bonus_enabled: bool = False,
     bonus_percent: int = 0,
+    prefix: str = "",
 ):
     text, style = await _get_keyboard_button_config(keyboard_crud, button_key, default)
-    text += _bonus_label_suffix(bonus_enabled, bonus_percent)
+    text = prefix + text + _bonus_label_suffix(bonus_enabled, bonus_percent)
     return styled_callback_button(text, data, style)
 
 
@@ -57,6 +62,21 @@ async def create_inline_cartbcard(settings, user=None) -> list:
                     b"TonPaysPayment",
                     bonus_enabled=settings.tonpays_bonus_enabled,
                     bonus_percent=settings.tonpays_bonus_percent,
+                )
+            ]
+        )
+
+    if settings and zarinpal_available_for(settings, getattr(user, "id", None)):
+        buttons.append(
+            [
+                await _balance_inline_button(
+                    keyboard_crud,
+                    "in.balance.zarinpal",
+                    KEYBOARD_BUTTON_DEFAULTS["in.balance.zarinpal"],
+                    b"ZarinpalPayment",
+                    bonus_enabled=settings.zarinpal_bonus_enabled,
+                    bonus_percent=settings.zarinpal_bonus_percent,
+                    prefix="🧪 " if zarinpal_sandbox(settings) else "",
                 )
             ]
         )

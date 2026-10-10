@@ -1,0 +1,1 @@
+"""Admin Zarinpal gateway settings."""

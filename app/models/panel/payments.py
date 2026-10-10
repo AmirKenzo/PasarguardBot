@@ -114,3 +114,37 @@ class PanelTonPaysTestRequest(PanelRequest):
 
     mode: str = Field("standard", pattern="^(standard|custom)$")
     api_key: str = Field("", max_length=256)
+
+
+class PanelZarinpalResponse(PanelResponse):
+    enabled: bool = False
+    sandbox: bool = True
+    merchant_masked: str = ""
+    has_merchant: bool = False
+    ready: bool = False
+    deposit_min: int = 0
+    deposit_max: int = 0
+    bonus_enabled: bool = False
+    bonus_percent: int = 0
+    callback_url: str | None = None
+    stats: PanelTonPaysStats = Field(default_factory=PanelTonPaysStats)
+
+
+class PanelZarinpalSaveRequest(PanelRequest):
+    """An empty merchant id keeps the stored one; `clear_merchant` removes it."""
+
+    enabled: bool | None = None
+    sandbox: bool | None = None
+    merchant_id: str = Field("", max_length=64)
+    clear_merchant: bool = False
+    deposit_min: int | None = Field(None, ge=1000)
+    deposit_max: int | None = Field(None, ge=1000)
+    bonus_enabled: bool | None = None
+    bonus_percent: int | None = Field(None, ge=0, le=100)
+
+
+class PanelZarinpalTestRequest(PanelRequest):
+    """Test the given merchant id, or the stored one when `merchant_id` is empty."""
+
+    sandbox: bool = True
+    merchant_id: str = Field("", max_length=64)

@@ -9,6 +9,7 @@ import {
   Gem,
   HelpCircle,
   KeyRound,
+  Landmark,
   LogOut,
   Percent,
   Phone,
@@ -197,6 +198,14 @@ export default function ProfilePage() {
               )}
               {!!tx.tonpays?.count && (
                 <TxStat icon={Gem} label={t("profile.tonpays")} count={tx.tonpays.count} total={tx.tonpays.total_amount} />
+              )}
+              {!!tx.zarinpal?.count && (
+                <TxStat
+                  icon={Landmark}
+                  label={t("profile.zarinpal")}
+                  count={tx.zarinpal.count}
+                  total={tx.zarinpal.total_amount}
+                />
               )}
             </div>
           </Card>

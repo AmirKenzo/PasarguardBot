@@ -203,7 +203,8 @@
       "genericError": "ساخت کلید API با خطا مواجه شد"
     },
     "stars": "استارز",
-    "tonpays": "TonPays"
+    "tonpays": "TonPays",
+    "zarinpal": "زرین‌پال"
   },
   "balanceHub": {
     "title": "کیف پول",
@@ -220,6 +221,9 @@
     "tonpaysPay": "پرداخت آنلاین (TonPays)",
     "tonpaysDesc": "پرداخت در ربات TonPays و تأیید خودکار",
     "tonpaysCustomDesc": "کارت به کارت با تأیید خودکار",
+    "zarinpalPay": "پرداخت آنلاین زرین‌پال",
+    "zarinpalDesc": "پرداخت با تمام کارت‌های بانکی عضو شتاب",
+    "zarinpalSandboxDesc": "حالت تست (sandbox) — فقط برای ادمین، بدون پرداخت واقعی",
     "bonus": " • بونوس {{percent}}%"
   },
   "cryptoDeposit": {
@@ -307,6 +311,21 @@
     "newInvoice": "ساخت فاکتور جدید",
     "copyCard": "کپی کارت",
     "copied": "کپی شد"
+  },
+  "zarinpalDeposit": {
+    "title": "پرداخت با زرین‌پال",
+    "sandboxNote": "درگاه در حالت تست (sandbox) است: پرداخت واقعی انجام نمی‌شود و این روش فقط برای ادمین‌ها نمایش داده می‌شود.",
+    "orderId": "شناسه سفارش",
+    "paidTitle": "پرداخت موفق بود و کیف پول شارژ شد",
+    "refId": "کد پیگیری",
+    "chargeAmount": "مبلغ شارژ",
+    "payButton": "رفتن به درگاه پرداخت",
+    "checkButton": "بررسی پرداخت",
+    "autoCheckNote": "بعد از پرداخت، وضعیت خودکار بررسی می‌شود.",
+    "newPayment": "پرداخت جدید",
+    "submitButton": "ساخت لینک پرداخت",
+    "paidToast": "پرداخت تأیید شد و موجودی شارژ شد.",
+    "notPaidYet": "هنوز پرداختی ثبت نشده است."
   },
   "extendTime": {
     "title": "افزایش زمان",
@@ -499,6 +518,7 @@
     "manual_card": "کارت به کارت دستی",
     "crypto": "تراکنش ارزی ({{currency}})",
     "tonpays": "پرداخت آنلاین (TonPays)",
+    "zarinpal": "زرین‌پال",
     "stars": "پرداخت با استارز"
   },
   "common": {
@@ -758,7 +778,8 @@
       "statRejected7d": "ردشده (۷ روز)",
       "statVolume7d": "حجم تأییدشده (۷ روز)",
       "methodStars": "استارز",
-      "methodTonpays": "TonPays"
+      "methodTonpays": "TonPays",
+      "methodZarinpal": "زرین‌پال"
     },
     "pwa": {
       "tab": "PWA",
@@ -1115,7 +1136,8 @@
       "walletDeleteConfirm": "کیف پول {{type}} حذف شود؟",
       "tabCrypto": "کیف پول ارزی",
       "tabManual": "کارت به کارت دستی",
-      "tabTonPays": "TonPays"
+      "tabTonPays": "TonPays",
+      "tabZarinpal": "زرین‌پال"
     },
     "resellers": {
       "telegram": "تلگرام",
@@ -1436,7 +1458,8 @@
       "period": "بازه زمانی",
       "cryptoTopUp": "شارژ ارزی",
       "starsTopUp": "شارژ استارز",
-      "tonpaysTopUp": "شارژ TonPays"
+      "tonpaysTopUp": "شارژ TonPays",
+      "zarinpalTopUp": "شارژ زرین‌پال"
     },
     "texts": {
       "subtitle": "برای هر بخش ربات می‌توانید متن دلخواه بنویسید. اگر متنی تنظیم نکنید، ربات متن پیش‌فرض خودش را نشان می‌دهد.",
@@ -1669,6 +1692,38 @@
       "webhookHint": "این آدرس را در پنل TonPays ثبت کنید تا پرداخت‌ها فوری تأیید شوند.",
       "rangeError": "حداکثر مبلغ باید بیشتر از حداقل باشد.",
       "save": "ذخیره تغییرات"
+    },
+    "zarinpal": {
+      "title": "درگاه زرین‌پال",
+      "modeSandbox": "حالت تست (sandbox)",
+      "modeLive": "حالت واقعی",
+      "merchantSet": "مرچنت کد ثبت شده",
+      "merchantMissing": "مرچنت کد ثبت نشده",
+      "enabled": "فعال",
+      "statusSandbox": "فعال (تست)",
+      "statusActive": "فعال",
+      "statusNotReady": "آماده نیست",
+      "statusOff": "خاموش",
+      "openPayments": "پرداخت‌های باز",
+      "connection": "اتصال",
+      "connectionHint": "حالت تست بدون حساب زرین‌پال کار می‌کند؛ برای حالت واقعی مرچنت کد لازم است.",
+      "mode": "حالت درگاه",
+      "sandbox": "تست (sandbox)",
+      "live": "واقعی",
+      "sandboxHint": "پرداخت‌ها شبیه‌سازی می‌شوند و دکمه فقط به ادمین‌ها نمایش داده می‌شود.",
+      "liveHint": "پرداخت واقعی؛ دکمه برای همه کاربران نمایش داده می‌شود.",
+      "merchantId": "مرچنت کد (Merchant ID)",
+      "merchantInvalid": "مرچنت کد باید ۳۶ کاراکتر به شکل UUID باشد.",
+      "merchantEmptyHint": "در حالت تست خالی بماند هم مشکلی نیست.",
+      "testConnection": "تست اتصال",
+      "connected": "اتصال برقرار است.",
+      "notConnected": "اتصال برقرار نشد.",
+      "rangeError": "حداکثر مبلغ باید بیشتر از حداقل باشد.",
+      "callback": "آدرس بازگشت (Callback)",
+      "noCallback": "WEBAPP_URL با https تنظیم نشده؛ زرین‌پال بدون آدرس بازگشت کار نمی‌کند.",
+      "callbackHint": "این آدرس خودکار برای زرین‌پال ارسال می‌شود؛ دامنه آن باید در پنل زرین‌پال ثبت شده باشد.",
+      "sandboxNote": "در حالت تست، پرداخت‌ها با sandbox زرین‌پال انجام می‌شوند و فقط ادمین‌ها می‌توانند تست کنند. پرداخت تستی موجودی ادمین را شارژ می‌کند ولی در آمار درآمد حساب نمی‌شود.",
+      "save": "ذخیره تنظیمات زرین‌پال"
     },
     "resellerHub": {
       "title": "نمایندگی پنل پاسارگارد",

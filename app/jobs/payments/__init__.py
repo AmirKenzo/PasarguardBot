@@ -14,6 +14,7 @@ from app.jobs.payments.tonpays import TonPaysProcessor
 from app.jobs.payments.trx import TRXProcessor
 from app.jobs.payments.usdt import USDTProcessor
 from app.jobs.payments.usdt_networks import USDTNetworksProcessor
+from app.jobs.payments.zarinpal import ZarinpalProcessor
 
 __all__ = [
     "BasePaymentProcessor",
@@ -25,4 +26,5 @@ __all__ = [
     "TonPaysProcessor",
     "USDTNetworksProcessor",
     "USDTProcessor",
+    "ZarinpalProcessor",
 ]

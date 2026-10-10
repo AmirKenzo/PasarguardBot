@@ -1,7 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { balanceApi } from "../api/webapp";
 import type { AuthPayload } from "../api/webapp/client";
-import type { BalanceTonPaysInvoiceResponse, CryptoCurrency } from "../types/webapp";
+import type {
+  BalanceTonPaysInvoiceResponse,
+  BalanceZarinpalPaymentResponse,
+  CryptoCurrency,
+} from "../types/webapp";
 import { useWebAppAuth } from "../hooks/useWebAppAuth";
 
 export function useBalanceMethodsQuery() {
@@ -123,4 +127,37 @@ export function useSendTonPaysReceiptMutation() {
   return useTonPaysAction((auth, args: { invoice: number; file: File }) =>
     balanceApi.sendTonPaysReceipt(auth, args.invoice, args.file)
   );
+}
+
+export function useOpenZarinpalPaymentQuery(enabled: boolean) {
+  const { auth, ready } = useWebAppAuth();
+
+  return useQuery({
+    queryKey: ["zarinpal-open"],
+    queryFn: () => balanceApi.getOpenZarinpalPayment(auth!),
+    enabled: enabled && ready && auth != null,
+  });
+}
+
+function useZarinpalAction<TArgs>(
+  fn: (auth: AuthPayload, args: TArgs) => Promise<BalanceZarinpalPaymentResponse>
+) {
+  const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (args: TArgs) => fn(auth!, args),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useDepositZarinpalMutation() {
+  return useZarinpalAction((auth, amount: number) => balanceApi.depositZarinpal(auth, amount));
+}
+
+export function useCheckZarinpalMutation() {
+  return useZarinpalAction((auth, payment: number) => balanceApi.checkZarinpalPayment(auth, payment));
 }

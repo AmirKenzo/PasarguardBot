@@ -9,6 +9,7 @@ import type {
   BalanceMethodsResponse,
   BalancePhoneRequestResponse,
   BalanceTonPaysInvoiceResponse,
+  BalanceZarinpalPaymentResponse,
   WebAppBalanceMethodsRequest,
 } from "../../types/webapp";
 import type { AuthPayload } from "./client";
@@ -62,4 +63,16 @@ export function sendTonPaysReceipt(auth: AuthPayload, invoice: number, file: Fil
   form.set("invoice", String(invoice));
   form.set("file", file);
   return apiPostForm<BalanceTonPaysInvoiceResponse>("/balance/tonpays/receipt", form, auth);
+}
+
+export function depositZarinpal(auth: AuthPayload, amount: number) {
+  return apiPost<BalanceZarinpalPaymentResponse>("/balance/deposit/zarinpal", { amount }, auth);
+}
+
+export function getOpenZarinpalPayment(auth: AuthPayload) {
+  return apiPost<BalanceZarinpalPaymentResponse>("/balance/zarinpal/open", {}, auth);
+}
+
+export function checkZarinpalPayment(auth: AuthPayload, payment: number) {
+  return apiPost<BalanceZarinpalPaymentResponse>("/balance/zarinpal/status", { payment }, auth);
 }

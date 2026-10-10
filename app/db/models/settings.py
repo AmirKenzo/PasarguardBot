@@ -66,6 +66,13 @@ DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
     "tonpays_deposit_max": 10000000,
     "tonpays_bonus_enabled": False,
     "tonpays_bonus_percent": 0,
+    "zarinpal_enabled": False,
+    "zarinpal_sandbox": True,
+    "zarinpal_merchant_id": "",
+    "zarinpal_deposit_min": 10000,
+    "zarinpal_deposit_max": 10000000,
+    "zarinpal_bonus_enabled": False,
+    "zarinpal_bonus_percent": 0,
 }
 
 DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {

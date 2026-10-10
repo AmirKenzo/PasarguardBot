@@ -33,6 +33,7 @@ from app.routers.webapp.tonpays import router as tonpays_router
 from app.routers.webapp.transactions import router as transactions_router
 from app.routers.webapp.upgrade import router as upgrade_router
 from app.routers.webapp.usage_chart import router as usage_chart_router
+from app.routers.webapp.zarinpal import router as zarinpal_router
 
 logger = get_logger(__name__)
 webapp_router = APIRouter()
@@ -48,6 +49,7 @@ webapp_router.include_router(renew_router)
 webapp_router.include_router(buy_router)
 webapp_router.include_router(balance_router)
 webapp_router.include_router(tonpays_router)
+webapp_router.include_router(zarinpal_router)
 webapp_router.include_router(transactions_router)
 webapp_router.include_router(upgrade_router)
 webapp_router.include_router(reseller_router)

@@ -25,6 +25,7 @@ class PanelReportTotals(BaseModel):
     crypto_approved_sum: int = 0
     stars_approved_sum: int = 0
     tonpays_approved_sum: int = 0
+    zarinpal_approved_sum: int = 0
     total_revenue: int = 0
     pending_sum: int = 0
     pending_count: int = 0

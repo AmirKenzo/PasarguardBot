@@ -27,6 +27,7 @@ from . import (
     transaction,
     user,
     wallet,
+    zarinpal_payment,
 )
 
 __all__ = [
@@ -58,4 +59,5 @@ __all__ = [
     "transaction",
     "user",
     "wallet",
+    "zarinpal_payment",
 ]

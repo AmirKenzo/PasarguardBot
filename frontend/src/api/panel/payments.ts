@@ -12,6 +12,9 @@ import type {
   PanelTonPaysTestRequest,
   PanelWalletCreateRequest,
   PanelWalletDeleteRequest,
+  PanelZarinpalResponse,
+  PanelZarinpalSaveRequest,
+  PanelZarinpalTestRequest,
 } from "../../types/panel";
 import { panelPost } from "./client";
 
@@ -61,4 +64,16 @@ export function saveTonPays(body: PanelTonPaysSaveRequest) {
 
 export function testTonPays(body: PanelTonPaysTestRequest) {
   return panelPost<ActionResponse>("/payments/tonpays/test", body);
+}
+
+export function getZarinpal(body: PanelAuthRequest) {
+  return panelPost<PanelZarinpalResponse>("/payments/zarinpal", body);
+}
+
+export function saveZarinpal(body: PanelZarinpalSaveRequest) {
+  return panelPost<ActionResponse>("/payments/zarinpal/save", body);
+}
+
+export function testZarinpal(body: PanelZarinpalTestRequest) {
+  return panelPost<ActionResponse>("/payments/zarinpal/test", body);
 }

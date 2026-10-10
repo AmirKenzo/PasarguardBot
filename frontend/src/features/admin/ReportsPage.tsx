@@ -1,4 +1,4 @@
-import { Calendar, Coins, CreditCard, Gem, Package, Star, User, Users, Wallet } from "lucide-react";
+import { Calendar, Coins, CreditCard, Gem, Landmark, Package, Star, User, Users, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { ErrorState, Skeleton } from "../../components/ui";
@@ -90,6 +90,12 @@ export default function AdminReportsPage() {
           <StatTile dense icon={Wallet} label={t("panel.reports.cryptoTopUp")} value={formatToman(totals.crypto_approved_sum ?? 0)} />
           <StatTile dense icon={Star} label={t("panel.reports.starsTopUp")} value={formatToman(totals.stars_approved_sum ?? 0)} />
           <StatTile dense icon={Gem} label={t("panel.reports.tonpaysTopUp")} value={formatToman(totals.tonpays_approved_sum ?? 0)} />
+          <StatTile
+            dense
+            icon={Landmark}
+            label={t("panel.reports.zarinpalTopUp")}
+            value={formatToman(totals.zarinpal_approved_sum ?? 0)}
+          />
           <StatTile
             dense
             label={t("panel.common.awaitingApproval")}
