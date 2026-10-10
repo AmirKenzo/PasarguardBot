@@ -16,6 +16,7 @@ from app.version import VERSIONS
 from config import API_DOCS_ENABLED
 
 from .panel import panel_router
+from .sms import sms_router
 from .webapp import serve_webapp, webapp_router
 from .webhook import webhook_router
 
@@ -74,6 +75,7 @@ class WebAppAuthHeaderMiddleware(BaseHTTPMiddleware):
 
 api_app.add_middleware(WebAppAuthHeaderMiddleware)
 
+api_app.include_router(sms_router, prefix="/api", tags=["SMS"])
 api_app.include_router(webhook_router, prefix="/api", tags=["Webhook"])
 api_app.include_router(webapp_router, prefix="/api", tags=["WebApp"])
 api_app.include_router(panel_router, prefix="/api", tags=["AdminPanel"])

@@ -22,6 +22,7 @@ def register_all_jobs() -> None:
     from app.jobs.panels.cleanup import get_cookies
     from app.jobs.payments.transactions import (
         auto_confirm_job,
+        expire_auto_card_invoices,
         expire_star_transactions,
         ir_gateways_checking,
         pol_checking,
@@ -52,6 +53,7 @@ def register_all_jobs() -> None:
         (tonpays_checking, "interval", {"seconds": 60}, "tonpays_checking"),
         (ir_gateways_checking, "interval", {"seconds": 60}, "ir_gateways_checking"),
         (expire_star_transactions, "interval", {"seconds": 60}, "expire_star_transactions"),
+        (expire_auto_card_invoices, "interval", {"minutes": 1}, "expire_auto_card_invoices"),
         (run_reseller_billing, "interval", {"seconds": 60}, "reseller_billing"),
         (run_reseller_low_balance_warning, "interval", {"minutes": 5}, "reseller_low_balance_warning"),
     ]

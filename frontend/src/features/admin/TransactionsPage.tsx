@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   User,
   X,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -61,6 +62,7 @@ const TAB_ACTIVE_CLASSES: Record<"success" | "warning" | "danger" | "muted" | "p
 
 const methodLabels = (t: TFunction): Record<string, string> => ({
   manual_card: t("panel.transactions.methodManualCard"),
+  auto_card: t("panel.transactions.methodAutoCard"),
   crypto: t("panel.transactions.methodCrypto"),
   stars: t("panel.transactions.methodStars"),
   tonpays: t("panel.transactions.methodTonpays"),
@@ -89,6 +91,7 @@ const statusTabs = (t: TFunction) => [
 const methodOptions = (t: TFunction) => [
   { value: "", label: t("panel.common.all"), icon: Filter },
   { value: "manual_card", label: t("panel.transactions.methodManualCard"), icon: CreditCard },
+  { value: "auto_card", label: t("panel.transactions.methodAutoCard"), icon: Zap },
   { value: "crypto", label: t("panel.transactions.methodCrypto"), icon: Coins },
   { value: "stars", label: t("panel.transactions.methodStars"), icon: Star },
   { value: "tonpays", label: t("panel.transactions.methodTonpays"), icon: Gem },

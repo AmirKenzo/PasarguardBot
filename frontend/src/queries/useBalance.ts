@@ -53,6 +53,46 @@ export function useDepositManualReceiptMutation() {
   });
 }
 
+export function useDepositAutoCardMutation() {
+  const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (amount: number) => balanceApi.depositAutoCard({ ...auth!, amount }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+const AUTO_CARD_STATUS_POLL_MS = 4000;
+
+/** Polls one auto-card invoice's status while it's still pending; stops on paid/expired. */
+export function useAutoCardStatusQuery(params: { orderId: number; amountIrt: number; createdAt: number } | null) {
+  const { auth, ready } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useQuery({
+    queryKey: ["auto-card-status", params?.orderId],
+    queryFn: async () => {
+      const res = await balanceApi.getAutoCardStatus({
+        ...auth!,
+        order_id: params!.orderId,
+        amount_irt: params!.amountIrt,
+        created_at: params!.createdAt,
+      });
+      if (res.ok && res.status === "paid") {
+        void queryClient.invalidateQueries({ queryKey: ["profile"] });
+        void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      }
+      return res;
+    },
+    enabled: ready && auth != null && params != null,
+    refetchInterval: (query) => (query.state.data?.status === "pending" ? AUTO_CARD_STATUS_POLL_MS : false),
+  });
+}
+
 export function useDepositCryptoMutation() {
   const { auth } = useWebAppAuth();
   const queryClient = useQueryClient();

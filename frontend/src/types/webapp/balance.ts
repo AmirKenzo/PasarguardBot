@@ -18,13 +18,19 @@ export interface BalanceMethodsResponse {
   pay_mode: boolean;
   arz_mode: boolean;
   cart_sta: boolean;
+  auto_cart: boolean;
   manual_deposit_min: number;
   manual_deposit_max: number;
+  auto_deposit_min: number;
+  auto_deposit_max: number;
   crypto_deposit_min: number;
   crypto_deposit_max: number;
   card_number?: string | null;
   card_name?: string | null;
+  auto_card_number?: string | null;
+  auto_card_name?: string | null;
   manual_bonus_percent: number;
+  auto_bonus_percent: number;
   crypto_bonus_percent: number;
   stars_bonus_percent: number;
   arz_usd: number;
@@ -61,6 +67,37 @@ export interface BalanceDepositManualResponse {
 export interface BalanceDepositManualReceiptResponse {
   ok: boolean;
   message?: string | null;
+  error?: string | null;
+}
+
+export interface BalanceDepositAutoRequest extends WebAppAuthRequest {
+  amount: number;
+}
+
+export interface BalanceDepositAutoResponse {
+  ok: boolean;
+  message?: string | null;
+  order_id?: number | null;
+  amount_irt?: number | null;
+  amount_rial?: number | null;
+  card_number?: string | null;
+  card_name?: string | null;
+  expires_at?: number | null;
+  created_at?: number | null;
+  error?: string | null;
+}
+
+export type AutoCardDepositStatus = "pending" | "paid" | "expired";
+
+export interface BalanceAutoCardStatusRequest extends WebAppAuthRequest {
+  order_id: number;
+  amount_irt: number;
+  created_at: number;
+}
+
+export interface BalanceAutoCardStatusResponse {
+  ok: boolean;
+  status?: AutoCardDepositStatus | null;
   error?: string | null;
 }
 

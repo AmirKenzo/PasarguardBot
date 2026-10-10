@@ -223,7 +223,9 @@
     "irGatewayPay": "پرداخت آنلاین {{name}}",
     "irGatewayDesc": "پرداخت با تمام کارت‌های بانکی عضو شتاب",
     "irGatewaySandboxDesc": "حالت تست — فقط برای ادمین، بدون پرداخت واقعی",
-    "bonus": " • بونوس {{percent}}%"
+    "bonus": " • بونوس {{percent}}%",
+    "autoCard": "کارت به کارت خودکار",
+    "autoCardDesc": "واریز دقیق ریالی، تایید آنی با پیامک"
   },
   "cryptoDeposit": {
     "title": "پرداخت ارزی",
@@ -269,6 +271,21 @@
     "phoneVerifySuccess": "شماره تلفن تایید شد",
     "phoneVerifyTimeout": "تاییدیه دریافت نشد. دوباره تلاش کنید.",
     "phoneVerifyUnsupported": "برای این کار باید تلگرام را به‌روزرسانی کنید."
+  },
+  "autoCardDeposit": {
+    "title": "کارت به کارت خودکار",
+    "invoiceSubtitle": "فاکتور #{{id}}",
+    "exactAmountLabel": "مبلغ دقیق واریز (ریال)",
+    "exactAmountHint": "سه رقم آخر باید دقیقاً {{digits}} باشد تا واریز به‌صورت خودکار تایید شود.",
+    "copyRialAmount": "کپی مبلغ ریالی",
+    "waitingForSms": "در انتظار دریافت پیامک بانکی برای تایید خودکار…",
+    "timeLeft": "زمان باقی‌مانده: {{time}}",
+    "createInvoice": "ایجاد فاکتور خودکار",
+    "paidTitle": "تراکنش تایید شد",
+    "paidDesc": "موجودی کیف پول به‌روز شد.",
+    "expiredTitle": "فاکتور منقضی شد",
+    "expiredDesc": "این فاکتور منقضی شده است. لطفاً یک درخواست جدید ثبت کنید.",
+    "newInvoice": "ساخت فاکتور جدید"
   },
   "starsDeposit": {
     "title": "پرداخت با استارز",
@@ -782,7 +799,8 @@
       "statRejected7d": "ردشده (۷ روز)",
       "statVolume7d": "حجم تأییدشده (۷ روز)",
       "methodStars": "استارز",
-      "methodTonpays": "TonPays"
+      "methodTonpays": "TonPays",
+      "methodAutoCard": "کارت به کارت خودکار"
     },
     "pwa": {
       "tab": "PWA",
@@ -854,7 +872,14 @@
       "miniappMode": "مینی‌اپ",
       "startReactionEmoji": "ری‌اکشن پیام استارت",
       "startEffectId": "افکت پیام استارت",
-      "readOnlyHint": "به‌صورت خودکار بروزرسانی می‌شود — قابل ویرایش نیست"
+      "readOnlyHint": "به‌صورت خودکار بروزرسانی می‌شود — قابل ویرایش نیست",
+      "autoCart": "دکمه کارت خودکار",
+      "cartNum": "شماره کارت مقصد (کارت خودکار)",
+      "cartName": "نام دارنده کارت (کارت خودکار)",
+      "autoDepositMin": "حداقل شارژ کارت خودکار (تومان)",
+      "autoDepositMax": "حداکثر شارژ کارت خودکار (تومان)",
+      "autoBonusEnabled": "بونوس شارژ کارت خودکار",
+      "autoBonusPercent": "درصد بونوس کارت خودکار"
     },
     "audit": {
       "broadcastResume": "ادامهٔ پیام همگانی",

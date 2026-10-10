@@ -18,6 +18,8 @@ CARD_NAME_PROMPT = "نام دارنده کارت را ارسال کنید:"
 CARD_ADDED_SUCCESS = "کارت جدید با موفقیت اضافه شد."
 MANUAL_MIN_PROMPT = "حداقل مبلغ کارت دستی را وارد کنید:"
 MANUAL_MAX_PROMPT = "حداکثر مبلغ کارت دستی را وارد کنید:"
+AUTO_MIN_PROMPT = "حداقل مبلغ کارت خودکار را وارد کنید:"
+AUTO_MAX_PROMPT = "حداکثر مبلغ کارت خودکار را وارد کنید:"
 CRYPTO_MIN_PROMPT = "حداقل مبلغ درگاه ارزی را وارد کنید:"
 CRYPTO_MAX_PROMPT = "حداکثر مبلغ درگاه ارزی را وارد کنید:"
 RESELLER_MIN_WALLET_PROMPT = "حداقل موجودی کیف پول برای خرید نمایندگی را وارد کنید (تومان):"
@@ -25,6 +27,7 @@ NUMERIC_ONLY = "لطفا فقط عدد ارسال کنید"
 PERCENT_RANGE_ERROR = "درصد باید بین 0 تا 100 باشد"
 
 MANUAL_LIMITS_SAVED = "✅ محدودیت کارت دستی ذخیره شد"
+AUTO_LIMITS_SAVED = "✅ محدودیت کارت خودکار ذخیره شد"
 CRYPTO_LIMITS_SAVED = "✅ محدودیت درگاه ارزی ذخیره شد"
 RESELLER_MIN_WALLET_SAVED = "✅ حداقل موجودی خرید نمایندگی ذخیره شد"
 
@@ -37,6 +40,11 @@ MAAR_SAVED = "✅ ذخیره شد"
 MAAR_NOT_FOUND = "یافت نشد"
 MAAR_MANUAL_ONLY = "فقط دستی"
 
+AUTO_CARD_NUMBER_SAVED_TEMPLATE = "✅ شماره کارت (خودکار) ثبت شد \n👤 شماره کارت: {card_number}"
+AUTO_CARD_NAME_SAVED_TEMPLATE = "✅ نام کارت (خودکار) ثبت شد \n👤 نام کارت: {card_name}"
+AUTO_CARD_NUMBER_CHANGE_PROMPT = "لطفا شماره کارت برای (تایید خودکار) تغییر ارسال کنید"
+AUTO_CARD_NAME_CHANGE_PROMPT = "لطفا نام دارنده کارت برای (تایید خودکار) تغییر ارسال کنید"
+
 ADD_CARD_NUMBER_PROMPT = "شماره کارت جدید را ارسال کنید:"
 SELECT_ACTIVE_CARD_PROMPT = "کارت مورد نظر را انتخاب کنید:"
 NO_CARDS_REGISTERED = "هیچ کارتی ثبت نشده است."
@@ -46,10 +54,12 @@ CARD_DELETED = "کارت حذف شد."
 SETTINGS_SAVED = "وضعیت جدید ذخیره شد"
 
 MANUAL_BONUS_PERCENT_PROMPT = "درصد بونوس کارت دستی را وارد کنید (0-100):"
+AUTO_BONUS_PERCENT_PROMPT = "درصد بونوس کارت خودکار را وارد کنید (0-100):"
 CRYPTO_BONUS_PERCENT_PROMPT = "درصد بونوس ارزی را وارد کنید (0-100):"
 STARS_BONUS_PERCENT_PROMPT = "درصد بونوس استارز را وارد کنید (0-100):"
 
 MANUAL_BONUS_SET_TEMPLATE = "✅ درصد بونوس کارت دستی روی {percent}% تنظیم شد\n\n{bonus_text}"
+AUTO_BONUS_SET_TEMPLATE = "✅ درصد بونوس کارت خودکار روی {percent}% تنظیم شد\n\n{bonus_text}"
 CRYPTO_BONUS_SET_TEMPLATE = "✅ درصد بونوس ارزی روی {percent}% تنظیم شد\n\n{bonus_text}"
 STARS_BONUS_SET_TEMPLATE = "✅ درصد بونوس استارز روی {percent}% تنظیم شد\n\n{bonus_text}"
 
@@ -148,8 +158,20 @@ def gateway_settings_message(manual_info: str, random_mode_status: str, settings
         f"🔘 **دکمه کارت دستی در ربات**: {pay_mode_status(settings)}\n"
         f"🎲 **حالت نمایش شماره کارت**: {random_mode_status}\n"
         f"👥 **نمایش دکمه کارت به کارت برای**: {manual_card_visibility_status(settings)}"
-        f"{pay_mode_hint}\n\n"
+        f"{pay_mode_hint}\n"
+        f"{auto_card_info(settings)}\n\n"
         "برای تغییر هر گزینه، روی دکمه مربوطه بزنید."
+    )
+
+
+def auto_card_info(settings) -> str:
+    cart_name = getattr(settings, "cart_name", None) if settings else None
+    cart_num = getattr(settings, "cart_num", None) if settings else None
+    return (
+        "----------------------------\n"
+        "💳 **شماره کارت ست شده برای کارت به کارت خودکار**:\n"
+        f"👤 **نام دارنده کارت**: `{cart_name or CARD_HOLDER_NOT_SET}`\n"
+        f"📄 **شماره کارت**:\n `{cart_num or CARD_HOLDER_NOT_SET}`"
     )
 
 
@@ -167,7 +189,8 @@ def gateway_settings_back_message(active, random_mode_status: str, settings) -> 
         f"🔘 **دکمه کارت دستی در ربات**: {pay_mode_status(settings)}\n"
         f"🎲 **حالت نمایش شماره کارت**: {random_mode_status}\n"
         f"👥 **نمایش دکمه کارت به کارت برای**: {manual_card_visibility_status(settings)}"
-        f"{pay_mode_hint}\n\n"
+        f"{pay_mode_hint}\n"
+        f"{auto_card_info(settings)}\n\n"
         "برای تغییر هر گزینه، روی دکمه مربوطه بزنید."
     )
 
@@ -182,6 +205,7 @@ def bonus_settings_header(settings) -> str:
     return (
         "🎁 **تنظیمات بونوس درصدی**\n\n"
         f"💳 **کارت دستی**: {settings.manual_bonus_percent}% {'✅ فعال' if settings.manual_bonus_enabled else '❌ غیرفعال'}\n"
+        f"💲 **کارت خودکار**: {settings.auto_bonus_percent}% {'✅ فعال' if settings.auto_bonus_enabled else '❌ غیرفعال'}\n"
         f"💵 **ارزی**: {settings.crypto_bonus_percent}% {'✅ فعال' if settings.crypto_bonus_enabled else '❌ غیرفعال'}\n"
         f"⭐ **استارز**: {settings.stars_bonus_percent}% {'✅ فعال' if settings.stars_bonus_enabled else '❌ غیرفعال'}\n\n"
         "روی گزینه‌های زیر کلیک کنید:"

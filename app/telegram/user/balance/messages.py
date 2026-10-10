@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import os
 import random
+import time
 from decimal import Decimal
 from io import BytesIO
 
@@ -13,6 +14,7 @@ from telethon import Button, events
 from telethon.tl.custom import Message
 
 from app import Kenzo
+from app.db.crud.auto_card import CRUDAutoCard
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.cryptopayments import (
     CryptoPaymentsCRUD,
@@ -913,6 +915,78 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
     await set_step(event.sender_id, states.STEP_HOME)
 
 
+async def create_auto_card_invoice(event, amount: int) -> None:
+    """Create an auto card-to-card invoice for ``amount`` toman and send it to the user."""
+    lang = "fa"
+    settings = await SettingsManager().get_settings()
+    rials = to_rial(amount)
+    crud = CRUDAutoCard()
+    order = await crud.allocate_code()
+    created = None
+    if order is not None:
+        created = await crud.create(
+            code=order,
+            time=int(time.time()),
+            amount=rials,
+            first_amount=amount,
+            status=0,
+            id=event.sender_id,
+        )
+    if created is None:
+        await event.respond(texts.AUTO_CARD_INVOICE_CREATE_FAILED, buttons=await bhome_buttons(event.sender_id, lang))
+        await set_step(event.sender_id, states.STEP_HOME)
+        return
+    invoice = await event.respond(
+        texts.AUTO_CARD_INVOICE_TEMPLATE.format(
+            order=order,
+            rials=rials,
+            card_num=settings.cart_num,
+            card_name=settings.cart_name,
+        ),
+        buttons=await bhome_buttons(event.sender_id, lang),
+        parse_mode="html",
+    )
+    await set_step(event.sender_id, states.STEP_HOME)
+    await crud.update(order, msg_id=invoice.id)
+
+
+async def auto_card_step_filter(event):
+    if event.is_channel or not event.is_private:
+        return False
+    if (await get_step(event.sender_id)) != states.STEP_AUTO_CARD_2:
+        return False
+    msg = event.message.message
+    if not msg:
+        return False
+    return not _is_nav_command(msg)
+
+
+@bot_is_offline
+async def auto_card_to_card_2_handler(event: Message):
+    msg = event.message.message
+
+    if msg.isdigit():
+        settings = await SettingsManager().get_settings()
+        amount = int(msg)
+        if amount < settings.auto_deposit_min or amount > settings.auto_deposit_max:
+            await respond_deposit_amount_range_error(
+                event,
+                text_key="auto_card_amount_range_error",
+                default=texts.AUTO_CARD_AMOUNT_RANGE_ERROR_DEFAULT,
+                min_amount=settings.auto_deposit_min,
+                max_amount=settings.auto_deposit_max,
+            )
+            raise events.StopPropagation
+        await create_auto_card_invoice(event, amount)
+        raise events.StopPropagation
+    await respond_deposit_numeric_error(
+        event,
+        text_key="auto_card_numeric_error",
+        default=texts.AUTO_CARD_NUMERIC_ERROR_DEFAULT,
+    )
+    raise events.StopPropagation
+
+
 async def crypto_payment_trx_step_filter(event):
     if event.is_channel or not event.is_private:
         return False
@@ -1187,6 +1261,10 @@ def register(client):
     client.add_event_handler(
         mablagh_sharj_handler,
         events.NewMessage(incoming=True, func=receipt_photo_filter),
+    )
+    client.add_event_handler(
+        auto_card_to_card_2_handler,
+        events.NewMessage(incoming=True, func=auto_card_step_filter),
     )
     client.add_event_handler(
         crypto_payments_trx_handler,

@@ -1,4 +1,5 @@
 from . import (
+    auto_card,
     cards,
     channels,
     cryptopayments,
@@ -16,6 +17,7 @@ from . import (
 )
 
 __all__ = [
+    "auto_card",
     "cards",
     "channels",
     "cryptopayments",

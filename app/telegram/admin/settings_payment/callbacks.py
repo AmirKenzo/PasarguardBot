@@ -36,13 +36,18 @@ _SETTINGS_PAYMENT_EXACT_CALLBACKS = frozenset(
         "maar_rules_menu",
         "maar_add",
         "set_manual_limits",
+        "set_auto_limits",
         "set_crypto_limits",
         "set_reseller_min_wallet",
         "bonus_settings_menu",
         "toggle_manual_bonus",
+        "toggle_auto_bonus",
         "toggle_crypto_bonus",
         "toggle_stars_bonus",
         "set_manual_bonus_percent",
+        "set_auto_bonus_percent",
+        "chng_auto_card_number",
+        "chng_auto_card_name",
         "set_crypto_bonus_percent",
         "set_stars_bonus_percent",
     }
@@ -160,6 +165,20 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         await ManualCardManager().delete_card(card_id)
         await event.edit(texts.CARD_DELETED, buttons=keyboards.back_to_settings_card_row())
 
+    elif data == "chng_auto_card_number":
+        await event.edit(
+            texts.AUTO_CARD_NUMBER_CHANGE_PROMPT,
+            buttons=keyboards.back_to_settings_card_button(),
+        )
+        await set_step(user_id=event.sender_id, step="chng_auto_card_number")
+
+    elif data == "chng_auto_card_name":
+        await event.edit(
+            texts.AUTO_CARD_NAME_CHANGE_PROMPT,
+            buttons=keyboards.back_to_settings_card_button(),
+        )
+        await set_step(user_id=event.sender_id, step="chng_auto_card_name")
+
     elif data == "toggle_manual_auto_confirm":
         settings = await SettingsManager().get_settings()
         new_status = not settings.manual_auto_confirm
@@ -223,6 +242,10 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         await set_step(event.sender_id, "set_manual_min")
         await event.edit(texts.MANUAL_MIN_PROMPT, buttons=keyboards.back_to_settings_card_row())
 
+    elif data == "set_auto_limits":
+        await set_step(event.sender_id, "set_auto_min")
+        await event.edit(texts.AUTO_MIN_PROMPT, buttons=keyboards.back_to_settings_card_row())
+
     elif data == "set_crypto_limits":
         await set_step(event.sender_id, "set_crypto_min")
         await event.edit(texts.CRYPTO_MIN_PROMPT, buttons=keyboards.back_to_settings_card_row())
@@ -250,6 +273,14 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         bonus_text, buttons = await keyboards.get_bonus_settings_menu(settings)
         await event.edit(bonus_text, buttons=buttons)
 
+    elif data == "toggle_auto_bonus":
+        settings = await SettingsManager().get_settings()
+        new_status = not settings.auto_bonus_enabled
+        await SettingsManager().update_setting(settings.id, auto_bonus_enabled=new_status)
+        settings = await SettingsManager().get_settings()
+        bonus_text, buttons = await keyboards.get_bonus_settings_menu(settings)
+        await event.edit(bonus_text, buttons=buttons)
+
     elif data == "toggle_crypto_bonus":
         settings = await SettingsManager().get_settings()
         new_status = not settings.crypto_bonus_enabled
@@ -269,6 +300,10 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
     elif data == "set_manual_bonus_percent":
         await set_step(event.sender_id, "set_manual_bonus_percent")
         await event.edit(texts.MANUAL_BONUS_PERCENT_PROMPT, buttons=keyboards.back_to_bonus_menu_button())
+
+    elif data == "set_auto_bonus_percent":
+        await set_step(event.sender_id, "set_auto_bonus_percent")
+        await event.edit(texts.AUTO_BONUS_PERCENT_PROMPT, buttons=keyboards.back_to_bonus_menu_button())
 
     elif data == "set_crypto_bonus_percent":
         await set_step(event.sender_id, "set_crypto_bonus_percent")

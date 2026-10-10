@@ -174,7 +174,10 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                     await _keyboard_admin_button(keyboard_crud, "in.balance.crypto", 3),
                     await _keyboard_admin_button(keyboard_crud, "in.balance.manual", 3),
                 ],
-                [await _keyboard_admin_button(keyboard_crud, "in.balance.referral", 3)],
+                [
+                    await _keyboard_admin_button(keyboard_crud, "in.balance.auto", 3),
+                    await _keyboard_admin_button(keyboard_crud, "in.balance.referral", 3),
+                ],
                 [await _keyboard_admin_button(keyboard_crud, "in.balance.back_home", 3)],
                 [await _keyboard_admin_button(keyboard_crud, "in.balance.disabled", 3)],
                 [Button.inline("📋 ━━━━ درگاه‌های آنلاین ━━━━", data="no_action")],

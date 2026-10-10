@@ -48,6 +48,26 @@ async def message_handler_settings_payment(event: Message):
             message=texts.gateway_settings_message(texts.manual_card_info(active), random_mode_status, settings),
             buttons=keyboards.gateway_settings_buttons(settings),
         )
+    elif await get_step(event.sender_id) == "chng_auto_card_number" and msg:
+        await delete_message(event, offset=-1)
+        await delete_message(event)
+        settings = await SettingsManager().get_settings()
+        await SettingsManager().update_setting(settings.id, cart_num=msg)
+        await event.respond(
+            texts.AUTO_CARD_NUMBER_SAVED_TEMPLATE.format(card_number=msg),
+            buttons=keyboards.back_to_settings_card_button(),
+        )
+        await set_step(user_id=event.sender_id, step="SettingsCardToCard")
+    elif await get_step(event.sender_id) == "chng_auto_card_name" and msg:
+        await delete_message(event, offset=-1)
+        await delete_message(event)
+        settings = await SettingsManager().get_settings()
+        await SettingsManager().update_setting(settings.id, cart_name=msg)
+        await event.respond(
+            texts.AUTO_CARD_NAME_SAVED_TEMPLATE.format(card_name=msg),
+            buttons=keyboards.back_to_settings_card_button(),
+        )
+        await set_step(user_id=event.sender_id, step="SettingsCardToCard")
     elif await get_step(event.sender_id) == "add_card_number" and msg:
         await set_data(event.sender_id, "new_card_number", msg)
         await set_step(event.sender_id, "add_card_name")
@@ -80,6 +100,28 @@ async def message_handler_settings_payment(event: Message):
         await event.respond(texts.MANUAL_LIMITS_SAVED, buttons=keyboards.back_to_settings_card_row())
 
     elif await get_step(event.sender_id) == "set_manual_max":
+        await event.respond(texts.NUMERIC_ONLY)
+
+    elif await get_step(event.sender_id) == "set_auto_min" and msg.isdigit():
+        await set_data(event.sender_id, "auto_deposit_min", int(msg))
+        await set_step(event.sender_id, "set_auto_max")
+        await event.respond(texts.AUTO_MAX_PROMPT)
+    elif await get_step(event.sender_id) == "set_auto_min":
+        await event.respond(texts.NUMERIC_ONLY)
+
+    elif await get_step(event.sender_id) == "set_auto_max" and msg.isdigit():
+        min_val = await get_data(event.sender_id, "auto_deposit_min")
+        settings = await SettingsManager().get_settings()
+        await SettingsManager().update_setting(
+            settings.id,
+            auto_deposit_min=int(min_val),
+            auto_deposit_max=int(msg),
+        )
+        await clear_user(event.sender_id)
+        await set_step(event.sender_id, "SettingsCardToCard")
+        await event.respond(texts.AUTO_LIMITS_SAVED, buttons=keyboards.back_to_settings_card_row())
+
+    elif await get_step(event.sender_id) == "set_auto_max":
         await event.respond(texts.NUMERIC_ONLY)
 
     elif await get_step(event.sender_id) == "set_crypto_min" and msg.isdigit():
@@ -138,6 +180,29 @@ async def message_handler_settings_payment(event: Message):
             buttons=buttons,
         )
     elif await get_step(event.sender_id) == "set_manual_bonus_percent":
+        await delete_message(event, offset=-1)
+        await delete_message(event)
+        await event.respond(texts.NUMERIC_ONLY, buttons=keyboards.back_to_bonus_menu_button())
+
+    elif await get_step(event.sender_id) == "set_auto_bonus_percent" and msg.isdigit():
+        percent = int(msg)
+        if percent < 0 or percent > 100:
+            await delete_message(event, offset=-1)
+            await delete_message(event)
+            await event.respond(texts.PERCENT_RANGE_ERROR, buttons=keyboards.back_to_bonus_menu_button())
+            raise events.StopPropagation
+        settings = await SettingsManager().get_settings()
+        await SettingsManager().update_setting(settings.id, auto_bonus_percent=percent)
+        await set_step(event.sender_id, "SettingsCardToCard")
+        settings = await SettingsManager().get_settings()
+        bonus_text, buttons = await keyboards.get_bonus_settings_menu(settings)
+        await delete_message(event, offset=-1)
+        await delete_message(event)
+        await event.respond(
+            texts.AUTO_BONUS_SET_TEMPLATE.format(percent=percent, bonus_text=bonus_text),
+            buttons=buttons,
+        )
+    elif await get_step(event.sender_id) == "set_auto_bonus_percent":
         await delete_message(event, offset=-1)
         await delete_message(event)
         await event.respond(texts.NUMERIC_ONLY, buttons=keyboards.back_to_bonus_menu_button())

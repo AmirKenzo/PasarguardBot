@@ -108,6 +108,18 @@ async def create_inline_cartbcard(settings, user=None) -> list:
             ]
         )
 
+    if settings and settings.auto_cart and user is not None and user.safe:
+        auto_btn = await _balance_inline_button(
+            keyboard_crud,
+            "in.balance.auto",
+            KEYBOARD_BUTTON_DEFAULTS["in.balance.auto"],
+            b"AutoCardToCard",
+            bonus_enabled=settings.auto_bonus_enabled,
+            bonus_percent=settings.auto_bonus_percent,
+        )
+        insert_index = 2 if len(buttons) >= 2 else len(buttons)
+        buttons.insert(insert_index, [auto_btn])
+
     if not buttons:
         disabled_text, disabled_style = await _get_keyboard_button_config(
             keyboard_crud,

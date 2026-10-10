@@ -223,7 +223,9 @@
     "irGatewayPay": "{{name}} online payment",
     "irGatewayDesc": "Pay with any Shetab bank card",
     "irGatewaySandboxDesc": "Test mode — admins only, no real payment",
-    "bonus": " • {{percent}}% bonus"
+    "bonus": " • {{percent}}% bonus",
+    "autoCard": "Auto Card-to-Card",
+    "autoCardDesc": "Exact-rial transfer, confirmed instantly by SMS"
   },
   "cryptoDeposit": {
     "title": "Crypto Payment",
@@ -269,6 +271,21 @@
     "phoneVerifySuccess": "Phone number verified",
     "phoneVerifyTimeout": "No confirmation received. Please try again.",
     "phoneVerifyUnsupported": "Please update Telegram to use this."
+  },
+  "autoCardDeposit": {
+    "title": "Auto Card-to-Card",
+    "invoiceSubtitle": "Invoice #{{id}}",
+    "exactAmountLabel": "Exact deposit amount (Rial)",
+    "exactAmountHint": "The last three digits must be exactly {{digits}} for the deposit to be confirmed automatically.",
+    "copyRialAmount": "Copy Rial Amount",
+    "waitingForSms": "Waiting for the bank SMS to confirm automatically…",
+    "timeLeft": "Time left: {{time}}",
+    "createInvoice": "Create Auto Invoice",
+    "paidTitle": "Transaction confirmed",
+    "paidDesc": "Your wallet balance has been updated.",
+    "expiredTitle": "Invoice expired",
+    "expiredDesc": "This invoice has expired. Please create a new request.",
+    "newInvoice": "Create a new invoice"
   },
   "starsDeposit": {
     "title": "Pay with Stars",
@@ -782,7 +799,8 @@
       "statRejected7d": "Rejected (7d)",
       "statVolume7d": "Approved volume (7d)",
       "methodStars": "Stars",
-      "methodTonpays": "TonPays"
+      "methodTonpays": "TonPays",
+      "methodAutoCard": "Automatic card-to-card"
     },
     "pwa": {
       "tab": "PWA",
@@ -854,7 +872,14 @@
       "miniappMode": "Mini app",
       "startReactionEmoji": "Start reaction emoji",
       "startEffectId": "Start message effect",
-      "readOnlyHint": "Updated automatically — not editable here"
+      "readOnlyHint": "Updated automatically — not editable here",
+      "autoCart": "Auto bank card button",
+      "cartNum": "Destination card number (auto card)",
+      "cartName": "Card holder name (auto card)",
+      "autoDepositMin": "Minimum auto-card top-up (toman)",
+      "autoDepositMax": "Maximum auto-card top-up (toman)",
+      "autoBonusEnabled": "Auto-card top-up bonus",
+      "autoBonusPercent": "Auto-card bonus percent"
     },
     "audit": {
       "broadcastResume": "Broadcast resumed",

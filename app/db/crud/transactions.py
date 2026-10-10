@@ -141,6 +141,28 @@ class TransactionCRUD:
             result = await session.execute(stmt)
             return result.scalar() or 0
 
+    async def exists_recent_approved(self, user_id: int, method: str, amount: int, since_ts: int) -> bool:
+        """Whether an approved transaction matching (user, method, amount) landed at/after since_ts.
+
+        Used to detect an auto-card SMS confirmation from the webapp: that row
+        has no explicit link back to the invoice's order_id, so amount + a
+        creation-time floor is the best available match.
+        """
+        async with Session() as session:
+            stmt = (
+                select(func.count())
+                .select_from(Transaction)
+                .where(
+                    Transaction.user_id == user_id,
+                    Transaction.method == method,
+                    Transaction.amount == amount,
+                    Transaction.status == "approved",
+                    Transaction.created_at >= since_ts,
+                )
+            )
+            result = await session.execute(stmt)
+            return (result.scalar() or 0) > 0
+
     async def count_user_transactions_by_method_status(self, user_id: int) -> dict[tuple[str | None, str | None], int]:
         """Single GROUP BY method,status for a user's transactions."""
         async with Session() as session:

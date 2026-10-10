@@ -19,10 +19,13 @@ def btn_cardtocard_settings(settings=None):
         [Button.inline(text="📋 انتخاب کارت فعال", data="select_active_card")],
         [Button.inline(text=visibility_text, data="toggle_manual_card_visibility")],
         [Button.inline(text=random_mode_text, data="toggle_manual_card_random_mode")],
+        [Button.inline(text="⭐ تغییر نام دارنده کارت (خودکار)", data="chng_auto_card_name")],
+        [Button.inline(text="⭐ تغییرشماره کارت (خودکار)", data="chng_auto_card_number")],
         [Button.inline(text=auto_text, data="toggle_manual_auto_confirm")],
         [Button.inline(text="📋 قوانین تایید خودکار", data="maar_rules_menu")],
         [
             Button.inline(text="💰 محدودیت کارت دستی", data="set_manual_limits"),
+            Button.inline(text="💰 محدودیت کارت خودکار", data="set_auto_limits"),
         ],
         [Button.inline(text="💰 محدودیت واریز ارزی", data="set_crypto_limits")],
         [Button.inline(text="🏷 حداقل شارژ نمایندگی", data="set_reseller_min_wallet")],
@@ -53,6 +56,13 @@ def bonus_settings_buttons(settings):
                 data="toggle_manual_bonus",
             ),
             Button.inline("📝 تنظیم درصد", data="set_manual_bonus_percent"),
+        ],
+        [
+            Button.inline(
+                f"💷 کارت خودکار: {settings.auto_bonus_percent}% {'✅' if settings.auto_bonus_enabled else '❌'}",
+                data="toggle_auto_bonus",
+            ),
+            Button.inline("📝 تنظیم درصد", data="set_auto_bonus_percent"),
         ],
         [
             Button.inline(

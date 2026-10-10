@@ -120,6 +120,7 @@ FLOW_NOT_CANCELLABLE_ALERT = "این مرحله قابل لغو نیست."
 RETURN_HOME_TEXT = "🏠 به منوی اصلی بازگشتید."
 NO_CARD_REGISTERED = "شماره کارت ثبت نشده"
 CRYPTO_INVOICE_CREATE_FAILED = "❌ ساخت فاکتور انجام نشد. لطفاً دوباره تلاش کنید."
+AUTO_CARD_INVOICE_CREATE_FAILED = CRYPTO_INVOICE_CREATE_FAILED
 PENDING_ORDERS_LIMIT = "⚠️ شما بیش از سه فاکتور در انتظار دارید. لطفاً ابتدا فاکتورهای قبلی را پرداخت کنید."
 WALLET_NOT_FOUND_TRX = "❌ کیف پول ترون در سیستم ثبت نشده است. لطفاً با پشتیبانی تماس بگیرید."
 WALLET_NOT_FOUND_USDT = "❌ کیف پول USDT در سیستم ثبت نشده است. لطفاً با پشتیبانی تماس بگیرید."

@@ -268,6 +268,7 @@ def _tx_branch():
     )
     normalized_method = case(
         (Transaction.method == "manual", "manual_card"),
+        (Transaction.method == "auto", "auto_card"),
         else_=Transaction.method,
     )
     return select(

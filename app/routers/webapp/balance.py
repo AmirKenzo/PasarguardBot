@@ -2,11 +2,13 @@
 
 import asyncio
 import random
+import time as time_module
 from io import BytesIO
 
 from fastapi import APIRouter, File, Form, UploadFile
 
 from app import Kenzo
+from app.db.crud.auto_card import CRUDAutoCard
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.cryptopayments import (
     CryptoPaymentsCRUD,
@@ -23,6 +25,10 @@ from app.db.crud.user import UserCRUD
 from app.db.crud.wallets import WalletCRUD
 from app.logger import LogType, get_logger
 from app.models.webapp import (
+    BalanceAutoCardStatusRequest,
+    BalanceAutoCardStatusResponse,
+    BalanceDepositAutoRequest,
+    BalanceDepositAutoResponse,
     BalanceDepositCryptoRequest,
     BalanceDepositCryptoResponse,
     BalanceDepositManualReceiptResponse,
@@ -61,6 +67,22 @@ from app.utils.formatting.dates import Time_Date
 logger = get_logger(__name__)
 router = APIRouter()
 
+# Matches AutoCardExpiryProcessor's TTL (app/jobs/payments/auto_card.py). Not imported from
+# there directly — that pulls in the whole app.jobs.payments package at router-import time,
+# which triggers an unrelated circular import in the telegram callback-guards chain.
+AUTO_CARD_TTL_SECONDS = 1800
+
+
+def _to_auto_card_rial(amount: int) -> int:
+    """Convert toman to exact rial invoice amount with randomized last three digits."""
+    rial_amount = amount * 10
+    rial_str = str(rial_amount)
+    if len(rial_str) <= 3:
+        modified_digits = [str(random.randint(0, 9)) for _ in range(len(rial_str))]
+    else:
+        modified_digits = list(rial_str[:-3]) + [str(random.randint(0, 9)) for _ in range(3)]
+    return int("".join(modified_digits))
+
 
 def _phone_verify_required(settings, user) -> bool:
     """Same gate as the bot: card-to-card needs a verified phone first."""
@@ -79,6 +101,7 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
         if not settings:
             return BalanceMethodsResponse(ok=False, error="تنظیمات یافت نشد")
         user = await UserCRUD().read_user(user_id)
+        safe = bool(getattr(user, "safe", False))
         phone_verify_required = _phone_verify_required(settings, user)
         card_number = None
         card_name = None
@@ -98,14 +121,22 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
             pay_mode=bool(settings.pay_mode),
             arz_mode=bool(settings.arz_mode),
             cart_sta=bool(getattr(settings, "cart_sta", False)),
+            auto_cart=bool(getattr(settings, "auto_cart", False) and safe),
             manual_deposit_min=int(settings.manual_deposit_min or 0),
             manual_deposit_max=int(settings.manual_deposit_max or 0),
+            auto_deposit_min=int(getattr(settings, "auto_deposit_min", 0) or 0),
+            auto_deposit_max=int(getattr(settings, "auto_deposit_max", 0) or 0),
             crypto_deposit_min=int(settings.crypto_deposit_min or 0),
             crypto_deposit_max=int(settings.crypto_deposit_max or 0),
             card_number=card_number,
             card_name=card_name,
+            auto_card_number=getattr(settings, "cart_num", None),
+            auto_card_name=getattr(settings, "cart_name", None),
             manual_bonus_percent=int(getattr(settings, "manual_bonus_percent", 0) or 0),
             crypto_bonus_percent=int(getattr(settings, "crypto_bonus_percent", 0) or 0),
+            auto_bonus_percent=int(getattr(settings, "auto_bonus_percent", 0) or 0)
+            if getattr(settings, "auto_bonus_enabled", False)
+            else 0,
             stars_bonus_percent=int(getattr(settings, "stars_bonus_percent", 0) or 0),
             arz_usd=int(getattr(settings, "arz_usd", 0) or 0),
             arz_trx=int(getattr(settings, "arz_trx", 0) or 0),
@@ -198,6 +229,101 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
         return BalanceDepositManualResponse(ok=False, error=str(e))
     except Exception as e:
         return BalanceDepositManualResponse(ok=False, error=str(e))
+
+
+@router.post("/webapp/balance/deposit/auto-card", response_model=BalanceDepositAutoResponse)
+async def deposit_auto_card(request: BalanceDepositAutoRequest) -> BalanceDepositAutoResponse:
+    """Create an SMS-matched auto card-to-card invoice."""
+    try:
+        user_id = await authenticate_user(
+            init_data=request.init_data,
+            session_token=request.session_token,
+        )
+        settings = await SettingsManager().get_settings()
+        user = await UserCRUD().read_user(user_id)
+        safe = bool(getattr(user, "safe", False))
+        if not settings or not settings.auto_cart or not safe:
+            return BalanceDepositAutoResponse(ok=False, error="کارت به کارت خودکار برای شما فعال نیست")
+
+        amount = request.amount
+        min_a = int(getattr(settings, "auto_deposit_min", 0) or 0)
+        max_a = int(getattr(settings, "auto_deposit_max", 0) or 0)
+        if amount < min_a or amount > max_a:
+            return BalanceDepositAutoResponse(
+                ok=False,
+                error=f"مبلغ باید بین {min_a:,} تا {max_a:,} تومان باشد",
+            )
+
+        crud = CRUDAutoCard()
+        order_id = random.randint(55555, 999999)
+        for _ in range(10):
+            if not await crud.read(order_id):
+                break
+            order_id = random.randint(55555, 999999)
+        amount_rial = _to_auto_card_rial(amount)
+        for _ in range(10):
+            if not await crud.exists_by_amount(amount_rial):
+                break
+            amount_rial = _to_auto_card_rial(amount)
+
+        created_at = int(time_module.time())
+        invoice = await crud.create(
+            code=order_id,
+            time=created_at,
+            amount=amount_rial,
+            first_amount=amount,
+            status=False,
+            msg_id=None,
+            id=user_id,
+        )
+        if not invoice:
+            return BalanceDepositAutoResponse(ok=False, error="خطا در ایجاد فاکتور")
+
+        return BalanceDepositAutoResponse(
+            ok=True,
+            message="فاکتور کارت به کارت خودکار صادر شد. مبلغ ریالی را دقیقاً واریز کنید تا SMS به صورت خودکار تایید شود.",
+            order_id=order_id,
+            amount_irt=amount,
+            amount_rial=amount_rial,
+            card_number=getattr(settings, "cart_num", None),
+            card_name=getattr(settings, "cart_name", None),
+            expires_at=created_at + AUTO_CARD_TTL_SECONDS,
+            created_at=created_at,
+        )
+    except ValueError as e:
+        return BalanceDepositAutoResponse(ok=False, error=str(e))
+    except Exception as e:
+        return BalanceDepositAutoResponse(ok=False, error=str(e))
+
+
+@router.post("/webapp/balance/deposit/auto-card/status", response_model=BalanceAutoCardStatusResponse)
+async def auto_card_deposit_status(request: BalanceAutoCardStatusRequest) -> BalanceAutoCardStatusResponse:
+    """Poll one auto-card invoice: pending while it still exists, otherwise paid or expired.
+
+    The invoice row is deleted the moment the matching bank SMS lands, so
+    "gone" is resolved by looking for the approved transaction the SMS
+    handler creates for the same user/amount at/after this invoice's creation.
+    """
+    try:
+        user_id = await authenticate_user(
+            init_data=request.init_data,
+            session_token=request.session_token,
+        )
+        invoice = await CRUDAutoCard().read(request.order_id)
+        if invoice and int(invoice.id) == user_id:
+            return BalanceAutoCardStatusResponse(ok=True, status="pending")
+
+        paid = await TransactionCRUD().exists_recent_approved(
+            user_id=user_id,
+            method="auto",
+            amount=request.amount_irt,
+            since_ts=request.created_at,
+        )
+        return BalanceAutoCardStatusResponse(ok=True, status="paid" if paid else "expired")
+    except ValueError as e:
+        return BalanceAutoCardStatusResponse(ok=False, error=str(e))
+    except Exception as e:
+        return BalanceAutoCardStatusResponse(ok=False, error=str(e))
 
 
 async def _log_duplicate_receipt(user_id: int, amount: int, content: bytes, filename: str | None) -> None:
