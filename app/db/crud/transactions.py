@@ -28,6 +28,8 @@ class TransactionCRUD:
         status: str = "pending",
         message_id: int | None = None,
         message_chat_id: int | None = None,
+        payable_amount: int | None = None,
+        amount_offset: int | None = None,
     ):
         async with Session() as session:
             now = int(__import__("time").time())
@@ -40,10 +42,68 @@ class TransactionCRUD:
                 completed_at=now if status in ("approved", "rejected") else None,
                 message_id=message_id,
                 message_chat_id=message_chat_id,
+                payable_amount=payable_amount,
+                amount_offset=amount_offset,
             )
             session.add(transaction)
             await session.commit()
             return transaction
+
+    async def get_pending_manual_payables(self, since_ts: int | None = None) -> list[int]:
+        """Payable amounts currently reserved by pending manual top-ups."""
+        async with Session() as session:
+            stmt = select(Transaction.payable_amount).where(
+                Transaction.method == "manual",
+                Transaction.status == "pending",
+                Transaction.payable_amount.isnot(None),
+            )
+            if since_ts is not None:
+                stmt = stmt.where(Transaction.created_at >= since_ts)
+            result = await session.execute(stmt)
+            return [int(v) for v in result.scalars().all() if v is not None]
+
+    async def find_pending_manual_by_payable(
+        self, payable: int, since_ts: int | None = None
+    ):
+        """Oldest pending manual tx reserving this exact payable amount."""
+        async with Session() as session:
+            stmt = (
+                select(Transaction)
+                .where(
+                    Transaction.method == "manual",
+                    Transaction.status == "pending",
+                    Transaction.payable_amount == int(payable),
+                )
+                .order_by(Transaction.created_at.asc())
+            )
+            if since_ts is not None:
+                stmt = stmt.where(Transaction.created_at >= since_ts)
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+    async def find_recent_approved_payable_without_receipt(
+        self, user_id: int, since_ts: int
+    ):
+        """Latest manual tx auto-approved via ForApp that has no receipt photo.
+
+        Used to refuse a receipt that arrives *after* the transfer was already
+        credited — accepting it would create a second tx for the same money.
+        """
+        async with Session() as session:
+            stmt = (
+                select(Transaction)
+                .where(
+                    Transaction.user_id == int(user_id),
+                    Transaction.method == "manual",
+                    Transaction.status == "approved",
+                    Transaction.payable_amount.isnot(None),
+                    Transaction.message_id.is_(None),
+                    Transaction.created_at >= int(since_ts),
+                )
+                .order_by(Transaction.created_at.desc())
+            )
+            result = await session.execute(stmt)
+            return result.scalars().first()
 
     async def get(self, tx_id: int):
         async with Session() as session:
@@ -70,17 +130,24 @@ class TransactionCRUD:
             return result.scalars().all()
 
     async def approve_manual(self, tx: Transaction) -> dict | None:
-        """Approve pending manual tx with bonus. Returns None if not pending."""
+        """Approve pending manual tx with bonus. Returns None if not pending.
+
+        The credited amount is the exact transferred sum: ``payable_amount``
+        when the tx was created through the ForApp unique-amount flow
+        (base + offset), otherwise ``amount``. The offset is only a matching
+        tag — never a fee — so the user always receives what they paid.
+        """
         tx_id = int(tx.id)
         if tx.status != "pending":
             return None
+        paid = int(tx.payable_amount) if tx.payable_amount else int(tx.amount)
         settings = await SettingsManager().get_settings()
         bonus = await calculate_payment_bonus(
-            amount=int(tx.amount),
+            amount=paid,
             bonus_enabled=settings.manual_bonus_enabled,
             bonus_percent=settings.manual_bonus_percent,
         )
-        total = int(tx.amount) + bonus
+        total = paid + bonus
         now = int(time.time())
         async with Session() as session, session.begin():
             tx_stmt = select(Transaction).where(Transaction.id == tx_id)
@@ -549,3 +616,28 @@ class TransactionCRUD:
             result = await session.execute(stmt)
             row = result.one_or_none()
             return (row.user_id, row.created_at) if row else None
+
+
+async def reserve_unique_payable_for_manual(
+    base_amount: int,
+    *,
+    ttl_seconds: int = 1800,
+    min_offset: int = 1,
+    max_offset: int = 999,
+) -> tuple[int, int]:
+    """Reserve a collision-free payable for a new manual top-up.
+
+    Returns ``(payable, offset)``; falls back to ``(base, 0)`` when exhausted.
+    """
+    import time as _time
+
+    from app.services.payments.forapp import reserve_payable_amount
+
+    since = int(_time.time()) - int(ttl_seconds) if ttl_seconds > 0 else None
+    taken = await TransactionCRUD().get_pending_manual_payables(since_ts=since)
+    reserved = reserve_payable_amount(
+        int(base_amount), set(taken), min_offset=min_offset, max_offset=max_offset
+    )
+    if reserved is None:
+        return int(base_amount), 0
+    return reserved

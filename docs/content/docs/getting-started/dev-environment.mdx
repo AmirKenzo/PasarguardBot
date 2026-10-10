@@ -1,0 +1,77 @@
+---
+title: محیط توسعه (Dev + Docker)
+description: اجرای استک توسعه ایزوله با دیتای سیدشده (پلن، پنل، کارت، کاربر) برای توسعه و تست ForApp بدون دست‌زدن به پروداکشن.
+icon: FlaskConical
+---
+
+استک توسعه کاملاً از پروداکشن جداست (پورت‌های `617x`) و با یک دستور بالا می‌آید. دیتای سید شامل پلن‌ها، یک پنل غیرفعال، یک کارت دستی فعال، دو کاربر تست و فعال‌بودن ForApp است.
+
+<Callout type="warn" title="فقط لوکال">
+این استک و کلیدهایش (`forapp_dev_key_change_me` و...) نمایشی‌اند. هرگز `.env.dev` یا دیتای dev را به پروداکشن نبرید. اسکریپت سید بدون `PASARGUARDBOT_DEV_SEED=1` و روی دیتابیسی که اسمش `dev`/`test`/`sqlite` نباشد اجرا نمی‌شود.
+</Callout>
+
+## اجرا [#run]
+
+```bash
+cp .env.dev.example .env.dev
+docker compose -f docker-compose.dev.yml --env-file .env.dev up --build
+```
+
+| سرویس | آدرس |
+|-------|------|
+| API ربات (FastAPI) | `http://127.0.0.1:6170` |
+| وب‌هوک ForApp | `http://127.0.0.1:6170/api/payments/forapp/webhook` |
+| سلامت ForApp | `http://127.0.0.1:6170/api/payments/forapp/health` |
+| MariaDB | `127.0.0.1:6172` (یوزر/پس در `.env.dev`) |
+| Redis | `127.0.0.1:6171` |
+| phpMyAdmin | `http://127.0.0.1:6173` |
+
+سرویس `seed` بعد از مایگریشن‌ها یک‌بار اجرا می‌شود (`service_completed_successfully`) و بعد کانتینر `bot` بالا می‌آید. اجرای دوباره سید بی‌خطر است (idempotent).
+
+<Callout type="info" title="ربات تلگرام در dev وصل نمی‌شود">
+کر دنسی‌های تلگرام در `.env.dev` ساختگی‌اند، پس Telethon لاگین نمی‌کند — عمدی است. سرور FastAPI (و وب‌هوک ForApp) عادی سرو می‌دهند. زمان‌بند/جاب‌ها (تایید خودکار، چک ارزها) فقط بعد از لاگین تلگرام استارت می‌خورند، پس در dev اجرا نمی‌شوند؛ فلوها را با HTTP و دکمه‌های ربات تست کنید.
+</Callout>
+
+## دیتای سید [#seed-data]
+
+| چه | مقدار |
+|----|-------|
+| تنظیمات | `pay_mode=true` و `forapp_enabled=true` |
+| کارت دستی فعال | `6037991234567890` به‌نام Dev Test Card |
+| پنل | کد `9001`، غیرفعال (جاب‌ها به آن دست نمی‌زنند) |
+| پلن‌ها | ۱۰ گیگ/۳۰ روزه ۵۰٬۰۰۰ ــ ۳۰ گیگ/۳۰ روزه ۱۲۰٬۰۰۰ ــ ۱۰۰ گیگ/۹۰ روزه ۳۰۰٬۰۰۰ تومان |
+| کاربران | `100000001` و `100000002` با موجودی صفر |
+
+## تست وب‌هوک ForApp [#forapp-test]
+
+```bash
+# سلامت + پیکربندی کلید
+curl -s http://127.0.0.1:6170/api/payments/forapp/health
+# {"ok":true,"configured":true}
+
+# پیامک تستی (همان چیزی که دکمه تست خود اپ می‌فرستد)
+curl -s -X POST http://127.0.0.1:6170/api/payments/forapp/webhook \
+  -H 'X-API-Key: forapp_dev_key_change_me' \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"dev-probe-1","test":true,"sender":"ForApp","bank":"test",
+       "body":"probe","amount":1000123,"unit":"rial",
+       "is_deposit":true,"attempt":1}'
+# {"ok":true,"message":"test"}
+```
+
+بعد در phpMyAdmin جدول `bank_deposits` را ببینید (رکورد `dev-probe-1` با `status='test'`). برای تست end-to-end واقعی (رزرو مبلغ → واریز → شارژ خودکار)، چک‌لیست [پایلوت ForApp](/docs/admin/forapp#pilot) را با همین آدرس‌ها اجرا کنید.
+
+## توقف و پاک‌سازی [#teardown]
+
+```bash
+docker compose -f docker-compose.dev.yml --env-file .env.dev down        # نگه‌داشتن دیتا
+docker compose -f docker-compose.dev.yml --env-file .env.dev down -v     # حذف دیتای dev
+```
+
+## مرتبط [#related]
+
+<Cards>
+  <Card title="⚡ تایید خودکار ForApp" href="/docs/admin/forapp" />
+  <Card title="💳 تنظیمات درگاه" href="/docs/admin/gateway" />
+  <Card title="پیکربندی (.env)" href="/docs/getting-started/configuration" />
+</Cards>

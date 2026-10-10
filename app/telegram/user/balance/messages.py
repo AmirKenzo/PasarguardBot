@@ -128,20 +128,163 @@ async def respond_deposit_numeric_error(
     await event.respond(error_text, buttons=await keyboards.balance_amount_error_rows())
 
 
-async def manual_card_amount_placeholders(amount_toman: int, settings) -> dict[str, str]:
-    amount_rial = amount_toman * 10
-    formatted_toman = f"{amount_toman:,}"
+async def manual_card_amount_placeholders(
+    amount_toman: int,
+    settings,
+    *,
+    payable_amount: int | None = None,
+    amount_offset: int | None = None,
+) -> dict[str, str]:
+    display = int(payable_amount) if payable_amount else int(amount_toman)
+    amount_rial = display * 10
+    formatted_toman = f"{display:,}"
     formatted_rial = f"{amount_rial:,}"
     placeholders = manual_card_limit_placeholders(settings)
+    ttl_minutes = int(getattr(settings, "forapp_ttl_minutes", 30) or 30)
+    forapp_on = bool(getattr(settings, "forapp_enabled", False)) and bool(payable_amount)
+    if forapp_on:
+        payable_note = (
+            f"⚡ این مبلغ اختصاصی شماست و تا {ttl_minutes} دقیقه معتبر است.\n"
+            "مبلغ را دقیقاً همین‌طور واریز کنید؛ پرداخت به صورت خودکار تایید "
+            "و به کیف پول اضافه می‌شود و نیازی به ارسال رسید نیست."
+        )
+        receipt_hint = (
+            "فقط در صورتی که بعد از واریز، تایید خودکار انجام نشد، از طریق دکمه زیر "
+            "مراحل کارت‌به‌کارت (ارسال رسید) را ادامه دهید."
+        )
+    else:
+        payable_note = ""
+        receipt_hint = (
+            "🏧 پس از انجام واریز، جهت ثبت و بررسی پرداخت، از طریق دکمه زیر "
+            "مراحل کارت‌به‌کارت را ادامه دهید."
+        )
     placeholders.update(
         {
             "amount": formatted_toman,
             "amount_toman": formatted_toman,
             "amount_rial": formatted_rial,
             "card_line": await build_manual_card_line(settings),
+            "base_amount": f"{int(amount_toman):,}",
+            "payable_amount": formatted_toman,
+            "payable_rial": formatted_rial,
+            "amount_offset": f"{int(amount_offset or 0):,}",
+            "payable_note": payable_note,
+            "receipt_hint": receipt_hint,
         }
     )
     return placeholders
+
+
+# How far back we look for an already-credited transfer when a receipt
+# arrives without a matching pending tx (protects cleared-state resends).
+FORAPP_RECEIPT_GUARD_SECONDS = 24 * 60 * 60
+
+FORAPP_ALREADY_APPROVED_TEXT = (
+    "⚡ این پرداخت قبلاً به صورت خودکار تایید و مبلغ آن به کیف پول اضافه شده است.\n"
+    "نیازی به ارسال رسید نیست."
+)
+
+
+async def get_forapp_pre_tx(user_id: int):
+    """Pending ForApp tx reserved for this user's current top-up, if any."""
+    try:
+        pre_tx_id = await get_data(user_id, "forapp_tx_id")
+    except Exception:
+        return None
+    if not pre_tx_id:
+        return None
+    try:
+        return await TransactionCRUD().get(int(pre_tx_id))
+    except Exception:
+        return None
+
+
+async def find_approved_forapp_transfer(user_id: int):
+    """A recent auto-credited transfer with no receipt attached, if any.
+
+    Returns None when ForApp is disabled — without auto-verify there is
+    nothing that could have been credited behind the receipt flow's back.
+    """
+    settings = await SettingsManager().get_settings()
+    if not settings or not bool(getattr(settings, "forapp_enabled", False)):
+        return None
+    import time as _time
+
+    since = int(_time.time()) - FORAPP_RECEIPT_GUARD_SECONDS
+    try:
+        return await TransactionCRUD().find_recent_approved_payable_without_receipt(
+            int(user_id), since
+        )
+    except Exception:
+        return None
+
+
+async def reserve_forapp_for_user(user_id: int, base_amount: int) -> tuple[int, int, object | None]:
+    """Reserve a unique payable and pre-create the pending manual tx.
+
+    Returns ``(payable, offset, tx)``. Falls back to ``(base, 0, None)`` when
+    ForApp is disabled or reservation fails, so the legacy receipt flow keeps
+    working untouched.
+    """
+    from app.db.crud.transactions import TransactionCRUD, reserve_unique_payable_for_manual
+    from app.telegram.state import set_data as _set_data
+
+    settings = await SettingsManager().get_settings()
+    if not settings or not bool(getattr(settings, "forapp_enabled", False)):
+        return int(base_amount), 0, None
+    try:
+        min_offset = int(getattr(settings, "forapp_offset_min", 1) or 1)
+        max_offset = int(getattr(settings, "forapp_offset_max", 999) or 999)
+        ttl_minutes = int(getattr(settings, "forapp_ttl_minutes", 30) or 30)
+    except (TypeError, ValueError):
+        min_offset, max_offset, ttl_minutes = 1, 999, 30
+    try:
+        payable, offset = await reserve_unique_payable_for_manual(
+            int(base_amount),
+            ttl_seconds=max(int(ttl_minutes) * 60, 60),
+            min_offset=min_offset,
+            max_offset=max_offset,
+        )
+    except Exception:
+        return int(base_amount), 0, None
+    try:
+        tx = await TransactionCRUD().create(
+            user_id=int(user_id),
+            amount=int(base_amount),
+            method="manual",
+            payable_amount=int(payable),
+            amount_offset=int(offset),
+        )
+    except Exception:
+        return int(payable), int(offset), None
+    try:
+        # Two users can reserve the same payable concurrently (read-then-create
+        # race). If a *different* pending tx already holds it, re-reserve.
+        import time as _time
+
+        from app.db.crud.transactions import reserve_unique_payable_for_manual as _rereserve
+
+        _since = int(_time.time()) - max(int(ttl_minutes) * 60, 60)
+        for _ in range(3):
+            clash = await TransactionCRUD().find_pending_manual_by_payable(int(payable), since_ts=_since)
+            if clash is None or int(clash.id) == int(tx.id):
+                break
+            payable, offset = await _rereserve(
+                int(base_amount),
+                ttl_seconds=max(int(ttl_minutes) * 60, 60),
+                min_offset=min_offset,
+                max_offset=max_offset,
+            )
+            tx = await TransactionCRUD().update(tx.id, payable_amount=int(payable), amount_offset=int(offset)) or tx
+    except Exception:
+        pass
+    try:
+        await _set_data(int(user_id), "forapp_payable", int(payable))
+        await _set_data(int(user_id), "forapp_offset", int(offset))
+        await _set_data(int(user_id), "forapp_tx_id", int(tx.id))
+    except Exception:
+        pass
+    return int(payable), int(offset), tx
 
 
 async def remember_balance_flow_message(user_id: int, message_id: int) -> None:
@@ -261,9 +404,17 @@ async def return_to_home_menu(event) -> None:
     await set_step(user_id=user_id, step=states.STEP_HOME)
 
 
-async def manual_card_send_channel_info(event, amount_toman: int, *, edit: bool = False) -> None:
+async def manual_card_send_channel_info(
+    event, amount_toman: int, *, edit: bool = False, payable_amount: int | None = None
+) -> None:
     settings = await SettingsManager().get_settings()
-    placeholders = await manual_card_amount_placeholders(amount_toman, settings)
+    if payable_amount is None:
+        try:
+            stored = await get_data(event.sender_id, "forapp_payable")
+            payable_amount = int(stored) if stored else None
+        except Exception:
+            payable_amount = None
+    placeholders = await manual_card_amount_placeholders(amount_toman, settings, payable_amount=payable_amount)
     text_template = await get_bot_text(
         key="manual_card_info",
         default=texts.MANUAL_CARD_INFO_DEFAULT,
@@ -447,7 +598,8 @@ async def cart_b_cart_amount_handler(event: Message):
             )
             raise events.StopPropagation
         await set_data(event.sender_id, "mablagh", amount)
-        await manual_card_send_channel_info(event, amount, edit=False)
+        payable, _offset, _tx = await reserve_forapp_for_user(event.sender_id, amount)
+        await manual_card_send_channel_info(event, amount, edit=False, payable_amount=payable)
         await set_step(event.sender_id, step=states.STEP_CART_B_CART2)
         raise events.StopPropagation
     await respond_deposit_numeric_error(
@@ -564,7 +716,44 @@ async def mablagh_sharj_handler(event: Message):
         mesg_resid = receipt_confirmed_template.format(amount=f"{int(mablagh):,}")
         await event.respond(mesg_resid, buttons=await bhome_buttons(event.sender_id, "fa"))
         reduser = await UserCRUD().read_user(user_id=int(event.sender_id))
-        tx = await TransactionCRUD().create(user_id=int(event.sender_id), amount=int(mablagh), method="manual")
+        # Reuse the ForApp pre-created pending tx (holds the unique payable amount)
+        # so the SMS webhook and the photo receipt point at the same record.
+        # A receipt arriving after the transfer was already auto-credited is
+        # refused — accepting it would mint a second tx for the same money.
+        tx = await get_forapp_pre_tx(event.sender_id)
+        if tx is not None and int(tx.user_id) != int(event.sender_id):
+            tx = None
+        if tx is not None and tx.status != "pending":
+            await event.respond(
+                FORAPP_ALREADY_APPROVED_TEXT,
+                buttons=await bhome_buttons(event.sender_id, "fa"),
+            )
+            await set_step(event.sender_id, step=states.STEP_START)
+            await clear_user(event.sender_id)
+            raise events.StopPropagation
+        if tx is None:
+            approved = await find_approved_forapp_transfer(event.sender_id)
+            if approved is not None:
+                payable = int(approved.payable_amount or approved.amount)
+                await event.respond(
+                    FORAPP_ALREADY_APPROVED_TEXT + f"\n\n💵 مبلغ: `{payable:,}` تومان",
+                    buttons=await bhome_buttons(event.sender_id, "fa"),
+                )
+                await set_step(event.sender_id, step=states.STEP_START)
+                await clear_user(event.sender_id)
+                raise events.StopPropagation
+            try:
+                pre_payable = await get_data(event.sender_id, "forapp_payable")
+                pre_offset = await get_data(event.sender_id, "forapp_offset")
+            except Exception:
+                pre_payable = pre_offset = None
+            tx = await TransactionCRUD().create(
+                user_id=int(event.sender_id),
+                amount=int(mablagh),
+                method="manual",
+                payable_amount=int(pre_payable) if pre_payable else None,
+                amount_offset=int(pre_offset) if pre_offset else None,
+            )
         if await is_direct_pay_active(event.sender_id) or await get_pending_for_user(event.sender_id):
             await link_transaction(int(event.sender_id), int(tx.id))
         rule_crud = ManualAutoApproveRuleCRUD()

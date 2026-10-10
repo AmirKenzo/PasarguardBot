@@ -53,6 +53,21 @@ export function useDepositManualReceiptMutation() {
   });
 }
 
+export function useCheckManualDepositMutation() {
+  const { auth } = useWebAppAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (txId: number) => balanceApi.checkManualDeposit(auth!, txId),
+    onSuccess: (res) => {
+      if (res?.status === "approved") {
+        void queryClient.invalidateQueries({ queryKey: ["profile"] });
+        void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      }
+    },
+  });
+}
+
 export function useDepositCryptoMutation() {
   const { auth } = useWebAppAuth();
   const queryClient = useQueryClient();

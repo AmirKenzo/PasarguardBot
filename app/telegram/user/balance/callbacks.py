@@ -23,14 +23,18 @@ from app.telegram.shared.utils.rate_limit import debounce_callback
 from app.telegram.state import get_data, get_step, set_data, set_step
 from app.telegram.user.balance import states, texts
 from app.telegram.user.balance.messages import (
+    FORAPP_ALREADY_APPROVED_TEXT,
     _prompt_crypto_amount,
     _request_phone_for_balance_payment,
     _require_balance_payment_step,
     create_crypto_invoice,
+    find_approved_forapp_transfer,
+    get_forapp_pre_tx,
     manual_card_amount_placeholders,
     manual_card_prompt_amount,
     manual_card_send_channel_info,
     remember_balance_flow_message,
+    reserve_forapp_for_user,
     return_to_balance_menu,
     return_to_home_menu,
 )
@@ -239,7 +243,8 @@ async def manual_card_payment_callback(event: events.CallbackQuery.Event):
             raise events.StopPropagation
         amount = clamp_deposit_amount(amount, settings.manual_deposit_min, settings.manual_deposit_max)
         await set_data(event.sender_id, "mablagh", amount)
-        await manual_card_send_channel_info(event, amount, edit=True)
+        payable, _offset, _tx = await reserve_forapp_for_user(event.sender_id, amount)
+        await manual_card_send_channel_info(event, amount, edit=True, payable_amount=payable)
         await set_step(event.sender_id, step=states.STEP_CART_B_CART2)
     else:
         await manual_card_prompt_amount(event)
@@ -256,6 +261,20 @@ async def manual_card_send_photo_callback(event: events.CallbackQuery.Event):
     mablagh = await get_data(event.sender_id, "mablagh")
     if not mablagh:
         await event.answer(texts.ENTER_AMOUNT_FIRST_ALERT, alert=True)
+        raise events.StopPropagation
+    # The transfer may have been auto-credited while the user was reading the
+    # card screen — don't advance them into a receipt step they don't need.
+    pre_tx = await get_forapp_pre_tx(event.sender_id)
+    already_credited = (pre_tx is not None and pre_tx.status != "pending") or (
+        pre_tx is None and await find_approved_forapp_transfer(event.sender_id) is not None
+    )
+    if already_credited:
+        await event.edit(
+            FORAPP_ALREADY_APPROVED_TEXT,
+            buttons=await balance_flow_cancel_rows(),
+        )
+        await remember_balance_flow_message(event.sender_id, event.message_id)
+        await set_step(user_id=event.sender_id, step=states.STEP_CART_B_CART)
         raise events.StopPropagation
     settings = await SettingsManager().get_settings()
     ph = await manual_card_amount_placeholders(int(mablagh), settings)

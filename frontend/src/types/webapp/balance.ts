@@ -56,11 +56,26 @@ export interface BalanceDepositManualResponse {
   card_number?: string | null;
   card_name?: string | null;
   error?: string | null;
+  forapp_enabled?: boolean;
+  tx_id?: number | null;
+  base_amount?: number | null;
+  payable_amount?: number | null;
+  payable_rial?: number | null;
+  amount_offset?: number | null;
+  forapp_ttl_minutes?: number | null;
 }
 
 export interface BalanceDepositManualReceiptResponse {
   ok: boolean;
   message?: string | null;
+  error?: string | null;
+  already_approved?: boolean;
+}
+
+export interface BalanceDepositManualStatusResponse {
+  ok: boolean;
+  status?: string | null;
+  payable_amount?: number | null;
   error?: string | null;
 }
 
