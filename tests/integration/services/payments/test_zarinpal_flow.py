@@ -219,7 +219,9 @@ def test_callback_page_renders_result(monkeypatch: pytest.MonkeyPatch) -> None:
 
     from app.routers.webhook import zarinpal as callback_route
 
-    paid = SimpleNamespace(status="completed", amount=50_000, ref_id="<201>", sandbox=True)
+    paid = SimpleNamespace(
+        status="completed", amount=50_000, ref_id="<201>", sandbox=True, order_id="ZP1", card_pan="5022****5995"
+    )
     seen: list[tuple[str, str]] = []
 
     async def fake_handle(authority: str, status: str):
