@@ -240,7 +240,7 @@ async def help_download_apps_admin_callback(event: events.CallbackQuery.Event):
         owner = await get_data(event.sender_id, states.HELP_DOWNLOAD_APP_ADD_REPO_OWNER)
         name = await get_data(event.sender_id, states.HELP_DOWNLOAD_APP_ADD_REPO_NAME)
         cat_str = await get_data(event.sender_id, states.HELP_DOWNLOAD_APP_ADD_CATEGORIES)
-        categories = json.loads(cat_str) if cat_str else {}
+        categories = cat_str if isinstance(cat_str, dict) else json.loads(cat_str) if cat_str else {}
         for key in states.IOS_SKIP_STEP_KEYS:
             await delete_data(event.sender_id, key)
         await set_step(event.sender_id, "home")

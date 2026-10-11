@@ -409,7 +409,7 @@ async def reseller_plan_callbacks(event: events.CallbackQuery.Event):
             await event.answer("پنل انتخاب نشده است. دوباره از منو شروع کنید.", alert=True)
             return
         role_name = await get_data(user_id, states.ROLE_NAME_KEY)
-        if not role_name or await get_data(user_id, states.ROLE_ID_KEY) != str(role_id):
+        if not role_name or str(await get_data(user_id, states.ROLE_ID_KEY)) != str(role_id):
             role_name = str(role_id)
             panel = await PanelsManager().get_panel_by_code(code=panel_code)
             if panel:

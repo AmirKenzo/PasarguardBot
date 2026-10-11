@@ -334,7 +334,7 @@ async def _buy_addon_confirmed(event, code: int, addon: str) -> None:
     stored_code = await get_data(user_id, ADDON_CODE_KEY)
     stored_addon = await get_data(user_id, ADDON_TYPE_KEY)
     quantity_raw = await get_data(user_id, ADDON_QUANTITY_KEY)
-    if stored_code != str(code) or stored_addon != addon or not quantity_raw:
+    if str(stored_code) != str(code) or stored_addon != addon or not quantity_raw:
         await event.answer("نشست منقضی شده.", alert=True)
         return
     loaded = await _load_addon_account(event, code, addon)
@@ -903,8 +903,8 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             return
         if (
             await get_step(user_id) != "reseller_renew_confirm"
-            or await get_data(user_id, "reseller_renew_account_code") != str(code)
-            or await get_data(user_id, "reseller_renew_plan_id") != str(plan.id)
+            or str(await get_data(user_id, "reseller_renew_account_code")) != str(code)
+            or str(await get_data(user_id, "reseller_renew_plan_id")) != str(plan.id)
         ):
             await event.answer("نشست منقضی شده؛ دوباره تمدید را باز کنید.", alert=True)
             return

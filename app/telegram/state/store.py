@@ -55,7 +55,7 @@ def _serialize(value: Any) -> str:
 
 
 def _deserialize(raw: str) -> Any:
-    if not raw:
+    if not raw or raw.lstrip()[:1] not in ("{", "["):
         return raw
     try:
         return json.loads(raw)

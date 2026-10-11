@@ -288,7 +288,7 @@ async def help_download_admin_message(event: Message):
         owner = await get_data(event.sender_id, states.HELP_DOWNLOAD_APP_ADD_REPO_OWNER)
         name = await get_data(event.sender_id, states.HELP_DOWNLOAD_APP_ADD_REPO_NAME)
         cat_str = await get_data(event.sender_id, states.HELP_DOWNLOAD_APP_ADD_CATEGORIES)
-        categories = json.loads(cat_str) if cat_str else {}
+        categories = cat_str if isinstance(cat_str, dict) else json.loads(cat_str) if cat_str else {}
         ios_url = msg.strip() if msg.strip() and msg.strip() != "-" else None
         if ios_url and not ios_url.startswith(("http://", "https://")):
             ios_url = "https://" + ios_url

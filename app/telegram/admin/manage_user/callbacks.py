@@ -1058,8 +1058,8 @@ async def callback_manage_user_admin(event: events.CallbackQuery.Event):
             await event.answer("Session expired or already applied.", alert=True)
             return
         try:
-            payload = json.loads(raw)
-        except json.JSONDecodeError:
+            payload = raw if isinstance(raw, dict) else json.loads(raw)
+        except TypeError, json.JSONDecodeError:
             await event.answer("Invalid stored data.", alert=True)
             await delete_data(event.sender_id, "AdminBulkDeleteData")
             return
