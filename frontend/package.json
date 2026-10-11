@@ -20,7 +20,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-i18next": "^17.0.15",
+    "react-i18next": "^17.0.16",
     "react-router-dom": "^7.18.4",
     "tailwind-merge": "^3.7.0"
   },
@@ -33,7 +33,7 @@
     "postcss": "^8.5.29",
     "tailwindcss": "^4.3.3",
     "typescript": "~7.0.2",
-    "vite": "^8.3.2",
+    "vite": "^8.3.3",
     "vite-plugin-pwa": "^2.0.0"
   }
 }
