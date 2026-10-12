@@ -329,7 +329,7 @@ export interface PanelResellerPlanRow {
   enable: boolean;
   display_button_text?: string | null;
   button_style?: string | null;
-  button_icon?: number | null;
+  button_icon?: string | null;
   linked_accounts: number;
   addon_day_price: number;
   addon_gb_price: number;

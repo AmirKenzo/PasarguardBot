@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from app.models.panel.common import PanelRequest, PanelResponse
+from app.models.panel.common import EmojiId, PanelRequest, PanelResponse
 
 # ``none`` clears the built-in default colour; an empty value keeps it.
 STYLE_OPTIONS = ("", "primary", "success", "danger", "glass", "none")
@@ -27,8 +27,8 @@ class PanelKeyboardButton(BaseModel):
     style: str | None = None
     # Colour the bot uses while ``style`` is unset (null).
     default_style: str | None = None
-    default_icon: int | None = None
-    icon: int | None = None
+    default_icon: EmojiId | None = None
+    icon: EmojiId | None = None
     hidden: bool = False
     in_home: bool = False
     # Empty when the button can render; otherwise why the bot holds it back

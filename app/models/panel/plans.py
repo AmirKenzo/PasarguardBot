@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from app.models.panel.common import PagedRequest, PageMeta, PanelRequest, PanelResponse
+from app.models.panel.common import EmojiId, PagedRequest, PageMeta, PanelRequest, PanelResponse
 
 PLAN_TYPES = ("volume", "fair_usage")
 RESET_STRATEGIES = ("no_reset", "day", "week", "month", "year")
@@ -31,7 +31,7 @@ class PanelPlanRow(BaseModel):
     ip_limit: int = 0
     display_button_text: str | None = None
     button_style: str | None = None
-    button_icon: int | None = None
+    button_icon: EmojiId | None = None
 
 
 class PanelPlansRequest(PagedRequest):

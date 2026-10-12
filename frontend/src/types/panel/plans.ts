@@ -27,7 +27,7 @@ export interface PanelPlanRow {
   ip_limit: number;
   display_button_text?: string | null;
   button_style?: string | null;
-  button_icon?: number | null;
+  button_icon?: string | null;
 }
 
 export interface PanelPlansRequest extends PagedRequest {

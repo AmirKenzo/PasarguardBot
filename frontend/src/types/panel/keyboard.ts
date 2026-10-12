@@ -13,8 +13,8 @@ export interface PanelKeyboardButton {
   style?: string | null;
   /** Colour the bot uses while `style` is unset (null). */
   default_style?: string | null;
-  default_icon?: number | null;
-  icon?: number | null;
+  default_icon?: string | null;
+  icon?: string | null;
   hidden: boolean;
   in_home: boolean;
   /** Empty when the button can render; otherwise why the bot holds it back. */
