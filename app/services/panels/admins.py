@@ -271,20 +271,19 @@ async def purge_reseller_admin(panel, account) -> tuple[int, bool]:
     if not admin_id:
         log.error("purge skipped: account=%s has no panel_admin_id", account.code)
         return 0, False
-    deleted_users = 0
-    admin_removed = False
     try:
         deleted_users = await delete_reseller_admin_users(panel, admin_id)
     except Exception as exc:
-        log.error("delete reseller admin users failed admin_id=%s: %s", admin_id, exc)
+        log.error("delete reseller admin users failed admin_id=%s, admin kept: %s", admin_id, exc)
+        return 0, False
 
     try:
         await remove_reseller_admin(panel, admin_id)
-        admin_removed = True
     except Exception as exc:
         log.error("remove reseller admin failed admin_id=%s: %s", admin_id, exc)
+        return deleted_users, False
 
-    return deleted_users, admin_removed
+    return deleted_users, True
 
 
 def compute_reseller_data_limit(plan: ResellerPlan, volume: float | None) -> int:

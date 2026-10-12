@@ -628,7 +628,11 @@ function AccountBody({
             variant="danger"
             loading={remove.isPending}
             message={t("panel.resellerHub.detail.deleteConfirm", { name: account.username })}
-            onConfirm={() => remove.mutate({ code: account.code }, { onSuccess: onClose })}
+            requireText={account.username ?? ""}
+            requireTextLabel={t("panel.resellerHub.detail.deleteTypeLabel", { name: account.username })}
+            onConfirm={() =>
+              remove.mutate({ code: account.code, confirm_username: account.username ?? "" }, { onSuccess: onClose })
+            }
           >
             <Trash2 size={14} />
             {t("common.delete")}

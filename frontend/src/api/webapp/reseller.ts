@@ -12,6 +12,7 @@ import type {
   WebAppResellerCapacityPreviewResponse,
   WebAppResellerCapacityRequest,
   WebAppResellerCodeRequest,
+  WebAppResellerDeleteRequest,
   WebAppResellerEventsResponse,
   WebAppResellerPageRequest,
   WebAppResellerPasswordResponse,
@@ -100,6 +101,6 @@ export function getEvents(body: WebAppResellerPageRequest) {
   return apiPost<WebAppResellerEventsResponse>("/reseller/account/events", body);
 }
 
-export function deleteAccount(body: WebAppResellerCodeRequest) {
+export function deleteAccount(body: WebAppResellerDeleteRequest) {
   return apiPost<WebAppResellerActionResponse>("/reseller/account/delete", body);
 }

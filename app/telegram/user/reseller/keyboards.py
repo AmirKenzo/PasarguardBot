@@ -165,6 +165,13 @@ async def build_delete_confirm_buttons(account_code: int) -> list:
     ]
 
 
+async def build_delete_final_buttons(account_code: int) -> list:
+    return [
+        [await rs_buttons.rs_delete_final_button(account_code)],
+        [await rs_buttons.rs_delete_cancel_button(account_code)],
+    ]
+
+
 async def build_usage_history_buttons(account_code: int, page: int, has_prev: bool, has_next: bool) -> list:
     rows = []
     nav = []

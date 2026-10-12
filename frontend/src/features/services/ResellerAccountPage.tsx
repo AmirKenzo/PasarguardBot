@@ -261,6 +261,8 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
   const actions = new Set(data.actions);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [password, setPassword] = useState<string | null>(null);
+  const [deleteTyped, setDeleteTyped] = useState("");
+  const deleteMatches = deleteTyped.trim().toLowerCase() === account.username.trim().toLowerCase();
 
   const reveal = useResellerMutation(resellerApi.revealPassword, { refresh: false });
   const reset = useResellerMutation(resellerApi.resetPassword);
@@ -589,18 +591,37 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
         </Button>
       </Sheet>
 
-      <Sheet open={sheet === "delete"} onClose={() => setSheet(null)} title={t("reseller.detail.delete")}>
+      <Sheet
+        open={sheet === "delete"}
+        onClose={() => {
+          setSheet(null);
+          setDeleteTyped("");
+        }}
+        title={t("reseller.detail.delete")}
+      >
         <p className="rounded-md border border-danger/25 bg-danger/5 px-4 py-3 text-sm leading-7 text-danger">
           {t("reseller.detail.deleteNote", { name: account.username })}
         </p>
+        <div className="mt-4">
+          <Input
+            label={t("reseller.detail.deleteTypeLabel", { name: account.username })}
+            value={deleteTyped}
+            onChange={(event) => setDeleteTyped(event.target.value)}
+            placeholder={account.username}
+            autoComplete="off"
+            spellCheck={false}
+            ltr
+          />
+        </div>
         <Button
           className="mt-4"
           fullWidth
           variant="danger"
+          disabled={!deleteMatches}
           loading={remove.isPending}
           onClick={() =>
             remove.mutate(
-              { code: account.code },
+              { code: account.code, confirm_username: deleteTyped.trim() },
               {
                 onSuccess: (res) => {
                   done(res.message);

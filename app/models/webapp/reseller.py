@@ -134,6 +134,10 @@ class WebAppResellerCodeRequest(WebAppAuthRequest):
     code: int
 
 
+class WebAppResellerDeleteRequest(WebAppResellerCodeRequest):
+    confirm_username: str = Field("", max_length=64, description="Must equal the reseller username")
+
+
 class ResellerRenewPlanItem(BaseModel):
     id: int
     name: str | None = None

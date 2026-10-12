@@ -192,7 +192,9 @@ export interface PanelResellerCodeRequest extends PanelAuthRequest {
   code: number;
 }
 
-export type PanelResellerDeleteRequest = PanelResellerCodeRequest;
+export interface PanelResellerDeleteRequest extends PanelResellerCodeRequest {
+  confirm_username: string;
+}
 
 export interface PanelResellerRenewRequest extends PanelAuthRequest {
   code: number;

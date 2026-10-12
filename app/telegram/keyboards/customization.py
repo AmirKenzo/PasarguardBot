@@ -270,6 +270,7 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                 ],
                 [
                     await _keyboard_admin_button(keyboard_crud, "in.rs.delete_confirm", 5),
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.delete_final", 5),
                 ],
                 [
                     await _keyboard_admin_button(keyboard_crud, "in.rs.chpwd_confirm", 5),

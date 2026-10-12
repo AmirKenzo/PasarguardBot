@@ -78,6 +78,7 @@ KEYBOARD_BUTTON_TITLES = {
     "in.rs.delete": "حذف نمایندگی",
     "in.rs.buy_random_username": "نام تصادفی (نمایندگی)",
     "in.rs.delete_confirm": "تأیید حذف نمایندگی",
+    "in.rs.delete_final": "تأیید نهایی حذف نمایندگی",
     "in.rs.chpwd_confirm": "تأیید تغییر رمز",
 }
 
@@ -158,6 +159,7 @@ KEYBOARD_BUTTON_DEFAULTS = {
     "in.rs.delete": "🗑 حذف نمایندگی",
     "in.rs.buy_random_username": "🎲 نام تصادفی",
     "in.rs.delete_confirm": "✅ بله، کامل حذف شود",
+    "in.rs.delete_final": "🗑 حذف نهایی و غیرقابل بازگشت",
     "in.rs.chpwd_confirm": "✅ بله، رمز عوض شود",
 }
 
@@ -174,6 +176,7 @@ KEYBOARD_BUTTON_DEFAULT_STYLES = {
     "bt.menu_my_services": ("primary", 5895443668663275064),
     "bt.menu_buy_service": ("success", 5373052667671093676),
     "in.buy.custom": ("primary", None),
+    "in.rs.delete_final": ("danger", None),
 }
 
 STYLE_LABELS = {

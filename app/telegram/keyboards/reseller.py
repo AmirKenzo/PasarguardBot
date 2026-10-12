@@ -149,6 +149,10 @@ async def rs_delete_confirm_button(account_code: int):
     return await _rs_inline_button("in.rs.delete_confirm", f"ResellerAccount_delete_confirm:{account_code}")
 
 
+async def rs_delete_final_button(account_code: int):
+    return await _rs_inline_button("in.rs.delete_final", f"ResellerAccount_delete_final:{account_code}")
+
+
 async def rs_delete_cancel_button(account_code: int):
     return await _rs_inline_button(_KEY_CANCEL, f"ResellerAccount_view:{account_code}")
 
