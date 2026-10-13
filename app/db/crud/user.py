@@ -1,5 +1,6 @@
 import re
 import time
+from collections.abc import Sequence
 
 from sqlalchemy import and_, case, distinct, func, or_, update
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,6 +12,8 @@ from app.db.models.user import User
 from app.logger import get_logger
 
 log = get_logger(__name__)
+
+BULK_BALANCE_CHUNK_SIZE = 1000
 
 # DB `user.status` — only inactive account flags; NULL = normal active user.
 PERSISTENT_USER_STATUS_STEPS = frozenset({"ban", "BlockedBot", "DeleteAccount"})
@@ -405,6 +408,32 @@ class UserCRUD:
 
     async def Add_Money(self, user_id, Money):
         return await update_Money(user_id, Money)
+
+    async def add_balance_bulk(self, amount: int, user_ids: Sequence[int] | None = None) -> int:
+        """Add `amount` to many wallets in one transaction and return the number of updated rows.
+
+        `user_ids=None` targets every user. Ids are de-duplicated and updated in chunks inside a
+        single session, so either every matched wallet is charged or none is (rolled back on error).
+        """
+        amount = int(amount)
+        new_amount = func.coalesce(User.amount, 0) + amount
+        async with Session() as session:
+            try:
+                if user_ids is None:
+                    result = await session.execute(update(User).values(amount=new_amount))
+                    updated = int(result.rowcount or 0)
+                else:
+                    ids = sorted({int(uid) for uid in user_ids if uid})
+                    updated = 0
+                    for start in range(0, len(ids), BULK_BALANCE_CHUNK_SIZE):
+                        chunk = ids[start : start + BULK_BALANCE_CHUNK_SIZE]
+                        result = await session.execute(update(User).where(User.id.in_(chunk)).values(amount=new_amount))
+                        updated += int(result.rowcount or 0)
+                await session.commit()
+                return updated
+            except SQLAlchemyError:
+                await session.rollback()
+                raise
 
     async def all_users_block(self):
         async with Session() as session:

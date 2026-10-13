@@ -183,8 +183,10 @@ async def balance_callback_handler(event: events.CallbackQuery.Event):
             await event.answer("❌ مبلغ نامعتبر است", alert=True)
             raise events.StopPropagation from None
 
+        target_ids: list[int] | None
         if charge_type == "all":
-            users = await UserCRUD().get_all_users()
+            target_ids = None
+            target_count = await UserCRUD().count_all_users()
             user_type_text = texts.ALL_USERS_LABEL
         else:
             user_ids = await ServiceCRUD().get_unique_user_ids()
@@ -195,46 +197,42 @@ async def balance_callback_handler(event: events.CallbackQuery.Event):
                 )
                 raise events.StopPropagation from None
 
-            users = []
-            for uid in user_ids:
-                if uid:
-                    user = await UserCRUD().read_user(uid)
-                    if user:
-                        users.append(user)
+            target_ids = sorted({int(uid) for uid in user_ids if uid})
+            target_count = len(target_ids)
             user_type_text = texts.ACTIVE_SERVICE_USERS_LABEL
 
-        if not users:
+        if not target_count:
             await event.edit(texts.GROUP_CHARGE_NO_USERS, buttons=Panel_Admin_Buttons)
             raise events.StopPropagation from None
 
         await event.edit(
-            texts.group_charge_processing(user_type_text, len(users), amount),
+            texts.group_charge_processing(user_type_text, target_count, amount),
             buttons=None,
         )
 
-        success_count = 0
-        failed_count = 0
-        total_charged = 0
-        for user in users:
-            try:
-                new_balance = await UserCRUD().Add_Money(user.id, amount)
-                if new_balance is not None:
-                    success_count += 1
-                    total_charged += amount
-                else:
-                    failed_count += 1
-            except Exception as exc:
-                logger.error("Error charging user %s: %s", user.id, exc)
-                failed_count += 1
+        try:
+            success_count = await UserCRUD().add_balance_bulk(amount, target_ids)
+            failed_count = 0
+        except Exception as exc:
+            logger.error("Error group charging %s users: %s", target_count, exc)
+            success_count = 0
+            failed_count = target_count
 
+        if not success_count and not failed_count:
+            await event.edit(texts.GROUP_CHARGE_NO_USERS, buttons=Panel_Admin_Buttons)
+            await set_step(event.sender_id, "panel")
+            raise events.StopPropagation from None
+
+        total_users = success_count + failed_count
+        total_charged = success_count * amount
         await event.edit(
-            texts.group_charge_result(user_type_text, len(users), success_count, failed_count, amount, total_charged),
+            texts.group_charge_result(user_type_text, total_users, success_count, failed_count, amount, total_charged),
             buttons=Panel_Admin_Buttons,
         )
         await send_log_message(
             LogType.OTHER,
             message=texts.group_charge_log_message(
-                event.sender_id, user_type_text, len(users), success_count, failed_count, amount, total_charged
+                event.sender_id, user_type_text, total_users, success_count, failed_count, amount, total_charged
             ),
         )
         await set_step(event.sender_id, "panel")
