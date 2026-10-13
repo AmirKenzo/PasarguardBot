@@ -37,8 +37,18 @@ class CryptoPaymentsCRUD:
         except SQLAlchemyError:
             return None
 
-    async def expire_payment(self, order_id: int):
-        return await self.update_payment_status(order_id, "Expired")
+    async def expire_payment(self, order_id: int) -> bool:
+        try:
+            async with Session() as session, session.begin():
+                result = await session.execute(
+                    update(CryptoPayments)
+                    .where(CryptoPayments.order_id == order_id, CryptoPayments.status == "Pending")
+                    .values(status="Expired")
+                    .execution_options(synchronize_session=False)
+                )
+                return result.rowcount == 1
+        except SQLAlchemyError:
+            return False
 
     async def approve_and_credit(self, order_id: int, total_amount: int, paytime: int | None = None):
         try:
@@ -56,6 +66,18 @@ class CryptoPaymentsCRUD:
                     user_stmt = user_stmt.with_for_update()
                 user = (await session.execute(user_stmt)).scalar_one_or_none()
                 if not user:
+                    return None
+
+                values: dict[str, object] = {"status": "Paid"}
+                if paytime:
+                    values["paytime"] = paytime
+                transition = await session.execute(
+                    update(CryptoPayments)
+                    .where(CryptoPayments.order_id == order_id, CryptoPayments.status == "Pending")
+                    .values(**values)
+                    .execution_options(synchronize_session=False)
+                )
+                if transition.rowcount != 1:
                     return None
 
                 user.amount = int(user.amount or 0) + int(total_amount)

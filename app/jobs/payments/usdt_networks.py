@@ -18,7 +18,13 @@ from app.logger import get_logger
 from config import TON_TESTNET_MODE
 
 from .base import BasePaymentProcessor
-from .crypto_common import amount_matches, confirm_payment, expire_payment, is_expired
+from .crypto_common import (
+    amount_matches,
+    confirm_payment,
+    expire_payment,
+    expire_unmatched,
+    tx_time_in_window,
+)
 from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
@@ -166,7 +172,7 @@ async def _fetch_bep20_transfers(client, address_wallet, api_key, start_time) ->
                     "to": item.get("to") or address_wallet,
                     "contractAddress": item.get("contractAddress") or BEP20_CONTRACT,
                     "amount": Decimal(_parse_hex_or_int(item.get("value") or 0)) / (Decimal(10) ** decimals),
-                    "timestamp": ts or int(start_time),
+                    "timestamp": ts,
                     "block": str(_parse_hex_or_int(item.get("blockNum") or item.get("blockNumber") or 0)),
                     "confirmed": True,
                     "explorer_html": (
@@ -209,23 +215,29 @@ class USDTNetworksProcessor(BasePaymentProcessor):
                 except Exception:
                     logger.exception("USDT checker %s failed", checker.__name__)
 
-    async def _pending_valid(self, network: str, settings) -> list:
-        valid = []
-        for payment in await CryptoPaymentsCRUD().get_pending_by_arz(network):
-            if is_expired(payment):
-                await expire_payment(payment, unit=UNIT, price_line=_price_line(settings))
-            else:
-                valid.append(payment)
-        return valid
+    async def _check_network(self, client, settings, network: str, matcher) -> None:
+        pending = await CryptoPaymentsCRUD().get_pending_by_arz(network)
+        if not pending:
+            return
+        matched = await matcher(client, settings, pending)
+        await expire_unmatched(
+            pending,
+            matched,
+            lambda payment: expire_payment(payment, unit=UNIT, price_line=_price_line(settings)),
+        )
 
     async def _check_ton(self, client, settings):
-        valid = await self._pending_valid(NETWORK_TON, settings)
-        if not valid:
-            return
+        await self._check_network(client, settings, NETWORK_TON, self._match_ton)
+
+    async def _check_bep20(self, client, settings):
+        await self._check_network(client, settings, NETWORK_BEP20, self._match_bep20)
+
+    async def _match_ton(self, client, settings, valid: list) -> set[int]:
+        matched_ids: set[int] = set()
         wallet = await WalletCRUD().get_wallet_by_type(NETWORK_TON)
         if not wallet:
             logger.debug("USDT-TON wallet not configured — skipping")
-            return
+            return matched_ids
 
         api_key = (wallet.api_key or "").strip()
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
@@ -237,8 +249,8 @@ class USDTNetworksProcessor(BasePaymentProcessor):
         for payment in valid:
             matched = False
             for event in events:
-                event_ts = event.get("timestamp") or event.get("utime") or 0
-                if event_ts and int(event_ts) < int(payment.createtime):
+                event_ts = event.get("timestamp") or event.get("utime")
+                if not tx_time_in_window(payment, event_ts, allow_unknown=True):
                     continue
                 for amount_units, tx_details in _iter_ton_incoming(event, account_raw):
                     txid = chain_tx_id(tx_details)
@@ -249,6 +261,7 @@ class USDTNetworksProcessor(BasePaymentProcessor):
                         continue
                     if txid:
                         consumed.add(txid)
+                    matched_ids.add(int(payment.order_id))
                     try:
                         await confirm_payment(
                             payment, settings, tx_details, unit=UNIT, price_line=_price_line(settings)
@@ -259,26 +272,25 @@ class USDTNetworksProcessor(BasePaymentProcessor):
                     break
                 if matched:
                     break
+        return matched_ids
 
-    async def _check_bep20(self, client, settings):
-        valid = await self._pending_valid(NETWORK_BEP20, settings)
-        if not valid:
-            return
+    async def _match_bep20(self, client, settings, valid: list) -> set[int]:
+        matched_ids: set[int] = set()
         wallet = await WalletCRUD().get_wallet_by_type(NETWORK_BEP20)
         if not wallet:
             logger.debug("USDT-BEP20 wallet not configured — skipping")
-            return
+            return matched_ids
         api_key = (wallet.api_key or "").strip()
         if not api_key:
             logger.warning("USDT-BEP20 MegaNode API key missing — skipping")
-            return
+            return matched_ids
 
         earliest = min(int(p.createtime) for p in valid)
         txs = await _fetch_bep20_transfers(client, wallet.address, api_key, earliest)
         consumed: set[str] = set()
         for payment in valid:
             for tx in txs:
-                if int(tx.get("timestamp") or 0) < int(payment.createtime):
+                if not tx_time_in_window(payment, tx.get("timestamp"), allow_unknown=True):
                     continue
                 txid = chain_tx_id(tx)
                 if txid and txid in consumed:
@@ -287,8 +299,10 @@ class USDTNetworksProcessor(BasePaymentProcessor):
                     continue
                 if txid:
                     consumed.add(txid)
+                matched_ids.add(int(payment.order_id))
                 try:
                     await confirm_payment(payment, settings, tx, unit=UNIT, price_line=_price_line(settings))
                 except Exception as e:
                     logger.error("Error processing USDT-BEP20 %s: %s", payment.order_id, e)
                 break
+        return matched_ids

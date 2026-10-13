@@ -5,7 +5,7 @@ This processor handles checking and confirming TRX (Tron) cryptocurrency payment
 """
 
 import contextlib
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
@@ -25,6 +25,7 @@ from app.telegram.shared.utils.logging import send_log_message
 from config import TRX_TESTNET_MODE
 
 from .base import BasePaymentProcessor
+from .crypto_common import expire_unmatched, tx_time_in_window
 from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
@@ -300,17 +301,7 @@ class TRXProcessor(BasePaymentProcessor):
         async with httpx.AsyncClient(timeout=30.0) as client:
             headers = {"TRON-PRO-API-KEY": api_key} if api_key else {}
             crud = CryptoPaymentsCRUD()
-            pending_payments = await crud.get_pending_by_arz("TRX")
-
-            valid_payments = []
-            for payment in pending_payments:
-                created_time = datetime.fromtimestamp(payment.createtime, tz=UTC)
-                time_diff = datetime.now(UTC) - created_time
-                if time_diff > timedelta(minutes=30):
-                    await self._expire_payment(payment, settings)
-                else:
-                    valid_payments.append(payment)
-
+            valid_payments = await crud.get_pending_by_arz("TRX")
             if not valid_payments:
                 return
 
@@ -325,13 +316,13 @@ class TRXProcessor(BasePaymentProcessor):
                 client, base_url, headers, address_wallet, earliest_ms, "batch"
             )
             consumed: set[str] = set()
+            matched: set[int] = set()
 
             for payment in valid_payments:
-                start_ms = payment.createtime * 1000
                 transactions_found = [
                     tx
                     for tx in all_transactions
-                    if int(tx.get("timestamp") or tx.get("block_timestamp") or 0) >= start_ms
+                    if tx_time_in_window(payment, tx.get("timestamp") or tx.get("block_timestamp"))
                 ]
                 if not transactions_found:
                     continue
@@ -351,6 +342,7 @@ class TRXProcessor(BasePaymentProcessor):
                     if not await self._validate_transaction(transaction, payment.amount, address_wallet):
                         continue
 
+                    matched.add(int(payment.order_id))
                     paytime = int(datetime.now(UTC).timestamp())
                     try:
                         await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
@@ -359,6 +351,8 @@ class TRXProcessor(BasePaymentProcessor):
                         break
                     except Exception as e:
                         logger.error("Error processing TRX payment %s: %s", payment.order_id, e)
+
+            await expire_unmatched(valid_payments, matched, lambda payment: self._expire_payment(payment, settings))
 
     async def _validate_transaction(self, transaction, payment_amount, address_wallet):
         if not is_native_trx_transfer(transaction):
@@ -374,7 +368,8 @@ class TRXProcessor(BasePaymentProcessor):
 
     async def _expire_payment(self, payment, settings):
         crud = CryptoPaymentsCRUD()
-        await crud.expire_payment(payment.order_id)
+        if not await crud.expire_payment(payment.order_id):
+            return
         await cancel_after_crypto_expire(int(payment.order_id))
 
         try:

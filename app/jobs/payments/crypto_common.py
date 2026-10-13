@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import contextlib
+import time
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from telethon import Button
 
@@ -20,7 +23,11 @@ from app.telegram.shared.utils.logging import send_log_message
 
 logger = get_logger(__name__)
 
+# User-facing invoice lifetime.
 INVOICE_TTL_SECONDS = 30 * 60
+INVOICE_EXPIRY_GRACE_SECONDS = 10 * 60
+TX_TIME_TOLERANCE_SECONDS = 2 * 60
+_MS_THRESHOLD = 10_000_000_000
 
 
 def amount_matches(payment_amount, received: Decimal | float) -> bool:
@@ -29,8 +36,40 @@ def amount_matches(payment_amount, received: Decimal | float) -> bool:
     return abs(left - right) <= Decimal("0.000001")
 
 
-def is_expired(payment) -> bool:
-    return int(datetime.now(UTC).timestamp()) - int(payment.createtime or 0) > INVOICE_TTL_SECONDS
+def to_unix_seconds(timestamp: Any) -> int:
+    try:
+        ts = int(timestamp or 0)
+    except TypeError, ValueError:
+        return 0
+    if ts > _MS_THRESHOLD:
+        ts //= 1000
+    return max(ts, 0)
+
+
+def is_past_expiry_grace(payment, now: int | None = None) -> bool:
+    current = int(datetime.now(UTC).timestamp()) if now is None else now
+    return current - int(payment.createtime or 0) > INVOICE_TTL_SECONDS + INVOICE_EXPIRY_GRACE_SECONDS
+
+
+def tx_time_in_window(payment, tx_timestamp: Any, *, allow_unknown: bool = False) -> bool:
+    ts = to_unix_seconds(tx_timestamp)
+    created = int(payment.createtime or 0)
+    if ts <= 0:
+        return allow_unknown and int(time.time()) - created <= INVOICE_TTL_SECONDS
+    return created <= ts <= created + INVOICE_TTL_SECONDS + TX_TIME_TOLERANCE_SECONDS
+
+
+async def expire_unmatched(
+    payments: Iterable[Any],
+    matched_order_ids: set[int],
+    expire: Callable[[Any], Awaitable[None]],
+) -> None:
+    now = int(datetime.now(UTC).timestamp())
+    for payment in payments:
+        if int(payment.order_id) in matched_order_ids:
+            continue
+        if is_past_expiry_grace(payment, now):
+            await expire(payment)
 
 
 def _format_tx_time(timestamp) -> str:
@@ -120,7 +159,8 @@ async def confirm_payment(payment, settings, tx_details: dict, *, unit: str, pri
 
 
 async def expire_payment(payment, *, unit: str, price_line: str) -> None:
-    await CryptoPaymentsCRUD().expire_payment(payment.order_id)
+    if not await CryptoPaymentsCRUD().expire_payment(payment.order_id):
+        return
     await cancel_after_crypto_expire(int(payment.order_id))
     network = (payment.arz or "").upper()
     try:

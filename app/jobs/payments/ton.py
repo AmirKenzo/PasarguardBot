@@ -5,7 +5,7 @@ This processor handles checking and confirming TON (Toncoin) cryptocurrency paym
 """
 
 import contextlib
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
@@ -25,6 +25,7 @@ from app.telegram.shared.utils.logging import send_log_message
 from config import TON_TESTNET_MODE
 
 from .base import BasePaymentProcessor
+from .crypto_common import expire_unmatched, tx_time_in_window
 from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
@@ -283,23 +284,7 @@ class TONProcessor(BasePaymentProcessor):
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             crud = CryptoPaymentsCRUD()
-            pending_payments = await crud.get_pending_by_arz("TON")
-
-            if not pending_payments:
-                return
-
-            # Expire old payments first
-            current_time = datetime.now(UTC)
-            valid_payments = []
-            for payment in pending_payments:
-                created_time = datetime.fromtimestamp(payment.createtime, tz=UTC)
-                time_diff = current_time - created_time
-
-                if time_diff > timedelta(minutes=30):
-                    await self._expire_payment(payment, settings)
-                else:
-                    valid_payments.append(payment)
-
+            valid_payments = await crud.get_pending_by_arz("TON")
             if not valid_payments:
                 return
 
@@ -315,6 +300,7 @@ class TONProcessor(BasePaymentProcessor):
             all_transactions = await _fetch_ton_transactions(client, base_url, address_wallet, earliest_time, None)
             logger.debug("Fetched %s total transactions from TonCenter", len(all_transactions))
             consumed: set[str] = set()
+            matched: set[int] = set()
 
             # Process each payment with the fetched transactions
             for payment in valid_payments:
@@ -326,7 +312,7 @@ class TONProcessor(BasePaymentProcessor):
                 )
 
                 # Filter transactions for this specific payment (after payment creation time)
-                payment_transactions = [tx for tx in all_transactions if tx.get("utime", 0) >= payment.createtime]
+                payment_transactions = [tx for tx in all_transactions if tx_time_in_window(payment, tx.get("utime"))]
                 logger.debug(
                     "Found %s TON txs after createtime for payment %s",
                     len(payment_transactions),
@@ -350,6 +336,7 @@ class TONProcessor(BasePaymentProcessor):
                     if not is_valid:
                         continue
 
+                    matched.add(int(payment.order_id))
                     paytime = int(datetime.now(UTC).timestamp())
                     try:
                         await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
@@ -358,6 +345,8 @@ class TONProcessor(BasePaymentProcessor):
                         break
                     except Exception as e:
                         logger.error("Error processing TON payment %s: %s", payment.order_id, e)
+
+            await expire_unmatched(valid_payments, matched, lambda payment: self._expire_payment(payment, settings))
 
     async def _validate_transaction(self, transaction, payment_amount, address_wallet):
         logger.debug("TON validate payment_amount=%s", payment_amount)
@@ -385,7 +374,8 @@ class TONProcessor(BasePaymentProcessor):
 
     async def _expire_payment(self, payment, settings):
         crud = CryptoPaymentsCRUD()
-        await crud.expire_payment(payment.order_id)
+        if not await crud.expire_payment(payment.order_id):
+            return
         await cancel_after_crypto_expire(int(payment.order_id))
 
         try:
