@@ -128,7 +128,7 @@ class POLProcessor(BasePaymentProcessor):
         address_wallet = wallet.address
         async with httpx.AsyncClient(timeout=30.0) as client:
             transfers = await _fetch_pol_transfers(client, api_key, address_wallet)
-        consumed: set[str] = set()
+        consumed = await CryptoPaymentsCRUD().get_used_tx_hashes(chain_tx_id(item) for item in transfers)
         for payment in valid:
             for item in transfers:
                 if not tx_time_in_window(payment, _parse_transfer_timestamp(item), allow_unknown=True):
@@ -136,7 +136,7 @@ class POLProcessor(BasePaymentProcessor):
                 if (item.get("to") or "").lower() != address_wallet.lower():
                     continue
                 txid = chain_tx_id(item)
-                if txid and txid in consumed:
+                if txid in consumed:
                     continue
                 try:
                     amount_pol = float(item.get("value") or 0)
@@ -144,8 +144,10 @@ class POLProcessor(BasePaymentProcessor):
                     continue
                 if amount_pol <= 0 or not amount_matches(payment.amount, amount_pol):
                     continue
-                if txid:
-                    consumed.add(txid)
+                if txid is None:
+                    logger.warning("POL transfer for order_id=%s has no tx id; not crediting", payment.order_id)
+                    continue
+                consumed.add(txid)
                 matched.add(int(payment.order_id))
                 try:
                     await confirm_payment(
@@ -154,6 +156,7 @@ class POLProcessor(BasePaymentProcessor):
                         _tx_details(item, address_wallet),
                         unit="POL",
                         price_line=_price_line(settings),
+                        tx_hash=txid,
                     )
                 except Exception as e:
                     logger.error("Error processing POL %s: %s", payment.order_id, e)

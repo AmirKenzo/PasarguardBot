@@ -11,13 +11,15 @@ from app.services.pricing import crypto_amounts
 from app.services.pricing.crypto_amounts import calculate_trx_amount_with_tax
 
 
-def test_reserved_amount_gets_next_dust_offset():
+def test_reserved_amount_gets_next_dust_offset_outside_match_tolerance():
+    # The jobs accept a transfer within one step of the invoice amount, so the direct
+    # neighbor of a reserved amount is reserved too.
     with patch.object(crypto_amounts.random, "uniform", return_value=0):
         first = asyncio.run(calculate_trx_amount_with_tax(10_000, 100_000))
         second = asyncio.run(calculate_trx_amount_with_tax(10_000, 100_000, reserved_amounts={first}))
 
     assert second != first
-    assert second == round(first + 0.000001, 6)
+    assert second == round(first + 0.000002, 6)
 
 
 def test_raises_when_every_dust_offset_is_reserved():

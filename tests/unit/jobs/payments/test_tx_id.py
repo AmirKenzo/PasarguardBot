@@ -25,3 +25,8 @@ def test_chain_tx_id_reads_each_known_key(payload: dict, expected: str):
 
 def test_chain_tx_id_is_none_without_a_known_key():
     assert chain_tx_id({}) is None
+
+
+@pytest.mark.parametrize("payload", [{"hash": "N/A"}, {"hash": "x" * 129}], ids=["placeholder", "too-long"])
+def test_chain_tx_id_is_none_when_unusable(payload: dict):
+    assert chain_tx_id(payload) is None

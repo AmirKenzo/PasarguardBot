@@ -8,6 +8,7 @@ class CryptoPayments(Base):
     __table_args__ = (
         Index("ix_crypto_status_arz", "status", "arz"),
         Index("ix_crypto_user", "user_id"),
+        Index("uq_crypto_tx_hash", "tx_hash", unique=True),
     )
 
     order_id = Column(BigInteger, primary_key=True)
@@ -19,3 +20,4 @@ class CryptoPayments(Base):
     paytime = Column(BigInteger, default=0)
     createtime = Column(BigInteger, nullable=False)
     msg_id = Column(BigInteger, nullable=True)
+    tx_hash = Column(String(128), nullable=True)

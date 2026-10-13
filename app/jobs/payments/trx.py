@@ -223,7 +223,7 @@ def _format_admin_log_message(payment, settings, bonus, total_amount, new_amount
     return "\n".join(log_parts)
 
 
-async def _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime: int):
+async def _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime: int, tx_hash: str):
     tx_details = _extract_transaction_details(transaction, address_wallet)
     bonus = await calculate_payment_bonus(
         amount=int(payment.amount_irt),
@@ -231,7 +231,7 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
         bonus_percent=settings.crypto_bonus_percent,
     )
     total_amount = int(payment.amount_irt) + bonus
-    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime)
+    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime, tx_hash=tx_hash)
     if not approved:
         logger.warning("TRX payment already processed or invalid: order_id=%s", payment.order_id)
         return
@@ -315,7 +315,7 @@ class TRXProcessor(BasePaymentProcessor):
             all_transactions = await _fetch_trx_transactions(
                 client, base_url, headers, address_wallet, earliest_ms, "batch"
             )
-            consumed: set[str] = set()
+            consumed = await crud.get_used_tx_hashes(chain_tx_id(tx) for tx in all_transactions)
             matched: set[int] = set()
 
             for payment in valid_payments:
@@ -337,17 +337,21 @@ class TRXProcessor(BasePaymentProcessor):
                     if tx_to and tx_to.lower() != address_wallet.lower():
                         continue
                     txid = chain_tx_id(transaction)
-                    if txid and txid in consumed:
+                    if txid in consumed:
                         continue
                     if not await self._validate_transaction(transaction, payment.amount, address_wallet):
                         continue
+                    if txid is None:
+                        logger.warning("TRX transfer for order_id=%s has no tx id; not crediting", payment.order_id)
+                        continue
+                    consumed.add(txid)
 
                     matched.add(int(payment.order_id))
                     paytime = int(datetime.now(UTC).timestamp())
                     try:
-                        await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
-                        if txid:
-                            consumed.add(txid)
+                        await _process_payment_confirmation(
+                            payment, settings, transaction, address_wallet, paytime, txid
+                        )
                         break
                     except Exception as e:
                         logger.error("Error processing TRX payment %s: %s", payment.order_id, e)

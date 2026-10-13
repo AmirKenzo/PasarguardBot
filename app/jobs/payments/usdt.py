@@ -25,7 +25,7 @@ from app.telegram.shared.utils.logging import send_log_message
 from config import TRX_TESTNET_MODE
 
 from .base import BasePaymentProcessor
-from .crypto_common import expire_unmatched, tx_time_in_window
+from .crypto_common import expire_unmatched, to_unix_seconds, tx_time_in_window
 from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
@@ -132,6 +132,30 @@ async def _fetch_token_transfers(client, base_url, headers, address_wallet, star
     return transactions_found
 
 
+def _tx_unix_seconds(transaction: dict) -> int:
+    """Transfer time in seconds; /api/token_trc20/transfers rows carry it (in ms) as ``block_ts``."""
+    return to_unix_seconds(
+        transaction.get("timestamp") or transaction.get("block_timestamp") or transaction.get("block_ts")
+    )
+
+
+def _tx_recipient(transaction: dict) -> str | None:
+    return (
+        transaction.get("to")
+        or transaction.get("toAddress")
+        or transaction.get("to_address")
+        or transaction.get("ownerAddress")
+    )
+
+
+def _is_successful_transfer(transaction: dict) -> bool:
+    for key in ("contractRet", "finalResult"):
+        status = transaction.get(key)
+        if status is not None and status != "SUCCESS":
+            return False
+    return transaction.get("revert") is not True
+
+
 async def _extract_transaction_amount(transaction, decimals=6):
 
     amount = (
@@ -154,12 +178,16 @@ async def _extract_transaction_amount(transaction, decimals=6):
 def _extract_transaction_details(transaction, address_wallet):
 
     return {
-        "hash": transaction.get("hash") or transaction.get("transactionHash", "N/A"),
-        "from": (transaction.get("from") or transaction.get("fromAddress") or transaction.get("ownerAddress") or "N/A"),
-        "to": (
-            transaction.get("to") or transaction.get("toAddress") or transaction.get("ownerAddress") or address_wallet
+        "hash": chain_tx_id(transaction) or "N/A",
+        "from": (
+            transaction.get("from")
+            or transaction.get("fromAddress")
+            or transaction.get("from_address")
+            or transaction.get("ownerAddress")
+            or "N/A"
         ),
-        "timestamp": transaction.get("timestamp") or transaction.get("block_timestamp") or 0,
+        "to": _tx_recipient(transaction) or address_wallet,
+        "timestamp": _tx_unix_seconds(transaction) * 1000,
         "block": transaction.get("block") or transaction.get("blockNumber") or "N/A",
         "confirmed": transaction.get("confirmed", False),
     }
@@ -247,7 +275,7 @@ def _format_admin_log_message(payment, settings, bonus, total_amount, new_amount
     return "\n".join(log_parts)
 
 
-async def _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime: int):
+async def _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime: int, tx_hash: str):
 
     tx_details = _extract_transaction_details(transaction, address_wallet)
 
@@ -258,7 +286,7 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
     )
     total_amount = int(payment.amount_irt) + bonus
 
-    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime)
+    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime, tx_hash=tx_hash)
     if not approved:
         logger.warning("USDT payment already processed or invalid: order_id=%s", payment.order_id)
         return
@@ -347,15 +375,11 @@ class USDTProcessor(BasePaymentProcessor):
             all_transactions = await _fetch_token_transfers(
                 client, base_url, headers, address_wallet, earliest_ms, "batch", usdt_contract
             )
-            consumed: set[str] = set()
+            consumed = await crud.get_used_tx_hashes(chain_tx_id(tx) for tx in all_transactions)
             matched: set[int] = set()
 
             for payment in valid_payments:
-                transactions_found = [
-                    tx
-                    for tx in all_transactions
-                    if tx_time_in_window(payment, tx.get("timestamp") or tx.get("block_timestamp"))
-                ]
+                transactions_found = [tx for tx in all_transactions if tx_time_in_window(payment, _tx_unix_seconds(tx))]
                 logger.debug("Found %s token transfers for USDT payment %s", len(transactions_found), payment.order_id)
 
                 if not transactions_found:
@@ -367,22 +391,26 @@ class USDTProcessor(BasePaymentProcessor):
                     payment.order_id,
                 )
                 for transaction in transactions_found:
-                    tx_to = transaction.get("to") or transaction.get("toAddress") or transaction.get("ownerAddress")
+                    tx_to = _tx_recipient(transaction)
                     if tx_to and tx_to.lower() != address_wallet.lower():
                         continue
                     txid = chain_tx_id(transaction)
-                    if txid and txid in consumed:
+                    if txid in consumed:
                         continue
 
                     if not await self._validate_transaction(transaction, payment.amount, address_wallet):
                         continue
+                    if txid is None:
+                        logger.warning("USDT transfer for order_id=%s has no tx id; not crediting", payment.order_id)
+                        continue
+                    consumed.add(txid)
 
                     matched.add(int(payment.order_id))
                     paytime = int(datetime.now(UTC).timestamp())
                     try:
-                        await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
-                        if txid:
-                            consumed.add(txid)
+                        await _process_payment_confirmation(
+                            payment, settings, transaction, address_wallet, paytime, txid
+                        )
                         break
                     except Exception as e:
                         logger.error("Error processing USDT payment %s: %s", payment.order_id, e)
@@ -393,6 +421,8 @@ class USDTProcessor(BasePaymentProcessor):
         token_info = transaction.get("tokenInfo")
         if not token_info:
             return False
+        if not _is_successful_transfer(transaction):
+            return False
 
         if TRX_TESTNET_MODE:
             logger.debug(
@@ -402,7 +432,12 @@ class USDTProcessor(BasePaymentProcessor):
             )
         else:
             USDT_CONTRACT_MAINNET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-            token_address = token_info.get("address") or token_info.get("contract_address")
+            token_address = (
+                token_info.get("address")
+                or token_info.get("contract_address")
+                or transaction.get("contract_address")
+                or token_info.get("tokenId")
+            )
             if not token_address or token_address.upper() != USDT_CONTRACT_MAINNET.upper():
                 logger.debug(
                     f"Mainnet: Token contract {token_address} does not match USDT contract {USDT_CONTRACT_MAINNET}"

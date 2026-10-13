@@ -210,7 +210,7 @@ def _format_admin_log_message(payment, settings, bonus, total_amount, new_amount
     return "\n".join(log_parts)
 
 
-async def _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime: int):
+async def _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime: int, tx_hash: str):
     tx_details = _extract_transaction_details(transaction, address_wallet)
 
     bonus = await calculate_payment_bonus(
@@ -219,7 +219,7 @@ async def _process_payment_confirmation(payment, settings, transaction, address_
         bonus_percent=settings.crypto_bonus_percent,
     )
     total_amount = int(payment.amount_irt) + bonus
-    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime)
+    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime, tx_hash=tx_hash)
     if not approved:
         logger.warning("TON payment already processed or invalid: order_id=%s", payment.order_id)
         return
@@ -299,7 +299,7 @@ class TONProcessor(BasePaymentProcessor):
             # Fetch all transactions once
             all_transactions = await _fetch_ton_transactions(client, base_url, address_wallet, earliest_time, None)
             logger.debug("Fetched %s total transactions from TonCenter", len(all_transactions))
-            consumed: set[str] = set()
+            consumed = await crud.get_used_tx_hashes(chain_tx_id(tx) for tx in all_transactions)
             matched: set[int] = set()
 
             # Process each payment with the fetched transactions
@@ -329,19 +329,23 @@ class TONProcessor(BasePaymentProcessor):
                         payment.order_id,
                     )
                     txid = chain_tx_id(transaction)
-                    if txid and txid in consumed:
+                    if txid in consumed:
                         continue
 
                     is_valid = await self._validate_transaction(transaction, payment.amount, address_wallet)
                     if not is_valid:
                         continue
+                    if txid is None:
+                        logger.warning("TON transfer for order_id=%s has no tx id; not crediting", payment.order_id)
+                        continue
+                    consumed.add(txid)
 
                     matched.add(int(payment.order_id))
                     paytime = int(datetime.now(UTC).timestamp())
                     try:
-                        await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
-                        if txid:
-                            consumed.add(txid)
+                        await _process_payment_confirmation(
+                            payment, settings, transaction, address_wallet, paytime, txid
+                        )
                         break
                     except Exception as e:
                         logger.error("Error processing TON payment %s: %s", payment.order_id, e)

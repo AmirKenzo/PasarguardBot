@@ -15,8 +15,7 @@ from telethon.tl.custom import Message
 from app import Kenzo
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.cryptopayments import (
-    CryptoPaymentsCRUD,
-    add_order_crypto_payment,
+    add_order_with_unique_amount,
     allocate_order_id,
     count_pending_orders,
     set_order_msg_id,
@@ -46,12 +45,7 @@ from app.services.billing.direct_pay_store import (
     link_crypto_order,
     link_transaction,
 )
-from app.services.pricing.crypto_amounts import (
-    calculate_pol_amount_with_tax,
-    calculate_ton_amount_with_tax,
-    calculate_trx_amount_with_tax,
-    calculate_usdt_amount_with_tax,
-)
+from app.services.pricing.crypto_amounts import crypto_amount_picker
 from app.telegram.keyboards.balance import balance_flow_cancel_rows, create_inline_cartbcard
 from app.telegram.keyboards.common import is_keyboard_config_step
 from app.telegram.keyboards.home import bhome_buttons
@@ -73,6 +67,15 @@ USDT_TON = "USDT-TON"
 USDT_BEP20 = "USDT-BEP20"
 USDT_TON_JETTON = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"
 USDT_BEP20_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
+# Invoice currency -> (wallet type, reply when that wallet is missing).
+CRYPTO_INVOICE_WALLETS = {
+    "trx": ("TRX", texts.WALLET_NOT_FOUND_TRX),
+    "usdt": ("USDT", texts.WALLET_NOT_FOUND_USDT),
+    USDT_TON.lower(): (USDT_TON, texts.WALLET_NOT_FOUND_USDT_TON),
+    USDT_BEP20.lower(): (USDT_BEP20, texts.WALLET_NOT_FOUND_USDT_BEP20),
+    "ton": ("TON", texts.WALLET_NOT_FOUND_TON),
+    "pol": ("POL", texts.WALLET_NOT_FOUND_POL),
+}
 
 
 async def build_manual_card_line(settings) -> str:
@@ -673,16 +676,43 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
         await set_step(event.sender_id, states.STEP_HOME)
         return
     arz_lower = arz.lower()
-    reserved = {str(p.amount) for p in await CryptoPaymentsCRUD().get_pending_by_arz(arz_lower)}
+    wallet_spec = CRYPTO_INVOICE_WALLETS.get(arz_lower)
+    if wallet_spec is None:
+        return
+    wallet_type, wallet_missing_text = wallet_spec
+    wallet = await WalletCRUD().get_wallet_by_type(wallet_type)
+    if not wallet:
+        await event.respond(wallet_missing_text)
+        await set_step(event.sender_id, states.STEP_HOME)
+        return
+
+    # CallbackQuery uses edit/respond differently than Message
+    respond = getattr(event, "respond", None)
+    if respond is None:
+        return
+
+    saved: dict = {"success": False}
+    try:
+        pick_amount = crypto_amount_picker(arz_lower, settings, amount)
+    except ValueError as e:
+        logger.error("Crypto invoice amount unavailable for %s: %s", arz_lower, e)
+    else:
+        saved = await add_order_with_unique_amount(
+            order_id=order,
+            user_id=event.sender_id,
+            arz=arz_lower,
+            amount_irt=amount,
+            createtime=Time_Date()["stamp"],
+            pick_amount=pick_amount,
+        )
+    if not saved.get("success"):
+        await event.respond(texts.CRYPTO_INVOICE_CREATE_FAILED, buttons=await bhome_buttons(event.sender_id, lang))
+        await set_step(event.sender_id, states.STEP_HOME)
+        return
+    crypto_amount = saved["record"]["amount"]
+    wallet_key = wallet.address
     open_wallet_url: str | None = None
     if arz_lower == "trx":
-        crypto_amount = await calculate_trx_amount_with_tax(int(settings.arz_trx), amount, reserved_amounts=reserved)
-        wallet = await WalletCRUD().get_wallet_by_type("TRX")
-        if not wallet:
-            await event.respond(texts.WALLET_NOT_FOUND_TRX)
-            await set_step(event.sender_id, states.STEP_HOME)
-            return
-        wallet_key = wallet.address
         uri = f"tron:{wallet_key}?amount={crypto_amount}"
         logo_path = "app/assets/tron.png"
         file_name = f"Tron_{order}.png"
@@ -710,13 +740,6 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت ترون: <code>{settings.arz_trx:,}</code> هزار تومان"
         )
     elif arz_lower == "usdt":
-        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount, reserved_amounts=reserved)
-        wallet = await WalletCRUD().get_wallet_by_type("USDT")
-        if not wallet:
-            await event.respond(texts.WALLET_NOT_FOUND_USDT)
-            await set_step(event.sender_id, states.STEP_HOME)
-            return
-        wallet_key = wallet.address
         uri = f"tron:{wallet_key}?amount={crypto_amount}&token=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
         logo_path = "app/assets/tron.png"
         file_name = f"USDT_{order}.png"
@@ -742,13 +765,6 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     elif arz_lower == "usdt-ton":
-        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount, reserved_amounts=reserved)
-        wallet = await WalletCRUD().get_wallet_by_type(USDT_TON)
-        if not wallet:
-            await event.respond(texts.WALLET_NOT_FOUND_USDT_TON)
-            await set_step(event.sender_id, states.STEP_HOME)
-            return
-        wallet_key = wallet.address
         usdt_units = round(float(crypto_amount) * 1_000_000)
         uri = f"ton://transfer/{wallet_key}?jetton={USDT_TON_JETTON}&amount={usdt_units}"
         open_wallet_url = keyboards.tonkeeper_usdt_transfer_url(wallet_key, crypto_amount, USDT_TON_JETTON)
@@ -777,13 +793,6 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     elif arz_lower == "usdt-bep20":
-        crypto_amount = await calculate_usdt_amount_with_tax(int(settings.arz_usd), amount, reserved_amounts=reserved)
-        wallet = await WalletCRUD().get_wallet_by_type(USDT_BEP20)
-        if not wallet:
-            await event.respond(texts.WALLET_NOT_FOUND_USDT_BEP20)
-            await set_step(event.sender_id, states.STEP_HOME)
-            return
-        wallet_key = wallet.address
         usdt_units = int(Decimal(str(crypto_amount)) * (Decimal(10) ** 18))
         uri = f"ethereum:{USDT_BEP20_CONTRACT}@56/transfer?address={wallet_key}&uint256={usdt_units}"
         logo_path = "app/assets/bsc.png"
@@ -810,13 +819,6 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     elif arz_lower == "ton":
-        crypto_amount = await calculate_ton_amount_with_tax(int(settings.arz_ton), amount, reserved_amounts=reserved)
-        wallet = await WalletCRUD().get_wallet_by_type("TON")
-        if not wallet:
-            await event.respond(texts.WALLET_NOT_FOUND_TON)
-            await set_step(event.sender_id, states.STEP_HOME)
-            return
-        wallet_key = wallet.address
         nano_amount = int(float(crypto_amount) * 1e9)
         uri = f"ton://transfer/{wallet_key}?amount={nano_amount}"
         open_wallet_url = keyboards.tonkeeper_transfer_url(wallet_key, crypto_amount)
@@ -845,13 +847,6 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
             f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان"
         )
     elif arz_lower == "pol":
-        crypto_amount = await calculate_pol_amount_with_tax(int(settings.arz_pol), amount, reserved_amounts=reserved)
-        wallet = await WalletCRUD().get_wallet_by_type("POL")
-        if not wallet:
-            await event.respond(texts.WALLET_NOT_FOUND_POL)
-            await set_step(event.sender_id, states.STEP_HOME)
-            return
-        wallet_key = wallet.address
         pol_wei = int(Decimal(str(crypto_amount)) * (Decimal(10) ** 18))
         uri = f"ethereum:{wallet_key}@137?value={pol_wei}"
         logo_path = "app/assets/pol.png"
@@ -884,24 +879,6 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
 
     qr_file = await asyncio.to_thread(_render_crypto_invoice_qr, uri, logo_path, file_name)
     logger.info("QR Code created in memory")
-
-    # CallbackQuery uses edit/respond differently than Message
-    respond = getattr(event, "respond", None)
-    if respond is None:
-        return
-
-    saved = await add_order_crypto_payment(
-        order_id=order,
-        user_id=event.sender_id,
-        arz=arz_lower,
-        amount=crypto_amount,
-        amount_irt=amount,
-        createtime=Time_Date()["stamp"],
-    )
-    if not saved.get("success"):
-        await event.respond(texts.CRYPTO_INVOICE_CREATE_FAILED, buttons=await bhome_buttons(event.sender_id, lang))
-        await set_step(event.sender_id, states.STEP_HOME)
-        return
 
     await event.respond("⏳", buttons=await bhome_buttons(event.sender_id, "fa"))
     invoice = await event.respond(

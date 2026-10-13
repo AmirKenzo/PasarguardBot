@@ -9,8 +9,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 from app import Kenzo
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.cryptopayments import (
-    CryptoPaymentsCRUD,
-    add_order_crypto_payment,
+    add_order_with_unique_amount,
     allocate_order_id,
     count_pending_orders,
 )
@@ -43,12 +42,7 @@ from app.services.payments.tonpays_config import (
     gateway_mode as tonpays_mode,
     is_ready as tonpays_ready,
 )
-from app.services.pricing.crypto_amounts import (
-    calculate_pol_amount_with_tax,
-    calculate_ton_amount_with_tax,
-    calculate_trx_amount_with_tax,
-    calculate_usdt_amount_with_tax,
-)
+from app.services.pricing.crypto_amounts import crypto_amount_picker
 from app.services.send_queue import enqueue
 from app.telegram.state import set_step
 from app.telegram.user.balance import states
@@ -361,53 +355,24 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
         order_id = await allocate_order_id()
         if order_id is None:
             return BalanceDepositCryptoResponse(ok=False, error="ساخت فاکتور انجام نشد. لطفاً دوباره تلاش کنید.")
-        reserved = {str(p.amount) for p in await CryptoPaymentsCRUD().get_pending_by_arz(currency)}
-        if currency == "trx":
-            wallet = await WalletCRUD().get_wallet_by_type("TRX")
-            amount_crypto = await calculate_trx_amount_with_tax(
-                int(settings.arz_trx or 0), amount, reserved_amounts=reserved
-            )
-        elif currency == "usdt":
-            wallet = await WalletCRUD().get_wallet_by_type("USDT")
-            amount_crypto = await calculate_usdt_amount_with_tax(
-                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
-            )
-        elif currency == "usdt-ton":
-            wallet = await WalletCRUD().get_wallet_by_type("USDT-TON")
-            amount_crypto = await calculate_usdt_amount_with_tax(
-                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
-            )
-        elif currency == "usdt-bep20":
-            wallet = await WalletCRUD().get_wallet_by_type("USDT-BEP20")
-            amount_crypto = await calculate_usdt_amount_with_tax(
-                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
-            )
-        elif currency == "pol":
-            wallet = await WalletCRUD().get_wallet_by_type("POL")
-            amount_crypto = await calculate_pol_amount_with_tax(
-                int(settings.arz_pol or 0), amount, reserved_amounts=reserved
-            )
-        else:
-            wallet = await WalletCRUD().get_wallet_by_type("TON")
-            amount_crypto = await calculate_ton_amount_with_tax(
-                int(settings.arz_ton or 0), amount, reserved_amounts=reserved
-            )
+        wallet = await WalletCRUD().get_wallet_by_type(currency.upper())
         if not wallet:
             return BalanceDepositCryptoResponse(
                 ok=False,
                 error=f"کیف پول {currency.upper()} در سیستم ثبت نشده است.",
             )
-        saved = await add_order_crypto_payment(
+        saved = await add_order_with_unique_amount(
             order_id=order_id,
             user_id=user_id,
             arz=currency,
-            amount=str(amount_crypto),
             amount_irt=amount,
             createtime=Time_Date()["stamp"],
+            pick_amount=crypto_amount_picker(currency, settings, amount),
             msg_id=None,
         )
         if not saved.get("success"):
             return BalanceDepositCryptoResponse(ok=False, error="ساخت فاکتور انجام نشد. لطفاً دوباره تلاش کنید.")
+        amount_crypto = saved["record"]["amount"]
 
         await enqueue(
             message=(

@@ -1,5 +1,8 @@
 """Crypto invoice jobs match transactions before expiring, honor the expiry grace and credit once.
 
+One on-chain transfer pays at most one invoice: its id is stored on the invoice (unique), skipped by
+a pre-check on later runs, and a second credit attempt hits the unique index and is refused.
+
 Every on-chain processor runs against a fake explorer (httpx.MockTransport) and a real SQLite
 database, so the whole run (fetch -> match -> credit -> expire) is exercised per network.
 """
@@ -298,3 +301,93 @@ def test_crud_credit_and_expire_are_conditional_on_pending(env: SimpleNamespace)
     assert second is None
     assert expired is False
     assert state == ("Paid", AMOUNT_IRT)
+
+
+SECOND_ORDER = ORDER + 1
+OTHER_ORDER = ORDER + 2
+
+
+async def _add_invoice(env: SimpleNamespace, order_id: int, createtime: int) -> None:
+    result = await cryptopayments.add_order_crypto_payment(
+        order_id=order_id,
+        user_id=USER,
+        arz=env.network.arz,
+        amount=env.network.amount,
+        amount_irt=AMOUNT_IRT,
+        createtime=createtime,
+    )
+    assert result["success"] is True
+
+
+async def _add_paid_with_hash(env: SimpleNamespace, tx_hash: str) -> None:
+    await _add_invoice(env, OTHER_ORDER, int(time.time()) - 60 * MINUTE)
+    async with cryptopayments.Session() as session, session.begin():
+        await session.execute(
+            update(CryptoPayments).where(CryptoPayments.order_id == OTHER_ORDER).values(status="Paid", tx_hash=tx_hash)
+        )
+
+
+async def _rows() -> dict[int, tuple[str, str | None]]:
+    async with cryptopayments.Session() as session:
+        result = await session.execute(select(CryptoPayments.order_id, CryptoPayments.status, CryptoPayments.tx_hash))
+        return {int(order_id): (str(status), tx_hash) for order_id, status, tx_hash in result.all()}
+
+
+async def _balance() -> int:
+    async with cryptopayments.Session() as session:
+        return int((await session.execute(select(User.amount).where(User.id == USER))).scalar() or 0)
+
+
+def test_one_tx_matching_two_same_amount_invoices_credits_exactly_one(env: SimpleNamespace) -> None:
+    async def scenario():
+        createtime = int(time.time()) - 5 * MINUTE
+        await _add_invoice(env, ORDER, createtime)
+        await _add_invoice(env, SECOND_ORDER, createtime)
+        env.explorer.tx = ("hash-shared", createtime + 2 * MINUTE)
+        await env.network.run()
+        await env.network.run()
+        return await _rows(), await _balance()
+
+    rows, balance = asyncio.run(scenario())
+    statuses = sorted(status for status, _ in rows.values())
+    assert statuses == ["Paid", "Pending"]
+    assert [h for status, h in rows.values() if status == "Paid"] == ["hash-shared"]
+    assert balance == AMOUNT_IRT
+
+
+def test_tx_already_stored_is_skipped_before_crediting(env: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
+    attempts: list[int] = []
+    real_credit = cryptopayments.CryptoPaymentsCRUD.approve_and_credit
+
+    async def spy(self, order_id, *args, **kwargs):
+        attempts.append(int(order_id))
+        return await real_credit(self, order_id, *args, **kwargs)
+
+    monkeypatch.setattr(cryptopayments.CryptoPaymentsCRUD, "approve_and_credit", spy)
+
+    async def scenario():
+        await _add_paid_with_hash(env, "hash-used")
+        createtime = await _create_invoice(env, 5 * MINUTE)
+        env.explorer.tx = ("hash-used", createtime + 2 * MINUTE)
+        await env.network.run()
+        return await _state()
+
+    assert asyncio.run(scenario()) == ("Pending", 0)
+    assert attempts == []
+
+
+def test_unique_index_refuses_second_credit_when_precheck_misses(
+    env: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cryptopayments.CryptoPaymentsCRUD, "get_used_tx_hashes", _async(set()))
+
+    async def scenario():
+        await _add_paid_with_hash(env, "hash-raced")
+        createtime = await _create_invoice(env, 5 * MINUTE)
+        env.explorer.tx = ("hash-raced", createtime + 2 * MINUTE)
+        await env.network.run()
+        return await _state(), len(env.sent)
+
+    state, sent = asyncio.run(scenario())
+    assert state == ("Pending", 0)
+    assert sent == 0

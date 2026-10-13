@@ -244,7 +244,9 @@ class USDTNetworksProcessor(BasePaymentProcessor):
         earliest = min(int(p.createtime) for p in valid)
         events = await _fetch_ton_usdt_events(client, headers, wallet.address, earliest)
         account_raw = (events[0].get("account") or {}).get("address") if events else None
-        consumed: set[str] = set()
+        consumed = await CryptoPaymentsCRUD().get_used_tx_hashes(
+            chain_tx_id(details) for event in events for _, details in _iter_ton_incoming(event, account_raw)
+        )
 
         for payment in valid:
             matched = False
@@ -254,17 +256,21 @@ class USDTNetworksProcessor(BasePaymentProcessor):
                     continue
                 for amount_units, tx_details in _iter_ton_incoming(event, account_raw):
                     txid = chain_tx_id(tx_details)
-                    if txid and txid in consumed:
+                    if txid in consumed:
                         continue
                     received = Decimal(str(amount_units)) / (Decimal(10) ** USDT_DECIMALS)
                     if not amount_matches(payment.amount, received):
                         continue
-                    if txid:
-                        consumed.add(txid)
+                    if txid is None:
+                        logger.warning(
+                            "USDT-TON transfer for order_id=%s has no tx id; not crediting", payment.order_id
+                        )
+                        continue
+                    consumed.add(txid)
                     matched_ids.add(int(payment.order_id))
                     try:
                         await confirm_payment(
-                            payment, settings, tx_details, unit=UNIT, price_line=_price_line(settings)
+                            payment, settings, tx_details, unit=UNIT, price_line=_price_line(settings), tx_hash=txid
                         )
                     except Exception as e:
                         logger.error("Error processing USDT-TON %s: %s", payment.order_id, e)
@@ -287,21 +293,25 @@ class USDTNetworksProcessor(BasePaymentProcessor):
 
         earliest = min(int(p.createtime) for p in valid)
         txs = await _fetch_bep20_transfers(client, wallet.address, api_key, earliest)
-        consumed: set[str] = set()
+        consumed = await CryptoPaymentsCRUD().get_used_tx_hashes(chain_tx_id(tx) for tx in txs)
         for payment in valid:
             for tx in txs:
                 if not tx_time_in_window(payment, tx.get("timestamp"), allow_unknown=True):
                     continue
                 txid = chain_tx_id(tx)
-                if txid and txid in consumed:
+                if txid in consumed:
                     continue
                 if not _validate_bep20_tx(tx, payment.amount, wallet.address):
                     continue
-                if txid:
-                    consumed.add(txid)
+                if txid is None:
+                    logger.warning("USDT-BEP20 transfer for order_id=%s has no tx id; not crediting", payment.order_id)
+                    continue
+                consumed.add(txid)
                 matched_ids.add(int(payment.order_id))
                 try:
-                    await confirm_payment(payment, settings, tx, unit=UNIT, price_line=_price_line(settings))
+                    await confirm_payment(
+                        payment, settings, tx, unit=UNIT, price_line=_price_line(settings), tx_hash=txid
+                    )
                 except Exception as e:
                     logger.error("Error processing USDT-BEP20 %s: %s", payment.order_id, e)
                 break

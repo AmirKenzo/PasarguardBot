@@ -82,7 +82,7 @@ def _format_tx_time(timestamp) -> str:
         return "N/A"
 
 
-async def confirm_payment(payment, settings, tx_details: dict, *, unit: str, price_line: str) -> None:
+async def confirm_payment(payment, settings, tx_details: dict, *, unit: str, price_line: str, tx_hash: str) -> None:
     """Credit the invoice once, then notify the user (unless direct-pay took over) and the log channel."""
     bonus = await calculate_payment_bonus(
         amount=int(payment.amount_irt),
@@ -91,7 +91,7 @@ async def confirm_payment(payment, settings, tx_details: dict, *, unit: str, pri
     )
     total_amount = int(payment.amount_irt) + bonus
     paytime = int(datetime.now(UTC).timestamp())
-    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime)
+    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime, tx_hash=tx_hash)
     if not approved:
         logger.warning("%s payment already processed or invalid: order_id=%s", payment.arz, payment.order_id)
         return
