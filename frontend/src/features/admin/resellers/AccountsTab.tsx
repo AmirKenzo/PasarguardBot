@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button, ErrorState, Input, Pagination } from "../../../components/ui";
@@ -45,7 +46,8 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
       panel_code: filters.panel ? Number(filters.panel) : null,
       page,
       limit: 25,
-    })
+    }),
+    { placeholderData: keepPreviousData }
   );
 
   const closeDetail = () => {
@@ -180,6 +182,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
             rows={query.data?.resellers || []}
             rowKey={(row) => row.code}
             loading={query.isLoading}
+            stale={query.isPlaceholderData}
             emptyTitle={t("panel.resellerHub.accountsEmpty")}
           />
           <div className="mt-4">

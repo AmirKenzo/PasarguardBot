@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { IR_GATEWAYS, irGatewayName } from "../../lib/irGateways";
 import {
   Banknote,
@@ -186,7 +186,7 @@ export default function AdminTransactionsPage() {
         page,
         limit: 15,
       }),
-    { refetchInterval: autoRefreshMs || false }
+    { refetchInterval: autoRefreshMs || false, placeholderData: keepPreviousData }
   );
 
   const invalidate = [["transactions"], ["me"], ["dashboard"]];
@@ -371,7 +371,10 @@ export default function AdminTransactionsPage() {
             ))}
           </div>
         ) : rows.length ? (
-          <div className="mt-2 divide-y divide-border/60">
+          <div
+            className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={query.isPlaceholderData || undefined}
+          >
             {rows.map((row) => {
               const Icon = METHOD_ICONS[row.method] ?? CreditCard;
               const isManualPending = row.source === "tx" && row.method === "manual_card" && row.status === "pending";

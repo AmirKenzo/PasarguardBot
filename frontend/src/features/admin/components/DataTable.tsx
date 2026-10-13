@@ -16,6 +16,7 @@ export interface DataTableProps<Row> {
   rows: Row[];
   rowKey: (row: Row) => string | number;
   loading?: boolean;
+  stale?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -25,6 +26,7 @@ export function DataTable<Row>({
   rows,
   rowKey,
   loading = false,
+  stale = false,
   emptyTitle,
   emptyDescription,
 }: DataTableProps<Row>) {
@@ -44,7 +46,10 @@ export function DataTable<Row>({
   }
 
   return (
-    <div className="-mx-4 overflow-x-auto px-4">
+    <div
+      className={`-mx-4 overflow-x-auto px-4 transition-opacity ${stale ? "opacity-60" : ""}`}
+      aria-busy={stale || undefined}
+    >
       <table className="w-full min-w-[36rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border text-right text-xs text-muted">

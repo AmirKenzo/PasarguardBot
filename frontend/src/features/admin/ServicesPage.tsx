@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Filter, Power, Search, Server, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, ErrorState, IconBadge, Input, Pagination, Skeleton } from "../../components/ui";
@@ -62,7 +63,8 @@ export default function AdminServicesPage() {
   }, [searchInputs]);
 
   const query = usePanelQuery(["services", filters.q, filters.panel, filters.state, page], (auth) =>
-    panelServicesApi.listServices({ ...auth, ...filters, page, limit: 10 })
+    panelServicesApi.listServices({ ...auth, ...filters, page, limit: 10 }),
+    { placeholderData: keepPreviousData }
   );
 
   const toggle = usePanelAction(panelServicesApi.toggleService, { invalidate: [["services"]] });
@@ -174,7 +176,10 @@ export default function AdminServicesPage() {
             ))}
           </div>
         ) : rows.length ? (
-          <div className="mt-2 divide-y divide-border/60">
+          <div
+            className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={query.isPlaceholderData || undefined}
+          >
             {rows.map((row) => {
               const state = serviceState(row);
               const expiry = formatExpiry(row.expiration_time);

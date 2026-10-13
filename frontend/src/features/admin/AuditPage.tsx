@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Filter, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, ErrorState, Modal, Pagination, Skeleton } from "../../components/ui";
@@ -77,7 +78,8 @@ export default function AdminAuditPage() {
   const [detailRow, setDetailRow] = useState<PanelAuditRow | null>(null);
 
   const query = usePanelQuery(["audit", action, page], (auth) =>
-    panelAuditApi.listAudit({ ...auth, action, page, limit: 10 })
+    panelAuditApi.listAudit({ ...auth, action, page, limit: 10 }),
+    { placeholderData: keepPreviousData }
   );
 
   const actionOptions = [
@@ -141,7 +143,10 @@ export default function AdminAuditPage() {
             ))}
           </div>
         ) : rows.length ? (
-          <div className="mt-2 divide-y divide-border/60">
+          <div
+            className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={query.isPlaceholderData || undefined}
+          >
             {rows.map((row) => (
               <button
                 key={row.id}

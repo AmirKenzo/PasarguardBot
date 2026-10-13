@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ArrowDownAZ, ArrowUpAZ, Ban, ChevronLeft, Search, SlidersHorizontal, User, X } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -68,7 +69,8 @@ export default function AdminUsersPage() {
   }, [searchInputs]);
 
   const query = usePanelQuery(["users", filters.q, filters.state, filters.sort, page], (auth) =>
-    panelUsersApi.listUsers({ ...auth, ...filters, page, limit: 10 })
+    panelUsersApi.listUsers({ ...auth, ...filters, page, limit: 10 }),
+    { placeholderData: keepPreviousData }
   );
 
   const block = usePanelAction(panelUsersApi.setBlocked, { invalidate: [["users"]] });
@@ -176,7 +178,10 @@ export default function AdminUsersPage() {
             ))}
           </div>
         ) : rows.length ? (
-          <div className="mt-2 divide-y divide-border/60">
+          <div
+            className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={query.isPlaceholderData || undefined}
+          >
             {rows.map((row) => {
               // Only an admin ban is reversible from here — BlockedBot/deleted
               // self-clear once the user interacts with the bot again, an
