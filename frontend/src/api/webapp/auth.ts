@@ -9,7 +9,7 @@ import type {
   WebAppInfoResponse,
 } from "../../types/webapp";
 import i18n from "../../i18n";
-import { apiErrorMessage, apiGet, apiPost, authHeaders, ApiError } from "./client";
+import { apiGet, apiPost, authHeaders, ApiError, parseJson, unwrap } from "./client";
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || "/api/webapp";
 
@@ -21,11 +21,10 @@ export async function getInfoWithInitData(rawInitData: string): Promise<WebAppIn
       headers: authHeaders({ init_data: rawInitData }),
     });
   } catch {
-    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network" });
   }
-  const payload = (await res.json()) as WebAppInfoResponse;
-  if (!payload.ok) throw new ApiError(apiErrorMessage(payload.error, "apiErrors.authError"));
-  return payload;
+  const payload = (await parseJson(res)) as WebAppInfoResponse;
+  return unwrap(payload, res, "apiErrors.authError");
 }
 
 export function getInfoSession(sessionToken: string) {

@@ -7,10 +7,25 @@ export interface AuthPayload {
   init_data?: string | null;
 }
 
+export type ApiErrorKind = "network" | "http" | "rejected";
+
+export interface ApiErrorInit {
+  kind?: ApiErrorKind;
+  status?: number;
+  code?: string | null;
+}
+
 export class ApiError extends Error {
-  constructor(message: string) {
+  readonly kind?: ApiErrorKind;
+  readonly status?: number;
+  readonly code?: string | null;
+
+  constructor(message: string, init: ApiErrorInit = {}) {
     super(message);
     this.name = "ApiError";
+    this.kind = init.kind;
+    this.status = init.status;
+    this.code = init.code;
   }
 }
 
@@ -26,13 +41,18 @@ function handleTokenRenewal(res: Response): void {
   if (renewed) onTokenRenewed?.(renewed);
 }
 
-async function parseJson(res: Response): Promise<unknown> {
-  const text = await res.text();
+export async function parseJson(res: Response): Promise<unknown> {
+  let text: string;
+  try {
+    text = await res.text();
+  } catch {
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network", status: res.status });
+  }
   if (!text) return {};
   try {
     return JSON.parse(text);
   } catch {
-    throw new ApiError(i18n.t("apiErrors.invalidResponse"));
+    throw new ApiError(i18n.t("apiErrors.invalidResponse"), { kind: "http", status: res.status });
   }
 }
 
@@ -49,11 +69,26 @@ export function apiErrorMessage(error: string | null | undefined, fallbackKey = 
 }
 
 /** Every response envelope from the backend carries `ok` + optional `error`. */
-function unwrap<T extends { ok: boolean; error?: string | null }>(payload: T): T {
+export function unwrap<T extends { ok: boolean; error?: string | null }>(
+  payload: T,
+  res: Response,
+  fallbackKey?: string
+): T {
   if (!payload.ok) {
-    throw new ApiError(apiErrorMessage(payload.error));
+    const kind: ApiErrorKind = res.ok && typeof payload.ok === "boolean" ? "rejected" : "http";
+    throw new ApiError(apiErrorMessage(payload.error, fallbackKey), {
+      kind,
+      status: res.status,
+      code: payload.error ?? null,
+    });
   }
   return payload;
+}
+
+export function isAuthRejection(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false;
+  if (err.status === 401 || err.status === 403) return true;
+  return err.kind === "rejected" && err.code !== "internal_error";
 }
 
 /** Put credentials in headers so they never land in URLs/query logs. */
@@ -102,11 +137,11 @@ export async function apiPost<TRes extends { ok: boolean; error?: string | null 
       body: JSON.stringify(safeBody),
     });
   } catch {
-    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network" });
   }
   handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
-  return unwrap(payload);
+  return unwrap(payload, res);
 }
 
 export async function apiGet<TRes extends { ok: boolean; error?: string | null }>(
@@ -134,11 +169,11 @@ export async function apiGet<TRes extends { ok: boolean; error?: string | null }
       headers: { ...authHeaders(resolvedAuth) },
     });
   } catch {
-    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network" });
   }
   handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
-  return unwrap(payload);
+  return unwrap(payload, res);
 }
 
 export async function apiPostForm<TRes extends { ok: boolean; error?: string | null }>(
@@ -163,9 +198,9 @@ export async function apiPostForm<TRes extends { ok: boolean; error?: string | n
       body: formData,
     });
   } catch {
-    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network" });
   }
   handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
-  return unwrap(payload);
+  return unwrap(payload, res);
 }
