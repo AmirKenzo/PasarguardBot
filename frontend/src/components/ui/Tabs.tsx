@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 
 export interface TabItem {
@@ -28,7 +28,7 @@ export function Tabs({ items, value, onChange }: TabsProps) {
             }`}
           >
             {active && (
-              <motion.span
+              <m.span
                 layoutId="tabs-pill"
                 className="absolute inset-0 rounded-lg bg-primary/15 ring-1 ring-primary/25"
                 transition={{ type: "spring", stiffness: 400, damping: 32 }}

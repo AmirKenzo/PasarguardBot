@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { CalendarClock, Flame, Plus, Store, Users, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge, Card, EmptyState, IconBadge } from "../../components/ui";
@@ -29,9 +29,9 @@ function AccountCard({ account }: { account: ResellerAccountItem }) {
   const tone = expiringSoon ? "warning" : STATUS_TONE[account.status] || "muted";
 
   return (
-    <motion.div variants={itemVariants} layout>
+    <m.div variants={itemVariants} layout>
       <Link to={`/services/reseller/${account.code}`} onClick={() => haptic.select()} className="block h-full">
-        <motion.article
+        <m.article
           whileTap={{ scale: 0.985 }}
           className={`flex h-full flex-col gap-3 rounded-lg border bg-surface p-3.5 shadow-sm transition-colors hover:border-primary/30 ${
             expiringSoon ? "border-warning/40" : "border-border"
@@ -70,9 +70,9 @@ function AccountCard({ account }: { account: ResellerAccountItem }) {
               <span>{t("reseller.noExpiry")}</span>
             )}
           </div>
-        </motion.article>
+        </m.article>
       </Link>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -89,7 +89,7 @@ export default function ResellerAccountsList({
 
   return (
     <div className="space-y-4">
-      <motion.header
+      <m.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -111,7 +111,7 @@ export default function ResellerAccountsList({
             <Plus size={20} />
           </Link>
         )}
-      </motion.header>
+      </m.header>
 
       {chips}
 
@@ -136,7 +136,7 @@ export default function ResellerAccountsList({
       {data.accounts.length === 0 ? (
         <EmptyState icon={Store} title={t("reseller.list.empty")} />
       ) : (
-        <motion.div
+        <m.div
           variants={listVariants}
           initial="hidden"
           animate="show"
@@ -145,7 +145,7 @@ export default function ResellerAccountsList({
           {data.accounts.map((account) => (
             <AccountCard key={account.code} account={account} />
           ))}
-        </motion.div>
+        </m.div>
       )}
     </div>
   );

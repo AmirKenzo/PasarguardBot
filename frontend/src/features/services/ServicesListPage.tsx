@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { CalendarClock, ChevronRight, Database, Plus, Search, Satellite, Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmojiIcon } from "../../components/EmojiIcon";
@@ -51,9 +51,9 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
     .join(" · ");
 
   return (
-    <motion.div variants={itemVariants} layout>
+    <m.div variants={itemVariants} layout>
       <Link to={`/services/${service.code}`} onClick={() => haptic.select()} className="block h-full">
-        <motion.article
+        <m.article
           whileTap={{ scale: 0.985 }}
           className={`flex h-full flex-col gap-3 rounded-lg border bg-surface p-3.5 shadow-sm transition-colors hover:border-primary/30 ${
             expiringSoon ? "border-warning/40" : "border-border"
@@ -89,17 +89,17 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
               )}
             </div>
           )}
-        </motion.article>
+        </m.article>
       </Link>
-    </motion.div>
+    </m.div>
   );
 }
 
 function PanelGroupCard({ group, onSelect, t }: { group: PanelGroupItem; onSelect: () => void; t: (key: string) => string }) {
   const { haptic } = useTelegram();
   return (
-    <motion.div variants={itemVariants} layout>
-      <motion.button
+    <m.div variants={itemVariants} layout>
+      <m.button
         type="button"
         onClick={() => {
           haptic.select();
@@ -123,8 +123,8 @@ function PanelGroupCard({ group, onSelect, t }: { group: PanelGroupItem; onSelec
             {t("services.view")}
           </span>
         </div>
-      </motion.button>
-    </motion.div>
+      </m.button>
+    </m.div>
   );
 }
 
@@ -171,7 +171,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
 
   return (
     <div className="space-y-5">
-      <motion.header
+      <m.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -198,12 +198,12 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
               ? `${total} ${t("services.activeServices")}`
               : t("services.manageServices")}
         </p>
-      </motion.header>
+      </m.header>
 
       {chips}
 
       {!showPanelGroups && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05, duration: 0.3 }}
@@ -217,7 +217,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pr-10"
           />
-        </motion.div>
+        </m.div>
       )}
 
       {error && <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />}
@@ -236,7 +236,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
             description={t("services.noPanelsDesc")}
           />
         ) : (
-          <motion.div variants={listVariants} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-2">
+          <m.div variants={listVariants} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-2">
             {panelGroups.map((group) => (
               <PanelGroupCard
                 key={group.panel_code}
@@ -245,7 +245,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
                 t={t}
               />
             ))}
-          </motion.div>
+          </m.div>
         )
       ) : services.length === 0 ? (
         <EmptyState
@@ -256,7 +256,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
       ) : (
         <>
           <AnimatePresence mode="wait">
-            <motion.div
+            <m.div
               key={`${page}-${limit}-${debouncedSearch}-${selectedPanel?.panel_code ?? "all"}`}
               variants={listVariants}
               initial="hidden"
@@ -266,10 +266,10 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
               {services.map((svc) => (
                 <ServiceCard key={svc.code} service={svc} />
               ))}
-            </motion.div>
+            </m.div>
           </AnimatePresence>
 
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
@@ -285,7 +285,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
               />
             </div>
             <Pagination page={page} totalPages={totalPages || 1} onChange={setPage} />
-          </motion.div>
+          </m.div>
         </>
       )}
     </div>

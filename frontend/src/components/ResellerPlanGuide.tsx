@@ -5,7 +5,7 @@
  * settings, so an add-on that is switched off is never promised.
  */
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Check, ChevronDown, HelpCircle, Minus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -317,13 +317,13 @@ export function ResellerPlanGuide({ plan, graceDays, minWallet, showMinWallet = 
       >
         <HelpCircle size={15} className="shrink-0" />
         <span className="flex-1">{t("reseller.guide.title")}</span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} className="text-muted">
+        <m.span animate={{ rotate: open ? 180 : 0 }} className="text-muted">
           <ChevronDown size={16} />
-        </motion.span>
+        </m.span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div
+          <m.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -342,7 +342,7 @@ export function ResellerPlanGuide({ plan, graceDays, minWallet, showMinWallet = 
                 </section>
               ))}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

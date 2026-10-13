@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { ChevronDown, Save, Search, SearchX } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, EmptyState, ErrorState, Input, Skeleton } from "../../../components/ui";
@@ -235,7 +235,7 @@ export default function SettingsTab() {
                   </div>
                   <AnimatePresence initial={false}>
                     {open && (
-                      <motion.div
+                      <m.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -279,7 +279,7 @@ export default function SettingsTab() {
                             {t("panel.resellerHub.settings.capacityMoved")}
                           </p>
                         </div>
-                      </motion.div>
+                      </m.div>
                     )}
                   </AnimatePresence>
                 </li>

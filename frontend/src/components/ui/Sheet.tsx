@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -16,7 +16,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
     <AnimatePresence>
       {open && (
         <>
-          <motion.div
+          <m.div
             key="overlay"
             className="fixed inset-0 z-40 bg-overlay"
             initial={{ opacity: 0 }}
@@ -24,7 +24,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
-          <motion.div
+          <m.div
             key="panel"
             className="fixed inset-x-0 bottom-0 z-50 max-h-[86vh] overflow-y-auto rounded-t-lg border-t border-border bg-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 shadow-lg"
             initial={{ y: "100%" }}
@@ -48,7 +48,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
               </div>
             )}
             {children}
-          </motion.div>
+          </m.div>
         </>
       )}
     </AnimatePresence>

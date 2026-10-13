@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Check } from "lucide-react";
 
 export function Stepper({ steps, current }: { steps: string[]; current: number }) {
@@ -22,7 +22,7 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
             </div>
             {idx < steps.length - 1 && (
               <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-                <motion.div
+                <m.div
                   className="h-full bg-primary"
                   initial={false}
                   animate={{ width: done ? "100%" : "0%" }}

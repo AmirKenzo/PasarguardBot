@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -58,7 +58,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           {items.map((item) => {
             const Icon = ICONS[item.kind];
             return (
-              <motion.div
+              <m.div
                 key={item.id}
                 initial={{ opacity: 0, y: -16, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -75,7 +75,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 >
                   <X size={16} />
                 </button>
-              </motion.div>
+              </m.div>
             );
           })}
         </AnimatePresence>

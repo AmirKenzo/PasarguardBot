@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { CheckCircle2, Server, Shuffle, Wallet, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -312,7 +312,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
 
         <AnimatePresence mode="wait">
           {step === "panel" && (
-            <motion.section key="panel" {...STEP_MOTION} className="grid gap-3 md:grid-cols-2">
+            <m.section key="panel" {...STEP_MOTION} className="grid gap-3 md:grid-cols-2">
               {panels.map((item) => (
                 <ChoiceCard
                   key={item.code}
@@ -323,11 +323,11 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   onSelect={() => choosePanel(item)}
                 />
               ))}
-            </motion.section>
+            </m.section>
           )}
 
           {step === "plan" && panel && (
-            <motion.section key="plan" {...STEP_MOTION} className="space-y-4">
+            <m.section key="plan" {...STEP_MOTION} className="space-y-4">
               {panels.length > 1 && (
                 <div className="flex flex-wrap gap-2">
                   <SelectionChip label={panel.name} onChange={() => setStep("panel")} />
@@ -400,11 +400,11 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   </Button>
                 </StickyActionBar>
               )}
-            </motion.section>
+            </m.section>
           )}
 
           {step === "confirm" && panel && plan && (
-            <motion.section key="confirm" {...STEP_MOTION} className="space-y-4">
+            <m.section key="confirm" {...STEP_MOTION} className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {panels.length > 1 && <SelectionChip label={panel.name} onChange={() => setStep("panel")} />}
                 <SelectionChip label={planTitle(t, plan)} onChange={() => setStep("plan")} />
@@ -602,11 +602,11 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   {t("reseller.buy.confirm")}
                 </Button>
               </StickyActionBar>
-            </motion.section>
+            </m.section>
           )}
 
           {step === "success" && result && (
-            <motion.section
+            <m.section
               key="success"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -640,7 +640,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   {t("reseller.buy.done")}
                 </Button>
               </div>
-            </motion.section>
+            </m.section>
           )}
         </AnimatePresence>
       </div>

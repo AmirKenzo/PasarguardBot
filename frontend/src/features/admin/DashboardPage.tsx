@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import {
   Ban,
@@ -55,7 +55,7 @@ export default function AdminDashboardPage() {
     <>
       <PageHeader title={t("panel.common.dashboard")} subtitle={t("panel.dashboard.subtitle")} />
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -87,7 +87,7 @@ export default function AdminDashboardPage() {
           <HeroStat icon={Users} value={formatNumber(stats.users_total)} label={t("common.user")} />
           <HeroStat icon={Boxes} value={formatNumber(stats.services_active)} label={t("panel.dashboard.activeService")} />
         </div>
-      </motion.div>
+      </m.div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile

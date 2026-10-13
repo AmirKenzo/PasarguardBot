@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import QRCode from "qrcode";
 import { useNavigate, useParams } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import {
   Activity,
   ArrowDownToLine,
@@ -107,7 +107,7 @@ function ActionTile({
   danger?: boolean;
 }) {
   return (
-    <motion.button
+    <m.button
       type="button"
       variants={tileVariants}
       whileHover={{ y: -2 }}
@@ -134,7 +134,7 @@ function ActionTile({
         </span>
         {hint && <span className="block truncate text-[10.5px] leading-4 text-muted">{hint}</span>}
       </span>
-    </motion.button>
+    </m.button>
   );
 }
 
@@ -154,7 +154,7 @@ function CopyButton({
   const { t } = useTranslation();
   const copied = activeKey === copiedKey;
   return (
-    <motion.button
+    <m.button
       type="button"
       whileTap={{ scale: 0.98 }}
       onClick={() => {
@@ -169,13 +169,13 @@ function CopyButton({
       <span className="flex items-center gap-2">
         <AnimatePresence mode="wait" initial={false}>
           {copied ? (
-            <motion.span key="ok" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+            <m.span key="ok" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
               <Check size={18} />
-            </motion.span>
+            </m.span>
           ) : (
-            <motion.span key="copy" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+            <m.span key="copy" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
               <Copy size={18} />
-            </motion.span>
+            </m.span>
           )}
         </AnimatePresence>
         {copied ? t("serviceDetail.copied") : label}
@@ -183,7 +183,7 @@ function CopyButton({
       <span className="max-w-[42%] truncate text-xs text-muted ltr-field" dir="ltr">
         {value}
       </span>
-    </motion.button>
+    </m.button>
   );
 }
 
@@ -236,7 +236,7 @@ function QrModal({
     <Modal open={open} onClose={onClose} title={t("serviceDetail.qrTitle")}>
       <p className="mb-4 text-xs text-muted">{username}</p>
       <div className="flex flex-col items-center py-2">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
           className="rounded-lg border border-border bg-surface-2 p-4"
@@ -252,7 +252,7 @@ function QrModal({
               </div>
             )}
           </div>
-        </motion.div>
+        </m.div>
         <p className="mt-4 text-center text-xs text-muted">{t("serviceDetail.qrSubtitle")}</p>
         <Button
           type="button"
@@ -275,10 +275,10 @@ function QrModal({
 
 function Section({ title, index, children }: { title: string; index: number; children: ReactNode }) {
   return (
-    <motion.section custom={index} variants={fadeUp} initial="hidden" animate="show" className="space-y-3">
+    <m.section custom={index} variants={fadeUp} initial="hidden" animate="show" className="space-y-3">
       <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{title}</h3>
       {children}
-    </motion.section>
+    </m.section>
   );
 }
 
@@ -541,18 +541,18 @@ export default function ServiceDetailPage() {
       />
 
       {actionError && (
-        <motion.p
+        <m.p
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
           className="rounded-md border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger"
         >
           {actionError}
-        </motion.p>
+        </m.p>
       )}
 
       <div className="xl:grid xl:grid-cols-[1.6fr_1fr] xl:items-start xl:gap-6">
         <div className="space-y-6">
-          <motion.div
+          <m.div
             custom={0}
             variants={fadeUp}
             initial="hidden"
@@ -596,7 +596,7 @@ export default function ServiceDetailPage() {
               <StatCell icon={Clock} label={t("serviceDetail.remainingTime")} value={expiry.remaining} />
               <StatCell icon={Database} label={t("serviceDetail.totalVolume")} value={totalVolumeDisplay} />
             </div>
-          </motion.div>
+          </m.div>
 
           <Section title={t("serviceDetail.serviceInfo")} index={1}>
             <Card className="divide-y divide-border overflow-hidden">
@@ -642,7 +642,7 @@ export default function ServiceDetailPage() {
 
         <div className="mt-6 space-y-6 xl:mt-0">
           <Section title={t("serviceDetail.actions")} index={3}>
-            <motion.div
+            <m.div
               variants={tileGridVariants}
               initial="hidden"
               animate="show"
@@ -659,12 +659,12 @@ export default function ServiceDetailPage() {
                     onClick={action.onClick}
                   />
                 ))}
-            </motion.div>
+            </m.div>
           </Section>
 
           {(buttons.change_link || buttons.change_sub) && !service.is_test && (
             <Section title={t("serviceDetail.accessSecurity")} index={4}>
-              <motion.div
+              <m.div
                 variants={tileGridVariants}
                 initial="hidden"
                 animate="show"
@@ -690,7 +690,7 @@ export default function ServiceDetailPage() {
                     onClick={handleChangeSub}
                   />
                 )}
-              </motion.div>
+              </m.div>
               <p className="mt-2 text-[11px] leading-5 text-muted">{t("serviceDetail.changeSubWarning")}</p>
             </Section>
           )}

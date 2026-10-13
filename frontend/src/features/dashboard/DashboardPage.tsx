@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { ArrowLeft, ChevronLeft, Gift, ShoppingBag, Signal, UserPlus, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -61,7 +61,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader title={t("dashboard.title")} subtitle={`${t("dashboard.greeting")} ${user.first_name || user.username || t("common.user", "User")}`} />
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <UserPlus size={12} />
           {user.invite ?? 0} {t("dashboard.successfulInvites")}
         </div>
-      </motion.div>
+      </m.div>
 
       <div className="mb-6 grid grid-cols-3 gap-2.5">
         {quickActions.map((action) => (

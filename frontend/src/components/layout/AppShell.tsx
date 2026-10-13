@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Home, ListVideo, ShoppingBag, User, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -40,39 +40,39 @@ function NavButtons({ orientation }: { orientation: "row" | "col" }) {
             orientation === "row" ? (
               <>
                 {isActive && (
-                  <motion.span
+                  <m.span
                     layoutId="bottomnav-dot"
                     className="absolute top-0.5 h-1 w-1 rounded-full bg-primary"
                     transition={{ type: "spring", stiffness: 480, damping: 32 }}
                   />
                 )}
-                <motion.span
+                <m.span
                   className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full"
                   animate={{ y: isActive ? -3 : 0 }}
                   transition={{ type: "spring", stiffness: 500, damping: 24 }}
                   whileTap={{ scale: 0.8 }}
                 >
                   {isActive && (
-                    <motion.span
+                    <m.span
                       layoutId="bottomnav-active"
                       className="absolute inset-0 -z-10 rounded-full bg-primary/12"
                       transition={{ type: "spring", stiffness: 420, damping: 34 }}
                     />
                   )}
                   <item.icon size={20} strokeWidth={isActive ? 2.3 : 1.8} />
-                </motion.span>
-                <motion.span
+                </m.span>
+                <m.span
                   className="relative z-10"
                   animate={{ opacity: isActive ? 1 : 0.85 }}
                   transition={{ duration: 0.15 }}
                 >
                   {t(item.labelKey)}
-                </motion.span>
+                </m.span>
               </>
             ) : (
               <>
                 {isActive && (
-                  <motion.span
+                  <m.span
                     layoutId="sidebar-active"
                     className="absolute inset-0 rounded-md bg-primary/10"
                     transition={{ type: "spring", stiffness: 420, damping: 34 }}

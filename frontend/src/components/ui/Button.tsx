@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Spinner } from "./Spinner";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
@@ -39,7 +39,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   ref
 ) {
   return (
-    <motion.button
+    <m.button
       ref={ref}
       whileHover={disabled || loading ? undefined : { y: -1 }}
       whileTap={disabled || loading ? undefined : { scale: 0.96, y: 0 }}
@@ -56,6 +56,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       )}
       {loading && <Spinner size={16} />}
       <span className="relative z-10 inline-flex items-center gap-2">{children}</span>
-    </motion.button>
+    </m.button>
   );
 });

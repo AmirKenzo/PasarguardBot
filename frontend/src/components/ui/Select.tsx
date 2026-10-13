@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 
 export interface SegmentedOption<T extends string> {
   value: T;
@@ -23,7 +23,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, c
       {options.map((opt) => {
         const active = opt.value === value;
         return (
-          <motion.button
+          <m.button
             key={opt.value}
             type="button"
             whileTap={{ scale: 0.96 }}
@@ -33,14 +33,14 @@ export function SegmentedControl<T extends string>({ options, value, onChange, c
             }`}
           >
             {active && (
-              <motion.span
+              <m.span
                 layoutId={`segmented-active-${layoutId}`}
                 className="absolute inset-0 rounded-md bg-gradient-to-l from-primary to-primary-strong shadow-sm shadow-primary/30"
                 transition={{ type: "spring", stiffness: 500, damping: 32 }}
               />
             )}
             <span className="relative z-10">{opt.label}</span>
-          </motion.button>
+          </m.button>
         );
       })}
     </div>

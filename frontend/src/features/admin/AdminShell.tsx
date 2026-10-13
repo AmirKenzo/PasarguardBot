@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Activity,
   ArrowLeft,
@@ -250,7 +250,7 @@ function NavList({
                       }`}
                     >
                       {active && (
-                        <motion.span
+                        <m.span
                           layoutId={layoutId}
                           className="absolute inset-0 rounded-md bg-primary/10"
                           transition={{ type: "spring", stiffness: 420, damping: 34 }}
@@ -305,7 +305,7 @@ function NavList({
                   {({ isActive }) => (
                     <>
                       {isActive && (
-                        <motion.span
+                        <m.span
                           layoutId={layoutId}
                           className="absolute inset-0 rounded-md bg-primary/10"
                           transition={{ type: "spring", stiffness: 420, damping: 34 }}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Lock, Shield, ShoppingBag, Signal, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -90,7 +90,7 @@ export default function LoginPage() {
 
       <div className="relative mx-auto flex min-h-screen max-w-5xl items-center justify-center">
         <div className="grid w-full gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <motion.section
+          <m.section
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             className="hidden overflow-hidden rounded-2xl border border-border bg-surface p-8 shadow-lg lg:block"
@@ -109,9 +109,9 @@ export default function LoginPage() {
               <FeatureCard icon={Wallet} title={t("auth.wallet")} text={t("auth.walletDesc")} />
               <FeatureCard icon={Shield} title={t("auth.secure")} text={t("auth.secureDesc")} />
             </div>
-          </motion.section>
+          </m.section>
 
-          <motion.section
+          <m.section
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             className="rounded-2xl border border-border bg-surface p-6 shadow-lg sm:p-8"
@@ -124,13 +124,13 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm font-medium text-danger"
               >
                 {error}
-              </motion.div>
+              </m.div>
             )}
 
             {loginMode === "apiKey" ? (
@@ -167,7 +167,7 @@ export default function LoginPage() {
                 </div>
 
                 {otpSent && (
-                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+                  <m.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
                     <label className="mb-2 block text-sm font-medium text-text">{t("auth.codeLabel")}</label>
                     <Input
                       value={code}
@@ -179,7 +179,7 @@ export default function LoginPage() {
                       className="text-center text-lg tracking-widest"
                     />
                     <p className="mt-2 text-xs text-muted">{t("auth.codeHint")}</p>
-                  </motion.div>
+                  </m.div>
                 )}
 
                 <ShimmerButton type="submit" disabled={loading} className="mt-6 w-full py-3 text-base">
@@ -191,7 +191,7 @@ export default function LoginPage() {
                 </ShimmerButton>
 
                 {otpSent && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                     <Button
                       type="button"
                       variant="ghost"
@@ -205,7 +205,7 @@ export default function LoginPage() {
                     >
                       {t("auth.changePhone")}
                     </Button>
-                  </motion.div>
+                  </m.div>
                 )}
               </form>
             )}
@@ -217,7 +217,7 @@ export default function LoginPage() {
             <p className="mt-6 text-center text-xs text-muted">
               {t("auth.security")}
             </p>
-          </motion.section>
+          </m.section>
         </div>
       </div>
     </div>

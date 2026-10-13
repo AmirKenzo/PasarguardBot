@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -296,7 +296,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+    <m.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {/* Identity */}
       <Card className="flex items-center gap-3 p-4">
         <IconBadge icon={Store} tone="primary" size="lg" />
@@ -620,7 +620,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
       {(sheet === "extra_days" || sheet === "extra_volume" || sheet === "buy_user_capacity") && (
         <AddonSheet key={sheet} addon={sheet} data={data} onClose={() => setSheet(null)} onDone={done} />
       )}
-    </motion.div>
+    </m.div>
   );
 }
 

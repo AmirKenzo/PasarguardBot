@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Moon, Sun, SunMoon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../../design/ThemeProvider";
@@ -28,7 +28,7 @@ export function ThemeToggle() {
             className="relative flex h-8 w-8 items-center justify-center rounded-full"
           >
             {active && (
-              <motion.span
+              <m.span
                 layoutId="theme-toggle-pill"
                 className="absolute inset-0 rounded-full bg-primary shadow-md"
                 transition={{ type: "spring", stiffness: 500, damping: 32 }}

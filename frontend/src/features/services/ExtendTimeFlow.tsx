@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, Card, SkeletonCard } from "../../components/ui";
@@ -78,7 +78,7 @@ export default function ExtendTimeFlow() {
 
       <AnimatePresence mode="wait">
         {step === "plan" && (
-          <motion.div key="plan" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-3">
+          <m.div key="plan" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-3">
             <p className="text-sm text-muted">{t("extendTime.selectPlan")}</p>
             {submitError && <p className="text-sm text-danger">{submitError}</p>}
             <div className="max-h-[60vh] space-y-2 overflow-y-auto">
@@ -99,11 +99,11 @@ export default function ExtendTimeFlow() {
                 </button>
               ))}
             </div>
-          </motion.div>
+          </m.div>
         )}
 
         {step === "success" && (
-          <motion.div key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
+          <m.div key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
             <Card className="space-y-2 border-success/30 bg-success/5 p-4">
               <p className="font-semibold text-success">{t("extendTime.success")}</p>
               {confirm.data?.added_days != null && (
@@ -131,7 +131,7 @@ export default function ExtendTimeFlow() {
             <Button type="button" fullWidth onClick={() => navigate(backTo)}>
               {t("extendTime.backToService")}
             </Button>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

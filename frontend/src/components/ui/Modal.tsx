@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -22,7 +22,7 @@ export function Modal({ open, onClose, title, children, size = "sm" }: ModalProp
     <AnimatePresence>
       {open && (
         <>
-          <motion.div
+          <m.div
             key="overlay"
             className="fixed inset-0 z-40 bg-overlay"
             initial={{ opacity: 0 }}
@@ -31,7 +31,7 @@ export function Modal({ open, onClose, title, children, size = "sm" }: ModalProp
             onClick={onClose}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
+            <m.div
               key="panel"
               role="dialog"
               aria-modal="true"
@@ -50,7 +50,7 @@ export function Modal({ open, onClose, title, children, size = "sm" }: ModalProp
                 </div>
               )}
               {children}
-            </motion.div>
+            </m.div>
           </div>
         </>
       )}

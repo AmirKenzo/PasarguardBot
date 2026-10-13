@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../../components/ui";
 
@@ -48,14 +48,14 @@ export function ChoiceDialog({ open, tone, icon: Icon, title, text, actions, onC
   if (!open) return null;
 
   return (
-    <motion.div
+    <m.div
       className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15 }}
     >
       <div className="absolute inset-0 bg-overlay" onClick={onClose} />
-      <motion.div
+      <m.div
         role="dialog"
         aria-modal="true"
         aria-labelledby="choice-dialog-title"
@@ -88,7 +88,7 @@ export function ChoiceDialog({ open, tone, icon: Icon, title, text, actions, onC
             {t("panel.texts.cancel")}
           </Button>
         </div>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }

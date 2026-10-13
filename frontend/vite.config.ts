@@ -27,7 +27,7 @@ function devWebappRedirectPlugin(): Plugin {
   };
 }
 
-const SHELL_DYNAMIC_ENTRY = /\/src\/locales\/[^/]+\.json$|\/workbox-window\//;
+const SHELL_DYNAMIC_ENTRY = /\/src\/locales\/[^/]+\.json$|\/workbox-window\/|\/src\/lib\/motionFeatures\.ts$/;
 
 function appShellPlugin(shellFiles: Set<string>): Plugin {
   return {

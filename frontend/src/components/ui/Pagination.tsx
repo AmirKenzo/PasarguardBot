@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,7 +37,7 @@ function NavButton({
   children: ReactNode;
 }) {
   return (
-    <motion.button
+    <m.button
       onClick={onClick}
       disabled={disabled}
       whileHover={disabled ? undefined : { y: -1 }}
@@ -51,7 +51,7 @@ function NavButton({
       aria-label={label}
     >
       {children}
-    </motion.button>
+    </m.button>
   );
 }
 
@@ -70,7 +70,7 @@ export function Pagination({ page, totalPages, onChange }: PaginationProps) {
       <div className="flex items-center gap-1">
         {pages.map((p, i) =>
           typeof p === "number" ? (
-            <motion.button
+            <m.button
               key={p}
               onClick={() => onChange(p)}
               whileTap={{ scale: 0.92 }}
@@ -81,14 +81,14 @@ export function Pagination({ page, totalPages, onChange }: PaginationProps) {
               aria-label={t("ui.page", { page: p })}
             >
               {p === page && (
-                <motion.span
+                <m.span
                   layoutId="pagination-active"
                   className="absolute inset-0 rounded-full bg-gradient-to-l from-primary to-primary-strong shadow-md shadow-primary/30"
                   transition={{ type: "spring", stiffness: 500, damping: 32 }}
                 />
               )}
               <span className="relative z-10">{formatNumber(p)}</span>
-            </motion.button>
+            </m.button>
           ) : (
             <span key={`${p}-${i}`} className="flex h-9 w-5 shrink-0 items-center justify-center text-muted/60 sm:w-6">
               <MoreHorizontal size={16} />
