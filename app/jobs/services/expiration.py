@@ -21,6 +21,8 @@ from app.utils.formatting.traffic import format_size
 
 logger = get_logger(__name__)
 
+EXPIRATION_BATCH_SIZE = 500
+
 
 async def _notify_user(user_id: int, message: str, *, parse_mode: str = "html") -> bool:
     """Deliver a user notification without blocking the job on FloodWait.
@@ -215,6 +217,102 @@ async def _cleanup_expired_paid_services_for_grace(panels_by_code: dict, current
     return deletions
 
 
+_FLAG_FLUSH_EVERY = 25
+
+
+async def _flush_expiration_flags(
+    service_crud: ServiceCRUD,
+    expire_notified_codes: list[int],
+    warned_codes: list[int],
+    current_time: int,
+) -> None:
+    """Persist the pending notify flags (one transaction per field set) and clear them."""
+    if expire_notified_codes:
+        await service_crud.update_services_bulk(expire_notified_codes, expire_notified=True)
+        expire_notified_codes.clear()
+    if warned_codes:
+        await service_crud.update_services_bulk(warned_codes, warning=1, warning_time=current_time)
+        warned_codes.clear()
+
+
+async def _process_expiration_batch(
+    batch: list,
+    *,
+    current_time: int,
+    expiring_time: int,
+    panels_without_webhook_by_code: dict,
+    service_crud: ServiceCRUD,
+    expire_notified_codes: list[int],
+    warned_codes: list[int],
+) -> tuple[int, int]:
+    """Send expiry/grace notices for one batch and record codes whose notice was delivered.
+
+    Returns how many expiry and grace notices were delivered.
+    """
+    sent_expiry = sent_warning = 0
+    for service in batch:
+        if len(expire_notified_codes) + len(warned_codes) >= _FLAG_FLUSH_EVERY:
+            await _flush_expiration_flags(service_crud, expire_notified_codes, warned_codes, current_time)
+        is_test = getattr(service, "is_test", False) is True
+        if service.warning_time is None:
+            service.warning_time = 0
+        if service.warning is None:
+            service.warning = 0
+        if (
+            service.expiration_time
+            and current_time < service.expiration_time <= expiring_time
+            and not service.expire_notified
+        ):
+            time_diff_seconds = service.expiration_time - current_time
+            days = time_diff_seconds // 86400
+            hours = (time_diff_seconds % 86400) // 3600
+            minutes = (time_diff_seconds % 3600) // 60
+
+            time_parts = []
+            if days > 0:
+                time_parts.append(f"{days} روز")
+            if hours > 0:
+                time_parts.append(f"{hours} ساعت")
+            if minutes > 0 or len(time_parts) == 0:
+                time_parts.append(f"{minutes} دقیقه")
+            time_text = " و ".join(time_parts)
+
+            message = (
+                f"<b>#اطلاع_رسانی</b>\n\n"
+                f"<b>#⃣ کد سرویس(در ربات): {service.code}</b>\n"
+                f"<b>🔷 اسم کانفیگ: {service.username}</b>\n"
+                f"<b>⌛️ سرویس شما تا {time_text} دیگر منقضی می‌شود.</b>\n"
+                f"<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
+                f"<b>#notification_{service.code}</b>"
+            )
+            if await _notify_user(service.id, message, parse_mode="html"):
+                expire_notified_codes.append(service.code)
+                sent_expiry += 1
+                await send_log_message(LogType.OTHER, message=message, parse_mode="html")
+
+        # Paid-only: grace-period warning after expiry (tests are deleted immediately).
+        if not is_test and service.expiration_time and service.expiration_time <= current_time and service.warning == 0:
+            service_panel = panels_without_webhook_by_code.get(service.in_panel)
+            delete_note = ""
+            if service_panel is None or panel_expired_auto_delete_enabled(service_panel):
+                days_remaining = panel_expired_grace_days(service_panel)
+                delete_note = f"<b>⚠️ نکته: اگر در {days_remaining} روز آینده تمدید نکنید، سرویس شما حذف خواهد شد.</b>\n"
+            warn_text = (
+                f"<b>#اطلاع_رسانی</b>\n\n"
+                f"<b>#⃣ کد سرویس(در ربات): {service.code}</b>\n"
+                f"<b>🔷 اسم کانفیگ: {service.username}</b>\n"
+                f"<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n"
+                f"<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n"
+                f"{delete_note}\n"
+                f"<b>#notification_{service.code}</b>"
+            )
+            if await _notify_user(service.id, warn_text, parse_mode="html"):
+                warned_codes.append(service.code)
+                sent_warning += 1
+                await send_log_message(LogType.OTHER, message=warn_text, parse_mode="html")
+    return sent_expiry, sent_warning
+
+
 async def handle_service_expiration():
     start_time = time.time()
     logger.debug("%s handle_service_expiration started", LogTag.JOB)
@@ -247,8 +345,7 @@ async def handle_service_expiration():
     warning_notifications = 0
     services_checked = 0
 
-    # Process in batches of 500 (paid services only; test services already cleaned)
-    batch_size = 500
+    batch_size = EXPIRATION_BATCH_SIZE
     after_expiration_time = None
     after_code = None
     total_processed = 0
@@ -272,72 +369,24 @@ async def handle_service_expiration():
         )
         total_processed += len(batch)
 
-        for service in batch:
-            is_test = getattr(service, "is_test", False) is True
-            services_checked += 1
-            if service.warning_time is None:
-                service.warning_time = 0
-            if service.warning is None:
-                service.warning = 0
-            if (
-                service.expiration_time
-                and current_time < service.expiration_time <= expiring_time
-                and not service.expire_notified
-            ):
-                time_diff_seconds = service.expiration_time - current_time
-                days = time_diff_seconds // 86400
-                hours = (time_diff_seconds % 86400) // 3600
-                minutes = (time_diff_seconds % 3600) // 60
-
-                time_parts = []
-                if days > 0:
-                    time_parts.append(f"{days} روز")
-                if hours > 0:
-                    time_parts.append(f"{hours} ساعت")
-                if minutes > 0 or len(time_parts) == 0:
-                    time_parts.append(f"{minutes} دقیقه")
-                time_text = " و ".join(time_parts)
-
-                message = (
-                    f"<b>#اطلاع_رسانی</b>\n\n"
-                    f"<b>#⃣ کد سرویس(در ربات): {service.code}</b>\n"
-                    f"<b>🔷 اسم کانفیگ: {service.username}</b>\n"
-                    f"<b>⌛️ سرویس شما تا {time_text} دیگر منقضی می‌شود.</b>\n"
-                    f"<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
-                    f"<b>#notification_{service.code}</b>"
-                )
-                if await _notify_user(service.id, message, parse_mode="html"):
-                    expiry_notifications += 1
-                    await service_crud.update_service(service.code, expire_notified=True)
-                    await send_log_message(LogType.OTHER, message=message, parse_mode="html")
-
-            # Paid-only: grace-period warning after expiry (tests are deleted immediately).
-            if (
-                not is_test
-                and service.expiration_time
-                and service.expiration_time <= current_time
-                and service.warning == 0
-            ):
-                service_panel = panels_without_webhook_by_code.get(service.in_panel)
-                delete_note = ""
-                if service_panel is None or panel_expired_auto_delete_enabled(service_panel):
-                    days_remaining = panel_expired_grace_days(service_panel)
-                    delete_note = (
-                        f"<b>⚠️ نکته: اگر در {days_remaining} روز آینده تمدید نکنید، سرویس شما حذف خواهد شد.</b>\n"
-                    )
-                warn_text = (
-                    f"<b>#اطلاع_رسانی</b>\n\n"
-                    f"<b>#⃣ کد سرویس(در ربات): {service.code}</b>\n"
-                    f"<b>🔷 اسم کانفیگ: {service.username}</b>\n"
-                    f"<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n"
-                    f"<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n"
-                    f"{delete_note}\n"
-                    f"<b>#notification_{service.code}</b>"
-                )
-                if await _notify_user(service.id, warn_text, parse_mode="html"):
-                    await service_crud.update_service(service.code, warning=1, warning_time=current_time)
-                    warning_notifications += 1
-                    await send_log_message(LogType.OTHER, message=warn_text, parse_mode="html")
+        expire_notified_codes: list[int] = []
+        warned_codes: list[int] = []
+        sent_expiry = sent_warning = 0
+        try:
+            sent_expiry, sent_warning = await _process_expiration_batch(
+                batch,
+                current_time=current_time,
+                expiring_time=expiring_time,
+                panels_without_webhook_by_code=panels_without_webhook_by_code,
+                service_crud=service_crud,
+                expire_notified_codes=expire_notified_codes,
+                warned_codes=warned_codes,
+            )
+        finally:
+            await _flush_expiration_flags(service_crud, expire_notified_codes, warned_codes, current_time)
+        services_checked += len(batch)
+        expiry_notifications += sent_expiry
+        warning_notifications += sent_warning
 
         last = batch[-1]
         after_expiration_time = last.expiration_time
