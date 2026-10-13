@@ -70,6 +70,39 @@ def test_concurrent_invoices_get_distinct_amounts(monkeypatch: pytest.MonkeyPatc
     _assert_pairwise_distinct(list(stored.values()))
 
 
+def test_lockstep_repicks_still_converge() -> None:
+    # Every re-pick starts from the same reads and returns the lowest free amount, so if all
+    # clashing invoices moved they would keep landing on the same amount until discarded.
+    count = 8
+
+    calls = 0
+
+    async def lockstep_picker(reserved: set[str]) -> float:
+        # Return only once no other pick arrived for a moment, so a round of re-picks
+        # all come from reads taken before any of them wrote its new amount.
+        nonlocal calls
+        calls += 1
+        seen = -1
+        while seen != calls:
+            seen = calls
+            await asyncio.sleep(0.03)
+        step = 0
+        while True:
+            candidate = round(5.0 + step * 0.00001, 6)
+            if not any(cryptopayments.amounts_collide(candidate, other) for other in reserved):
+                return candidate
+            step += 1
+
+    async def scenario():
+        results = await asyncio.gather(*(_create(73_000 + i, lockstep_picker) for i in range(count)))
+        return results, await _pending_amounts()
+
+    results, stored = asyncio.run(scenario())
+    assert all(r["success"] for r in results)
+    assert len(stored) == count
+    _assert_pairwise_distinct(list(stored.values()))
+
+
 def test_stale_pick_is_regenerated_after_insert() -> None:
     stale_then_fresh = iter([1.5, 1.5, 2.25])
 

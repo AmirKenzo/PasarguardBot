@@ -4,31 +4,45 @@ USDT Payment Processor
 This processor handles checking and confirming USDT (TRC20) cryptocurrency payments.
 """
 
-import contextlib
-from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
-from telethon import Button, errors
 
-from app import Kenzo
 from app.db.crud.cryptopayments import CryptoPaymentsCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.wallets import WalletCRUD
-from app.logger import LogType, get_logger
-from app.services.billing.direct_pay_fulfillment import (
-    cancel_after_crypto_expire,
-    try_fulfill_after_crypto_credit,
-)
-from app.services.billing.payment_bonus import calculate_payment_bonus
-from app.telegram.shared.utils.logging import send_log_message
+from app.logger import get_logger
 from config import TRX_TESTNET_MODE
 
 from .base import BasePaymentProcessor
-from .crypto_common import expire_unmatched, to_unix_seconds, tx_time_in_window
+from .crypto_common import (
+    PricedNotice,
+    PriceRow,
+    confirm_priced_payment,
+    expire_priced_payment,
+    expire_unmatched,
+    match_transfers,
+    to_unix_seconds,
+    tx_time_in_window,
+)
+from .trx import TRONSCAN_EXPLORER_LINE, extract_tronscan_amount, tronscan_base_url
 from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
+
+# USDT contract address (mainnet)
+USDT_CONTRACT_MAINNET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+NOTICE = PricedNotice(
+    name="USDT",
+    amount_label="USDT",
+    unit="USDT",
+    confirm_prices=(PriceRow("دلار", "arz_usd"),),
+    expire_prices=(PriceRow("دلار", "arz_usd"),),
+    explorer_line=TRONSCAN_EXPLORER_LINE,
+    timestamp_in_ms=True,
+    tag="usdt",
+    log=logger,
+)
 
 
 async def _fetch_token_transfers(client, base_url, headers, address_wallet, start_time, order_id, token_contract=None):
@@ -156,27 +170,7 @@ def _is_successful_transfer(transaction: dict) -> bool:
     return transaction.get("revert") is not True
 
 
-async def _extract_transaction_amount(transaction, decimals=6):
-
-    amount = (
-        transaction.get("amount")
-        or transaction.get("amount_str")
-        or transaction.get("value")
-        or transaction.get("quant")
-        or 0
-    )
-    if isinstance(amount, str):
-        try:
-            amount = float(amount)
-        except ValueError:
-            amount = 0
-    if not amount or amount == 0:
-        return None
-    return float(amount) / (10**decimals)
-
-
 def _extract_transaction_details(transaction, address_wallet):
-
     return {
         "hash": chain_tx_id(transaction) or "N/A",
         "from": (
@@ -193,147 +187,11 @@ def _extract_transaction_details(transaction, address_wallet):
     }
 
 
-def _format_user_payment_message(payment, settings, bonus, total_amount, new_amount):
-
-    msg_parts = [
-        "🎉 <b>پرداخت شما با موفقیت انجام شد!</b>",
-        "",
-        f"📋 <b>شماره فاکتور:</b> <code>{payment.order_id}</code>",
-        f"💵 <b>مبلغ:</b> <code>{int(payment.amount_irt):,}</code> تومان",
-    ]
-
-    if bonus > 0:
-        msg_parts.extend(
-            [
-                f"🎁 <b>بونوس:</b> +<code>{int(bonus):,}</code> تومان ({settings.crypto_bonus_percent}%)",
-                f"💰 <b>مجموع:</b> <code>{int(total_amount):,}</code> تومان",
-            ]
-        )
-
-    msg_parts.extend(
-        [
-            f"💎 <b>مقدار USDT:</b> <code>{payment.amount}</code> USDT",
-            f"📊 <b>قیمت دلار:</b> <code>{settings.arz_usd:,}</code> هزارتومان",
-            "",
-            f"💳 <b>موجودی جدید:</b> <code>{int(new_amount):,}</code> تومان",
-            "",
-            f"<code>#{payment.arz}_{payment.order_id}</code>",
-        ]
-    )
-
-    return "\n".join(msg_parts)
-
-
-def _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details):
-
-    tx_time_str = "N/A"
-    if tx_details["timestamp"]:
-        try:
-            tx_time = datetime.fromtimestamp(tx_details["timestamp"] / 1000, tz=UTC)
-            tx_time_str = tx_time.strftime("%Y-%m-%d %H:%M:%S UTC")
-        except Exception:
-            pass
-
-    log_parts = [
-        "#فاکتور_ارزی",
-        "<b>✅ فاکتور ارزی کاربر با موفقیت پرداخت شد</b>",
-        "",
-        f"<b>👤 شناسه کاربری:</b> <code>{payment.user_id}</code> | "
-        f"<a href='tg://user?id={payment.user_id}'>پروفایل کاربر</a>",
-        f"<b>📋 شماره فاکتور:</b> <code>{payment.order_id}</code>",
-        f"<b>💵 مبلغ فاکتور:</b> <code>{int(payment.amount_irt):,}</code> تومان",
-    ]
-
-    if bonus > 0:
-        log_parts.extend(
-            [
-                f"<b>🎁 بونوس:</b> +<code>{int(bonus):,}</code> تومان ({settings.crypto_bonus_percent}%)",
-                f"<b>💰 مجموع:</b> <code>{int(total_amount):,}</code> تومان",
-            ]
-        )
-
-    log_parts.extend(
-        [
-            f"<b>💎 مقدار USDT:</b> <code>{payment.amount}</code> USDT",
-            f"<b>📊 قیمت دلار:</b> <code>{settings.arz_usd:,}</code> هزارتومان",
-            f"<b>💳 موجودی جدید کاربر:</b> <code>{int(new_amount):,}</code> تومان",
-            "",
-            "<b>🔗 جزئیات تراکنش بلاکچین:</b>",
-            f"<b>📝 هش تراکنش:</b> <code>{tx_details['hash']}</code>",
-            f"<b>👤 از آدرس:</b> <code>{tx_details['from']}</code>",
-            f"<b>👥 به آدرس:</b> <code>{tx_details['to']}</code>",
-            f"<b>⏰ زمان تراکنش:</b> <code>{tx_time_str}</code>",
-            f"<b>📦 شماره بلاک:</b> <code>{tx_details['block']}</code>",
-            f"<b>✅ وضعیت:</b> {'تایید شده' if tx_details['confirmed'] else 'در انتظار تایید'}",
-            f"<b>🔗 مشاهده در TronScan:</b> "
-            f"<a href='https://tronscan.org/#/transaction/{tx_details['hash']}'>لینک تراکنش</a>",
-            "",
-            f"<code>#{payment.arz}_{payment.order_id}</code>",
-        ]
-    )
-
-    return "\n".join(log_parts)
-
-
-async def _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime: int, tx_hash: str):
-
-    tx_details = _extract_transaction_details(transaction, address_wallet)
-
-    bonus = await calculate_payment_bonus(
-        amount=int(payment.amount_irt),
-        bonus_enabled=settings.crypto_bonus_enabled,
-        bonus_percent=settings.crypto_bonus_percent,
-    )
-    total_amount = int(payment.amount_irt) + bonus
-
-    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime, tx_hash=tx_hash)
-    if not approved:
-        logger.warning("USDT payment already processed or invalid: order_id=%s", payment.order_id)
-        return
-    payment, new_amount = approved
-
-    try:
-        fulfilled = await try_fulfill_after_crypto_credit(int(payment.order_id))
-        if not fulfilled:
-            user_msg = _format_user_payment_message(payment, settings, bonus, total_amount, new_amount)
-            await Kenzo.send_message(
-                payment.user_id,
-                user_msg,
-                parse_mode="html",
-                buttons=[
-                    [
-                        Button.inline(
-                            text=f"💳 موجودی: {int(new_amount):,} تومان",
-                            data="no_action",
-                        )
-                    ]
-                ],
-            )
-
-        admin_log = _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details)
-        await send_log_message(
-            LogType.CRYPTO,
-            message=admin_log,
-            parse_mode="html",
-            buttons=[
-                [
-                    Button.inline(
-                        text=f"💳 موجودی: {int(new_amount):,} تومان",
-                        data="no_action",
-                    )
-                ]
-            ],
-        )
-    except Exception as e:
-        logger.error("Post-credit notification failed for order_id=%s: %s", payment.order_id, e)
-
-
 class USDTProcessor(BasePaymentProcessor):
     def __init__(self):
         super().__init__("usdt")
 
     async def check_payments(self):
-
         settings = await SettingsManager().get_settings()
 
         # Get wallet from database
@@ -344,16 +202,8 @@ class USDTProcessor(BasePaymentProcessor):
 
         address_wallet = wallet.address
         api_key = wallet.api_key or ""
-
-        # Check testnet mode (use TRX testnet config)
-        if TRX_TESTNET_MODE == "nile":
-            base_url = "https://nileapi.tronscan.org"
-            logger.debug(f"🔧 USDT Testnet mode: Nile Testnet - Address: {address_wallet}")
-        elif TRX_TESTNET_MODE == "shasta":
-            base_url = "https://shastapi.tronscan.org"
-            logger.debug(f"🔧 USDT Testnet mode: Shasta Testnet - Address: {address_wallet}")
-        else:
-            base_url = "https://apilist.tronscanapi.com"
+        # Testnet mode uses the TRX testnet config
+        base_url = tronscan_base_url(TRX_TESTNET_MODE, "USDT", address_wallet, logger)
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             headers = {"TRON-PRO-API-KEY": api_key} if api_key else {}
@@ -362,8 +212,6 @@ class USDTProcessor(BasePaymentProcessor):
             if not valid_payments:
                 return
 
-            # USDT contract address (mainnet)
-            USDT_CONTRACT_MAINNET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
             usdt_contract = USDT_CONTRACT_MAINNET if TRX_TESTNET_MODE is None else None
 
             earliest_ms = min(payment.createtime for payment in valid_payments) * 1000
@@ -376,15 +224,12 @@ class USDTProcessor(BasePaymentProcessor):
                 client, base_url, headers, address_wallet, earliest_ms, "batch", usdt_contract
             )
             consumed = await crud.get_used_tx_hashes(chain_tx_id(tx) for tx in all_transactions)
-            matched: set[int] = set()
 
-            for payment in valid_payments:
+            def candidates(payment):
                 transactions_found = [tx for tx in all_transactions if tx_time_in_window(payment, _tx_unix_seconds(tx))]
                 logger.debug("Found %s token transfers for USDT payment %s", len(transactions_found), payment.order_id)
-
                 if not transactions_found:
-                    continue
-
+                    return
                 logger.debug(
                     "Processing %s transactions for USDT payment %s",
                     len(transactions_found),
@@ -394,26 +239,22 @@ class USDTProcessor(BasePaymentProcessor):
                     tx_to = _tx_recipient(transaction)
                     if tx_to and tx_to.lower() != address_wallet.lower():
                         continue
-                    txid = chain_tx_id(transaction)
-                    if txid in consumed:
-                        continue
+                    yield transaction
 
-                    if not await self._validate_transaction(transaction, payment.amount, address_wallet):
-                        continue
-                    if txid is None:
-                        logger.warning("USDT transfer for order_id=%s has no tx id; not crediting", payment.order_id)
-                        continue
-                    consumed.add(txid)
-
-                    matched.add(int(payment.order_id))
-                    paytime = int(datetime.now(UTC).timestamp())
-                    try:
-                        await _process_payment_confirmation(
-                            payment, settings, transaction, address_wallet, paytime, txid
-                        )
-                        break
-                    except Exception as e:
-                        logger.error("Error processing USDT payment %s: %s", payment.order_id, e)
+            matched = await match_transfers(
+                valid_payments,
+                candidates,
+                consumed,
+                tx_id=chain_tx_id,
+                accepts=lambda payment, tx: self._validate_transaction(tx, payment.amount, address_wallet),
+                confirm=lambda payment, tx, txid: confirm_priced_payment(
+                    payment, settings, _extract_transaction_details(tx, address_wallet), tx_hash=txid, notice=NOTICE
+                ),
+                name="USDT",
+                error_message="Error processing USDT payment %s: %s",
+                log=logger,
+                retry_after_error=True,
+            )
 
             await expire_unmatched(valid_payments, matched, lambda payment: self._expire_payment(payment, settings))
 
@@ -431,7 +272,6 @@ class USDTProcessor(BasePaymentProcessor):
                 token_info.get("address"),
             )
         else:
-            USDT_CONTRACT_MAINNET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
             token_address = (
                 token_info.get("address")
                 or token_info.get("contract_address")
@@ -444,7 +284,7 @@ class USDTProcessor(BasePaymentProcessor):
                 )
                 return False
 
-        amount_in_usdt = await _extract_transaction_amount(transaction, decimals=6)
+        amount_in_usdt = await extract_tronscan_amount(transaction, decimals=6)
         if amount_in_usdt is None:
             return False
 
@@ -461,43 +301,4 @@ class USDTProcessor(BasePaymentProcessor):
         return abs(payment_amount_decimal - usdt_amount_decimal) <= Decimal("0.000001")
 
     async def _expire_payment(self, payment, settings):
-        crud = CryptoPaymentsCRUD()
-        if not await crud.expire_payment(payment.order_id):
-            return
-        await cancel_after_crypto_expire(int(payment.order_id))
-
-        try:
-            if hasattr(payment, "msg_id") and payment.msg_id:
-                with contextlib.suppress(Exception):
-                    await Kenzo.delete_messages(payment.user_id, payment.msg_id)
-
-            expire_msg = (
-                f"<b>#اطلاع_رسانی</b>\n\n"
-                f"<b>📅 فاکتور شماره [ {payment.order_id} ] به دلیل گذشتن زمان منقضی شد.</b>\n"
-                f"<b>💵 مبلغ فاکتور:</b> <code>{int(payment.amount_irt):,}</code> <b>تومان</b>\n"
-                f"<b>💰 مقدار USDT:</b> <code>{payment.amount}</code> USDT\n"
-                f"<b>📊 قیمت دلار:</b> <code>{settings.arz_usd:,}</code> <b>هزارتومان</b>\n"
-                f"<b>#notification_{payment.order_id}</b>"
-            )
-            await Kenzo.send_message(
-                payment.user_id,
-                expire_msg,
-                parse_mode="html",
-                buttons=[[Button.inline(text="🚫 منقضی شد", data="no_action")]],
-            )
-
-            log_text = (
-                "#فاکتور_منقضی\n"
-                f"👤 شناسه کاربر: <code>{payment.user_id}</code> | "
-                f"<a href='tg://user?id={payment.user_id}'>پروفایل کاربر</a>\n"
-                f"💡 شماره فاکتور: <code>{payment.order_id}</code>\n"
-                f"💵 مبلغ فاکتور: <code>{int(payment.amount_irt):,}</code> تومان\n"
-                f"💰 مقدار USDT: <code>{payment.amount}</code>\n"
-                f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان\n"
-                f"#usdt_{payment.order_id}"
-            )
-            await send_log_message(LogType.CRYPTO, message=log_text, parse_mode="html")
-        except errors.UserIsBlockedError:
-            logger.debug("USDT expire notice skipped, user blocked the bot: order_id=%s", payment.order_id)
-        except Exception:
-            logger.exception("USDT expire notification failed for order_id=%s", payment.order_id)
+        await expire_priced_payment(payment, settings, notice=NOTICE)

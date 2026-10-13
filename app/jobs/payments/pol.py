@@ -21,6 +21,7 @@ from .crypto_common import (
     confirm_payment,
     expire_payment,
     expire_unmatched,
+    match_transfers,
     tx_time_in_window,
 )
 from .tx_id import chain_tx_id
@@ -97,6 +98,14 @@ async def _fetch_pol_transfers(client, api_key: str, address_wallet: str) -> lis
         return []
 
 
+async def _amount_matches(payment, item: dict) -> bool:
+    try:
+        amount_pol = float(item.get("value") or 0)
+    except TypeError, ValueError:
+        return False
+    return amount_pol > 0 and amount_matches(payment.amount, amount_pol)
+
+
 class POLProcessor(BasePaymentProcessor):
     def __init__(self):
         super().__init__("pol")
@@ -129,36 +138,30 @@ class POLProcessor(BasePaymentProcessor):
         async with httpx.AsyncClient(timeout=30.0) as client:
             transfers = await _fetch_pol_transfers(client, api_key, address_wallet)
         consumed = await CryptoPaymentsCRUD().get_used_tx_hashes(chain_tx_id(item) for item in transfers)
-        for payment in valid:
+
+        def candidates(payment):
             for item in transfers:
                 if not tx_time_in_window(payment, _parse_transfer_timestamp(item), allow_unknown=True):
                     continue
                 if (item.get("to") or "").lower() != address_wallet.lower():
                     continue
-                txid = chain_tx_id(item)
-                if txid in consumed:
-                    continue
-                try:
-                    amount_pol = float(item.get("value") or 0)
-                except TypeError, ValueError:
-                    continue
-                if amount_pol <= 0 or not amount_matches(payment.amount, amount_pol):
-                    continue
-                if txid is None:
-                    logger.warning("POL transfer for order_id=%s has no tx id; not crediting", payment.order_id)
-                    continue
-                consumed.add(txid)
-                matched.add(int(payment.order_id))
-                try:
-                    await confirm_payment(
-                        payment,
-                        settings,
-                        _tx_details(item, address_wallet),
-                        unit="POL",
-                        price_line=_price_line(settings),
-                        tx_hash=txid,
-                    )
-                except Exception as e:
-                    logger.error("Error processing POL %s: %s", payment.order_id, e)
-                break
-        return matched
+                yield item
+
+        return await match_transfers(
+            valid,
+            candidates,
+            consumed,
+            tx_id=chain_tx_id,
+            accepts=_amount_matches,
+            confirm=lambda payment, item, txid: confirm_payment(
+                payment,
+                settings,
+                _tx_details(item, address_wallet),
+                unit="POL",
+                price_line=_price_line(settings),
+                tx_hash=txid,
+            ),
+            name="POL",
+            error_message="Error processing POL %s: %s",
+            log=logger,
+        )

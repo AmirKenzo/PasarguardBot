@@ -185,12 +185,11 @@ def env(request, monkeypatch: pytest.MonkeyPatch, tmp_path) -> SimpleNamespace:
     for module in (trx, usdt, ton, pol, usdt_networks):
         monkeypatch.setattr(module, "SettingsManager", lambda: settings_manager)
         monkeypatch.setattr(module, "WalletCRUD", lambda: SimpleNamespace(get_wallet_by_type=_async(wallet)))
-    for module in (trx, usdt, ton, crypto_common):
-        monkeypatch.setattr(module, "Kenzo", bot)
-        monkeypatch.setattr(module, "send_log_message", _async(None))
-        monkeypatch.setattr(module, "try_fulfill_after_crypto_credit", _async(False))
-        monkeypatch.setattr(module, "cancel_after_crypto_expire", _async(None))
-        monkeypatch.setattr(module, "calculate_payment_bonus", _async(0))
+    monkeypatch.setattr(crypto_common, "Kenzo", bot)
+    monkeypatch.setattr(crypto_common, "send_log_message", _async(None))
+    monkeypatch.setattr(crypto_common, "try_fulfill_after_crypto_credit", _async(False))
+    monkeypatch.setattr(crypto_common, "cancel_after_crypto_expire", _async(None))
+    monkeypatch.setattr(crypto_common, "calculate_payment_bonus", _async(0))
     for module in (usdt, trx):
         monkeypatch.setattr(module, "TRX_TESTNET_MODE", None)
     monkeypatch.setattr(ton, "TON_TESTNET_MODE", None)
@@ -391,3 +390,38 @@ def test_unique_index_refuses_second_credit_when_precheck_misses(
     state, sent = asyncio.run(scenario())
     assert state == ("Pending", 0)
     assert sent == 0
+
+
+UNTIMED_ALLOWED = {"POL", "USDT-TON", "USDT-BEP20"}
+
+
+def test_untimed_tx_is_credited_only_on_chains_that_allow_it(env: SimpleNamespace) -> None:
+    async def scenario():
+        await _create_invoice(env, 5 * MINUTE)
+        env.explorer.tx = ("hash-untimed", 0)
+        await env.network.run()
+        return await _state()
+
+    expected = ("Paid", AMOUNT_IRT) if env.network.arz in UNTIMED_ALLOWED else ("Pending", 0)
+    assert asyncio.run(scenario()) == expected
+
+
+def test_notify_failure_keeps_credit_and_still_expires_overdue_invoices(
+    env: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def blocked(*_, **__):
+        raise RuntimeError("user blocked the bot")
+
+    monkeypatch.setattr(crypto_common.Kenzo, "send_message", blocked)
+
+    async def scenario():
+        createtime = await _create_invoice(env, 5 * MINUTE)
+        await _add_invoice(env, SECOND_ORDER, int(time.time()) - 41 * MINUTE)
+        env.explorer.tx = ("hash-notify", createtime + 2 * MINUTE)
+        await env.network.run()
+        return await _rows(), await _balance()
+
+    rows, balance = asyncio.run(scenario())
+    assert rows[ORDER] == ("Paid", "hash-notify")
+    assert rows[SECOND_ORDER][0] == "Expired"
+    assert balance == AMOUNT_IRT

@@ -1,3 +1,4 @@
+import asyncio
 import secrets
 from collections.abc import Awaitable, Callable, Iterable
 from decimal import Decimal, InvalidOperation
@@ -17,7 +18,9 @@ logger = get_logger(__name__)
 # Jobs accept a transfer within this distance of the invoice amount, so two pending
 # invoices of one network must stay further apart than this to be told apart.
 AMOUNT_MATCH_TOLERANCE = Decimal("0.000001")
-UNIQUE_AMOUNT_ATTEMPTS = 8
+UNIQUE_AMOUNT_ATTEMPTS = 10
+# Pause before re-checking when only higher order ids clash, so they can move first.
+_CLASH_YIELD_SECONDS = 0.1
 
 AmountPicker = Callable[[set[str]], Awaitable[float]]
 
@@ -224,6 +227,22 @@ async def _pending_amounts(arz: str, exclude_order_id: int | None = None) -> set
         return {str(a) for a in result.scalars().all() if a is not None}
 
 
+async def _clashing_order_ids(arz: str, order_id: int, amount: Any) -> tuple[bool, bool, set[str]]:
+    """Clashes of ``amount`` with lower and with higher order ids, plus all other pending amounts of ``arz``."""
+    async with Session() as session:
+        result = await session.execute(
+            select(CryptoPayments.order_id, CryptoPayments.amount).where(
+                CryptoPayments.status == "Pending",
+                CryptoPayments.arz == arz,
+                CryptoPayments.order_id != order_id,
+            )
+        )
+        rows = [(int(other_id), str(value)) for other_id, value in result.all() if value is not None]
+    clashing = [other_id for other_id, value in rows if amounts_collide(amount, value)]
+    others = {value for _, value in rows}
+    return any(i < order_id for i in clashing), any(i > order_id for i in clashing), others
+
+
 async def _set_pending_amount(order_id: int, amount: str) -> None:
     async with Session() as session, session.begin():
         await session.execute(
@@ -261,7 +280,9 @@ async def add_order_with_unique_amount(
 
     Reading the pending amounts and inserting is not atomic, so the row is written first and the
     other pending rows are read afterwards: of two concurrent invoices that picked the same amount,
-    at least the later reader sees the other and picks again. The amount is returned in ``record``.
+    at least the later reader sees the other and picks again. On a clash the higher order id moves
+    at once and the lower one first waits a moment for it, so the two don't chase each other to the
+    same new amount. The amount is returned in ``record``.
     """
     arz_upper = (arz or "").upper()
     try:
@@ -282,11 +303,19 @@ async def add_order_with_unique_amount(
         return saved
 
     try:
+        yielded = False
         for _ in range(attempts):
-            others = await _pending_amounts(arz_upper, exclude_order_id=order_id)
-            if not any(amounts_collide(amount, other) for other in others):
+            lower, higher, others = await _clashing_order_ids(arz_upper, order_id, amount)
+            if not lower and not higher:
                 saved["record"]["amount"] = amount
                 return saved
+            if not lower and not yielded:
+                # Only higher ids clash: let them move first. If every clashing invoice moved,
+                # a deterministic picker could send them all to the same new amount each time.
+                yielded = True
+                await asyncio.sleep(_CLASH_YIELD_SECONDS)
+                continue
+            yielded = False
             amount = await pick_amount(others)
             await _set_pending_amount(order_id, str(amount))
     except (SQLAlchemyError, ValueError) as e:

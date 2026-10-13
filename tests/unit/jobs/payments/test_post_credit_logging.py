@@ -11,7 +11,7 @@ from typing import Any, ClassVar
 import pytest
 from telethon import errors
 
-from app.jobs.payments import manual_card, trx
+from app.jobs.payments import crypto_common, manual_card, trx
 
 TX_ID = 4242
 USER_ID = 777
@@ -110,8 +110,8 @@ def test_trx_expire_notify_failure_is_logged_and_expiry_kept(
         return None
 
     monkeypatch.setattr(trx.CryptoPaymentsCRUD, "expire_payment", expire_payment)
-    monkeypatch.setattr(trx, "cancel_after_crypto_expire", cancel_after_expire)
-    monkeypatch.setattr(trx, "Kenzo", _FailingBot(RuntimeError("telegram down")))
+    monkeypatch.setattr(crypto_common, "cancel_after_crypto_expire", cancel_after_expire)
+    monkeypatch.setattr(crypto_common, "Kenzo", _FailingBot(RuntimeError("telegram down")))
     payment = SimpleNamespace(order_id=99_001, user_id=USER_ID, msg_id=None, amount_irt=100_000, amount="10.5")
     settings = SimpleNamespace(arz_usd=60, arz_trx=20)
 
