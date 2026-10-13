@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from bisect import bisect_right
+from itertools import pairwise
 from typing import Any
 
 from sqlalchemy import BigInteger, String, case, cast, func, literal, or_, select, union_all
@@ -134,20 +134,45 @@ async def sidebar_badges() -> dict[str, int]:
     return {"transactions": pending} if pending else {}
 
 
+async def _window_totals(timestamp: Any, value: Any | None, boundaries: list[int], *filters: Any) -> list[int]:
+    """SUM(value) (or COUNT when ``value`` is None) per ``[boundaries[i], boundaries[i+1])`` window, aggregated in SQL.
+
+    Buckets exactly like ``bisect_right(boundaries, ts) - 1``. Evenly spaced boundaries (Tehran days have
+    no DST) are grouped by each row's window start; uneven ones fall back to one conditional sum per window.
+    """
+    if len(boundaries) < 2:
+        return []
+    first = boundaries[0]
+    step = boundaries[1] - first
+    conditions = (timestamp >= first, timestamp < boundaries[-1], *filters)
+    totals = [0] * (len(boundaries) - 1)
+    async with Session() as session:
+        if step > 0 and all(hi - lo == step for lo, hi in pairwise(boundaries)):
+            window_start = (timestamp - (timestamp - first) % step).label("window_start")
+            total = func.count() if value is None else func.sum(value)
+            rows = await session.execute(select(window_start, total).where(*conditions).group_by(window_start))
+            for start, amount in rows.all():
+                totals[(int(start) - first) // step] += int(amount or 0)
+            return totals
+        weight = literal(1) if value is None else value
+        row = (
+            await session.execute(
+                select(
+                    *(
+                        func.coalesce(func.sum(case(((timestamp >= lo) & (timestamp < hi), weight), else_=0)), 0)
+                        for lo, hi in pairwise(boundaries)
+                    )
+                ).where(*conditions)
+            )
+        ).one()
+    return [int(amount or 0) for amount in row]
+
+
 async def daily_series(days: int = 14) -> list[dict[str, Any]]:
     """Per-day (Tehran calendar) revenue from every gateway and signup counts for the dashboard chart."""
     boundaries = payment_stats.tehran_day_boundaries(days)
     revenue = await payment_stats.bucket_revenue(boundaries)
-    async with Session() as session:
-        user_rows = (
-            await session.execute(select(User.time_s).where(User.time_s >= boundaries[0], User.time_s < boundaries[-1]))
-        ).all()
-
-    signups = [0] * days
-    for (time_s,) in user_rows:
-        if time_s:
-            signups[bisect_right(boundaries, int(time_s)) - 1] += 1
-
+    signups = await _window_totals(User.time_s, None, boundaries)
     return [{"ts": boundaries[index], "revenue": revenue[index], "signups": signups[index]} for index in range(days)]
 
 
@@ -650,18 +675,12 @@ async def user_balances(user_ids: list[int]) -> dict[int, int]:
 
 async def reseller_billed_buckets(boundaries: list[int]) -> list[int]:
     """Pay-as-you-go charges per ``[boundaries[i], boundaries[i+1])`` window."""
-    totals = [0] * (len(boundaries) - 1)
-    async with Session() as session:
-        rows = await session.execute(
-            select(ResellerBillingSnapshot.snapshot_at, ResellerBillingSnapshot.billed_amount).where(
-                ResellerBillingSnapshot.snapshot_at >= boundaries[0],
-                ResellerBillingSnapshot.snapshot_at < boundaries[-1],
-                ResellerBillingSnapshot.billed_amount > 0,
-            )
-        )
-        for snapshot_at, amount in rows.all():
-            totals[bisect_right(boundaries, int(snapshot_at)) - 1] += int(amount or 0)
-    return totals
+    return await _window_totals(
+        ResellerBillingSnapshot.snapshot_at,
+        ResellerBillingSnapshot.billed_amount,
+        boundaries,
+        ResellerBillingSnapshot.billed_amount > 0,
+    )
 
 
 async def reseller_events_between(since: int, until: int, kinds: tuple[str, ...]) -> list[ResellerEvent]:
