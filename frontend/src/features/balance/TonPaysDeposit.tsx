@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import {
@@ -17,6 +17,7 @@ import { Badge, Button, Card, Input } from "../../components/ui";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../context/AuthContext";
 import { useTelegram } from "../../hooks/useTelegram";
+import { useVisiblePolling } from "../../hooks/useVisiblePolling";
 import { copyToClipboard, formatNumber, formatToman } from "../../lib/format";
 import {
   useBalanceMethodsQuery,
@@ -98,6 +99,9 @@ export default function TonPaysDeposit() {
   const [amount, setAmount] = useState("");
   const [invoice, setInvoice] = useState<TonPaysInvoice | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const invoiceRef = useRef<TonPaysInvoice | null>(null);
+  const checkInFlightRef = useRef(false);
+  const paidInvoiceIdRef = useRef<number | null>(null);
 
   const min = methods?.tonpays_deposit_min ?? 0;
   const max = methods?.tonpays_deposit_max ?? 0;
@@ -108,33 +112,42 @@ export default function TonPaysDeposit() {
   }, [openQuery.data, invoice]);
 
   useEffect(() => {
-    if (!invoice || !isOpen) return;
-    const id = window.setInterval(() => {
-      if (!check.isPending) void refresh(invoice.id, true);
-    }, POLL_INTERVAL_MS);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invoice?.id, isOpen]);
+    invoiceRef.current = invoice;
+  }, [invoice]);
+
+  useVisiblePolling(isOpen, POLL_INTERVAL_MS, () => {
+    const current = invoiceRef.current;
+    if (current && OPEN_STATUSES.includes(current.status)) void refresh(current.id, true);
+  });
 
   function applyInvoice(next: TonPaysInvoice | null | undefined) {
     if (!next) return;
-    if (next.status === "completed" && invoice?.status !== "completed") {
+    const prev = invoiceRef.current;
+    const wasCompleted = prev?.id === next.id && prev.status === "completed";
+    if (next.status === "completed" && !wasCompleted && paidInvoiceIdRef.current !== next.id) {
+      paidInvoiceIdRef.current = next.id;
       haptic.notify("success");
       show(t("tonpaysDeposit.paidToast"), "success");
       void refreshUser();
     }
+    invoiceRef.current = next;
     setInvoice(next);
   }
 
   async function refresh(id: number, silent = false) {
+    if (checkInFlightRef.current) return;
+    checkInFlightRef.current = true;
     try {
       const res = await check.mutateAsync(id);
+      if (invoiceRef.current?.id !== id) return;
       applyInvoice(res.invoice);
       if (!silent && res.invoice && res.invoice.status !== "completed") {
         show(t("tonpaysDeposit.statusToast", { status: res.invoice.status_label }), "info");
       }
     } catch (err) {
       if (!silent) show(err instanceof Error ? err.message : t("manualDeposit.genericError"), "error");
+    } finally {
+      checkInFlightRef.current = false;
     }
   }
 

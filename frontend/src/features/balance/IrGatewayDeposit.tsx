@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -7,6 +7,7 @@ import { Badge, Button, Card, EmptyState, Input } from "../../components/ui";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../context/AuthContext";
 import { useTelegram } from "../../hooks/useTelegram";
+import { useVisiblePolling } from "../../hooks/useVisiblePolling";
 import { formatNumber, formatToman } from "../../lib/format";
 import {
   useBalanceMethodsQuery,
@@ -44,6 +45,9 @@ export default function IrGatewayDeposit() {
 
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState<IrGatewayPayment | null>(null);
+  const paymentRef = useRef<IrGatewayPayment | null>(null);
+  const checkInFlightRef = useRef(false);
+  const paidPaymentIdRef = useRef<number | null>(null);
 
   const method = methods?.ir_gateways.find((gateway) => gateway.key === key);
   const title = method?.title ?? payment?.gateway_title ?? key;
@@ -56,41 +60,42 @@ export default function IrGatewayDeposit() {
   }, [openQuery.data, payment]);
 
   useEffect(() => {
-    if (!payment || !isOpen) return;
-    const tick = () => {
-      if (!check.isPending) void refresh(payment.id, true);
-    };
-    const id = window.setInterval(tick, POLL_INTERVAL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") tick();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payment?.id, isOpen]);
+    paymentRef.current = payment;
+  }, [payment]);
+
+  useVisiblePolling(isOpen, POLL_INTERVAL_MS, () => {
+    const current = paymentRef.current;
+    if (current?.status === "pending") void refresh(current.id, true);
+  });
 
   function applyPayment(next: IrGatewayPayment | null | undefined) {
     if (!next) return;
-    if (next.status === "completed" && payment?.status !== "completed") {
+    const prev = paymentRef.current;
+    const wasCompleted = prev?.id === next.id && prev.status === "completed";
+    if (next.status === "completed" && !wasCompleted && paidPaymentIdRef.current !== next.id) {
+      paidPaymentIdRef.current = next.id;
       haptic.notify("success");
       show(t("irGatewayDeposit.paidToast"), "success");
       void refreshUser();
     }
+    paymentRef.current = next;
     setPayment(next);
   }
 
   async function refresh(id: number, silent = false) {
+    if (checkInFlightRef.current) return;
+    checkInFlightRef.current = true;
     try {
       const res = await check.mutateAsync(id);
+      if (paymentRef.current?.id !== id) return;
       applyPayment(res.payment);
       if (!silent && res.payment && res.payment.status === "pending") {
         show(t("irGatewayDeposit.notPaidYet"), "info");
       }
     } catch (err) {
       if (!silent) show(err instanceof Error ? err.message : t("manualDeposit.genericError"), "error");
+    } finally {
+      checkInFlightRef.current = false;
     }
   }
 
