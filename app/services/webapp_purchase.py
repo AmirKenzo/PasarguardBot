@@ -30,6 +30,9 @@ from app.utils.formatting.traffic import format_ip_limit
 
 logger = get_logger(__name__)
 
+# Shown when the panel cannot confirm whether a config name is free; the user should retry.
+USERNAME_CHECK_FAILED = "خطا در بررسی نام کانفیگ در پنل؛ لطفاً دوباره تلاش کنید."
+
 USERNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_]{1,30}[A-Za-z0-9]$")
 PANEL_USERNAME_CONFLICT_CODES = frozenset((400, 409, 422))
 
@@ -129,8 +132,11 @@ class WebAppPurchaseService:
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
                     return {"ok": True, "username": username}
+                logger.warning("Username lookup failed on panel %s (HTTP %s)", panel.code, e.response.status_code)
+                return {"ok": False, "error": USERNAME_CHECK_FAILED}
             except Exception:
-                return {"ok": True, "username": username}
+                logger.exception("Username lookup failed on panel %s", panel.code)
+                return {"ok": False, "error": USERNAME_CHECK_FAILED}
 
         return {"ok": True, "username": f"VPN{random.randint(100000, 999999)}"}
 
@@ -370,9 +376,12 @@ class WebAppPurchaseService:
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 return None
-            return "خطا در بررسی نام کانفیگ در پنل."
+            logger.warning("Username lookup failed on panel %s (HTTP %s)", panel.code, e.response.status_code)
+            return USERNAME_CHECK_FAILED
         except Exception:
-            return None
+            # Fail closed: an unverified name must not reach panel user creation.
+            logger.exception("Username lookup failed on panel %s", panel.code)
+            return USERNAME_CHECK_FAILED
 
     async def _calculate_price(self, user_id: int, base_price: int, discount_code: str | None) -> PricePreview:
         code = (discount_code or "").strip()

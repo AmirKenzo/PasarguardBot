@@ -173,3 +173,5 @@ AUTO_CARD_INVOICE_TEMPLATE = (
 
 DUPLICATE_RECEIPT_LOG_HEADER = "🚫 #کارت_به_کارت_تکراری\n"
 MANUAL_RECEIPT_LOG_HEADER = "💳 #کارت_به_کارت\n"
+# Admin receipt log line when the receipt image could not be hashed (no duplicate check, no auto-approve).
+DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE = "⚠️ **بررسی رسید تکراری انجام نشد** (پردازش تصویر ناموفق بود؛ فقط تایید دستی)"

@@ -27,6 +27,7 @@ from app.models.webapp import (
     WebAppInfoResponse,
     WebAppUserData,
 )
+from app.routers.webapp.errors import internal_error
 from app.routers.webapp.state import (
     clear_otp_failures,
     get_header_auth,
@@ -298,8 +299,10 @@ async def get_webapp_info(request: Request) -> WebAppInfoResponse:
         payload = await build_user_payload_no_services(user_id, telegram_user=telegram_user)
         return WebAppInfoResponse(**payload)
 
-    except Exception as e:
+    except ValueError as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppInfoResponse(ok=False, error=internal_error("get_webapp_info"))
 
 
 _OTP_THROTTLED_ERROR = "تعداد درخواست‌ها زیاد است. چند دقیقه بعد دوباره تلاش کنید"
@@ -329,8 +332,10 @@ async def start_phone_login(req: PhoneLoginStartRequest, request: Request) -> We
 
         await _send_telegram_code(int(user.id), code)
         return WebAppChangeResponse(ok=True)
-    except Exception as e:
+    except ValueError as e:
         return WebAppChangeResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppChangeResponse(ok=False, error=internal_error("start_phone_login"))
 
 
 @router.post("/webapp/otp/verify", response_model=WebAppInfoResponse)
@@ -372,8 +377,10 @@ async def verify_phone_login(req: PhoneLoginVerifyRequest) -> WebAppInfoResponse
         await _send_login_notification(int(user.id), "شماره تلفن و کد تایید", user_record=user)
 
         return WebAppInfoResponse(**payload)
-    except Exception as e:
+    except ValueError as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppInfoResponse(ok=False, error=internal_error("verify_phone_login"))
 
 
 @router.post("/webapp/auth/api-key", response_model=WebAppInfoResponse)
@@ -407,8 +414,10 @@ async def login_with_api_key(req: ApiKeyLoginRequest, request: Request) -> WebAp
         await _send_login_notification(int(user.id), "کلید API", user_record=user)
 
         return WebAppInfoResponse(**payload)
-    except Exception as e:
+    except ValueError as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppInfoResponse(ok=False, error=internal_error("login_with_api_key"))
 
 
 @router.post("/webapp/profile/api-key/generate", response_model=ApiKeyGenerateResponse)
@@ -444,8 +453,10 @@ async def generate_profile_api_key(req: ApiKeyGenerateRequest) -> ApiKeyGenerate
         )
         await UserCRUD().bump_session_version(user_id)
         return ApiKeyGenerateResponse(ok=True, api_key=raw_key, created_at=created_at)
-    except Exception as e:
+    except ValueError as e:
         return ApiKeyGenerateResponse(ok=False, error=str(e))
+    except Exception:
+        return ApiKeyGenerateResponse(ok=False, error=internal_error("generate_profile_api_key"))
 
 
 @router.get("/webapp/info/session", response_model=WebAppInfoResponse)
@@ -477,8 +488,10 @@ async def get_webapp_info_session(
         payload = await build_user_payload_no_services(int(uid))
         payload["session_token"] = token
         return WebAppInfoResponse(**payload)
-    except Exception as e:
+    except ValueError as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppInfoResponse(ok=False, error=internal_error("get_webapp_info_session"))
 
 
 @router.post("/webapp/logout", response_model=WebAppChangeResponse)
@@ -500,5 +513,7 @@ async def logout(req: LogoutRequest) -> WebAppChangeResponse:
         if int(payload.get("ver", 0)) == await UserCRUD().get_session_version(uid):
             await UserCRUD().bump_session_version(uid)
         return WebAppChangeResponse(ok=True)
-    except Exception as e:
+    except ValueError as e:
         return WebAppChangeResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppChangeResponse(ok=False, error=internal_error("logout"))

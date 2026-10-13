@@ -12,6 +12,7 @@ from app.models.webapp import (
     WebAppUsageChartSeriesItem,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.routers.webapp.services import _resolve_owned_service, ensure_service_action
 from app.services.billing.renewal import require_panel_userid
 from app.telegram.shared.utils.usage_chart import (
@@ -102,5 +103,5 @@ async def get_webapp_usage_chart(request: WebAppUsageChartRequest) -> WebAppUsag
         )
     except ValueError as e:
         return WebAppUsageChartResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppUsageChartResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppUsageChartResponse(ok=False, error=internal_error("get_webapp_usage_chart"))

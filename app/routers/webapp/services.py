@@ -30,6 +30,7 @@ from app.models.webapp import (
     WebAppServicesResponse,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.services.billing.renewal import require_panel_userid
 from app.services.panels.config_links import (
     config_link_display_name,
@@ -462,8 +463,8 @@ async def get_webapp_services(request: WebAppServicesRequest) -> WebAppServicesR
         return WebAppServicesResponse(**payload)
     except ValueError as e:
         return WebAppServicesResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppServicesResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppServicesResponse(ok=False, error=internal_error("get_webapp_services"))
 
 
 @router.post("/webapp/services/detail", response_model=WebAppServiceDetailResponse)
@@ -496,8 +497,8 @@ async def get_webapp_service_detail(request: WebAppServiceDetailRequest) -> WebA
         )
     except ValueError as e:
         return WebAppServiceDetailResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppServiceDetailResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppServiceDetailResponse(ok=False, error=internal_error("get_webapp_service_detail"))
 
 
 @router.post("/webapp/services/config-links", response_model=WebAppConfigLinksResponse)
@@ -563,8 +564,8 @@ async def get_webapp_service_clients(request: WebAppClientsRequest) -> WebAppCli
         return WebAppClientsResponse(ok=True, clients=clients)
     except ValueError as e:
         return WebAppClientsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppClientsResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppClientsResponse(ok=False, error=internal_error("get_webapp_service_clients"))
 
 
 @router.post("/webapp/change_link", response_model=WebAppChangeResponse)
@@ -582,8 +583,8 @@ async def change_user_link(request: WebAppChangeLinkRequest) -> WebAppChangeResp
 
     except ValueError as e:
         return WebAppChangeResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppChangeResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppChangeResponse(ok=False, error=internal_error("change_user_link"))
 
 
 @router.post("/webapp/change_sub", response_model=WebAppChangeResponse)
@@ -601,5 +602,5 @@ async def change_user_subscription(request: WebAppChangeSubscriptionRequest) -> 
 
     except ValueError as e:
         return WebAppChangeResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppChangeResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppChangeResponse(ok=False, error=internal_error("change_user_subscription"))

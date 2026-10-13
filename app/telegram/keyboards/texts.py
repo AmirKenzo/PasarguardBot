@@ -104,6 +104,7 @@ TEXT_KEYS_CONFIG = {
             "title": "نوتیف نام تکراری کانفیگ",
             "placeholders": {"username": "نام کانفیگ تکراری"},
         },
+        {"key": "buy_username_check_failed", "title": "خطای بررسی نام کانفیگ در پنل", "placeholders": {}},
         {
             "key": "config_purchase_confirm",
             "title": "پیام تأیید خرید کانفیگ",

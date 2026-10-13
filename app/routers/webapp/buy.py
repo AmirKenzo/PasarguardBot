@@ -15,6 +15,7 @@ from app.models.webapp import (
     WebAppBuyUsernameResponse,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.services.webapp_purchase import WebAppPurchaseService
 
 router = APIRouter()
@@ -29,8 +30,8 @@ async def get_buy_options(request: WebAppBuyOptionsRequest) -> WebAppBuyOptionsR
         return WebAppBuyOptionsResponse(**payload)
     except ValueError as e:
         return WebAppBuyOptionsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppBuyOptionsResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppBuyOptionsResponse(ok=False, error=internal_error("get_buy_options"))
 
 
 @router.post("/webapp/buy/plans", response_model=WebAppBuyPlansResponse)
@@ -45,8 +46,8 @@ async def get_buy_plans(request: WebAppBuyPlansRequest) -> WebAppBuyPlansRespons
         return WebAppBuyPlansResponse(**payload)
     except ValueError as e:
         return WebAppBuyPlansResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppBuyPlansResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppBuyPlansResponse(ok=False, error=internal_error("get_buy_plans"))
 
 
 @router.post("/webapp/buy/username", response_model=WebAppBuyUsernameResponse)
@@ -58,8 +59,8 @@ async def generate_buy_username(request: WebAppBuyUsernameRequest) -> WebAppBuyU
         return WebAppBuyUsernameResponse(**payload)
     except ValueError as e:
         return WebAppBuyUsernameResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppBuyUsernameResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppBuyUsernameResponse(ok=False, error=internal_error("generate_buy_username"))
 
 
 @router.post("/webapp/buy/preview", response_model=WebAppBuyPreviewResponse)
@@ -77,8 +78,8 @@ async def preview_buy(request: WebAppBuyPreviewRequest) -> WebAppBuyPreviewRespo
         return WebAppBuyPreviewResponse(**payload)
     except ValueError as e:
         return WebAppBuyPreviewResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppBuyPreviewResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppBuyPreviewResponse(ok=False, error=internal_error("preview_buy"))
 
 
 @router.post("/webapp/buy/confirm", response_model=WebAppBuyConfirmResponse)
@@ -96,5 +97,5 @@ async def confirm_buy(request: WebAppBuyConfirmRequest) -> WebAppBuyConfirmRespo
         return WebAppBuyConfirmResponse(**payload)
     except ValueError as e:
         return WebAppBuyConfirmResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppBuyConfirmResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppBuyConfirmResponse(ok=False, error=internal_error("confirm_buy"))

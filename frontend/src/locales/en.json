@@ -141,7 +141,8 @@
     "connectionFailed": "Failed to connect to server",
     "invalidResponse": "Invalid server response",
     "unknownError": "Unknown error",
-    "authError": "Authentication error"
+    "authError": "Authentication error",
+    "internalError": "Something went wrong. Please try again."
   },
   "help": {
     "title": "Help",

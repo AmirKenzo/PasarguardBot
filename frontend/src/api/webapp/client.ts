@@ -36,10 +36,22 @@ async function parseJson(res: Response): Promise<unknown> {
   }
 }
 
+/** Error codes the backend sends instead of a message; each maps to a translated text. */
+const ERROR_CODE_KEYS: Record<string, string> = {
+  internal_error: "apiErrors.internalError",
+};
+
+/** Turn a backend `error` (a message or a known code) into text for the user. */
+export function apiErrorMessage(error: string | null | undefined, fallbackKey = "apiErrors.unknownError"): string {
+  if (!error) return i18n.t(fallbackKey);
+  const key = ERROR_CODE_KEYS[error];
+  return key ? i18n.t(key) : error;
+}
+
 /** Every response envelope from the backend carries `ok` + optional `error`. */
 function unwrap<T extends { ok: boolean; error?: string | null }>(payload: T): T {
   if (!payload.ok) {
-    throw new ApiError(payload.error || i18n.t("apiErrors.unknownError"));
+    throw new ApiError(apiErrorMessage(payload.error));
   }
   return payload;
 }

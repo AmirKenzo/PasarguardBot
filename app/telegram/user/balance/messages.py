@@ -570,8 +570,11 @@ async def mablagh_sharj_handler(event: Message):
         tx = await TransactionCRUD().create(user_id=int(event.sender_id), amount=int(mablagh), method="manual")
         if await is_direct_pay_active(event.sender_id) or await get_pending_for_user(event.sender_id):
             await link_transaction(int(event.sender_id), int(tx.id))
+        duplicate_check_failed = phash_str is None
+        if duplicate_check_failed:
+            logger.warning("bot receipt from user=%s accepted without duplicate check", event.sender_id)
         rule_crud = ManualAutoApproveRuleCRUD()
-        matched_rule = await rule_crud.schedule_for_transaction(tx)
+        matched_rule = await rule_crud.schedule_for_transaction(tx, manual_only=duplicate_check_failed)
         tx = await TransactionCRUD().get(tx.id) or tx
         successful_count = await TransactionCRUD().count_user_transactions(
             tx.user_id, status="approved", method="manual"
@@ -599,6 +602,8 @@ async def mablagh_sharj_handler(event: Message):
             f"📊 **دستی:** تایید `{manual_approved:,}` | رد `{manual_rejected:,}`\n"
             f"🤖 **خودکار:** تایید `{auto_approved:,}` | رد `{auto_rejected:,}`\n"
         )
+        if duplicate_check_failed:
+            log_message += f"{texts.DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE}\n"
 
         message = await send_log_message(
             log_type=LogType.MANUAL_CARD,

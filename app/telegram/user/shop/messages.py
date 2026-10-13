@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import contextlib
 
-from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI
 from telethon import Button, events
 from telethon.tl.custom import Message
 
@@ -35,7 +33,10 @@ from app.telegram.shared.guards.channel_gate import ensure_channel_membership, e
 from app.telegram.shared.keyboards.panel_buttons import build_panel_display_button
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.username import (
+    UsernameLookupError,
+    is_username_free,
     is_valid_username,
+    username_check_failed_text,
 )
 from app.telegram.state import clear_user, get_data, get_data_many, get_step, set_data, set_data_many, set_step
 from app.telegram.user.shop.callbacks import (
@@ -219,16 +220,16 @@ async def buy_username_message_handler(event: Message):
         )
         raise events.StopPropagation
     try:
-        await PasarguardAPI(panel.base_url).get_user_by_username(username=username, token=panel.cookie)
+        username_free = await is_username_free(panel, username)
+    except UsernameLookupError:
+        await event.respond(await username_check_failed_text(), buttons=retry_buttons)
+        raise events.StopPropagation from None
+    if not username_free:
         await event.respond(
             "❌ نام کاربری توسط شخص دیگری ساخته شده\n\n^q^لطفا نام کاربری دیگری ارسال کنید یا اینکه روی دکمه زیر کلیک کنید تا اسم رندوم ساخته شود^q^",
             buttons=retry_buttons,
         )
         raise events.StopPropagation
-    except HTTPStatusError as e:
-        if e.response.status_code != 404:
-            await event.respond("خطا در ارتباط با پنل", buttons=retry_buttons)
-            raise events.StopPropagation from None
 
     await _confirm_buy_username(event, username, edit=False)
     raise events.StopPropagation

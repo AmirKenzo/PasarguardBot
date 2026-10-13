@@ -21,7 +21,9 @@ from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.guards.callback_guards import notify_session_expired
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.username import (
+    UsernameLookupError,
     generate_unique_username,
+    username_check_failed_text,
 )
 from app.telegram.state import get_data, get_step, set_data, set_data_many, set_step
 from app.telegram.user.shop.custom_buy import CUSTOM_PLAN_ID, format_gb_value
@@ -164,7 +166,11 @@ async def generate_buy_username_callback(event: events.CallbackQuery.Event):
         await notify_session_expired(event)
         return
     panel, _gig, _plan = await _buy_username_context(event.sender_id)
-    username = await generate_unique_username(panel)
+    try:
+        username = await generate_unique_username(panel)
+    except UsernameLookupError:
+        await event.answer(await username_check_failed_text(), alert=True)
+        raise events.StopPropagation from None
     await _confirm_buy_username(event, username, edit=True)
     raise events.StopPropagation
 

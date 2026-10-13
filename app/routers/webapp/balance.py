@@ -36,6 +36,7 @@ from app.models.webapp import (
     IrGatewayMethod,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.services.payments.ir_gateways import config as ir_gateway_config
 from app.services.payments.tonpays_config import (
     deposit_limits as tonpays_limits,
@@ -47,7 +48,7 @@ from app.services.send_queue import enqueue
 from app.telegram.state import set_step
 from app.telegram.user.balance import states
 from app.telegram.user.balance.keyboards import transaction_review_buttons
-from app.telegram.user.balance.texts import DUPLICATE_RECEIPT_LOG_HEADER
+from app.telegram.user.balance.texts import DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE, DUPLICATE_RECEIPT_LOG_HEADER
 from app.telegram.user.payment import create_star_invoice_link
 from app.telegram.user.payment.helpers import STAR_USD_PRICE
 from app.utils.formatting.dates import Time_Date
@@ -127,8 +128,8 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
         )
     except ValueError as e:
         return BalanceMethodsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalanceMethodsResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceMethodsResponse(ok=False, error=internal_error("get_balance_methods"))
 
 
 @router.post("/webapp/balance/phone/request", response_model=BalancePhoneRequestResponse)
@@ -148,8 +149,8 @@ async def request_phone_verification(request: BalancePhoneRequestRequest) -> Bal
         return BalancePhoneRequestResponse(ok=True)
     except ValueError as e:
         return BalancePhoneRequestResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalancePhoneRequestResponse(ok=False, error=str(e))
+    except Exception:
+        return BalancePhoneRequestResponse(ok=False, error=internal_error("request_phone_verification"))
 
 
 @router.post("/webapp/balance/deposit/manual", response_model=BalanceDepositManualResponse)
@@ -190,8 +191,8 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
         )
     except ValueError as e:
         return BalanceDepositManualResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalanceDepositManualResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceDepositManualResponse(ok=False, error=internal_error("deposit_manual"))
 
 
 async def _log_duplicate_receipt(user_id: int, amount: int, content: bytes, filename: str | None) -> None:
@@ -259,6 +260,9 @@ async def deposit_manual_receipt(
             return BalanceDepositManualReceiptResponse(ok=False, error="حجم تصویر حداکثر ۱۰ مگابایت باشد")
 
         phash = await asyncio.to_thread(compute_receipt_phash, content)
+        duplicate_check_failed = phash is None
+        if duplicate_check_failed:
+            logger.warning("webapp receipt from user=%s accepted without duplicate check", user_id)
         if phash and await ReceiptHashCRUD().try_insert(phash, int(user_id)) is None:
             await _log_duplicate_receipt(user_id, amount, content, file.filename)
             return BalanceDepositManualReceiptResponse(
@@ -270,7 +274,7 @@ async def deposit_manual_receipt(
         if phash:
             await ReceiptHashCRUD().update_transaction_id(phash, tx.id)
         rule_crud = ManualAutoApproveRuleCRUD()
-        matched_rule = await rule_crud.schedule_for_transaction(tx)
+        matched_rule = await rule_crud.schedule_for_transaction(tx, manual_only=duplicate_check_failed)
         tx = await TransactionCRUD().get(tx.id) or tx
 
         user_record = await UserCRUD().read_user(user_id)
@@ -291,6 +295,8 @@ async def deposit_manual_receipt(
             user_info += f"\n💰 **موجودی:** `{int(getattr(user_record, 'amount', 0) or 0):,}` تومان"
         user_info += f"\n🛡️ **مبلغ واریزی:** `{amount:,}` تومان"
         user_info += f"\n{auto_status}"
+        if duplicate_check_failed:
+            user_info += f"\n{DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE}"
         user_info += f"\n📊 **دستی:** تایید `{manual_approved}` | رد `{manual_rejected}`"
         log_message = f"💳 #کارت_به_کارت {WEBAPP_RECEIPT_TAG}\n{user_info}"
         buttons = transaction_review_buttons(tx.id)
@@ -319,8 +325,8 @@ async def deposit_manual_receipt(
         )
     except ValueError as e:
         return BalanceDepositManualReceiptResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalanceDepositManualReceiptResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceDepositManualReceiptResponse(ok=False, error=internal_error("deposit_manual_receipt"))
 
 
 @router.post("/webapp/balance/deposit/crypto", response_model=BalanceDepositCryptoResponse)
@@ -395,8 +401,8 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
         )
     except ValueError as e:
         return BalanceDepositCryptoResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalanceDepositCryptoResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceDepositCryptoResponse(ok=False, error=internal_error("deposit_crypto"))
 
 
 @router.post("/webapp/balance/deposit/stars", response_model=BalanceDepositStarsResponse)
@@ -437,6 +443,5 @@ async def deposit_stars(request: BalanceDepositStarsRequest) -> BalanceDepositSt
         )
     except ValueError as e:
         return BalanceDepositStarsResponse(ok=False, error=str(e))
-    except Exception as e:
-        logger.exception("Stars deposit failed")
-        return BalanceDepositStarsResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceDepositStarsResponse(ok=False, error=internal_error("deposit_stars"))

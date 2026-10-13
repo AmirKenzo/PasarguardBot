@@ -141,7 +141,8 @@
     "connectionFailed": "ارتباط با سرور برقرار نشد",
     "invalidResponse": "پاسخ سرور نامعتبر بود",
     "unknownError": "خطای ناشناخته",
-    "authError": "خطای احراز هویت"
+    "authError": "خطای احراز هویت",
+    "internalError": "مشکلی پیش آمد. لطفاً دوباره تلاش کنید."
   },
   "help": {
     "title": "راهنما",

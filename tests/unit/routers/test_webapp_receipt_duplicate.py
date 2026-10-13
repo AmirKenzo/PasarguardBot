@@ -56,7 +56,7 @@ def env(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         state.created.append(amount)
         return SimpleNamespace(id=len(state.created), amount=amount)
 
-    async def stop_after_create(self, tx):
+    async def stop_after_create(self, tx, **kwargs: Any):
         # Everything after creating the transaction (rules, admin log) is out of scope.
         raise RuntimeError("stop")
 
@@ -96,3 +96,68 @@ def test_different_images_each_create_a_transaction(env: SimpleNamespace) -> Non
 
     assert env.created == [1000, 1000]
     assert env.duplicate_logs == 0
+
+
+def test_unhashable_receipt_is_accepted_but_kept_manual_only(
+    env: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scheduled: list[bool] = []
+
+    async def schedule(self, tx, *, manual_only: bool = False):
+        scheduled.append(manual_only)
+
+    async def get_tx(self, tx_id: int):
+        return None
+
+    async def count(self, *args, **kwargs) -> int:
+        return 0
+
+    async def no_log_channel(self, log_type: str):
+        return None
+
+    monkeypatch.setattr(balance.ManualAutoApproveRuleCRUD, "schedule_for_transaction", schedule)
+    monkeypatch.setattr(balance.TransactionCRUD, "get", get_tx)
+    monkeypatch.setattr(balance.TransactionCRUD, "count_user_transactions", count)
+    monkeypatch.setattr(balance.LogChannelManager, "get_log_channel_destination", no_log_channel)
+
+    result = _send(b"definitely not an image")
+
+    assert result.ok is True
+    assert env.created == [1000]
+    assert scheduled == [True]
+    assert env.linked == []  # nothing to link without a hash
+
+
+def test_unhashable_receipt_caption_flags_missing_duplicate_check(
+    env: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[str] = []
+
+    async def schedule(self, tx, *, manual_only: bool = False):
+        return None
+
+    async def get_tx(self, tx_id: int):
+        return None
+
+    async def count(self, *args, **kwargs) -> int:
+        return 0
+
+    async def log_channel(self, log_type: str):
+        return {"chat_id": -100, "topic_id": None}
+
+    async def send_file(chat_id, file, *, caption: str, **kwargs):
+        sent.append(caption)
+
+    monkeypatch.setattr(balance.ManualAutoApproveRuleCRUD, "schedule_for_transaction", schedule)
+    monkeypatch.setattr(balance.TransactionCRUD, "get", get_tx)
+    monkeypatch.setattr(balance.TransactionCRUD, "count_user_transactions", count)
+    monkeypatch.setattr(balance.LogChannelManager, "get_log_channel_destination", log_channel)
+    monkeypatch.setattr(balance.Kenzo, "send_file", send_file)
+
+    assert _send(b"definitely not an image").ok is True
+    assert len(sent) == 1
+    assert balance.DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE in sent[0]
+
+    sent.clear()
+    assert _send(_png((1, 2, 3))).ok is True
+    assert balance.DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE not in sent[0]

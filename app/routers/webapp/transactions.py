@@ -12,6 +12,7 @@ from app.db.crud.tonpays_invoices import OPEN_STATUSES, TonPaysInvoiceCRUD
 from app.db.crud.transactions import TransactionCRUD
 from app.models.webapp import WebAppTransactionsRequest, WebAppTransactionsResponse
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.services.payments.ir_gateways.providers import GATEWAYS
 
 router = APIRouter()
@@ -121,5 +122,5 @@ async def get_webapp_transactions(request: WebAppTransactionsRequest) -> WebAppT
         )
     except ValueError as e:
         return WebAppTransactionsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppTransactionsResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppTransactionsResponse(ok=False, error=internal_error("get_webapp_transactions"))

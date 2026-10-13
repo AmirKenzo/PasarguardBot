@@ -130,7 +130,16 @@ class ManualAutoApproveRuleCRUD:
                 return rule
         return None
 
-    async def schedule_for_transaction(self, tx: Transaction) -> ManualAutoApproveRule | None:
+    async def schedule_for_transaction(
+        self, tx: Transaction, *, manual_only: bool = False
+    ) -> ManualAutoApproveRule | None:
+        """Schedule auto-approval for ``tx`` from the matching rule.
+
+        ``manual_only`` skips scheduling (e.g. the receipt's duplicate check could not run),
+        so an admin must review it; the status line then reads "manual only".
+        """
+        if manual_only:
+            return None
         settings = await SettingsManager().get_settings()
         if not settings or not settings.manual_auto_confirm:
             return None

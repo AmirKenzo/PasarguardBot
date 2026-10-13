@@ -9,7 +9,7 @@ import type {
   WebAppInfoResponse,
 } from "../../types/webapp";
 import i18n from "../../i18n";
-import { apiGet, apiPost, authHeaders, ApiError } from "./client";
+import { apiErrorMessage, apiGet, apiPost, authHeaders, ApiError } from "./client";
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || "/api/webapp";
 
@@ -24,7 +24,7 @@ export async function getInfoWithInitData(rawInitData: string): Promise<WebAppIn
     throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
   const payload = (await res.json()) as WebAppInfoResponse;
-  if (!payload.ok) throw new ApiError(payload.error || i18n.t("apiErrors.authError"));
+  if (!payload.ok) throw new ApiError(apiErrorMessage(payload.error, "apiErrors.authError"));
   return payload;
 }
 
