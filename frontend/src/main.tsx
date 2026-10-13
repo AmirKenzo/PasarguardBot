@@ -9,7 +9,7 @@ import { captureTelegramInitData } from "./telegramInit";
 import { AuthProvider } from "./context/AuthContext";
 import App from "./App";
 import { applyPwaBranding } from "./pwaBranding";
-import "./i18n";
+import { i18nReady } from "./i18n";
 import "./index.css";
 
 captureTelegramInitData();
@@ -24,20 +24,22 @@ const queryClient = new QueryClient({
   },
 });
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ThemeProvider>
-      <LanguageProvider>
-        <QueryClientProvider client={queryClient}>
-          <ToastProvider>
-            <HashRouter>
-              <AuthProvider>
-                <App />
-              </AuthProvider>
-            </HashRouter>
-          </ToastProvider>
-        </QueryClientProvider>
-      </LanguageProvider>
-    </ThemeProvider>
-  </React.StrictMode>,
+void i18nReady.then(() =>
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <ThemeProvider>
+        <LanguageProvider>
+          <QueryClientProvider client={queryClient}>
+            <ToastProvider>
+              <HashRouter>
+                <AuthProvider>
+                  <App />
+                </AuthProvider>
+              </HashRouter>
+            </ToastProvider>
+          </QueryClientProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+    </React.StrictMode>,
+  ),
 );
