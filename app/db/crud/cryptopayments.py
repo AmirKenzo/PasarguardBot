@@ -132,6 +132,7 @@ class CryptoPaymentsCRUD:
             )
             return None
         except SQLAlchemyError:
+            logger.exception("Crypto credit failed in the database: order_id=%s", order_id)
             return None
 
 

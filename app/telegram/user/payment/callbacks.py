@@ -42,6 +42,8 @@ async def payment_receiveddd(event):
     try:
         payload = payment.payload.decode("utf-8")
     except Exception:
+        # Telegram already charged the user; leave a trace for manual follow-up.
+        logger.exception("Paid Stars invoice with an unreadable payload: user=%s", event.sender_id)
         return
 
     if not payload.startswith("stars:"):
@@ -50,6 +52,7 @@ async def payment_receiveddd(event):
     try:
         tx_id = int(payload.split(":", 1)[1])
     except Exception:
+        logger.exception("Paid Stars invoice with a malformed payload: user=%s payload=%s", event.sender_id, payload)
         return
 
     tx = await StarsTransactionCRUD().get(tx_id)

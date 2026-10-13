@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
-from telethon import Button
+from telethon import Button, errors
 
 from app import Kenzo
 from app.db.crud.cryptopayments import CryptoPaymentsCRUD
@@ -497,5 +497,7 @@ class USDTProcessor(BasePaymentProcessor):
                 f"#usdt_{payment.order_id}"
             )
             await send_log_message(LogType.CRYPTO, message=log_text, parse_mode="html")
+        except errors.UserIsBlockedError:
+            logger.debug("USDT expire notice skipped, user blocked the bot: order_id=%s", payment.order_id)
         except Exception:
-            pass
+            logger.exception("USDT expire notification failed for order_id=%s", payment.order_id)
