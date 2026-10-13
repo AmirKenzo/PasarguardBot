@@ -31,6 +31,7 @@ _SETTINGS_PAYMENT_EXACT_CALLBACKS = frozenset(
         "select_active_card",
         "delete_manual_card",
         "toggle_manual_auto_confirm",
+        "toggle_forapp",
         "toggle_manual_card_random_mode",
         "toggle_manual_card_visibility",
         "maar_rules_menu",
@@ -164,6 +165,13 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         settings = await SettingsManager().get_settings()
         new_status = not settings.manual_auto_confirm
         await SettingsManager().update_setting(settings.id, manual_auto_confirm=new_status)
+        settings = await SettingsManager().get_settings()
+        await _refresh_gateway_settings_view(event, settings)
+
+    elif data == "toggle_forapp":
+        settings = await SettingsManager().get_settings()
+        new_status = not bool(getattr(settings, "forapp_enabled", False))
+        await SettingsManager().update_setting(settings.id, forapp_enabled=new_status)
         settings = await SettingsManager().get_settings()
         await _refresh_gateway_settings_view(event, settings)
 

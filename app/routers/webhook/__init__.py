@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.logger import get_logger
 from app.models.router_models import WebhookResponse
+from app.routers.webhook.forapp import router as forapp_router
 from app.routers.webhook.ir_gateways import router as ir_gateways_router
 from app.routers.webhook.processor import process_webhook_events
 from app.routers.webhook.tonpays import router as tonpays_router
@@ -20,6 +21,7 @@ logger = get_logger(__name__)
 
 webhook_router = APIRouter()
 webhook_router.include_router(tonpays_router)
+webhook_router.include_router(forapp_router)
 webhook_router.include_router(ir_gateways_router)
 
 

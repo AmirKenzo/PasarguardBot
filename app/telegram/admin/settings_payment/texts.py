@@ -142,10 +142,12 @@ def gateway_settings_message(manual_info: str, random_mode_status: str, settings
             "\n⚠️ **دکمه کارت دستی** در تنظیمات ربات خاموش است؛ "
             "برای نمایش در افزایش موجودی، از بخش «پرداخت‌ها» آن را فعال کنید.\n"
         )
+    forapp_status = "✅ فعال" if settings and getattr(settings, "forapp_enabled", False) else "❌ غیرفعال"
     return (
         "💳 **کارت فعال برای کارت به کارت دستی**:\n"
         f"{manual_info}\n"
         f"🔘 **دکمه کارت دستی در ربات**: {pay_mode_status(settings)}\n"
+        f"⚡ **تایید خودکار ForApp**: {forapp_status}\n"
         f"🎲 **حالت نمایش شماره کارت**: {random_mode_status}\n"
         f"👥 **نمایش دکمه کارت به کارت برای**: {manual_card_visibility_status(settings)}"
         f"{pay_mode_hint}\n\n"
@@ -160,11 +162,13 @@ def gateway_settings_back_message(active, random_mode_status: str, settings) -> 
             "\n⚠️ **دکمه کارت دستی** در تنظیمات ربات خاموش است؛ "
             "برای نمایش در افزایش موجودی، از بخش «پرداخت‌ها» آن را فعال کنید.\n"
         )
+    forapp_status = "✅ فعال" if settings and getattr(settings, "forapp_enabled", False) else "❌ غیرفعال"
     return (
         "💳 **شماره کارت ست شده برای کارت به کارت دستی**:\n"
         f"👤 **نام دارنده کارت**: `{active.name if (active and active.name) else CARD_HOLDER_NOT_SET}`\n"
         f"📄 **شماره کارت**:\n `{active.number if (active and active.number) else CARD_HOLDER_NOT_SET}`\n"
         f"🔘 **دکمه کارت دستی در ربات**: {pay_mode_status(settings)}\n"
+        f"⚡ **تایید خودکار ForApp**: {forapp_status}\n"
         f"🎲 **حالت نمایش شماره کارت**: {random_mode_status}\n"
         f"👥 **نمایش دکمه کارت به کارت برای**: {manual_card_visibility_status(settings)}"
         f"{pay_mode_hint}\n\n"

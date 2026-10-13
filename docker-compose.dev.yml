@@ -1,0 +1,129 @@
+# Development stack: isolated from production ports (617x) with local build + seed data.
+#
+# Usage:
+#   cp .env.dev.example .env.dev
+#   docker compose -f docker-compose.dev.yml --env-file .env.dev up --build
+#
+# What you get:
+#   - MariaDB (host 127.0.0.1:6172) + Redis (host 127.0.0.1:6171)
+#   - `seed` one-shot: migrations are applied by the image entrypoint, then
+#     scripts/seed_dev.py inserts plans / panel / card / users and enables ForApp
+#   - `bot` with the dev API on http://127.0.0.1:6170 (ForApp webhook below it)
+#   - phpMyAdmin on http://127.0.0.1:6173
+#
+# NOTE: the bot container uses dummy Telegram credentials, so Telethon never
+# connects — the FastAPI server (and the ForApp webhook) still serve normally.
+# The scheduler/jobs only start after a successful Telegram login, so timers
+# (auto-confirm, crypto checks) do NOT run in dev; trigger flows via HTTP/bot
+# actions instead.
+
+services:
+  redis:
+    image: redis:8-alpine
+    container_name: pasarguardbot-dev-redis
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    ports:
+      - "127.0.0.1:6171:6379"
+    networks:
+      - pasarguardbot-dev
+
+  mariadb:
+    image: mariadb:12
+    container_name: pasarguardbot-dev-mariadb
+    env_file:
+      - ${PASARGUARDBOT_CONFIG_DIR:-.}/.env.dev
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    ports:
+      - "127.0.0.1:6172:3306"
+    volumes:
+      - dev-mariadb:/var/lib/mysql
+    stop_grace_period: 120s
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mariadb-admin ping -h 127.0.0.1 -u root --password=$$MARIADB_ROOT_PASSWORD --silent",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 120s
+    networks:
+      - pasarguardbot-dev
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: pasarguardbot-dev-phpmyadmin
+    restart: "no"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 256M
+    ports:
+      - "6173:80"
+    networks:
+      - pasarguardbot-dev
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pasarguardbot:dev
+    container_name: pasarguardbot-dev-seed
+    restart: "no"
+    env_file:
+      - ${PASARGUARDBOT_CONFIG_DIR:-.}/.env.dev
+    volumes:
+      - ${PASARGUARDBOT_CONFIG_DIR:-.}/.env.dev:/app/.env:ro
+      # `scripts/` is in .dockerignore (keeps the prod image lean), so mount
+      # the dev seed script explicitly instead of changing the image.
+      - ./scripts/seed_dev.py:/app/scripts/seed_dev.py:ro
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    # Skip the default entrypoint's `exec "$@"` into the bot: run migrations
+    # (entrypoint) then the seed script instead of main.py.
+    entrypoint: ["/docker-entrypoint.sh"]
+    command: ["uv", "run", "scripts/seed_dev.py"]
+    networks:
+      - pasarguardbot-dev
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pasarguardbot:dev
+    container_name: pasarguardbot-dev
+    restart: "no"
+    env_file:
+      - ${PASARGUARDBOT_CONFIG_DIR:-.}/.env.dev
+    volumes:
+      - ${PASARGUARDBOT_CONFIG_DIR:-.}/.env.dev:/app/.env:ro
+      - ${PASARGUARDBOT_CONFIG_DIR:-.}/dev-logs:/app/logs
+      - ${PASARGUARDBOT_CONFIG_DIR:-.}/dev-sessions:/app/sessions
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    ports:
+      - "127.0.0.1:6170:6170"
+    environment:
+      FASTAPI_PORT: "6170"
+    networks:
+      - pasarguardbot-dev
+
+volumes:
+  dev-mariadb:
+
+networks:
+  pasarguardbot-dev:
+    name: pasarguardbot-dev

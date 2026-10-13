@@ -7,6 +7,10 @@ from app.telegram.admin.settings_payment import texts
 
 def btn_cardtocard_settings(settings=None):
     auto_text = "✅ تایید خودکار روشن" if settings and settings.manual_auto_confirm else "❌ تایید خودکار خاموش"
+    forapp_text = (
+        "⚡ تایید خودکار ForApp روشن" if settings and getattr(settings, "forapp_enabled", False)
+        else "⚡ تایید خودکار ForApp خاموش"
+    )
     random_mode_text = (
         "✅ نمایش رندوم کارت روشن" if settings and settings.manual_card_random_mode else "❌ نمایش رندوم کارت خاموش"
     )
@@ -20,6 +24,7 @@ def btn_cardtocard_settings(settings=None):
         [Button.inline(text=visibility_text, data="toggle_manual_card_visibility")],
         [Button.inline(text=random_mode_text, data="toggle_manual_card_random_mode")],
         [Button.inline(text=auto_text, data="toggle_manual_auto_confirm")],
+        [Button.inline(text=forapp_text, data="toggle_forapp")],
         [Button.inline(text="📋 قوانین تایید خودکار", data="maar_rules_menu")],
         [
             Button.inline(text="💰 محدودیت کارت دستی", data="set_manual_limits"),

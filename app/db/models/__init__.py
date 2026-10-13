@@ -1,6 +1,7 @@
 from . import (
     app_files,
     audit,
+    bank_deposit,
     bot_text,
     broadcast,
     channels,
@@ -33,6 +34,7 @@ from . import (
 __all__ = [
     "app_files",
     "audit",
+    "bank_deposit",
     "bot_text",
     "broadcast",
     "channels",

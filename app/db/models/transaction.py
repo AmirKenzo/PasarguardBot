@@ -22,3 +22,6 @@ class Transaction(Base):
     message_chat_id = Column(BigInteger, nullable=True)
     auto_approve_at = Column(BigInteger, nullable=True)
     auto_approve_rule_id = Column(BigInteger, nullable=True)
+    # ForApp unique-amount matching: payable = amount + offset (1..999 toman).
+    payable_amount = Column(BigInteger, nullable=True)
+    amount_offset = Column(BigInteger, nullable=True)
