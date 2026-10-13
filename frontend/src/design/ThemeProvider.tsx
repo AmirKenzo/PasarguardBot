@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 type Scheme = "light" | "dark";
@@ -129,7 +129,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return undefined;
   }, [mode]);
 
-  return <ThemeContext.Provider value={{ scheme, mode, setMode }}>{children}</ThemeContext.Provider>;
+  const value = useMemo<ThemeContextValue>(() => ({ scheme, mode, setMode }), [scheme, mode, setMode]);
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

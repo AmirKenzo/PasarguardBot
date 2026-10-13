@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { authApi, setTokenRenewedHandler } from "../api/webapp";
 import type { ApiKeyLoginMode, UserProfile } from "../types/webapp";
 import { getStoredInitData } from "../telegramInit";
@@ -150,25 +150,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setTokenRenewedHandler(null);
   }, [setToken]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        sessionToken,
-        initData,
-        isTelegram,
-        isAuthenticated,
-        user,
-        setToken,
-        setUser,
-        refreshUser,
-        clearSession,
-        loading,
-        apiKeyLoginMode,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextType>(
+    () => ({
+      sessionToken,
+      initData,
+      isTelegram,
+      isAuthenticated,
+      user,
+      setToken,
+      setUser,
+      refreshUser,
+      clearSession,
+      loading,
+      apiKeyLoginMode,
+    }),
+    [
+      sessionToken,
+      initData,
+      isTelegram,
+      isAuthenticated,
+      user,
+      setToken,
+      refreshUser,
+      clearSession,
+      loading,
+      apiKeyLoginMode,
+    ]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
