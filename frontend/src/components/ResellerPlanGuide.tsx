@@ -9,7 +9,7 @@ import { AnimatePresence, m } from "framer-motion";
 import { Check, ChevronDown, HelpCircle, Minus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { formatBytes, formatNumber, formatToman } from "../lib/format";
+import { formatBytes, formatToman } from "../lib/format";
 import { MODE_TONE, resellerModeLabel } from "../lib/resellerLabels";
 import type { ResellerPlanFeatures, ResellerPlanItem } from "../types/webapp";
 import { Badge } from "./ui";
@@ -49,7 +49,7 @@ export function resellerPlanPrice(t: TFunction, plan: ResellerPlanItem): string 
 }
 
 function usersText(t: TFunction, maxUsers: number): string {
-  return maxUsers > 0 ? t("reseller.usersCount", { count: formatNumber(maxUsers) }) : t("reseller.unlimitedUsers");
+  return maxUsers > 0 ? t("reseller.usersCount", { count: maxUsers }) : t("reseller.unlimitedUsers");
 }
 
 /** One line of what the plan includes: volume · days · users, worded per type. */
@@ -66,7 +66,7 @@ export function resellerPlanSpecs(t: TFunction, plan: ResellerPlanItem): string 
   } else if (!plan.needs_volume) {
     parts.push(features.unlimited_volume ? t("reseller.plan.unlimitedVolume") : formatBytes(plan.data_limit_bytes));
   }
-  if (plan.duration_days > 0) parts.push(t("renewFlow.days", { count: formatNumber(plan.duration_days) }));
+  if (plan.duration_days > 0) parts.push(t("renewFlow.days", { count: plan.duration_days }));
   parts.push(usersText(t, plan.max_users));
   return parts.join(" · ");
 }
@@ -214,14 +214,14 @@ export function buildPlanGuide(t: TFunction, plan: ResellerPlanItem, options: Pl
   const price = formatToman(plan.price);
   const rate = formatToman(plan.unit_price);
   const volume = formatBytes(plan.data_limit_bytes);
-  const days = formatNumber(plan.duration_days);
-  const grace = formatNumber(Math.max(1, options.graceDays || 0));
+  const days = plan.duration_days;
+  const grace = Math.max(1, options.graceDays || 0);
   const sections: PlanGuideSection[] = [];
 
   // Payment
   const payment: string[] = [];
-  if (prepaid && hasVolume) payment.push(t("reseller.guide.payFixed", { price, volume, days }));
-  else if (prepaid) payment.push(t("reseller.guide.payUnlimited", { price, days }));
+  if (prepaid && hasVolume) payment.push(t("reseller.guide.payFixed", { price, volume, count: days }));
+  else if (prepaid) payment.push(t("reseller.guide.payUnlimited", { price, count: days }));
   else if (mode === "usage") payment.push(t("reseller.guide.payUsage", { rate }));
   else if (mode === "hourly") payment.push(t("reseller.guide.payHourly", { rate }));
   else payment.push(t("reseller.guide.payLegacy", { rate: resellerPlanPrice(t, plan) }));
@@ -245,7 +245,7 @@ export function buildPlanGuide(t: TFunction, plan: ResellerPlanItem, options: Pl
   if (f.usage_cap) limits.push(t("reseller.guide.usageCap"));
   limits.push(
     plan.max_users > 0
-      ? t("reseller.guide.usersLimited", { count: formatNumber(plan.max_users) })
+      ? t("reseller.guide.usersLimited", { count: plan.max_users })
       : t("reseller.guide.usersUnlimited")
   );
   sections.push({ key: "limits", title: t("reseller.guide.limits"), lines: limits });
@@ -253,7 +253,7 @@ export function buildPlanGuide(t: TFunction, plan: ResellerPlanItem, options: Pl
   // Expiry, or what happens when the wallet runs out
   const expiry: string[] = [];
   if (f.expires) {
-    if (plan.duration_days > 0) expiry.push(t("reseller.guide.expires", { days }));
+    if (plan.duration_days > 0) expiry.push(t("reseller.guide.expires", { count: days }));
     const graceKey =
       f.extra_day_price > 0
         ? f.renewable
@@ -262,7 +262,7 @@ export function buildPlanGuide(t: TFunction, plan: ResellerPlanItem, options: Pl
         : f.renewable
           ? "reseller.guide.graceRenew"
           : "reseller.guide.graceOnly";
-    expiry.push(t(graceKey, { grace }));
+    expiry.push(t(graceKey, { count: grace }));
   } else {
     expiry.push(t(f.needs_wallet ? "reseller.guide.noExpiryWallet" : "reseller.guide.noExpiry"));
   }
@@ -271,7 +271,7 @@ export function buildPlanGuide(t: TFunction, plan: ResellerPlanItem, options: Pl
 
   // Renewal
   if (f.renewable) {
-    const renewal = [t("reseller.guide.renewRule", { price, days })];
+    const renewal = [t("reseller.guide.renewRule", { price, count: days })];
     if (hasVolume) renewal.push(t("reseller.guide.renewVolume", { volume }));
     renewal.push(t("reseller.guide.renewNoReset"));
     sections.push({ key: "renew", title: t("reseller.guide.renewal"), lines: renewal });

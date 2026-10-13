@@ -20,6 +20,7 @@ export default function ManualCardsSection({ cards }: ManualCardsSectionProps) {
   const activateCard = usePanelAction(panelPaymentsApi.activateCard, { invalidate: PAYMENTS_INVALIDATE });
   const deleteCard = usePanelAction(panelPaymentsApi.deleteCard, { invalidate: PAYMENTS_INVALIDATE });
   const [card, setCard] = useState(EMPTY_CARD);
+  const cardReady = card.number.replace(/\D/g, "").length >= 12 && card.name.trim() !== "";
 
   const cardColumns: Column<PanelCardRow>[] = [
     { key: "number", header: t("panel.payments.cardNumberPlain"), cell: (row) => <span className="ltr-field text-xs">{row.number}</span> },
@@ -77,12 +78,13 @@ export default function ManualCardsSection({ cards }: ManualCardsSectionProps) {
         <div className="flex items-end">
           <Button
             loading={createCard.isPending}
-            disabled={card.number.replace(/\D/g, "").length < 12 || !card.name.trim()}
+            disabled={!cardReady}
             onClick={() => createCard.mutate(card, { onSuccess: () => setCard(EMPTY_CARD) })}
           >
             {t("panel.common.addCard")}
           </Button>
         </div>
+        {!cardReady && <p className="text-xs text-muted sm:col-span-2">{t("panel.payments.cardRequiredHint")}</p>}
       </div>
     </SectionCard>
   );

@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button, ErrorState, Input, Pagination } from "../../../components/ui";
 import { panelResellersApi } from "../../../api/panel";
-import { formatNumber, formatUnixDate } from "../../../lib/format";
+import { formatUnixDate } from "../../../lib/format";
 import type { PanelResellerRow } from "../../../types/panel";
 import { usePanelQuery } from "../../../queries/usePanelApi";
 import { DataTable, SectionCard, SelectField, Toolbar } from "../components";
@@ -174,7 +174,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
         <SectionCard
           title={t("panel.resellers.title")}
           description={
-            query.data ? t("panel.resellers.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined
+            query.data ? t("panel.resellers.countLabel", { count: query.data.meta.total }) : undefined
           }
         >
           <DataTable

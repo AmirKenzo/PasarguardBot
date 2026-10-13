@@ -98,7 +98,7 @@ export default function ResellerAccountsList({
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight text-text">{t("reseller.list.title")}</h1>
           <p className="text-sm text-muted">
-            {t("reseller.list.subtitle", { count: formatNumber(data.accounts.length) })}
+            {t("reseller.list.subtitle", { count: data.accounts.length })}
           </p>
         </div>
         {data.can_buy && (

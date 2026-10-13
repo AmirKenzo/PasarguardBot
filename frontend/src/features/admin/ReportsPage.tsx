@@ -29,6 +29,8 @@ export default function AdminReportsPage() {
   const query = usePanelQuery(["reports", period], (auth) => panelReportsApi.getReports({ ...auth, period }));
 
   const totals = query.data?.totals;
+  // A failed first load has nothing to show; render only the error so lists don't look genuinely empty.
+  const loadFailed = query.isError && !query.data;
   // total_revenue covers every gateway; the fallback keeps older backends working.
   const totalRevenue = totals ? (totals.total_revenue ?? totals.manual_approved_sum + totals.auto_approved_sum) : 0;
 
@@ -64,7 +66,7 @@ export default function AdminReportsPage() {
         }
       />
 
-      {query.isLoading || !totals ? (
+      {loadFailed ? null : query.isLoading || !totals ? (
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-20 w-full rounded-lg" />
@@ -104,7 +106,7 @@ export default function AdminReportsPage() {
             dense
             label={t("panel.common.awaitingApproval")}
             value={formatToman(totals.pending_sum)}
-            hint={t("panel.reports.invoiceCount", { count: formatNumber(totals.pending_count) })}
+            hint={t("panel.reports.invoiceCount", { count: totals.pending_count })}
             tone={totals.pending_sum ? "warning" : "default"}
           />
         </div>
@@ -112,33 +114,37 @@ export default function AdminReportsPage() {
 
       {query.isError && <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <RankList
-          title={t("panel.reports.topByTopUps")}
-          rows={query.data?.top_recharge || []}
-          loading={query.isLoading}
-          emptyLabel={t("panel.reports.noTopUps")}
-          valueLabel={(row) => formatToman(row.amount)}
-          countLabel={(row) => t("panel.reports.invoiceCount", { count: formatNumber(row.count) })}
-        />
-        <RankList
-          title={t("panel.reports.topByPurchases")}
-          rows={query.data?.top_spenders || []}
-          loading={query.isLoading}
-          emptyLabel={t("panel.reports.noPurchases")}
-          valueLabel={(row) => formatToman(row.amount)}
-          countLabel={(row) => t("panel.reports.invoiceCount", { count: formatNumber(row.count) })}
-        />
-      </div>
+      {!loadFailed && (
+        <>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RankList
+              title={t("panel.reports.topByTopUps")}
+              rows={query.data?.top_recharge || []}
+              loading={query.isLoading}
+              emptyLabel={t("panel.reports.noTopUps")}
+              valueLabel={(row) => formatToman(row.amount)}
+              countLabel={(row) => t("panel.reports.invoiceCount", { count: row.count })}
+            />
+            <RankList
+              title={t("panel.reports.topByPurchases")}
+              rows={query.data?.top_spenders || []}
+              loading={query.isLoading}
+              emptyLabel={t("panel.reports.noPurchases")}
+              valueLabel={(row) => formatToman(row.amount)}
+              countLabel={(row) => t("panel.reports.invoiceCount", { count: row.count })}
+            />
+          </div>
 
-      <RankList
-        title={t("panel.reports.topByServiceCount")}
-        description={t("panel.reports.allTimeNote")}
-        rows={query.data?.top_service_counts || []}
-        loading={query.isLoading}
-        emptyLabel={t("panel.reports.noServices")}
-        valueLabel={(row) => `${formatNumber(row.count)} ${t("panel.reports.serviceCount")}`}
-      />
+          <RankList
+            title={t("panel.reports.topByServiceCount")}
+            description={t("panel.reports.allTimeNote")}
+            rows={query.data?.top_service_counts || []}
+            loading={query.isLoading}
+            emptyLabel={t("panel.reports.noServices")}
+            valueLabel={(row) => `${formatNumber(row.count)} ${t("panel.reports.serviceCount")}`}
+          />
+        </>
+      )}
     </>
   );
 }

@@ -3,7 +3,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { Filter, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, ErrorState, Modal, Pagination, Skeleton } from "../../components/ui";
-import { formatNumber, formatUnixDate } from "../../lib/format";
+import { formatUnixDate } from "../../lib/format";
 import { panelAuditApi } from "../../api/panel";
 import type { PanelAuditRow } from "../../types/panel";
 import { usePanelQuery } from "../../queries/usePanelApi";
@@ -98,7 +98,7 @@ export default function AdminAuditPage() {
     <>
       <PageHeader
         title={t("panel.common.auditLog")}
-        subtitle={query.data ? t("panel.audit.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined}
+        subtitle={query.data ? t("panel.audit.countLabel", { count: query.data.meta.total }) : undefined}
       />
 
       <SectionCard title={t("panel.audit.subtitle")}>

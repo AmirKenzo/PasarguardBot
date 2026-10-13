@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Button, Input } from "../../../components/ui";
+import { Button, ErrorState, Input } from "../../../components/ui";
 import { SegmentedControl } from "../../../components/ui/Select";
 import { FormModal, Toggle } from "../components";
 import { panelPanelsApi } from "../../../api/panel";
@@ -279,7 +279,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
   });
 
   const handleSave = () => {
-    if (!draft || !code) return;
+    if (!draft || !code || saveSettings.isPending || saveStyle.isPending) return;
     if (!planRowsValid(volumePlanRows, false) || !planRowsValid(timePlanRows, true)) {
       setShowPlanErrors(true);
       setActiveTab("addons");
@@ -305,7 +305,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
         price: Number(row.price),
       })),
     };
-    saveSettings.mutate(payload);
+    const saves: Promise<unknown>[] = [saveSettings.mutateAsync(payload)];
     const styleChanged =
       styleDraft &&
       styleQuery.data &&
@@ -314,18 +314,23 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
         (styleDraft.icon_id ?? null) !== (styleQuery.data.icon_id ?? null));
     if (styleDraft && styleChanged) {
       const iconCleared = originalIconId != null && styleDraft.icon_id == null;
-      saveStyle.mutate({
-        code,
-        text: styleDraft.text,
-        style: styleDraft.style,
-        icon_id: styleDraft.icon_id ?? undefined,
-        clear_icon: iconCleared,
-      });
+      saves.push(
+        saveStyle.mutateAsync({
+          code,
+          text: styleDraft.text,
+          style: styleDraft.style,
+          icon_id: styleDraft.icon_id ?? undefined,
+          clear_icon: iconCleared,
+        })
+      );
     }
-    onClose();
+    // Close only once every save succeeded; failures are toasted by usePanelAction and keep the modal open.
+    Promise.all(saves).then(onClose, () => undefined);
   };
 
   const isLoading = settingsQuery.isLoading || styleQuery.isLoading;
+  // A failed background refetch keeps the cached data usable; only a failed first load blocks the form.
+  const loadError = (!settingsQuery.data && settingsQuery.error) || (!styleQuery.data && styleQuery.error) || null;
 
   const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
     { key: "style", label: t("panel.panels.tab.style"), icon: Palette },
@@ -345,7 +350,15 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
       title={name ? t("panel.panels.settingsTitle", { name }) : t("panel.panels.fullSettings")}
       size="xl"
     >
-      {isLoading || !draft || !styleDraft ? (
+      {loadError ? (
+        <ErrorState
+          message={loadError.message}
+          onRetry={() => {
+            if (settingsQuery.isError) void settingsQuery.refetch();
+            if (styleQuery.isError) void styleQuery.refetch();
+          }}
+        />
+      ) : isLoading || !draft || !styleDraft ? (
         <div className="h-72 animate-pulse rounded-md bg-surface-2" />
       ) : (
         <div className="flex flex-col gap-4">
@@ -656,7 +669,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                       value={draft.subscription.locations_text ?? ""}
                       rows={6}
                       maxLength={3000}
-                      placeholder={"🌍 لوکیشن‌ها:\n🇩🇪 آلمان ⌁ 🇫🇮 فنلاند ⌁ 🇳🇱 هلند"}
+                      placeholder={t("panel.panels.locationsPlaceholder")}
                       onChange={(event) =>
                         setDraft({
                           ...draft,

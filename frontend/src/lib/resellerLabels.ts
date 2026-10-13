@@ -88,7 +88,7 @@ export function formatRunway(t: TFunction, hours: number | null | undefined): st
   if (hours === null || hours === undefined) return "—";
   if (hours < 1) return t("reseller.runwayMinutes", { count: formatNumber(Math.max(1, Math.round(hours * 60))) });
   if (hours < 48) return t("reseller.runwayHours", { count: formatNumber(Math.round(hours)) });
-  return t("reseller.runwayDays", { count: formatNumber(Math.round(hours / 24)) });
+  return t("reseller.runwayDays", { count: Math.round(hours / 24) });
 }
 
 export function runwayTone(hours: number | null | undefined, warnHours: number): ResellerTone {
@@ -106,12 +106,12 @@ export function eventAmount(data: Record<string, unknown>): number {
 
 const isKnownMode = (mode: string): boolean => (RESELLER_MODE_KEYS as readonly string[]).includes(mode);
 
-/** Full plan type name, e.g. "مصرفی (بر اساس حجم مصرف)". */
+/** Full plan type name, e.g. "Usage-based (by data used)". */
 export function resellerModeLabel(t: TFunction, mode: string): string {
   return isKnownMode(mode) ? t(`reseller.mode.${mode}`) : mode;
 }
 
-/** Short plan type name for tight spaces, e.g. "مصرفی". */
+/** Short plan type name for tight spaces, e.g. "Usage". */
 export function resellerModeShortLabel(t: TFunction, mode: string): string {
   return isKnownMode(mode) ? t(`reseller.modeShort.${mode}`) : mode;
 }

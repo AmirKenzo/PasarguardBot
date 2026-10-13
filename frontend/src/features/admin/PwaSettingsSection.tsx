@@ -41,7 +41,7 @@ export function PwaSettingsSection() {
       void queryClient.invalidateQueries({ queryKey: ["panel", "pwa"] });
       void applyPwaBranding();
     },
-    onError: (error: Error) => toast.show(error.message || "عملیات انجام نشد", "error"),
+    onError: (error: Error) => toast.show(error.message || t("apiErrors.actionFailed"), "error"),
   });
 
   if (query.isError) {

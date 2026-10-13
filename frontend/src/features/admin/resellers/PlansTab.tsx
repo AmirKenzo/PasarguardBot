@@ -357,7 +357,7 @@ export default function PlansTab() {
             {locked && (
               <p className="col-span-full flex items-start gap-2 rounded-md bg-surface-2 px-3 py-2 text-xs text-muted">
                 <Lock size={13} className="mt-0.5 shrink-0" />
-                {t("panel.resellerHub.plans.lockedHint", { count: formatNumber(draft.linked) })}
+                {t("panel.resellerHub.plans.lockedHint", { count: draft.linked })}
               </p>
             )}
             <div className="col-span-full">
@@ -465,7 +465,7 @@ export default function PlansTab() {
               >
                 <AlertTriangle size={14} className="mt-1 shrink-0" />
                 {LIVE_RATE_MODES.has(mode)
-                  ? t("panel.resellerHub.planForm.liveRateWarning", { count: formatNumber(draft.linked) })
+                  ? t("panel.resellerHub.planForm.liveRateWarning", { count: draft.linked })
                   : t("panel.resellerHub.planForm.futureRateNote")}
               </p>
             )}
@@ -594,7 +594,7 @@ function PlanCard({ plan, onEdit, onDelete }: { plan: PanelResellerPlanRow; onEd
       <p className="text-lg font-bold text-primary">{priceLine(t, plan)}</p>
       <div className="flex flex-wrap gap-1.5 text-[11px]">
         {isLegacyMode(plan.pricing_mode) && <Badge tone="warning">{t("panel.resellerHub.planForm.legacyBadge")}</Badge>}
-        {plan.duration > 0 && <Badge tone="muted">{t("panel.plans.durationDays", { count: formatNumber(plan.duration) })}</Badge>}
+        {plan.duration > 0 && <Badge tone="muted">{t("panel.plans.durationDays", { count: plan.duration })}</Badge>}
         {plan.data_limit_gb > 0 ? (
           <Badge tone="muted">{formatNumber(plan.data_limit_gb)} GB</Badge>
         ) : (
@@ -602,7 +602,7 @@ function PlanCard({ plan, onEdit, onDelete }: { plan: PanelResellerPlanRow; onEd
         )}
         <Badge tone="muted">
           {plan.max_users > 0
-            ? t("panel.resellerHub.plans.users", { count: formatNumber(plan.max_users) })
+            ? t("panel.resellerHub.plans.users", { count: plan.max_users })
             : t("panel.resellerHub.planForm.unlimitedUsers")}
         </Badge>
         {plan.role_name && <Badge tone="muted">{plan.role_name}</Badge>}
@@ -619,7 +619,7 @@ function PlanCard({ plan, onEdit, onDelete }: { plan: PanelResellerPlanRow; onEd
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/60 pt-3">
         <span className="flex items-center gap-1 text-xs text-muted">
           <Link2 size={12} />
-          {t("panel.resellerHub.plans.linked", { count: formatNumber(plan.linked_accounts) })}
+          {t("panel.resellerHub.plans.linked", { count: plan.linked_accounts })}
         </span>
         <div className="flex gap-1">
           <Button size="sm" variant="ghost" onClick={onEdit}>

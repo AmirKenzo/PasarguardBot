@@ -3,7 +3,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { Filter, Power, Search, Server, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, ErrorState, IconBadge, Input, Pagination, Skeleton } from "../../components/ui";
-import { formatBytes, formatExpiry, formatNumber } from "../../lib/format";
+import { formatBytes, formatExpiry } from "../../lib/format";
 import { panelServicesApi } from "../../api/panel";
 import type { PanelServiceRow } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
@@ -93,7 +93,7 @@ export default function AdminServicesPage() {
     <>
       <PageHeader
         title={t("panel.common.services")}
-        subtitle={query.data ? t("panel.services.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined}
+        subtitle={query.data ? t("panel.services.countLabel", { count: query.data.meta.total }) : undefined}
       />
 
       <SectionCard title={t("panel.services.title")}>

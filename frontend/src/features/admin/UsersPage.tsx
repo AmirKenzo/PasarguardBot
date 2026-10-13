@@ -94,7 +94,7 @@ export default function AdminUsersPage() {
     <>
       <PageHeader
         title={t("panel.common.users")}
-        subtitle={query.data ? t("panel.users.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined}
+        subtitle={query.data ? t("panel.users.countLabel", { count: query.data.meta.total }) : undefined}
       />
 
       <SectionCard title={t("panel.users.title")} description={t("panel.users.hint")}>

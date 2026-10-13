@@ -55,6 +55,7 @@ function ResourceGauge({
 export default function AdminToolsPage() {
   const { t } = useTranslation();
   const [bulk, setBulk] = useState({ panel: "all", volume: "", days: "", confirm: false });
+  const bulkReady = bulk.confirm && Boolean(bulk.volume.trim() || bulk.days.trim());
 
   const query = usePanelQuery(["tools"], (auth) => panelToolsApi.getTools(auth), { refetchInterval: 30_000 });
   const backupToChannel = usePanelAction(panelToolsApi.backupToLogChannel);
@@ -218,7 +219,7 @@ export default function AdminToolsPage() {
           <ConfirmButton
             size="sm"
             variant="danger"
-            disabled={!bulk.confirm || (!bulk.volume.trim() && !bulk.days.trim())}
+            disabled={!bulkReady}
             loading={bulkIncrease.isPending}
             message={t("panel.tools.bulkConfirm")}
             confirmLabel={t("panel.tools.start")}
@@ -237,6 +238,7 @@ export default function AdminToolsPage() {
             {t("panel.common.startBulkIncrease")}
           </ConfirmButton>
         </div>
+        {!bulkReady && <p className="mt-2 text-xs text-muted">{t("panel.tools.bulkRequiredHint")}</p>}
         <p className="mt-2 text-xs text-muted">
           {t("panel.tools.runsInBackground")}
         </p>

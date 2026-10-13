@@ -20,6 +20,7 @@ export default function CryptoWalletsSection({ wallets, availableTypes }: Crypto
   const createWallet = usePanelAction(panelPaymentsApi.createWallet, { invalidate: PAYMENTS_INVALIDATE });
   const deleteWallet = usePanelAction(panelPaymentsApi.deleteWallet, { invalidate: PAYMENTS_INVALIDATE });
   const [wallet, setWallet] = useState(EMPTY_WALLET);
+  const walletReady = Boolean(wallet.wallet_type) && wallet.address.trim().length >= 4;
 
   const walletColumns: Column<PanelWalletRow>[] = [
     { key: "type", header: t("panel.payments.currency"), cell: (row) => <Badge tone="primary">{row.type}</Badge> },
@@ -30,7 +31,7 @@ export default function CryptoWalletsSection({ wallets, availableTypes }: Crypto
     },
     {
       key: "api",
-      header: "API Key",
+      header: t("panel.common.apiKey"),
       secondary: true,
       cell: (row) => (row.has_api_key ? <Badge tone="success">{t("panel.payments.present")}</Badge> : <span className="text-xs text-muted">—</span>),
     },
@@ -76,7 +77,7 @@ export default function CryptoWalletsSection({ wallets, availableTypes }: Crypto
           <div className="flex items-end">
             <Button
               loading={createWallet.isPending}
-              disabled={!wallet.wallet_type || wallet.address.trim().length < 4}
+              disabled={!walletReady}
               onClick={() =>
                 createWallet.mutate(wallet, {
                   onSuccess: () => setWallet(EMPTY_WALLET),
@@ -86,6 +87,7 @@ export default function CryptoWalletsSection({ wallets, availableTypes }: Crypto
               {t("panel.common.addWallet")}
             </Button>
           </div>
+          {!walletReady && <p className="text-xs text-muted sm:col-span-2">{t("panel.payments.walletRequiredHint")}</p>}
         </div>
       )}
     </SectionCard>

@@ -105,7 +105,7 @@ export function UserTransferDialog({
     ...(admins.data?.admins || []).map((admin) => ({
       value: admin.username,
       label: `${admin.suggested ? "★ " : ""}${admin.username} — ${t("panel.userDetail.transfer.usersCount", {
-        count: formatNumber(admin.total_users),
+        count: admin.total_users,
       })}${admin.status && admin.status !== "active" ? ` (${admin.status})` : ""}`,
     })),
   ];
@@ -216,7 +216,7 @@ export function UserTransferDialog({
                   <>
                     <span className="text-xs text-warning">
                       {t("panel.userDetail.transfer.confirmText", {
-                        count: formatNumber(toMove),
+                        count: toMove,
                         source,
                         target: p.target_admin || botAdmin,
                       })}

@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button, ErrorState, Input, Pagination } from "../../../components/ui";
 import { panelResellersApi } from "../../../api/panel";
-import { formatNumber, formatToman } from "../../../lib/format";
+import { formatToman } from "../../../lib/format";
 import { ChargeItem } from "../../../components/ChargeItem";
 import { toCharge } from "./parts";
 import { usePanelQuery } from "../../../queries/usePanelApi";
@@ -194,7 +194,7 @@ export default function BillingTab() {
         <SectionCard
           title={t("panel.resellerHub.billing.events")}
           description={
-            events.data ? t("panel.resellerHub.billing.eventCount", { count: formatNumber(events.data.meta.total) }) : undefined
+            events.data ? t("panel.resellerHub.billing.eventCount", { count: events.data.meta.total }) : undefined
           }
         >
           <div

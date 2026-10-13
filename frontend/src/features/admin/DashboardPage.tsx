@@ -149,8 +149,8 @@ export default function AdminDashboardPage() {
       <SectionCard title={t("panel.dashboard.signupsPerDay")} description={t("panel.dashboard.lastFourteenDays")}>
         <TrendChart
           points={series.map((point) => ({ ts: point.ts, value: point.signups }))}
-          format={(value) => t("panel.dashboard.userCount", { count: formatNumber(value) })}
-          total={t("panel.dashboard.userCount", { count: formatNumber(series.reduce((sum, point) => sum + point.signups, 0)) })}
+          format={(value) => t("panel.dashboard.userCount", { count: value })}
+          total={t("panel.dashboard.userCount", { count: series.reduce((sum, point) => sum + point.signups, 0) })}
           tone="accent"
         />
       </SectionCard>

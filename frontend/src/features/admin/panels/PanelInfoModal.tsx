@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Download, Pause, Signal, Upload, UserCheck, UserX, Users, CalendarClock } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Modal, ProgressRing, Skeleton } from "../../../components/ui";
+import { ErrorState, Modal, ProgressRing, Skeleton } from "../../../components/ui";
 import { StatTile } from "../components";
 import { panelPanelsApi } from "../../../api/panel";
 import { usePanelQuery } from "../../../queries/usePanelApi";
@@ -62,7 +62,7 @@ export function PanelInfoModal({ code, name, onClose }: PanelInfoModalProps) {
                   <span className="font-bold text-danger">{t("panel.common.inactive")}</span>
                 )}
               </Row>
-              <Row label={t("panel.panels.authType")}>{status.auth_type === "api_key" ? "API Key" : t("panel.panels.usernamePassword")}</Row>
+              <Row label={t("panel.panels.authType")}>{status.auth_type === "api_key" ? t("panel.common.apiKey") : t("panel.panels.usernamePassword")}</Row>
               <Row label={t("panel.panels.url")}>
                 <span className="ltr-field">{status.base_url}</span>
               </Row>
@@ -122,6 +122,8 @@ export function PanelInfoModal({ code, name, onClose }: PanelInfoModalProps) {
             )}
           </div>
         </div>
+      ) : query.isError ? (
+        <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
       ) : null}
     </Modal>
   );

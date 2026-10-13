@@ -319,7 +319,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   icon={Server}
                   tone="primary"
                   title={item.name}
-                  description={t("reseller.buy.plansCount", { count: formatNumber(item.plans.length) })}
+                  description={t("reseller.buy.plansCount", { count: item.plans.length })}
                   onSelect={() => choosePanel(item)}
                 />
               ))}
@@ -467,7 +467,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   label={t("reseller.buy.duration")}
                   value={
                     plan.duration_days > 0
-                      ? t("renewFlow.days", { count: formatNumber(plan.duration_days) })
+                      ? t("renewFlow.days", { count: plan.duration_days })
                       : t("reseller.noExpiry")
                   }
                 />

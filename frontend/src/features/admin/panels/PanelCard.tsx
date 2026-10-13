@@ -90,7 +90,7 @@ export function PanelCard({ panel, trialEnabled, onView, onEdit, onSettings }: P
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-muted">
           {panel.auth_type === "api_key" ? <KeyRound size={11} /> : <Lock size={11} />}
-          {panel.auth_type === "api_key" ? "API Key" : t("panel.panels.usernamePassword")}
+          {panel.auth_type === "api_key" ? t("panel.common.apiKey") : t("panel.panels.usernamePassword")}
         </span>
         {trialEnabled && (
           <span className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(196,138,255,0.35)] bg-[rgba(196,138,255,0.13)] px-2.5 py-1 text-[11px] font-semibold text-[#C48AFF]">

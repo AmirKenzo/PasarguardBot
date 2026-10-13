@@ -424,14 +424,18 @@ function PayoutsSection() {
           }}
         />
       </div>
-      <DataTable
-        columns={columns}
-        rows={query.data?.payouts || []}
-        rowKey={(row) => row.id}
-        loading={query.isLoading}
-        stale={query.isPlaceholderData}
-        emptyTitle={t("panel.referral.noPayouts")}
-      />
+      {query.isError ? (
+        <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={query.data?.payouts || []}
+          rowKey={(row) => row.id}
+          loading={query.isLoading}
+          stale={query.isPlaceholderData}
+          emptyTitle={t("panel.referral.noPayouts")}
+        />
+      )}
       <div className="mt-4">
         <Pagination page={page} totalPages={query.data?.meta.total_pages || 1} onChange={setPage} />
       </div>

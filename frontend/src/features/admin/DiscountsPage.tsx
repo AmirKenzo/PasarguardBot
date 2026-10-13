@@ -121,7 +121,7 @@ export default function AdminDiscountsPage() {
     <>
       <PageHeader
         title={t("panel.discounts.heading")}
-        subtitle={query.data ? t("panel.discounts.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined}
+        subtitle={query.data ? t("panel.discounts.countLabel", { count: query.data.meta.total }) : undefined}
         action={
           <Button size="sm" onClick={() => setDraft({ ...EMPTY_DRAFT })}>
             <Plus size={16} />

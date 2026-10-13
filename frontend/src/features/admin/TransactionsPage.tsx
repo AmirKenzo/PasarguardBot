@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Badge, IconBadge, Input, Modal, Pagination, Skeleton } from "../../components/ui";
+import { Badge, ErrorState, IconBadge, Input, Modal, Pagination, Skeleton } from "../../components/ui";
 import { useToast } from "../../components/ui/Toast";
 import { formatToman, formatUnixDate } from "../../lib/format";
 import { panelTransactionsApi } from "../../api/panel";
@@ -363,7 +363,9 @@ export default function AdminTransactionsPage() {
         </div>
 
         {query.isError ? (
-          <p className="py-6 text-center text-sm text-danger">{query.error.message}</p>
+          <div className="mt-4">
+            <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
+          </div>
         ) : query.isLoading ? (
           <div className="mt-4 space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (

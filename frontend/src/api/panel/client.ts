@@ -1,4 +1,5 @@
-import { ApiError, authHeaders } from "../webapp/client";
+import i18n from "../../i18n";
+import { ApiError, apiErrorMessage, authHeaders } from "../webapp/client";
 import type { AuthPayload } from "../webapp/client";
 
 const API_BASE = (import.meta.env.VITE_PANEL_API_BASE as string | undefined) || "/api/panel";
@@ -12,7 +13,7 @@ async function parseJson(res: Response): Promise<unknown> {
   try {
     return JSON.parse(text);
   } catch {
-    throw new ApiError("پاسخ سرور نامعتبر بود");
+    throw new ApiError(i18n.t("apiErrors.invalidResponse"));
   }
 }
 
@@ -52,9 +53,9 @@ export async function panelPost<TRes extends { ok: boolean; error?: string | nul
       body: JSON.stringify(stripAuthFields(raw)),
     });
   } catch {
-    throw new ApiError("ارتباط با سرور برقرار نشد");
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
   const payload = (await parseJson(res)) as TRes;
-  if (!payload.ok) throw new ApiError(payload.error || "خطای ناشناخته");
+  if (!payload.ok) throw new ApiError(apiErrorMessage(payload.error));
   return payload;
 }

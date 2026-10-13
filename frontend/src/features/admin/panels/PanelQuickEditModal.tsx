@@ -54,7 +54,7 @@ export function PanelQuickEditModal({ draft, onClose, onChange }: PanelQuickEdit
             <span className="mb-1.5 block text-muted">{t("panel.panels.authType")}</span>
             <SegmentedControl
               options={[
-                { value: "api_key", label: "API Key" },
+                { value: "api_key", label: t("panel.common.apiKey") },
                 { value: "password", label: t("panel.panels.usernamePassword") },
               ]}
               value={draft.auth_type || "password"}
@@ -71,7 +71,7 @@ export function PanelQuickEditModal({ draft, onClose, onChange }: PanelQuickEdit
             />
           )}
           <Input
-            label={draft.auth_type === "api_key" ? "API Key" : t("panel.panels.password")}
+            label={draft.auth_type === "api_key" ? t("panel.common.apiKey") : t("panel.panels.password")}
             type="password"
             ltr
             autoComplete="new-password"
@@ -99,6 +99,9 @@ export function PanelQuickEditModal({ draft, onClose, onChange }: PanelQuickEdit
             hint={t("panel.panels.enabledHint")}
           />
           <p className="text-xs text-muted">{t("panel.panels.verifyNote")}</p>
+          {(!draft.name.trim() || !draft.base_url.trim()) && (
+            <p className="text-xs text-muted">{t("panel.panels.saveRequiredHint")}</p>
+          )}
           <div className="flex justify-end gap-2 pt-1">
             <Button size="sm" variant="ghost" onClick={onClose}>
               {t("panel.common.dismiss")}

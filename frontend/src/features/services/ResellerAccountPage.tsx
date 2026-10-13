@@ -320,7 +320,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
       )}
       {data.grace_days_left != null && (
         <p className="rounded-md border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger">
-          {t("reseller.detail.graceLeft", { count: formatNumber(data.grace_days_left) })}
+          {t("reseller.detail.graceLeft", { count: data.grace_days_left })}
         </p>
       )}
       {account.status === "paused" && (
@@ -399,7 +399,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
               daysLeft === null
                 ? t("reseller.noExpiry")
                 : daysLeft > 0
-                  ? t("renewFlow.days", { count: formatNumber(daysLeft) })
+                  ? t("renewFlow.days", { count: daysLeft })
                   : t("reseller.detail.expiredValue")
             }
             hint={account.expiration_timestamp ? formatUnixDate(account.expiration_timestamp) : undefined}
@@ -727,7 +727,7 @@ function expiryValue(t: TFunction, timestamp: number | null | undefined): string
 function daysLeftValue(t: TFunction, timestamp: number | null | undefined): string {
   const days = daysUntil(timestamp);
   if (days === null) return t("reseller.noExpiry");
-  return days > 0 ? t("renewFlow.days", { count: formatNumber(days) }) : t("reseller.detail.expiredValue");
+  return days > 0 ? t("renewFlow.days", { count: days }) : t("reseller.detail.expiredValue");
 }
 
 function volumeValue(t: TFunction, bytes: number): string {
@@ -798,7 +798,7 @@ function RenewSheet({ data, onClose, onDone }: SheetProps) {
               {[
                 plan.data_limit_bytes ? t("reseller.renew.addsVolume", { volume: formatBytes(plan.data_limit_bytes) }) : null,
                 plan.duration_days
-                  ? t("reseller.renew.addsDays", { count: formatNumber(plan.duration_days) })
+                  ? t("reseller.renew.addsDays", { count: plan.duration_days })
                   : null,
               ]
                 .filter(Boolean)
@@ -1042,7 +1042,7 @@ function AddonSheet({ addon, data, onClose, onDone }: SheetProps & { addon: Rese
                   !custom && quantity === preset ? "border-primary bg-primary/10 text-primary" : "border-border text-text"
                 }`}
               >
-                {t(text.preset, { count: formatNumber(preset) })}
+                {t(text.preset, { count: preset })}
               </button>
             ))}
           </div>

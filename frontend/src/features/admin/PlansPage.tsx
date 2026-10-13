@@ -417,6 +417,9 @@ export default function AdminPlansPage() {
               )}
             </div>
 
+            {(!draft.panel_code || !draft.duration) && (
+              <p className="text-xs text-muted">{t("panel.plans.saveRequiredHint")}</p>
+            )}
             <div className="flex justify-end gap-2 border-t border-border pt-3">
               <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
                 {t("panel.common.dismiss")}

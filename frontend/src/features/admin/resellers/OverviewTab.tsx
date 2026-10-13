@@ -141,7 +141,7 @@ export default function OverviewTab({ onNavigate }: { onNavigate: Navigate }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard
           title={t("panel.resellerHub.overview.atRisk")}
-          description={t("panel.resellerHub.overview.atRiskHint", { hours: data.low_runway_hours })}
+          description={t("panel.resellerHub.overview.atRiskHint", { count: data.low_runway_hours })}
         >
           {data.at_risk.length ? (
             <ul className="divide-y divide-border/60">

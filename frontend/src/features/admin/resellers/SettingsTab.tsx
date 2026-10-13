@@ -292,7 +292,7 @@ export default function SettingsTab() {
           <div className="mt-3 flex justify-center">
             <Button size="sm" variant="secondary" onClick={() => setLimit((value) => value + PAGE_SIZE)}>
               {t("panel.resellerHub.settings.showMore", {
-                count: formatNumber(Math.min(PAGE_SIZE, matches.length - limit)),
+                count: Math.min(PAGE_SIZE, matches.length - limit),
               })}
             </Button>
           </div>
