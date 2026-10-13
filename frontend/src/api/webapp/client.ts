@@ -15,6 +15,8 @@ export interface ApiErrorInit {
   code?: string | null;
 }
 
+export const SESSION_INVALID_CODE = "session_invalid";
+
 export class ApiError extends Error {
   readonly kind?: ApiErrorKind;
   readonly status?: number;
@@ -68,8 +70,7 @@ export function apiErrorMessage(error: string | null | undefined, fallbackKey = 
   return key ? i18n.t(key) : error;
 }
 
-/** Every response envelope from the backend carries `ok` + optional `error`. */
-export function unwrap<T extends { ok: boolean; error?: string | null }>(
+export function unwrap<T extends { ok: boolean; error?: string | null; error_code?: string | null }>(
   payload: T,
   res: Response,
   fallbackKey?: string
@@ -79,16 +80,21 @@ export function unwrap<T extends { ok: boolean; error?: string | null }>(
     throw new ApiError(apiErrorMessage(payload.error, fallbackKey), {
       kind,
       status: res.status,
-      code: payload.error ?? null,
+      code: "error_code" in payload ? (payload.error_code ?? null) : undefined,
     });
   }
   return payload;
 }
 
+export function isLegacySessionMessage(message: string): boolean {
+  return message.includes("منقضی") || message.includes("توکن");
+}
+
 export function isAuthRejection(err: unknown): boolean {
   if (!(err instanceof ApiError)) return false;
   if (err.status === 401 || err.status === 403) return true;
-  return err.kind === "rejected" && err.code !== "internal_error";
+  if (err.code !== undefined) return err.code === SESSION_INVALID_CODE;
+  return err.kind === "rejected" && isLegacySessionMessage(err.message);
 }
 
 /** Put credentials in headers so they never land in URLs/query logs. */

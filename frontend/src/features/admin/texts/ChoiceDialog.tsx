@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 import { m } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../../components/ui";
+import { useDialogLayer } from "../../../hooks/useDialogLayer";
 
 export interface ChoiceAction {
   label: string;
@@ -34,16 +35,14 @@ const TONE_CLASSES = {
 export function ChoiceDialog({ open, tone, icon: Icon, title, text, actions, onClose }: ChoiceDialogProps) {
   const { t } = useTranslation();
   const actionsRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogLayer(open, onClose);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    requestAnimationFrame(() => actionsRef.current?.querySelector("button")?.focus());
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    const frame = requestAnimationFrame(() => actionsRef.current?.querySelector("button")?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
 
   if (!open) return null;
 
@@ -58,8 +57,8 @@ export function ChoiceDialog({ open, tone, icon: Icon, title, text, actions, onC
       <m.div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="choice-dialog-title"
-        className="safe-area-pb relative w-full rounded-t-2xl border border-border bg-surface p-5 shadow-lg md:max-w-md md:rounded-2xl"
+        aria-labelledby={titleId}
+        className="safe-area-pb relative max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-surface p-5 shadow-lg md:max-w-md md:rounded-2xl"
         initial={{ y: 24 }}
         animate={{ y: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
@@ -67,7 +66,7 @@ export function ChoiceDialog({ open, tone, icon: Icon, title, text, actions, onC
         <span className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${TONE_CLASSES[tone]}`}>
           <Icon size={22} />
         </span>
-        <h3 id="choice-dialog-title" className="text-base font-semibold text-text">
+        <h3 id={titleId} className="text-base font-semibold text-text">
           {title}
         </h3>
         <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>

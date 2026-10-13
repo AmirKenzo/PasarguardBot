@@ -52,6 +52,16 @@ def mark_session_verified(token: str) -> None:
         holder.add(token)
 
 
+rejected_session: ContextVar[list[bool] | None] = ContextVar("rejected_session", default=None)
+
+
+def mark_session_rejected() -> None:
+    """Flag the current request as refused for a missing/invalid/expired session."""
+    holder = rejected_session.get()
+    if holder is not None:
+        holder.append(True)
+
+
 _auth_state_last_prune = 0.0
 _AUTH_STATE_PRUNE_INTERVAL_SEC = 60.0
 _REVOKED_TOKEN_TTL_SEC = 86400.0

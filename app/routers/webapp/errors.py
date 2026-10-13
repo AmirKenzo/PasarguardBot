@@ -12,6 +12,8 @@ logger = get_logger(__name__)
 # Error code the frontend maps to a translated "something went wrong, try again" message.
 INTERNAL_ERROR = "internal_error"
 
+SESSION_INVALID = "session_invalid"
+
 
 def internal_error(context: str) -> str:
     """Log the exception being handled with its traceback and return the generic error code.

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ApiError, authApi, isAuthRejection, setTokenRenewedHandler } from "../api/webapp";
+import { ApiError, authApi, isAuthRejection, isLegacySessionMessage, setTokenRenewedHandler } from "../api/webapp";
 import type { ApiKeyLoginMode, UserProfile } from "../types/webapp";
 import { getStoredInitData } from "../telegramInit";
 
@@ -27,13 +27,9 @@ function readInitData(): string | null {
   return (typeof window !== "undefined" && window.Telegram?.WebApp?.initData) || null;
 }
 
-function isSessionExpiredError(message: string): boolean {
-  return message.includes("منقضی") || message.includes("توکن");
-}
-
 function shouldDropSession(err: unknown): boolean {
   if (err instanceof ApiError) return isAuthRejection(err);
-  return err instanceof Error && isSessionExpiredError(err.message);
+  return err instanceof Error && isLegacySessionMessage(err.message);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

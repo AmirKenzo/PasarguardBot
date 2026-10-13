@@ -37,6 +37,7 @@ export interface WebAppInfoResponse {
   user?: UserProfile | null;
   services?: ServiceStatus[] | null;
   error?: string | null;
+  error_code?: string | null;
   session_token?: string | null;
   api_key_login_mode: ApiKeyLoginMode;
 }

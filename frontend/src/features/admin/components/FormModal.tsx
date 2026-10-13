@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useDialogLayer } from "../../../hooks/useDialogLayer";
 
 const SIZE_CLASSES = {
   md: "max-w-lg",
@@ -19,6 +20,8 @@ export interface FormModalProps {
 /** Like the UI kit's Modal, but wide enough for a multi-field form. */
 export function FormModal({ open, onClose, title, children, size = "md" }: FormModalProps) {
   const { t } = useTranslation();
+  const titleId = useId();
+  useDialogLayer(open, onClose);
   return (
     <AnimatePresence>
       {open && (
@@ -31,19 +34,22 @@ export function FormModal({ open, onClose, title, children, size = "md" }: FormM
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
             <m.div
               key="panel"
               role="dialog"
               aria-modal="true"
-              className={`max-h-[85vh] w-full ${SIZE_CLASSES[size]} overflow-y-auto rounded-lg border border-border bg-surface p-5 shadow-lg`}
+              aria-labelledby={titleId}
+              className={`pointer-events-auto flex max-h-[85dvh] w-full ${SIZE_CLASSES[size]} flex-col overflow-hidden rounded-lg border border-border bg-surface p-5 shadow-lg`}
               initial={{ opacity: 0, scale: 0.94, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             >
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-semibold text-text">{title}</h2>
+              <div className="mb-4 flex shrink-0 items-center justify-between">
+                <h2 id={titleId} className="text-base font-semibold text-text">
+                  {title}
+                </h2>
                 <button
                   onClick={onClose}
                   className="rounded-full p-1.5 text-muted hover:bg-surface-2"
@@ -52,7 +58,7 @@ export function FormModal({ open, onClose, title, children, size = "md" }: FormM
                   <X size={18} />
                 </button>
               </div>
-              {children}
+              <div className="-mx-5 min-h-0 flex-1 overflow-y-auto px-5">{children}</div>
             </m.div>
           </div>
         </>

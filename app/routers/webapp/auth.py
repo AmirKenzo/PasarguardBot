@@ -27,12 +27,13 @@ from app.models.webapp import (
     WebAppInfoResponse,
     WebAppUserData,
 )
-from app.routers.webapp.errors import internal_error
+from app.routers.webapp.errors import SESSION_INVALID, internal_error
 from app.routers.webapp.state import (
     clear_otp_failures,
     get_header_auth,
     is_api_key_login_blocked,
     is_otp_locked,
+    mark_session_rejected,
     mark_session_verified,
     otp_key,
     otp_sessions,
@@ -260,17 +261,21 @@ async def authenticate_user(
     if session_token:
         prune_auth_state()
         if session_token in revoked_tokens:
+            mark_session_rejected()
             raise ValueError("نشست منقضی شده است")
         ok, err, payload = await parse_session_token_async(session_token)
         if not ok or not payload:
+            mark_session_rejected()
             raise ValueError(err or "توکن نامعتبر است")
         uid = int(payload["uid"])
         if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
+            mark_session_rejected()
             raise ValueError("نشست منقضی شده است. دوباره وارد شوید")
         await _ensure_not_banned(uid)
         mark_session_verified(session_token)
         return uid
 
+    mark_session_rejected()
     raise ValueError("اطلاعات ناقص است")
 
 
@@ -471,16 +476,16 @@ async def get_webapp_info_session(
     """
     token, _ = _merge_request_auth(session_token=session_token)
     if not token:
-        return WebAppInfoResponse(ok=False, error="توکن احراز هویت ارسال نشده است")
+        return WebAppInfoResponse(ok=False, error="توکن احراز هویت ارسال نشده است", error_code=SESSION_INVALID)
     prune_auth_state()
     if token in revoked_tokens:
-        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است")
+        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است", error_code=SESSION_INVALID)
     ok, err, payload = await parse_session_token_async(token)
     if not ok or not payload:
-        return WebAppInfoResponse(ok=False, error=err or "توکن نامعتبر است")
+        return WebAppInfoResponse(ok=False, error=err or "توکن نامعتبر است", error_code=SESSION_INVALID)
     uid = int(payload["uid"])  # type: ignore
     if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
-        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است. دوباره وارد شوید")
+        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است. دوباره وارد شوید", error_code=SESSION_INVALID)
     if await is_user_banned(uid):
         return WebAppInfoResponse(ok=False, error=_BANNED_ERROR)
     mark_session_verified(token)

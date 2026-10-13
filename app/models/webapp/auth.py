@@ -50,6 +50,7 @@ class WebAppInfoResponse(BaseModel):
     user: UserProfile | None = None
     services: list[ServiceStatus] | None = None
     error: str | None = None
+    error_code: str | None = Field(None, description="Machine-readable error code, e.g. session_invalid")
     session_token: str | None = None
     api_key_login_mode: str = "none"
 
