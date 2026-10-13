@@ -343,8 +343,8 @@ async def fetch_latest_release_github(
         try:
             response = await client.get(url, headers=headers, timeout=10)
             response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            logger.error(f"خطا در دریافت اطلاعات: {e}")
+        except httpx.HTTPError as e:
+            logger.error(f"GitHub latest release request failed for {repo_owner}/{repo_name}: {e}")
             return None
 
     latest_release = response.json()
@@ -389,8 +389,8 @@ async def fetch_latest_release_github_targets(
         try:
             response = await client.get(url, headers=headers, timeout=10)
             response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            logger.error(f"خطا در دریافت اطلاعات: {e}")
+        except httpx.HTTPError as e:
+            logger.error(f"GitHub latest release request failed for {repo_owner}/{repo_name}: {e}")
             return None
 
     latest_release = response.json()
