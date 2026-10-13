@@ -35,6 +35,9 @@ const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "primary" |
   failed: "danger",
 };
 
+const PROGRESSING_STATUSES = new Set(["queued", "running"]);
+const isProgressing = (job: PanelBroadcastJobRow) => PROGRESSING_STATUSES.has(job.status || "");
+
 export default function AdminBroadcastPage() {
   const { t } = useTranslation();
   const [form, setForm] = useState({
@@ -46,8 +49,9 @@ export default function AdminBroadcastPage() {
   });
 
   const query = usePanelQuery(["broadcast"], (auth) => panelBroadcastApi.getBroadcast(auth), {
-    refetchInterval: 10_000,
+    refetchInterval: (q) => (q.state.data?.jobs.some(isProgressing) ? 10_000 : false),
   });
+  const polling = Boolean(query.data?.jobs.some(isProgressing));
 
   const invalidate = [["broadcast"]];
   const send = usePanelAction(panelBroadcastApi.send, { invalidate });
@@ -203,7 +207,7 @@ export default function AdminBroadcastPage() {
       {query.isError ? (
         <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
       ) : (
-        <SectionCard title={t("panel.broadcast.runningJobs")} description={t("panel.broadcast.refreshNote")}>
+        <SectionCard title={t("panel.broadcast.runningJobs")} description={polling ? t("panel.broadcast.refreshNote") : undefined}>
           <DataTable
             columns={columns}
             rows={query.data?.jobs || []}
