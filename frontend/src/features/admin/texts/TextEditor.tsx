@@ -63,7 +63,7 @@ interface TextEditorProps {
 }
 
 export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onRequestReset }: TextEditorProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const toast = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Last caret position in the textarea. Toolbar buttons and the emoji box take focus
@@ -159,11 +159,11 @@ export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onR
           aria-label={t("panel.texts.back")}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-text lg:hidden"
         >
-          <ArrowRight size={18} />
+          <ArrowRight size={18} className="ltr:rotate-180" />
         </button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-bold text-text">{entry.title || entry.key}</p>
-          <code className="ltr-field block truncate text-[11px] text-muted" style={{ textAlign: "right" }}>
+          <code className="ltr-field block truncate text-[11px] text-muted" style={{ textAlign: i18n.dir() === "rtl" ? "right" : "left" }}>
             {entry.key}
           </code>
         </div>

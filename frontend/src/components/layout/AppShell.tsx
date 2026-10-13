@@ -122,7 +122,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-l border-border bg-surface p-4 md:flex">
+      <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-e border-border bg-surface p-4 md:flex">
         <div className="mb-5 flex items-center justify-between px-1">
           <span className="bg-gradient-to-l from-primary to-accent bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
             {t("nav.panelTitle")}

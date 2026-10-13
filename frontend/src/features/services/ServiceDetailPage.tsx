@@ -115,7 +115,7 @@ function ActionTile({
       transition={{ type: "spring", stiffness: 500, damping: 28 }}
       disabled={loading}
       onClick={onClick}
-      className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-right transition-colors disabled:opacity-50 ${
+      className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-start transition-colors disabled:opacity-50 ${
         danger
           ? "border-danger/20 bg-danger/5 hover:border-danger/40 hover:bg-danger/10"
           : "border-border bg-surface hover:border-primary/35 hover:bg-primary/5"

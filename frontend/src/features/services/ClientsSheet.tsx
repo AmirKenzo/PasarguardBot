@@ -70,7 +70,7 @@ export function ClientsSheet({ open, onClose, code, username }: ClientsSheetProp
       ) : clients.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">{t("clients.noClients")}</p>
       ) : (
-        <div className="max-h-[55vh] space-y-3 overflow-y-auto pr-0.5">
+        <div className="max-h-[55vh] space-y-3 overflow-y-auto pe-0.5">
           {clients.map((client, idx) => (
             <div key={`${client.created_at}-${idx}`} className="rounded-md border border-border bg-surface p-3.5">
               <div className="mb-3 flex items-center gap-2.5">

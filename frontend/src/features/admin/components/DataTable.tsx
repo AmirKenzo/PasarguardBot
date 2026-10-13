@@ -52,7 +52,7 @@ export function DataTable<Row>({
     >
       <table className="w-full min-w-[36rem] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-border text-right text-xs text-muted">
+          <tr className="border-b border-border text-start text-xs text-muted">
             {columns.map((column) => (
               <th
                 key={column.key}

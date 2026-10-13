@@ -42,7 +42,7 @@ export function IconMenuButton({ icon: Icon, title, active, badge, spin, width, 
         }`}
       >
         <Icon size={14} className={spin ? "animate-spin" : undefined} />
-        {badge && <span className="absolute -top-0.5 h-1.5 w-1.5 rounded-full bg-primary ltr:-right-0.5 rtl:-left-0.5" />}
+        {badge && <span className="absolute -top-0.5 h-1.5 w-1.5 rounded-full bg-primary -end-0.5" />}
       </button>
       {open &&
         placement &&

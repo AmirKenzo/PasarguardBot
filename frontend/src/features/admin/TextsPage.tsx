@@ -168,7 +168,7 @@ export default function AdminTextsPage() {
 
         <div className={`min-w-0 flex-col gap-2.5 ${editing ? "hidden lg:flex" : "flex"}`}>
           <div className="relative">
-            <Search size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted" />
+            <Search size={16} className="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="search"
               value={search}
@@ -183,7 +183,7 @@ export default function AdminTextsPage() {
                 type="button"
                 aria-label={t("panel.texts.clearSearch")}
                 onClick={() => setSearch("")}
-                className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-surface-2 text-muted"
+                className="absolute end-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-surface-2 text-muted"
               >
                 <XIcon size={14} />
               </button>
@@ -386,7 +386,7 @@ function TextRow({ entry, active, onClick }: { entry: PanelTextEntry; active: bo
       {variables > 0 && (
         <span className="ltr-field shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted">{`{${variables}}`}</span>
       )}
-      <ChevronLeft size={16} className="shrink-0 text-muted" />
+      <ChevronLeft size={16} className="shrink-0 text-muted ltr:rotate-180" />
     </button>
   );
 }

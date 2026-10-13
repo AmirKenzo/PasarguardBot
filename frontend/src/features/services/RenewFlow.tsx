@@ -145,7 +145,7 @@ export default function RenewFlow() {
                     setSelectedPlan(plan);
                     setStep("confirm");
                   }}
-                  className="w-full rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
+                  className="w-full rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-text">

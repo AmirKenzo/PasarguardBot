@@ -268,7 +268,7 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
                   key={panel.code}
                   type="button"
                   onClick={() => void selectPanel(panel)}
-                  className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
+                  className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
                 >
                   <div className="flex items-center gap-4">
                     <div className="rounded-md bg-primary/10 p-3 text-primary ring-1 ring-primary/20">
@@ -339,7 +339,7 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
                       setSelectedPlan(plan);
                       setStep("username");
                     }}
-                    className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
+                    className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>

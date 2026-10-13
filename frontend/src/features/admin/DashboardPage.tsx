@@ -77,7 +77,7 @@ export default function AdminDashboardPage() {
               className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/25"
             >
               {formatNumber(stats.pending_tx)} {t("panel.dashboard.pendingTransactions")}
-              <ChevronLeft size={13} />
+              <ChevronLeft size={13} className="ltr:rotate-180" />
             </Link>
           )}
         </div>

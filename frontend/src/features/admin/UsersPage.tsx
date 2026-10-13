@@ -100,13 +100,13 @@ export default function AdminUsersPage() {
       <SectionCard title={t("panel.users.title")} description={t("panel.users.hint")}>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2.5">
           <div className="relative min-w-0 flex-1 sm:max-w-[12rem] sm:flex-none sm:w-48">
-            <Search size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ltr:left-2.5 rtl:right-2.5" />
+            <Search size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted start-2.5" />
             <Input
               dense
               ltr
               placeholder={t("panel.users.searchPlaceholder")}
               aria-label={t("panel.common.search")}
-              className="ltr:pl-7 rtl:pr-7"
+              className="ps-7"
               value={searchInputs.q}
               onChange={(e) => setSearchInputs((s) => ({ ...s, q: e.target.value }))}
             />
@@ -217,7 +217,7 @@ export default function AdminUsersPage() {
                   <div className="flex shrink-0 items-center gap-1">
                     <Link to={`/panel/users/${row.id}`} title={t("panel.users.manage")}>
                       <span className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary">
-                        <ChevronLeft size={13} />
+                        <ChevronLeft size={13} className="ltr:rotate-180" />
                       </span>
                     </Link>
                     {canToggleBlock && (

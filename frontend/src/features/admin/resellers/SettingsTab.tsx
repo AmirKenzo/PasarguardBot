@@ -56,7 +56,7 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (che
     >
       <span
         className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          checked ? "-translate-x-[22px]" : "-translate-x-0.5"
+          checked ? "translate-x-[22px] rtl:-translate-x-[22px]" : "translate-x-0.5 rtl:-translate-x-0.5"
         }`}
       />
     </button>

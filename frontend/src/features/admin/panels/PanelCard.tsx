@@ -93,7 +93,7 @@ export function PanelCard({ panel, trialEnabled, onView, onEdit, onSettings }: P
           {panel.auth_type === "api_key" ? t("panel.common.apiKey") : t("panel.panels.usernamePassword")}
         </span>
         {trialEnabled && (
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(196,138,255,0.35)] bg-[rgba(196,138,255,0.13)] px-2.5 py-1 text-[11px] font-semibold text-[#C48AFF]">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(196,138,255,0.35)] bg-[rgba(196,138,255,0.13)] px-2.5 py-1 text-[11px] font-semibold text-[#9333EA] dark:text-[#C48AFF]">
             <Gift size={11} />
             {t("panel.panels.trialActiveBadge")}
           </span>

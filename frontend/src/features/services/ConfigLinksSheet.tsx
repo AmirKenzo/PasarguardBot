@@ -45,7 +45,7 @@ export function ConfigLinksSheet({ open, onClose, code, username, fallbackLinks 
       ) : links.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">{t("configLinks.noLinks")}</p>
       ) : (
-        <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-0.5">
+        <div className="max-h-[55vh] space-y-2 overflow-y-auto pe-0.5">
           {links.map((item) => (
             <button
               key={item.index}
@@ -56,7 +56,7 @@ export function ConfigLinksSheet({ open, onClose, code, username, fallbackLinks 
                   window.setTimeout(() => setCopied((c) => (c === item.index ? null : c)), 1600);
                 });
               }}
-              className={`flex w-full items-center gap-3 rounded-md border px-3.5 py-3 text-right transition ${
+              className={`flex w-full items-center gap-3 rounded-md border px-3.5 py-3 text-start transition ${
                 copied === item.index
                   ? "border-success/40 bg-success/10"
                   : "border-border bg-surface hover:border-primary/35 hover:bg-primary/5"

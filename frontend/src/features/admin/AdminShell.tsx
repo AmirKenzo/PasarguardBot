@@ -371,7 +371,7 @@ export default function AdminShell() {
   return (
     <div className="flex min-h-screen w-full">
       <SessionExpiry />
-      <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-l border-border bg-surface p-4 md:flex">
+      <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-e border-border bg-surface p-4 md:flex">
         <div className="mb-5 flex items-center justify-between px-1">
           <BrandMark />
         </div>
@@ -433,7 +433,7 @@ export default function AdminShell() {
             setDrawerOpen(false);
           }
         }}
-        className={`fixed inset-y-0 z-50 flex w-64 flex-col border-border bg-surface p-4 transition-transform duration-200 md:hidden ltr:left-0 ltr:border-r rtl:right-0 rtl:border-l ${
+        className={`fixed inset-y-0 z-50 flex w-64 flex-col border-border bg-surface p-4 transition-transform duration-200 md:hidden start-0 border-e ${
           drawerOpen ? "translate-x-0" : "pointer-events-none ltr:-translate-x-full rtl:translate-x-full"
         }`}
       >

@@ -35,15 +35,9 @@ import type {
   PanelVolumeUpgradePlan,
 } from "../../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../../queries/usePanelApi";
+import { STYLE_CLASSES, SWATCH_CLASSES } from "../keyboard/shared";
 
 type TabKey = "style" | "buttons" | "subscription" | "trial" | "renewal" | "addons" | "features" | "reseller";
-
-const STYLE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  primary: { bg: "rgba(59,130,246,0.16)", fg: "#93C5FD", border: "rgba(59,130,246,0.4)" },
-  success: { bg: "rgba(34,197,94,0.16)", fg: "#86EFAC", border: "rgba(34,197,94,0.4)" },
-  danger: { bg: "rgba(239,68,68,0.16)", fg: "#FCA5A5", border: "rgba(239,68,68,0.4)" },
-  "": { bg: "rgba(255,255,255,0.05)", fg: "#C7CCDB", border: "rgba(255,255,255,0.12)" },
-};
 
 function buttonDefs(t: TFunction): { key: keyof PanelButtonSettings; label: string; desc: string }[] {
   return [
@@ -388,12 +382,9 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                 <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border p-5">
                   <span className="text-xs text-muted">{t("panel.panels.stylePreview")}</span>
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold"
-                    style={{
-                      background: STYLE_COLORS[styleDraft.style]?.bg,
-                      color: STYLE_COLORS[styleDraft.style]?.fg,
-                      border: `1px solid ${STYLE_COLORS[styleDraft.style]?.border}`,
-                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-4 py-2 text-sm font-semibold ${
+                      STYLE_CLASSES[styleDraft.style] ?? STYLE_CLASSES[""]
+                    }`}
                   >
                     {styleDraft.icon_id ? <span>✨</span> : null}
                     {styleDraft.text || name}
@@ -421,11 +412,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                         }`}
                       >
                         <span
-                          className="h-2 w-2 rounded-full"
-                          style={{
-                            background: value ? STYLE_COLORS[value]?.fg : "transparent",
-                            border: value ? "none" : "1.5px solid currentColor",
-                          }}
+                          className={`h-2 w-2 rounded-full ${value ? SWATCH_CLASSES[value] : "border-[1.5px] border-current"}`}
                         />
                         {value === "primary" && t("panel.panels.colorBlue")}
                         {value === "success" && t("panel.panels.colorGreen")}

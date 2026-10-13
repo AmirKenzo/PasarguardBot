@@ -365,7 +365,7 @@ function ProfileLink({ to, icon: Icon, label }: { to: string; icon: LucideIcon; 
     >
       <IconBadge icon={Icon} tone="primary" size="sm" />
       <span className="flex-1">{label}</span>
-      <ChevronLeft size={16} className="text-muted" />
+      <ChevronLeft size={16} className="text-muted ltr:rotate-180" />
     </Link>
   );
 }

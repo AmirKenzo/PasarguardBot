@@ -88,7 +88,7 @@ export default function ExtraVolumeFlow() {
                   type="button"
                   disabled={confirm.isPending}
                   onClick={() => handleSelect(plan)}
-                  className="w-full rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 disabled:opacity-50"
+                  className="w-full rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 disabled:opacity-50"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-text">{formatBytes(plan.storage_gb * 1024 ** 3)}</p>

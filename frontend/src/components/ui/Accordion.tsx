@@ -15,7 +15,7 @@ export function AccordionItem({ title, children, defaultOpen = false }: Accordio
     <div className="border-b border-border py-1 last:border-b-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 py-3 text-right"
+        className="flex w-full items-center justify-between gap-3 py-3 text-start"
       >
         <span className="text-sm font-medium text-text">{title}</span>
         <m.span animate={{ rotate: open ? 180 : 0 }} className="text-muted">

@@ -63,7 +63,7 @@ export function Pagination({ page, totalPages, onChange }: PaginationProps) {
   return (
     <div className="flex items-center justify-center gap-1.5 sm:gap-2">
       <NavButton onClick={() => onChange(page - 1)} disabled={page <= 1} label={t("ui.prevPage")}>
-        <ChevronRight size={15} strokeWidth={2.2} />
+        <ChevronRight size={15} strokeWidth={2.2} className="ltr:rotate-180" />
         <span className="hidden sm:inline">{t("ui.prev")}</span>
       </NavButton>
 
@@ -99,7 +99,7 @@ export function Pagination({ page, totalPages, onChange }: PaginationProps) {
 
       <NavButton onClick={() => onChange(page + 1)} disabled={page >= totalPages} label={t("ui.nextPage")}>
         <span className="hidden sm:inline">{t("ui.next")}</span>
-        <ChevronLeft size={15} strokeWidth={2.2} />
+        <ChevronLeft size={15} strokeWidth={2.2} className="ltr:rotate-180" />
       </NavButton>
     </div>
   );

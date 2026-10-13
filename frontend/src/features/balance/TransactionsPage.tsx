@@ -48,7 +48,7 @@ export default function TransactionsPage() {
                   <p className="truncate text-sm text-text">{transactionTypeLabel(tx.type_key, tx.currency)}</p>
                   <p className="text-xs text-muted">{formatUnixDate(tx.created_at)}</p>
                 </div>
-                <div className="text-left">
+                <div className="text-end">
                   <p className="text-sm text-text">{formatToman(tx.amount)}</p>
                   <Badge tone={txStatusTone(tx.status)}>{txStatusLabel(tx.status, t)}</Badge>
                 </div>

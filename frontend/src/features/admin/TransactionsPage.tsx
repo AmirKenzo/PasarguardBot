@@ -258,25 +258,25 @@ export default function AdminTransactionsPage() {
         <div className="space-y-2 rounded-lg border border-border bg-surface p-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-28">
-              <User size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ltr:left-2.5 rtl:right-2.5" />
+              <User size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted start-2.5" />
               <Input
                 dense
                 ltr
                 placeholder={t("panel.transactions.filterUserId")}
                 aria-label={t("panel.transactions.filterUserId")}
-                className="ltr:pl-7 rtl:pr-7"
+                className="ps-7"
                 value={searchInputs.userId}
                 onChange={(e) => setSearchInputs((s) => ({ ...s, userId: e.target.value }))}
               />
             </div>
             <div className="relative w-32">
-              <Banknote size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ltr:left-2.5 rtl:right-2.5" />
+              <Banknote size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted start-2.5" />
               <Input
                 dense
                 ltr
                 placeholder={t("panel.transactions.filterAmount")}
                 aria-label={t("panel.transactions.filterAmount")}
-                className="ltr:pl-7 rtl:pr-7"
+                className="ps-7"
                 value={searchInputs.amount}
                 onChange={(e) => setSearchInputs((s) => ({ ...s, amount: e.target.value }))}
               />
@@ -489,7 +489,7 @@ export default function AdminTransactionsPage() {
               <button
                 onClick={toggleReceiptFullscreen}
                 title={t(receiptFullscreen ? "panel.transactions.exitFullscreen" : "panel.transactions.fullscreen")}
-                className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+                className="absolute end-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
               >
                 {receiptFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
               </button>

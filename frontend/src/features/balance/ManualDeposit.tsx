@@ -142,7 +142,7 @@ export default function ManualDeposit() {
               type="file"
               accept="image/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-muted file:ml-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3.5 file:py-2 file:text-sm file:font-medium file:text-primary hover:file:bg-primary/15"
+              className="block w-full text-sm text-muted file:me-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3.5 file:py-2 file:text-sm file:font-medium file:text-primary hover:file:bg-primary/15"
             />
           </label>
           <Button fullWidth loading={receipt.isPending} disabled={!file} onClick={() => void handleReceiptSubmit()}>

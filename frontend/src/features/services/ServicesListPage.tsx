@@ -107,7 +107,7 @@ function PanelGroupCard({ group, onSelect, t }: { group: PanelGroupItem; onSelec
         }}
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.985 }}
-        className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:border-primary/50"
+        className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:border-primary/50"
       >
         <div className="flex items-center gap-4">
           <div className="rounded-md bg-primary/10 p-3 text-primary ring-1 ring-primary/20">
@@ -184,7 +184,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
             onClick={() => selectPanel(null)}
             className="mb-1 flex items-center gap-1.5 text-sm font-medium text-primary"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={16} className="ltr:rotate-180" />
             {t("services.backToPanel")}
           </button>
         ) : null}
@@ -209,13 +209,13 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
           transition={{ delay: 0.05, duration: 0.3 }}
           className="relative"
         >
-          <Search size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <Search size={16} className="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <Input
             type="search"
             placeholder={t("services.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10"
+            className="ps-10"
           />
         </m.div>
       )}

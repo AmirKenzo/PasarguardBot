@@ -254,7 +254,7 @@ export default function AdminChannelsPage() {
           <div className="mt-4 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
             <Pencil size={14} className="text-primary" />
             <span>{t("panel.channels.editingChannel", { title: channel.title })}</span>
-            <button className="mr-auto text-xs font-semibold text-primary hover:underline" onClick={resetChannelForm}>
+            <button className="ms-auto text-xs font-semibold text-primary hover:underline" onClick={resetChannelForm}>
               {t("panel.channels.cancelEdit")}
             </button>
           </div>
@@ -351,7 +351,7 @@ export default function AdminChannelsPage() {
             <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
               <Pencil size={14} className="text-primary" />
               <span>{t("panel.channels.editingTarget", { type: logTypeLabels(t)[editingLog.log_type] || editingLog.log_type })}</span>
-              <button className="mr-auto text-xs font-semibold text-primary hover:underline" onClick={resetLogForm}>
+              <button className="ms-auto text-xs font-semibold text-primary hover:underline" onClick={resetLogForm}>
                 {t("panel.channels.cancelEdit")}
               </button>
             </div>
