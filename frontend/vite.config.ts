@@ -27,7 +27,36 @@ function devWebappRedirectPlugin(): Plugin {
   };
 }
 
+const SHELL_DYNAMIC_ENTRY = /\/src\/locales\/[^/]+\.json$|\/workbox-window\//;
+
+function appShellPlugin(shellFiles: Set<string>): Plugin {
+  return {
+    name: "pwa-app-shell",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      shellFiles.clear();
+      const visit = (fileName: string) => {
+        const chunk = bundle[fileName];
+        if (!chunk || shellFiles.has(fileName)) return;
+        shellFiles.add(fileName);
+        if (chunk.type !== "chunk") return;
+        chunk.imports.forEach(visit);
+        chunk.viteMetadata?.importedCss.forEach(visit);
+        chunk.viteMetadata?.importedAssets.forEach(visit);
+      };
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type !== "chunk") continue;
+        const facade = chunk.facadeModuleId?.replace(/\\/g, "/") ?? "";
+        if (chunk.isEntry || (chunk.isDynamicEntry && SHELL_DYNAMIC_ENTRY.test(facade))) {
+          visit(chunk.fileName);
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
+  const shellFiles = new Set<string>();
   const env = loadEnv(mode, process.cwd(), "");
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || "http://127.0.0.1:8001";
 
@@ -35,6 +64,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       devWebappRedirectPlugin(),
       react(),
+      appShellPlugin(shellFiles),
       VitePWA({
         registerType: "autoUpdate",
         injectRegister: "auto",
@@ -45,6 +75,15 @@ export default defineConfig(({ mode }) => {
         includeAssets: ["icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-192.png", "icons/icon-maskable-512.png"],
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          manifestTransforms: [
+            async (entries) => ({
+              manifest:
+                shellFiles.size === 0
+                  ? entries
+                  : entries.filter((e) => !e.url.startsWith("assets/") || shellFiles.has(e.url)),
+              warnings: [],
+            }),
+          ],
           navigateFallback: "/webapp/index.html",
           navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
@@ -55,6 +94,14 @@ export default defineConfig(({ mode }) => {
               urlPattern: /\/api\/webapp\/(manifest\.webmanifest|icons\/.*)/,
               handler: "NetworkFirst",
               options: { cacheName: "pwa-branding" },
+            },
+            {
+              urlPattern: /\/webapp\/assets\//,
+              handler: "CacheFirst",
+              options: {
+                cacheName: "webapp-assets",
+                expiration: { maxEntries: 150, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              },
             },
           ],
         },
