@@ -504,7 +504,7 @@ async def mablagh_sharj_handler(event: Message):
 
         photo_bytes = await event.client.download_media(photo, bytes)
         if photo_bytes:
-            phash_str = compute_receipt_phash(photo_bytes)
+            phash_str = await asyncio.to_thread(compute_receipt_phash, photo_bytes)
             if phash_str:
                 receipt_hash_crud = ReceiptHashCRUD()
                 receipt_row = await receipt_hash_crud.try_insert(phash_str, int(event.sender_id))
@@ -623,6 +623,26 @@ async def mablagh_sharj_handler(event: Message):
     )
     await event.respond(error_text)
     raise events.StopPropagation
+
+
+def _render_crypto_invoice_qr(uri: str, logo_path: str, file_name: str) -> BytesIO:
+    """Build the invoice QR PNG (with the coin logo centered when present) in memory."""
+    qr = qrcode.QRCode(version=5, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=4)
+    qr.add_data(uri)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    if os.path.exists(logo_path):
+        logo = Image.open(logo_path)
+        qr_width, qr_height = qr_img.size
+        logo_size = int(qr_width / 4)
+        logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+        logo_position = ((qr_width - logo_size) // 2, (qr_height - logo_size) // 2)
+        qr_img.paste(logo, logo_position, mask=logo)
+    qr_file = BytesIO()
+    qr_img.save(qr_file, format="PNG")
+    qr_file.seek(0)
+    qr_file.name = file_name
+    return qr_file
 
 
 async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
@@ -862,21 +882,7 @@ async def create_crypto_invoice(event, *, arz: str, amount_irt: int) -> None:
     else:
         return
 
-    qr = qrcode.QRCode(version=5, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=4)
-    qr.add_data(uri)
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-    if await asyncio.to_thread(os.path.exists, logo_path):
-        logo = Image.open(logo_path)
-        qr_width, qr_height = qr_img.size
-        logo_size = int(qr_width / 4)
-        logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
-        logo_position = ((qr_width - logo_size) // 2, (qr_height - logo_size) // 2)
-        qr_img.paste(logo, logo_position, mask=logo)
-    qr_file = BytesIO()
-    qr_img.save(qr_file, format="PNG")
-    qr_file.seek(0)
-    qr_file.name = file_name
+    qr_file = await asyncio.to_thread(_render_crypto_invoice_qr, uri, logo_path, file_name)
     logger.info("QR Code created in memory")
 
     # CallbackQuery uses edit/respond differently than Message
