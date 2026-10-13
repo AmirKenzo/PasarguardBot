@@ -88,18 +88,6 @@ async def rs_addon_cancel_button(account_code: int):
     return await _rs_inline_button(_KEY_CANCEL, f"ResellerAccount_view:{account_code}")
 
 
-async def rs_capacity_confirm_button(account_code: int):
-    return await _rs_inline_button(_KEY_BUY_CONFIRM, f"ResellerAccount_capacity_confirm:{account_code}")
-
-
-async def rs_capacity_cancel_button(account_code: int):
-    return await _rs_inline_button(_KEY_CANCEL, f"ResellerAccount_capacity_cancel:{account_code}")
-
-
-async def rs_capacity_back_button(account_code: int):
-    return await _rs_inline_button(_KEY_BACK, f"ResellerAccount_capacity:{account_code}")
-
-
 async def rs_delete_button(account_code: int):
     return await _rs_inline_button("in.rs.delete", f"ResellerAccount_delete:{account_code}")
 

@@ -32,6 +32,7 @@ from app.telegram.shared.reseller_plan_guides import (
 )
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import clear_user, delete_data_many, get_data, set_data, set_step
+from app.telegram.user.reseller.helpers import format_plan_button_text
 from app.utils.formatting.conversions import as_int, gigabytes_to_bytes
 from config import ADMIN_ID
 
@@ -549,7 +550,6 @@ async def reseller_plan_callbacks(event: events.CallbackQuery.Event):
         if not plan:
             await event.answer("یافت نشد.", alert=True)
             return
-        from app.telegram.user.reseller.helpers import format_plan_button_text
 
         preview = format_plan_button_text(plan)
         await set_data(user_id, "reseller_edit_plan_id", str(plan_id))

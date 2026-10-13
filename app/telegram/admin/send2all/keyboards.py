@@ -145,24 +145,6 @@ def job_detail_buttons(job_id: int, *, status: str):
     return buttons
 
 
-def paused_job_detail_buttons(job_id: int):
-    return [
-        [Button.inline("📨 دریافت پیام", data=f"broadcast_job_get_msg:{job_id}")],
-        [Button.inline("▶️ ادامه", data=f"broadcast_resume:{job_id}")],
-        [Button.inline("🗑️ حذف همگانی", data=f"broadcast_job_delete:{job_id}")],
-        [Button.inline("🔙 بازگشت", data="broadcast_incomplete_list")],
-    ]
-
-
-def running_job_detail_buttons(job_id: int):
-    return [
-        [Button.inline("📨 دریافت پیام", data=f"broadcast_job_get_msg:{job_id}")],
-        [Button.inline("⏸️ توقف موقت", data=f"broadcast_pause:{job_id}")],
-        [Button.inline("🗑️ حذف همگانی", data=f"broadcast_job_delete:{job_id}")],
-        [Button.inline("🔙 بازگشت", data="broadcast_incomplete_list")],
-    ]
-
-
 def monitor_status_buttons(job_id: int, *, paused: bool):
     if paused:
         return [

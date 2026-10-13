@@ -77,22 +77,6 @@ def resolve_panel_group_ids(panel, groups_resp: PanelGroupsResponse) -> list[int
     return [g.id for g in groups_resp.groups]
 
 
-def get_panel_default_group_name(panel, groups_resp: PanelGroupsResponse) -> str:
-    groups_map = {g.id: g.name for g in groups_resp.groups}
-    selected_ids = panel_default_group_ids(panel)
-    if not groups_resp.groups:
-        return "هیچ گروهی یافت نشد"
-    if not selected_ids:
-        return "تمام گروه‌ها"
-    selected_names = [groups_map.get(gid) for gid in selected_ids if gid in groups_map]
-    selected_names = [name for name in selected_names if name]
-    if not selected_names:
-        return "گروه یافت نشد"
-    if len(selected_names) <= 3:
-        return "، ".join(selected_names)
-    return f"{len(selected_names)} گروه انتخاب‌شده"
-
-
 async def fetch_panel_groups(panel) -> PanelGroupsResponse:
     return await fetch_panel_groups_with_auth(panel)
 

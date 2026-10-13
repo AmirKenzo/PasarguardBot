@@ -241,10 +241,6 @@ async def get_user_state(user_id: int, key: str | None = None) -> Any:
     return await get_data(user_id, key)
 
 
-async def delete_user_state(user_id: int, key: str) -> None:
-    await delete_data(user_id, key)
-
-
 async def get_all_user_state(user_id: int) -> dict[str, Any]:
     return await get_user_state(user_id)
 

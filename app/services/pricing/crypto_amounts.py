@@ -54,10 +54,6 @@ async def calculate_ton_amount_with_tax(price_per_ton, amount_in_toman, tax_perc
     return _amount_with_tax(price_per_ton, amount_in_toman, tax_percentage, reserved_amounts)
 
 
-async def calculate_pol_amount_with_tax(price_per_pol, amount_in_toman, tax_percentage=9, reserved_amounts=None):
-    return _amount_with_tax(price_per_pol, amount_in_toman, tax_percentage, reserved_amounts)
-
-
 # Settings attribute holding the toman price of each invoice currency.
 _PRICE_SETTING = {
     "trx": "arz_trx",

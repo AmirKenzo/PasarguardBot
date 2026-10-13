@@ -16,6 +16,7 @@ from app.db.crud.user import UserCRUD
 from app.logger import LogType, get_logger
 from app.services.billing.direct_pay_flow import invoice_shortfall_notice
 from app.services.billing.renewal import (
+    preview_remaining_after_renewal,
     require_panel_userid,
 )
 from app.telegram.keyboards.buy import buy_topup_button
@@ -111,8 +112,6 @@ async def service_message_handler(event: Message):
             return
 
         try:
-            from app.services.billing.renewal import preview_remaining_after_renewal
-
             get_User = await PasarguardAPI(panel.base_url).get_user_by_id(
                 user_id=require_panel_userid(serv_msg), token=panel.cookie
             )

@@ -37,10 +37,6 @@ def _page_bounds(page: int, per_page: int) -> tuple[int, int]:
     return (page - 1) * per_page, per_page
 
 
-def pages_for(total: int, per_page: int) -> int:
-    return max(1, -(-int(total or 0) // per_page))
-
-
 # --------------------------------------------------------------------------- #
 #  Dashboard                                                                    #
 # --------------------------------------------------------------------------- #
@@ -470,23 +466,6 @@ async def transaction_stats() -> dict[str, int]:
 async def get_transaction(tx_id: int) -> Transaction | None:
     async with Session() as session:
         return (await session.execute(select(Transaction).where(Transaction.id == tx_id))).scalars().first()
-
-
-async def list_crypto_payments(*, status: str = "", page: int = 1, per_page: int = 25):
-    offset, limit = _page_bounds(page, per_page)
-    async with Session() as session:
-        base = select(CryptoPayments)
-        counter = select(func.count()).select_from(CryptoPayments)
-        if status:
-            base = base.where(CryptoPayments.status == status)
-            counter = counter.where(CryptoPayments.status == status)
-        total = int((await session.execute(counter)).scalar() or 0)
-        rows = (
-            (await session.execute(base.order_by(CryptoPayments.createtime.desc()).limit(limit).offset(offset)))
-            .scalars()
-            .all()
-        )
-    return list(rows), total
 
 
 # --------------------------------------------------------------------------- #

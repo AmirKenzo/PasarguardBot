@@ -4,6 +4,7 @@ from telethon import events
 from telethon.tl.custom import Message
 
 from app import Kenzo
+from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.keyboards import get_button_text
 from app.db.crud.user import UserCRUD
 from app.services.billing.sticky_discount import format_profile_sticky_discount, get_sticky_discount
@@ -21,8 +22,6 @@ async def _build_discount_status(user_id: int) -> str:
     if sticky and sticky.is_public:
         bot_username = await get_bot_username(Kenzo)
         return format_profile_sticky_discount(sticky, bot_username)
-
-    from app.db.crud.discount_codes import DiscountCodeManager
 
     discount_code_status = await DiscountCodeManager().get_code_whith_user_id(user_id)
     if discount_code_status is False:

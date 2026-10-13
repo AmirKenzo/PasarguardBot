@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import secrets
 import string
@@ -299,9 +298,3 @@ def compute_reseller_expiration(plan: ResellerPlan) -> int | None:
     if plan.duration and plan.duration > 0:
         return day_to_timestamp(int(plan.duration))
     return None
-
-
-def format_allowed_groups_json(group_ids: list[int] | None) -> str | None:
-    if not group_ids:
-        return None
-    return json.dumps(group_ids, ensure_ascii=False)

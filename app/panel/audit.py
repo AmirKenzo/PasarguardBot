@@ -6,7 +6,7 @@ import json
 import time
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.audit import AuditLog
@@ -77,11 +77,3 @@ async def known_actions() -> list[str]:
     async with Session() as session:
         rows = (await session.execute(select(AuditLog.action).distinct())).scalars().all()
     return sorted(str(row) for row in rows)
-
-
-async def purge_older_than(days: int) -> int:
-    cutoff = int(time.time()) - max(1, days) * 86400
-    async with Session() as session:
-        result = await session.execute(delete(AuditLog).where(AuditLog.created_at < cutoff))
-        await session.commit()
-        return int(result.rowcount or 0)

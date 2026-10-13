@@ -297,19 +297,6 @@ async def manual_card_send_channel_info(event, amount_toman: int, *, edit: bool 
     await remember_balance_flow_message(event.sender_id, sent.id)
 
 
-def to_rial(amount: int) -> int:
-    rial_amount = amount * 10
-    rial_str = str(rial_amount)
-
-    if len(rial_str) <= 3:
-        modified_digits = [str(random.randint(0, 9)) for _ in range(len(rial_str))]
-    else:
-        modified_digits = list(rial_str[:-3]) + [str(random.randint(0, 9)) for _ in range(3)]
-
-    modified_rial_str = "".join(modified_digits)
-    return int(modified_rial_str)
-
-
 async def _require_balance_payment_step(event) -> bool:
     if await get_step(event.sender_id) == states.STEP_CART_B_CART:
         return True

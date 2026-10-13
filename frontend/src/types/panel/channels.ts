@@ -1,8 +1,6 @@
 /** Mirrors app/models/panel/channels.py */
 import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
-export const DESTINATION_TYPES = ["channel", "supergroup"] as const;
-
 export interface PanelChannelRow {
   id: number;
   title?: string | null;

@@ -31,5 +31,3 @@ export interface PanelOption {
   code: number;
   name: string;
 }
-
-export const EMPTY_META: PageMeta = { total: 0, page: 1, limit: 25, total_pages: 0 };

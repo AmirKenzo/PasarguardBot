@@ -23,11 +23,6 @@ def build_state_key(user_id: int) -> str:
     return f"{get_redis_namespace()}:user:{user_id}"
 
 
-def build_callback_key(token: str) -> str:
-    """String key for temporary callback payload."""
-    return f"{get_redis_namespace()}:callback:{token}"
-
-
 def build_lock_key(user_id: int, lock_name: str) -> str:
     """String key for a temporary per-user lock."""
     return f"{get_redis_namespace()}:lock:{user_id}:{lock_name}"

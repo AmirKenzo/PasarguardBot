@@ -262,10 +262,12 @@ async def run_telethon(stop_event: asyncio.Event | None = None):
     start_send_queue_worker()
 
     # Resume any running broadcast from its persisted cursor after restart.
+    # Local import: avoids a circular import with app.services.broadcast.manager.
     from app.services.broadcast.manager import broadcast_manager
 
     await broadcast_manager.resume_running_broadcasts()
 
+    # Local import: avoids a circular import with app.telegram.admin.send2all.callbacks.
     from app.telegram.admin.send2all.callbacks import resume_broadcast_monitors
 
     await resume_broadcast_monitors()

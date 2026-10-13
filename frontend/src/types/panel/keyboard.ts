@@ -2,8 +2,6 @@
 import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
 /** "none" clears the built-in default colour; an empty value keeps it. */
-export const STYLE_OPTIONS = ["", "primary", "success", "danger", "none"] as const;
-
 export interface PanelKeyboardButton {
   key: string;
   section: string;

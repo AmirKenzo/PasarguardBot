@@ -9,8 +9,6 @@ import type {
   WebAppResellerBuyOptionsResponse,
   WebAppResellerBuyPreviewResponse,
   WebAppResellerBuyRequest,
-  WebAppResellerCapacityPreviewResponse,
-  WebAppResellerCapacityRequest,
   WebAppResellerCodeRequest,
   WebAppResellerEventsResponse,
   WebAppResellerPageRequest,
@@ -74,14 +72,6 @@ export function confirmRenew(body: WebAppResellerRenewRequest) {
 
 export function setUsageCap(body: WebAppResellerUsageCapRequest) {
   return apiPost<WebAppResellerActionResponse>("/reseller/account/usage-cap", body);
-}
-
-export function previewCapacity(body: WebAppResellerCapacityRequest) {
-  return apiPost<WebAppResellerCapacityPreviewResponse>("/reseller/account/capacity/preview", body);
-}
-
-export function confirmCapacity(body: WebAppResellerCapacityRequest) {
-  return apiPost<WebAppResellerActionResponse>("/reseller/account/capacity/confirm", body);
 }
 
 export function previewAddon(body: WebAppResellerAddonRequest) {

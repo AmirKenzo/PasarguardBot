@@ -312,28 +312,6 @@ async def count_pending_orders(user_id: int) -> int:
         return 0
 
 
-async def get_user_crypto_stats(user_id: int) -> dict:
-    try:
-        async with Session() as session:
-            count_stmt = (
-                select(func.count())
-                .select_from(CryptoPayments)
-                .where(CryptoPayments.user_id == user_id, CryptoPayments.status == "Paid")
-            )
-            count_result = await session.execute(count_stmt)
-            count = count_result.scalar() or 0
-
-            sum_stmt = select(func.sum(CryptoPayments.amount_irt)).where(
-                CryptoPayments.user_id == user_id, CryptoPayments.status == "Paid"
-            )
-            sum_result = await session.execute(sum_stmt)
-            total_amount = sum_result.scalar() or 0
-
-            return {"count": count, "total_amount": total_amount}
-    except SQLAlchemyError:
-        return {"count": 0, "total_amount": 0}
-
-
 async def get_user_all_crypto_transactions(user_id: int):
     try:
         async with Session() as session:
@@ -345,49 +323,6 @@ async def get_user_all_crypto_transactions(user_id: int):
             return result.scalars().all()
     except SQLAlchemyError:
         return []
-
-
-async def get_user_crypto_transaction_by_id(user_id: int, order_id: int):
-    try:
-        async with Session() as session:
-            result = await session.execute(
-                select(CryptoPayments).where(CryptoPayments.user_id == user_id, CryptoPayments.order_id == order_id)
-            )
-            return result.scalar_one_or_none()
-    except SQLAlchemyError:
-        return None
-
-
-async def get_global_crypto_stats() -> dict:
-    """Global stats: count and total amount (IRT) of Paid crypto payments."""
-    try:
-        async with Session() as session:
-            stmt = select(
-                func.count().label("count"),
-                func.sum(CryptoPayments.amount_irt).label("total_amount"),
-            ).where(CryptoPayments.status == "Paid")
-            result = await session.execute(stmt)
-            row = result.one()
-            return {"count": int(row.count or 0), "total_amount": int(row.total_amount or 0)}
-    except SQLAlchemyError:
-        return {"count": 0, "total_amount": 0}
-
-
-async def get_crypto_period_stats(start_ts: int, end_ts: int | None = None) -> dict:
-    """Paid crypto payments in [start_ts, end_ts) by paytime."""
-    try:
-        async with Session() as session:
-            cond = (CryptoPayments.status == "Paid") & (CryptoPayments.paytime >= start_ts)
-            if end_ts is not None:
-                cond = cond & (CryptoPayments.paytime < end_ts)
-            stmt = select(
-                func.count().label("count"),
-                func.sum(CryptoPayments.amount_irt).label("total_amount"),
-            ).where(cond)
-            row = (await session.execute(stmt)).one()
-            return {"count": int(row.count or 0), "total_amount": int(row.total_amount or 0)}
-    except SQLAlchemyError:
-        return {"count": 0, "total_amount": 0}
 
 
 def _paid_crypto_cond(start_ts: int, end_ts: int | None = None):

@@ -69,10 +69,6 @@ def parse_discount_start_param(param: str | None) -> str | None:
     return code.upper() if code else None
 
 
-def is_discount_start_param(param: str | None) -> bool:
-    return parse_discount_start_param(param) is not None
-
-
 def discounted_price(price: int | float, discount_percentage: int) -> int:
     base = int(price)
     return int(base - (base * (int(discount_percentage) / 100)))
@@ -193,6 +189,7 @@ async def _refresh_sticky_payload(user_id: int, payload: dict[str, Any]) -> None
 
 
 async def get_sticky_discount(user_id: int) -> StickyDiscount | None:
+    # Local import: avoids a circular import with app.db.crud.discount_codes.
     from app.db.crud.discount_codes import DiscountCodeManager
 
     try:
@@ -221,6 +218,7 @@ async def get_sticky_discount(user_id: int) -> StickyDiscount | None:
 
 async def apply_sticky_discount(user_id: int, code: str) -> tuple[bool, str]:
     """Validate and persist a sticky discount. Returns ``(success, message)``."""
+    # Local import: avoids a circular import with app.db.crud.discount_codes.
     from app.db.crud.discount_codes import DiscountCodeManager
 
     normalized = (code or "").strip().upper()

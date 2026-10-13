@@ -283,14 +283,6 @@ def calculate_custom_buy_price_from_settings(settings: dict[str, Any], *, storag
     )
 
 
-def calculate_panel_custom_buy_price(panel, *, storage_gb: float, duration_days: int) -> int:
-    return calculate_custom_buy_price_from_settings(
-        panel_custom_buy_settings(panel),
-        storage_gb=storage_gb,
-        duration_days=duration_days,
-    )
-
-
 def _compact_custom_buy_namespace(namespace: dict[str, Any]) -> dict[str, Any] | None:
     compact: dict[str, Any] = {}
     enabled = bool(namespace.get("enabled", False))
@@ -349,14 +341,6 @@ def panel_reseller_capacity_settings_from_feature(settings: dict[str, Any]) -> d
     return _normalize_reseller_capacity_settings(raw)
 
 
-def is_reseller_capacity_ready(settings: dict[str, Any]) -> bool:
-    return bool(settings.get("enabled") and int(settings.get("price_per_user") or 0) > 0)
-
-
-def panel_reseller_capacity_enabled(panel) -> bool:
-    return is_reseller_capacity_ready(panel_reseller_capacity_settings(panel))
-
-
 def _compact_reseller_capacity_namespace(namespace: dict[str, Any]) -> dict[str, Any] | None:
     compact: dict[str, Any] = {}
     enabled = bool(namespace.get("enabled", False))
@@ -379,11 +363,6 @@ def update_reseller_capacity_in_feature_settings(feature: dict[str, Any], **upda
     else:
         feature.pop(FEATURE_RESELLER_CAPACITY, None)
     return current
-
-
-def toggle_reseller_capacity_enabled(feature: dict[str, Any]) -> dict[str, Any]:
-    current = panel_reseller_capacity_settings_from_feature(feature)
-    return update_reseller_capacity_in_feature_settings(feature, enabled=not current["enabled"])
 
 
 def panel_reseller_button_enabled(panel, key: str) -> bool:
@@ -1050,10 +1029,6 @@ def panel_default_group_ids(panel) -> list[int]:
 
 def panel_node_prefixes(panel) -> list[str]:
     return parse_node_prefixes_value(subscription_settings(panel).get("node_prefixes"))
-
-
-def panel_node_prefixes_csv(panel) -> str:
-    return ",".join(panel_node_prefixes(panel))
 
 
 def default_panel_json_settings(

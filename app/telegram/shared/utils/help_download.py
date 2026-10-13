@@ -169,17 +169,6 @@ def get_download_targets(app: Any) -> list[dict[str, Any]]:
     return categories_to_targets(getattr(app, "categories", None) or {})
 
 
-def all_patterns_from_targets(targets: list[dict[str, Any]]) -> list[str]:
-    out: list[str] = []
-    seen: set[str] = set()
-    for t in targets:
-        for p in t.get("patterns") or []:
-            if p not in seen:
-                seen.add(p)
-                out.append(p)
-    return out
-
-
 def find_target_for_file(file_name: str, targets: list[dict[str, Any]]) -> dict[str, Any] | None:
     for target in targets:
         for pattern in target.get("patterns") or []:
@@ -1093,24 +1082,6 @@ def create_download_app_config_submenu(app_id: int, app) -> list:
     if is_text_only:
         rows.append([Button.inline("📝 متن پیام", data=f"help_download_app_config_custom_msg:{app_id}")])
     rows.append([Button.inline("🔙 بازگشت", data="help_download_apps_manage")])
-    return rows
-
-
-async def build_apps_manage_list_rows() -> list:
-    crud = HelpDownloadAppCRUD()
-    apps_list = await crud.get_all()
-    rows = []
-    for app in apps_list:
-        rows.append(
-            [
-                Button.inline(f"📱 {app.button_text}", data=f"help_download_app_config:{app.id}"),
-                Button.inline("🗑", data=f"help_download_app_del:{app.id}"),
-            ]
-        )
-    rows.append([Button.inline("➕ افزودن اپ", data="help_download_app_add")])
-    rows.append([Button.inline("📝 متن/لینک فقط", data="help_download_app_add_text")])
-    rows.append([Button.inline("📋 اپ‌های پیش‌فرض", data="help_download_app_add_defaults")])
-    rows.append([Button.inline("🔙 بازگشت", data="back_to_help_settings")])
     return rows
 
 

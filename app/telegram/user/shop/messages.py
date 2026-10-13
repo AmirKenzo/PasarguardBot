@@ -336,14 +336,6 @@ async def buy_service_filter(event: Message) -> bool:
     return msg in {menu_text, "🛍 خرید سرویس"}
 
 
-async def account_discount_message_filter(event: Message) -> bool:
-    if event.is_channel or not event.is_private:
-        return False
-    if not (event.message.message or event.message.text or ""):
-        return False
-    return await get_step(event.sender_id) == "WhatingForAccountCodeTakhfif"
-
-
 def register(client):
     client.add_event_handler(buy_service_handler, events.NewMessage(incoming=True, func=buy_service_filter))
     client.add_event_handler(custom_buy_input_handler, events.NewMessage(incoming=True, func=custom_buy_input_filter))

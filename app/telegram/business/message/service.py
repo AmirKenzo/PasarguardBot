@@ -6,7 +6,9 @@ from datetime import datetime
 
 from telethon.tl import types
 
+from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import UserCRUD
+from app.services.billing import payment_stats
 from app.telegram.business.message import texts
 from app.utils.network.ip_info import get_ip_info, is_valid_domain, is_valid_ip, ping_ip
 
@@ -154,8 +156,6 @@ async def _handle_info_command(bm, event, msg: str) -> None:
 
         # Optional transaction stats — skip entirely if CRUD/method missing
         try:
-            from app.services.billing import payment_stats
-
             payments = await payment_stats.method_totals(user_id=user_id)
             lines.append("")
             lines.append("📊 آمار تراکنش‌ها:")
@@ -173,8 +173,6 @@ async def _handle_info_command(bm, event, msg: str) -> None:
 
         # Optional services block
         try:
-            from app.db.crud.services import ServiceCRUD
-
             service_crud = ServiceCRUD()
             if hasattr(service_crud, "get_services_reverse"):
                 user_services = await service_crud.get_services_reverse(user_id)

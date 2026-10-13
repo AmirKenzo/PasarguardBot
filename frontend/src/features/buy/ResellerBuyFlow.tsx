@@ -40,9 +40,6 @@ const USERNAME_RE = /^[A-Za-z0-9][A-Za-z0-9_]{1,30}[A-Za-z0-9]$/;
 /** Wait this long after the last keystroke before asking the server about the username. */
 const PREVIEW_DEBOUNCE_MS = 450;
 
-// Kept for older imports; the helper now lives with the shared plan guide.
-export { resellerPlanPrice };
-
 const PREPAID_MODES = ["fixed", "unlimited"];
 
 function planTitle(t: TFunction, plan: ResellerPlanItem): string {

@@ -5,6 +5,7 @@ from telethon import events
 from app.db.crud.channels import ChannelManager
 from app.logger import get_logger
 from app.telegram.admin.channel_lock import keyboards, states, texts
+from app.telegram.keyboards.admin import Panel_Admin_Buttons
 from app.telegram.state import set_data, set_step
 from config import ADMIN_ID
 
@@ -28,8 +29,6 @@ def _admin_prefix_callback_filter(prefix: str):
 async def callback_lock_channels_back(event: events.CallbackQuery.Event):
     """Handle back button - return to admin panel"""
     logger.info("callback_lock_channels_back")
-
-    from app.telegram.keyboards.admin import Panel_Admin_Buttons
 
     await set_step(event.sender_id, states.PANEL_STEP)
 

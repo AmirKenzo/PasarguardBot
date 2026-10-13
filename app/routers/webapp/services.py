@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from pasarguard import PasarguardAPI, ProxySettings, UserModify
 
 from app.db.crud.panels import PanelsManager
+from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD, get_user_service_panel_counts, get_user_services_paginated
 from app.db.crud.settings import SettingsManager
 from app.logger import LogType, get_logger
@@ -272,8 +273,6 @@ async def _get_service_buttons(service: Any, panel: Any, user_id: int) -> dict[s
     is_fair_usage = False
     if service.package_size and panel:
         try:
-            from app.db.crud.plans import PlanManager
-
             plan = await PlanManager().get_plan_by_volume_for_display(
                 gb=float(service.package_size) / (1024**3),
                 panel_code=int(panel.code),

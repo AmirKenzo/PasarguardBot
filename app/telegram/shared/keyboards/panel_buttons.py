@@ -19,6 +19,7 @@ from app.services.panels.settings import (
     panel_volume_plans,
     panel_webhook_notifications_enabled,
 )
+from app.telegram.keyboards.buy import buy_cancel_button
 from app.telegram.keyboards.common import (
     build_telegram_button_style,
     glass_inline_button,
@@ -48,8 +49,6 @@ PANEL_MS_BUTTON_TOGGLES: tuple[tuple[str, str, str], ...] = (
     ("del_service", "btn_del_service", "🗑 حذف کانفیگ"),
 )
 
-PANEL_MS_BTN_DEFAULTS: dict[str, bool] = {}
-
 
 # Reseller account-detail buttons are stored separately from service buttons.
 PANEL_MS_RESELLER_BUTTON_TOGGLES: tuple[tuple[str, str], ...] = (
@@ -63,10 +62,6 @@ PANEL_MS_RESELLER_BUTTON_TOGGLES: tuple[tuple[str, str], ...] = (
     ("buy_user_capacity", "👥 یوزر اضافه"),
     ("delete", "🗑 حذف نمایندگی"),
 )
-
-
-def panel_ms_btn_default(attr: str) -> bool:
-    return PANEL_MS_BTN_DEFAULTS.get(attr, True)
 
 
 def _panel_ms_btn_flag(panel: Any, attr: str) -> str:
@@ -238,8 +233,6 @@ async def build_panel_list_rows(panels: list, *, callback_prefix: str = "panel_i
 
 
 async def build_buy_panel_rows(panels: list, *, cancel_data: str = "DataCancel", columns: int = 3) -> list:
-    from app.telegram.keyboards.buy import buy_cancel_button
-
     flat = [await build_panel_display_button(panel, f"BuyVPN_{panel.code}") for panel in panels]
     rows = [flat[i : i + columns] for i in range(0, len(flat), columns)]
     rows.append([await buy_cancel_button(cancel_data)])

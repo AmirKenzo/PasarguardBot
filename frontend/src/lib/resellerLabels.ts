@@ -37,8 +37,6 @@ export const RESELLER_EVENT_KEYS = [
 
 /** Plan types: the four offered for new plans first, then the legacy ones. */
 export const RESELLER_MODE_KEYS = ["fixed", "unlimited", "usage", "hourly", "per_gb", "per_tb"] as const;
-export const RESELLER_CREATABLE_MODES = ["fixed", "unlimited", "usage", "hourly"] as const;
-
 export const statusLabels = (t: TFunction): Record<string, string> =>
   Object.fromEntries(RESELLER_STATUS_KEYS.map((key) => [key, t(`reseller.status.${key}`)]));
 
@@ -109,11 +107,6 @@ const isKnownMode = (mode: string): boolean => (RESELLER_MODE_KEYS as readonly s
 /** Full plan type name, e.g. "Usage-based (by data used)". */
 export function resellerModeLabel(t: TFunction, mode: string): string {
   return isKnownMode(mode) ? t(`reseller.mode.${mode}`) : mode;
-}
-
-/** Short plan type name for tight spaces, e.g. "Usage". */
-export function resellerModeShortLabel(t: TFunction, mode: string): string {
-  return isKnownMode(mode) ? t(`reseller.modeShort.${mode}`) : mode;
 }
 
 export const MODE_TONE: Record<string, ResellerTone> = {

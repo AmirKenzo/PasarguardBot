@@ -5,13 +5,6 @@ Request and Response models for router endpoints.
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class SMSWebhookData(BaseModel):
-    """SMS webhook data."""
-
-    text: str = Field(..., description="SMS text content")
-    key: str = Field(..., description="Authentication key")
-
-
 # Webhook Models (aligned with PasarGuard UserNotificationResponse / AdminDetails)
 class UserNotificationEnable(BaseModel):
     """User-scoped notification toggles from PasarGuard."""

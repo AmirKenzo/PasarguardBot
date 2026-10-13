@@ -137,7 +137,3 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 export function useTheme() {
   return useContext(ThemeContext);
 }
-
-export function useColorScheme() {
-  return useContext(ThemeContext).scheme;
-}

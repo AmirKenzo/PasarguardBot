@@ -59,6 +59,7 @@ from app.telegram.keyboards.buy import (
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.keyboards.services import create_inline_service_buttons
 from app.telegram.shared.guards.callback_guards import notify_session_expired, run_service_callback_guards
+from app.telegram.shared.keyboards.duration_buttons import build_duration_selection_button_rows
 from app.telegram.shared.keyboards.panel_buttons import (
     build_time_upgrade_select_buttons,
     build_time_upgrade_tariff_text,
@@ -263,8 +264,6 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                         ),
                         lang="fa",
                     )
-
-                from app.telegram.shared.keyboards.duration_buttons import build_duration_selection_button_rows
 
                 _back_tamdid = await _back_to_service(event.sender_id, str(result.code))
                 duration_buttons = await build_duration_selection_button_rows(

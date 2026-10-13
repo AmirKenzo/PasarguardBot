@@ -76,13 +76,6 @@ def normalize_config_links_response(response: Any) -> list[str]:
     return [text] if text else []
 
 
-def select_config_links(links: list[str], selection: str | None) -> list[str]:
-    indexes = parse_single_config_link_indexes(selection)
-    if indexes is None:
-        return links
-    return [links[index] for index in indexes if index < len(links)]
-
-
 def format_single_config_links_for_message(links: list[str]) -> str:
     return "\n".join(f"`{link}`" for link in links)
 

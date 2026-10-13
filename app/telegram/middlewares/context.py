@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from telethon import events
 
+from config import ADMIN_ID
+
 EventKind = Literal["newmessage", "callback", "other"]
 
 
@@ -43,8 +45,6 @@ class MiddlewareContext:
         else:
             kind = "other"
             event_id = getattr(event, "id", None)
-
-        from config import ADMIN_ID
 
         is_admin = bool(user_id and user_id in ADMIN_ID)
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 
+from app import Kenzo
 from app.db.base import DATABASE_DIALECT
 from app.jobs.scheduler import get_last_run, scheduler
 from app.logger import get_logger
@@ -115,8 +116,6 @@ async def backup_send_to_admin(payload: PanelRequest, request: Request) -> Actio
     """
 
     async def handle(actor: PanelActor) -> ActionResponse:
-        from app import Kenzo
-
         if not Kenzo.is_connected():
             return ActionResponse(ok=False, error="ربات به تلگرام متصل نیست.")
 

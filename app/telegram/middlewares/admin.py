@@ -14,17 +14,3 @@ class AdminContextMiddleware(BaseMiddleware):
 
     async def before(self, ctx: MiddlewareContext) -> None:
         ctx.extras["is_admin"] = ctx.is_admin
-
-
-def skip_for_admin(middleware: BaseMiddleware) -> BaseMiddleware:
-    """Wrap ``applies`` so middleware does not run for admins."""
-
-    original_applies = middleware.applies
-
-    def applies(ctx: MiddlewareContext) -> bool:
-        if ctx.is_admin:
-            return False
-        return original_applies(ctx)
-
-    middleware.applies = applies  # type: ignore[method-assign]
-    return middleware

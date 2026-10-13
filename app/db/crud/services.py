@@ -724,17 +724,6 @@ class ServiceCRUD:
             return []
 
 
-async def get_user_services(user_id):
-
-    try:
-        user_id = int(user_id)
-        async with Session() as session:
-            result = await session.execute(select(Service).filter_by(id=user_id))
-            return result.scalars().all()
-    except (SQLAlchemyError, ValueError) as e:
-        return f"Error in fetching user services: {e}"
-
-
 def _inline_service_search_filter(q: str, *, contains: bool = False):
     """Match service code/username for autocomplete or the user's explicit search.
 
@@ -834,20 +823,3 @@ async def get_user_service_panel_counts(user_id: int) -> list[tuple[int, int]]:
     except SQLAlchemyError as e:
         logger.error(f"Error grouping services by panel: {e}")
         return []
-
-
-async def search_services_paginated(
-    *,
-    page: int = 1,
-    limit: int = 10,
-    search: str | None = None,
-    owner_user_id: int | None = None,
-) -> tuple[list, int]:
-    """Admin/global inline search. Optional owner_user_id scopes to one user."""
-    filters: list = []
-    if owner_user_id is not None:
-        filters.append(Service.id == owner_user_id)
-    search_filter = _inline_service_search_filter(search) if search else None
-    if search_filter is not None:
-        filters.append(search_filter)
-    return await _paginate_services(filters=filters, page=page, limit=limit)

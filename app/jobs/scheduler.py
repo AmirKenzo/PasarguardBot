@@ -29,6 +29,7 @@ def get_last_run(job_id: str) -> datetime | None:
 
 def start_scheduler() -> None:
     """Register all jobs and start the scheduler (call after bot is ready)."""
+    # Local import: avoids a circular import with app.jobs.registry.
     from app.jobs.registry import register_all_jobs
 
     if scheduler.running:

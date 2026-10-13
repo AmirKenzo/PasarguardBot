@@ -35,6 +35,7 @@ from app.telegram.keyboards.buy import (
     ms_sub_links_prev_button,
 )
 from app.telegram.keyboards.home import home_back_button
+from app.telegram.shared.keyboards.plan_buttons import build_plan_inline_button
 from app.telegram.shared.utils.usage_chart import (
     build_day_detail_buttons,
     build_day_detail_message,
@@ -422,7 +423,6 @@ def group_durations(durations):
 
 async def generate_volume_buttons_tamdid(config_code, duration_group=None, sender_id: int | None = None):
     """English docstring for generate_volume_buttons_tamdid."""
-    from app.telegram.shared.keyboards.plan_buttons import build_plan_inline_button
 
     try:
         _sts, result = await ServiceCRUD().get_service(config_code)

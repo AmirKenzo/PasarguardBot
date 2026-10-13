@@ -1,8 +1,8 @@
 """Message handlers for admin channel_lock."""
 
-from telethon import events
+from telethon import events, utils
 from telethon.tl.custom import Message
-from telethon.tl.types import Channel as ChannelType
+from telethon.tl.types import Channel as ChannelType, PeerChannel
 
 from app import Kenzo
 from app.db.crud.channels import ChannelManager
@@ -69,24 +69,22 @@ async def message_handler_add_channel(event: Message):
             if event.message.forward.chat:
                 forwarded_entity = event.message.forward.chat
                 if isinstance(forwarded_entity, ChannelType):
-                    from telethon import utils
-
                     channel_id = utils.get_peer_id(forwarded_entity)
 
-            if not forwarded_entity and event.message.forward.from_id:
-                from telethon.tl.types import PeerChannel
-
-                if isinstance(event.message.forward.from_id, PeerChannel):
-                    channel_id = event.message.forward.from_id.channel_id
-                    channel_id = int(f"-100{channel_id}")
-                    try:
-                        forwarded_entity = await Kenzo.get_entity(channel_id)
-                    except Exception as e:
-                        logger.error(f"Error getting entity from from_id: {e}")
+            if (
+                not forwarded_entity
+                and event.message.forward.from_id
+                and isinstance(event.message.forward.from_id, PeerChannel)
+            ):
+                channel_id = event.message.forward.from_id.channel_id
+                channel_id = int(f"-100{channel_id}")
+                try:
+                    forwarded_entity = await Kenzo.get_entity(channel_id)
+                except Exception as e:
+                    logger.error(f"Error getting entity from from_id: {e}")
 
             if not forwarded_entity and hasattr(event.message.forward, "from_id"):
                 from_id_obj = event.message.forward.from_id
-                from telethon.tl.types import PeerChannel
 
                 if isinstance(from_id_obj, PeerChannel):
                     channel_id = from_id_obj.channel_id
@@ -98,8 +96,6 @@ async def message_handler_add_channel(event: Message):
 
             if forwarded_entity and isinstance(forwarded_entity, ChannelType):
                 if not channel_id:
-                    from telethon import utils
-
                     channel_id = utils.get_peer_id(forwarded_entity)
 
                 title = forwarded_entity.title or texts.DEFAULT_CHANNEL_TITLE

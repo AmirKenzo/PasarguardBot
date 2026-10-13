@@ -1,8 +1,6 @@
 /** Mirrors app/models/panel/panels.py */
 import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
-export const AUTH_TYPES = ["password", "api_key"] as const;
-
 export interface PanelRow {
   code: number;
   name: string;
@@ -45,8 +43,6 @@ export interface PanelTestResponse extends PanelEnvelope {
   message?: string | null;
   latency_ms?: number | null;
 }
-
-export const BUTTON_STYLES = ["primary", "success", "danger", ""] as const;
 
 export interface PanelButtonSettings {
   time: boolean;

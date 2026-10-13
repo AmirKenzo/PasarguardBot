@@ -490,11 +490,6 @@ def create_text_keys_buttons(section: str, page: int = 1, per_page: int = 10, se
     return buttons
 
 
-def create_bot_texts_admin_buttons():
-    """Legacy function - redirects to new section-based UI"""
-    return create_text_sections_buttons(page=1)
-
-
 def create_language_select_buttons(key: str, sections_page: int = 1, section_key: str | None = None):
     back_button_data = (
         f"text_section:{section_key}:1:{sections_page}" if section_key else f"text_sections_page:{sections_page}"
