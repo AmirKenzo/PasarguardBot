@@ -158,7 +158,7 @@ export default function BillingTab() {
           actions={
             ledger.data ? (
               <div className="text-end">
-                <p className="text-[11px] text-muted">{t("panel.resellerHub.billing.totalBilled")}</p>
+                <p className="text-2xs text-muted">{t("panel.resellerHub.billing.totalBilled")}</p>
                 <p className="text-sm font-bold text-text">{formatToman(ledger.data.total_billed)}</p>
               </div>
             ) : undefined

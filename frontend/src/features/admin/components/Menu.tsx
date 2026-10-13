@@ -64,7 +64,7 @@ export function IconMenuButton({ icon: Icon, title, active, badge, spin, width, 
 export function MenuHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="px-3 pb-1.5">
-      <p className="text-[11px] font-semibold text-muted">{title}</p>
+      <p className="text-2xs font-semibold text-muted">{title}</p>
       {subtitle && <p className="text-xs text-text">{subtitle}</p>}
     </div>
   );

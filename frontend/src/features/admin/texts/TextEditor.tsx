@@ -151,23 +151,23 @@ export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onR
       : { label: t("panel.texts.statusUnset"), cls: "bg-surface-2 text-muted" };
 
   return (
-    <div className="flex flex-col rounded-2xl border border-border bg-surface lg:max-h-[calc(100vh-2rem)] lg:overflow-hidden">
-      <div className="sticky top-[calc(4.25rem+env(safe-area-inset-top,0px))] z-10 md:top-0 flex shrink-0 items-center gap-2.5 rounded-t-2xl border-b border-border bg-surface px-3.5 py-3 lg:static">
+    <div className="flex flex-col rounded-md border border-border bg-surface lg:max-h-[calc(100vh-2rem)] lg:overflow-hidden">
+      <div className="sticky top-[calc(4.25rem+env(safe-area-inset-top,0px))] z-10 md:top-0 flex shrink-0 items-center gap-2.5 rounded-t-md border-b border-border bg-surface px-3.5 py-3 lg:static">
         <button
           type="button"
           onClick={onBack}
           aria-label={t("panel.texts.back")}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-text lg:hidden"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-surface-2 text-text lg:hidden"
         >
           <ArrowRight size={18} className="ltr:rotate-180" />
         </button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-bold text-text">{entry.title || entry.key}</p>
-          <code className="ltr-field block truncate text-[11px] text-muted" style={{ textAlign: i18n.dir() === "rtl" ? "right" : "left" }}>
+          <code className="ltr-field block truncate text-2xs text-muted" style={{ textAlign: i18n.dir() === "rtl" ? "right" : "left" }}>
             {entry.key}
           </code>
         </div>
-        <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.cls}`}>
+        <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-2xs font-semibold ${badge.cls}`}>
           {badge.label}
         </span>
       </div>
@@ -211,7 +211,7 @@ export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onR
         <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-surface-2/60 px-3.5 py-3">
           <p className="text-xs leading-relaxed text-muted">
             {t("panel.texts.emojiHint")}{" "}
-            <code className="ltr-field rounded bg-surface px-1.5 text-[11px]">tg://emoji?id=…</code>
+            <code className="ltr-field rounded bg-surface px-1.5 text-2xs">tg://emoji?id=…</code>
           </p>
           <div className="flex gap-2">
             <input
@@ -296,7 +296,7 @@ export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onR
             onKeyUp={trackCaret}
             onMouseUp={trackCaret}
             onTouchEnd={() => setTimeout(trackCaret)}
-            className={`min-h-[46vh] w-full resize-y rounded-xl border bg-surface-2 px-3.5 py-3 text-sm leading-[1.9] text-text outline-none transition-colors focus:bg-surface focus:ring-4 lg:min-h-[200px] ${
+            className={`min-h-[46vh] w-full resize-y rounded-sm border bg-surface-2 px-3.5 py-3 text-sm leading-[1.9] text-text outline-none transition-colors focus:bg-surface focus:ring-4 lg:min-h-[200px] ${
               overLimit ? "border-danger ring-4 ring-danger/10" : "border-border focus:border-primary focus:ring-primary/10"
             }`}
           />
@@ -315,17 +315,17 @@ export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onR
           </p>
         )}
 
-        <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-border px-3 py-2.5 text-[12.5px] text-muted">
+        <div className="flex items-center gap-2.5 rounded-sm border border-dashed border-border px-3 py-2.5 text-[12.5px] text-muted">
           <ImageOff size={16} className="shrink-0" />
           <span className="font-semibold text-text">{t("panel.texts.banner")}</span>
           <span>{t("panel.texts.bannerDisabled")}</span>
-          <span className="ms-auto whitespace-nowrap rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px]">
+          <span className="ms-auto whitespace-nowrap rounded-full bg-surface-2 px-2.5 py-0.5 text-2xs">
             {t("panel.texts.disabled")}
           </span>
         </div>
       </div>
 
-      <div className="safe-area-pb sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-2 rounded-b-2xl border-t border-border bg-surface px-3.5 py-2.5 shadow-[0_-8px_20px_rgba(0,0,0,0.08)] lg:static lg:shadow-none">
+      <div className="safe-area-pb sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-2 rounded-b-md border-t border-border bg-surface px-3.5 py-2.5 shadow-[0_-8px_20px_rgba(0,0,0,0.08)] lg:static lg:shadow-none">
         <div className="flex flex-wrap gap-1.5">
           {entry.stored && (
             <Button size="sm" variant="ghost" className="text-danger hover:bg-danger/10" onClick={onRequestReset}>
@@ -343,7 +343,7 @@ export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onR
         <Button size="sm" loading={saving} disabled={!canSave} onClick={onSave}>
           <Check size={14} />
           {t("common.save")}
-          <kbd className="ltr-field hidden rounded border border-current px-1 font-mono text-[10px] opacity-70 lg:inline">
+          <kbd className="ltr-field hidden rounded border border-current px-1 font-mono text-3xs opacity-70 lg:inline">
             Ctrl+S
           </kbd>
         </Button>

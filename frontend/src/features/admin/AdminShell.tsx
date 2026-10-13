@@ -210,7 +210,7 @@ function NavList({
     <nav className="space-y-3">
       {navGroups(t).map((group, index) => (
         <div key={group.title} className={index > 0 ? "border-t border-border/60 pt-3" : ""}>
-          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted/70">{group.title}</p>
+          <p className="px-3 pb-1 text-3xs font-semibold uppercase tracking-wide text-muted/70">{group.title}</p>
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const count = item.badge ? badges[item.badge] || 0 : 0;
@@ -223,11 +223,11 @@ function NavList({
                   <div
                     key={item.to}
                     aria-disabled="true"
-                    className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium text-muted/60"
+                    className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-3 py-2 text-xs-plus font-medium text-muted/60"
                   >
                     <item.icon size={16} strokeWidth={1.8} />
                     <span className="flex-1 truncate">{item.label}</span>
-                    <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px]">{t("panel.resellerHub.soon")}</span>
+                    <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-3xs">{t("panel.resellerHub.soon")}</span>
                   </div>
                 );
               }
@@ -245,7 +245,7 @@ function NavList({
                         setExpanded((prev) => ({ ...prev, [item.to]: !isOpen }));
                         onNavigate?.();
                       }}
-                      className={`relative flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors ${
+                      className={`relative flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-xs-plus font-medium transition-colors ${
                         active ? "text-primary" : "text-muted hover:text-text"
                       }`}
                     >
@@ -297,7 +297,7 @@ function NavList({
                   end={item.end}
                   onClick={onNavigate}
                   className={({ isActive }) =>
-                    `relative flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors ${
+                    `relative flex items-center gap-2.5 rounded-md px-3 py-2 text-xs-plus font-medium transition-colors ${
                       isActive ? "text-primary" : "text-muted hover:text-text"
                     }`
                   }
@@ -316,7 +316,7 @@ function NavList({
                       </span>
                       <span className="relative z-10 flex-1 truncate">{item.label}</span>
                       {count > 0 && (
-                        <span className="relative z-10 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+                        <span className="relative z-10 rounded-full bg-warning/15 px-1.5 py-0.5 text-3xs font-medium text-warning">
                           {count}
                         </span>
                       )}

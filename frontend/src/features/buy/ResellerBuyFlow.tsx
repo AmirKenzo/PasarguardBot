@@ -490,7 +490,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                       <p className="text-xs font-semibold text-success">
                         {t("reseller.buy.discountApplied", { percent: formatNumber(preview?.discount_percent ?? 0) })}
                       </p>
-                      <p className="truncate font-mono text-[13px] text-text" dir="ltr" style={{ textAlign: "start" }}>
+                      <p className="truncate font-mono text-xs-plus text-text" dir="ltr" style={{ textAlign: "start" }}>
                         {discount}
                       </p>
                     </div>
@@ -498,7 +498,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                       type="button"
                       onClick={removeDiscount}
                       aria-label={t("reseller.buy.removeDiscount")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-surface-2 text-muted hover:text-text"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xs bg-surface-2 text-muted hover:text-text"
                     >
                       <X size={15} />
                     </button>
@@ -552,7 +552,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                     </>
                   )}
                   <div
-                    className={`flex items-center justify-between gap-3 rounded-md border px-3.5 py-3 text-[13px] ${
+                    className={`flex items-center justify-between gap-3 rounded-md border px-3.5 py-3 text-xs-plus ${
                       preview.balance_after >= 0 ? "border-success/30 bg-success/5" : "border-danger/30 bg-danger/5"
                     }`}
                   >

@@ -33,10 +33,20 @@ export default {
         overlay: "rgb(var(--c-overlay-rgb) / var(--c-overlay-alpha))",
       },
       borderRadius: {
+        xs: "var(--radius-xs)",
         sm: "var(--radius-sm)",
         md: "var(--radius-md)",
         lg: "var(--radius-lg)",
+        xl: "var(--radius-xl)",
+        "2xl": "var(--radius-2xl)",
+        "3xl": "var(--radius-3xl)",
+        "4xl": "var(--radius-4xl)",
         full: "var(--radius-full)",
+      },
+      fontSize: {
+        "3xs": "10px",
+        "2xs": "11px",
+        "xs-plus": "13px",
       },
       boxShadow: {
         sm: "var(--shadow-sm)",

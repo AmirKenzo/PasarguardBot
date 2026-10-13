@@ -160,12 +160,12 @@ export default function AdminAuditPage() {
                       {actionLabels(t)[row.action] || row.action}
                     </Badge>
                   </div>
-                  <div className="mt-1 text-[11px] text-muted">
+                  <div className="mt-1 text-2xs text-muted">
                     <code className="ltr-field">{row.actor_username || row.actor_id || "—"}</code>
                     {row.target_type ? ` · ${[row.target_type, row.target_id].filter(Boolean).join(" ")}` : ""}
                   </div>
                 </div>
-                <div className="text-[11px] text-muted">{row.created_at ? formatUnixDate(row.created_at) : "—"}</div>
+                <div className="text-2xs text-muted">{row.created_at ? formatUnixDate(row.created_at) : "—"}</div>
               </button>
             ))}
           </div>

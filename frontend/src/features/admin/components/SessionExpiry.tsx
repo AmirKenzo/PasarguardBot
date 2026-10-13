@@ -41,7 +41,7 @@ export function SessionExpiry() {
       onClick={() => setDismissed(true)}
       title={label}
       style={{ writingMode: "vertical-rl" }}
-      className="fixed bottom-24 left-0 z-40 rounded-r-md border border-warning/30 bg-warning/15 px-1 py-2 text-[10px] font-medium tracking-tight text-warning"
+      className="fixed bottom-24 left-0 z-40 rounded-r-md border border-warning/30 bg-warning/15 px-1 py-2 text-3xs font-medium tracking-tight text-warning"
     >
       {label}
     </button>

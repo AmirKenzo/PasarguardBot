@@ -550,7 +550,7 @@ export default function BuyWizardPage() {
           </div>
           <Link
             to="/balance"
-            className="inline-flex h-9 shrink-0 items-center rounded-sm bg-primary px-4 text-sm font-medium text-primary-text hover:bg-primary/90"
+            className="inline-flex h-9 shrink-0 items-center rounded-xs bg-primary px-4 text-sm font-medium text-primary-text hover:bg-primary/90"
           >
             {t("buy.topUp")}
           </Link>

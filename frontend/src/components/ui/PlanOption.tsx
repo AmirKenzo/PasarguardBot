@@ -37,10 +37,10 @@ export function PlanOption({ title, subtitle, price, oldPrice, tag, selected, di
         <p className="flex flex-wrap items-center gap-1.5 text-base font-extrabold text-text">
           {title}
           {tag && (
-            <span className="rounded-full bg-accent/14 px-2 py-0.5 text-[10px] font-bold text-accent">{tag}</span>
+            <span className="rounded-full bg-accent/14 px-2 py-0.5 text-3xs font-bold text-accent">{tag}</span>
           )}
         </p>
-        {subtitle && <p className="mt-0.5 text-[11px] text-muted">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-2xs text-muted">{subtitle}</p>}
       </div>
       {(price != null || oldPrice != null) && (
         <div className="shrink-0 text-end">

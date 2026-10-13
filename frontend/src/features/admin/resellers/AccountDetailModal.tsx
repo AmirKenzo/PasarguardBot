@@ -210,7 +210,7 @@ function AccountBody({
       </p>
 
       {/* Live panel data */}
-      <section className="rounded-xl bg-surface-2/60 p-3.5">
+      <section className="rounded-sm bg-surface-2/60 p-3.5">
         {live ? (
           <div className="space-y-3">
             <div>
@@ -304,7 +304,7 @@ function AccountBody({
 
       {/* Wallet (pay-as-you-go) */}
       {isPayg && (
-        <section className="grid grid-cols-2 gap-3 rounded-xl border border-border p-3.5 sm:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 rounded-sm border border-border p-3.5 sm:grid-cols-4">
           <Detail label={t("panel.resellerHub.detail.balance")} value={formatToman(data.balance || 0)} />
           <Detail
             label={t("panel.resellerHub.detail.rate")}
@@ -620,7 +620,7 @@ function AccountBody({
 
       {/* Danger zone */}
       {actions.has("delete") && (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 p-3.5">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-danger/30 bg-danger/5 p-3.5">
           <div>
             <p className="text-sm font-medium text-danger">{t("panel.resellerHub.detail.deleteTitle")}</p>
             <p className="mt-0.5 text-xs text-muted">{t("panel.resellerHub.detail.deleteHint")}</p>
@@ -657,7 +657,7 @@ function CopyRow({ label, value, onCopy }: { label: string; value: string; onCop
 
 function ActionBox({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border p-3">
+    <div className="rounded-sm border border-border p-3">
       <p className="text-sm font-medium text-text">{title}</p>
       {hint && <p className="mb-2 mt-0.5 text-xs text-muted">{hint}</p>}
       {children}

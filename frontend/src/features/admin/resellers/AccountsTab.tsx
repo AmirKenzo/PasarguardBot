@@ -74,7 +74,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
       cell: (row) => (
         <div className="min-w-0">
           <p className="ltr-field truncate text-sm font-medium text-text">{row.username || "—"}</p>
-          <p className="ltr-field text-[11px] text-muted">#{row.code}</p>
+          <p className="ltr-field text-2xs text-muted">#{row.code}</p>
         </div>
       ),
     },

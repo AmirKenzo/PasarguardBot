@@ -189,17 +189,17 @@ export default function AdminServicesPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-text">
                       {row.username || "—"}
-                      <code className="ltr-field text-[11px] font-normal text-muted">#{row.code}</code>
+                      <code className="ltr-field text-2xs font-normal text-muted">#{row.code}</code>
                     </div>
-                    <div className="text-[11px] text-muted">
+                    <div className="text-2xs text-muted">
                       {t("common.user")} <span className="ltr-field">{row.user_id ?? "—"}</span>
                       {row.panel ? ` · ${row.panel}` : ""}
                     </div>
                   </div>
-                  <div className="text-[11px] text-muted">
+                  <div className="text-2xs text-muted">
                     {row.package_size ? formatBytes(row.package_size, 1) : t("common.unlimited")}
                   </div>
-                  <div className="text-[11px] text-muted">{expiry.remaining}</div>
+                  <div className="text-2xs text-muted">{expiry.remaining}</div>
                   <Badge tone={STATE_TONE[state]}>
                     {state === "test" ? t("panel.services.trial") : t(`panel.common.${state}`)}
                   </Badge>

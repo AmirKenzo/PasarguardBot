@@ -84,7 +84,7 @@ export function PwaSettingsSection() {
             key={iconUrl}
             src={iconUrl}
             alt={t("panel.pwa.iconAlt")}
-            className="h-20 w-20 rounded-2xl object-cover ring-1 ring-border"
+            className="h-20 w-20 rounded-md object-cover ring-1 ring-border"
           />
           <input
             ref={fileInputRef}

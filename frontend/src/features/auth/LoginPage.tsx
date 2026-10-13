@@ -93,9 +93,9 @@ export default function LoginPage() {
           <m.section
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
-            className="hidden overflow-hidden rounded-2xl border border-border bg-surface p-8 shadow-lg lg:block"
+            className="hidden overflow-hidden rounded-md border border-border bg-surface p-8 shadow-lg lg:block"
           >
-            <div className="mb-8 inline-flex rounded-xl bg-primary/10 p-3 text-primary">
+            <div className="mb-8 inline-flex rounded-sm bg-primary/10 p-3 text-primary">
               <Lock size={28} />
             </div>
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted">{t("auth.secureAccess")}</p>
@@ -114,7 +114,7 @@ export default function LoginPage() {
           <m.section
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-border bg-surface p-6 shadow-lg sm:p-8"
+            className="rounded-md border border-border bg-surface p-6 shadow-lg sm:p-8"
           >
             <div className="mb-8 text-center">
               <h2 className="text-3xl font-black text-text">{t("auth.welcome")}</h2>

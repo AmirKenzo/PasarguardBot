@@ -41,8 +41,8 @@ export function ProgressRing({ percent, size = 116, strokeWidth = 10, tone = "pr
       </svg>
       <div className="absolute flex flex-col items-center justify-center text-center">
         <span className="text-lg font-bold text-text">{clamped}%</span>
-        {label && <span className="text-[11px] text-muted">{label}</span>}
-        {sublabel && <span className="text-[10px] text-muted">{sublabel}</span>}
+        {label && <span className="text-2xs text-muted">{label}</span>}
+        {sublabel && <span className="text-3xs text-muted">{sublabel}</span>}
       </div>
     </div>
   );

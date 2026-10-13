@@ -43,7 +43,7 @@ function AccountCard({ account }: { account: ResellerAccountItem }) {
               <h2 className="truncate text-sm font-bold text-text" dir="ltr" style={{ textAlign: "start" }}>
                 {account.username}
               </h2>
-              <p className="mt-0.5 truncate text-[11px] text-muted">
+              <p className="mt-0.5 truncate text-2xs text-muted">
                 {[account.panel_name, resellerModeLabel(t, account.pricing_mode)].filter(Boolean).join(" · ")}
               </p>
             </div>
@@ -121,13 +121,13 @@ export default function ResellerAccountsList({
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted">{t("reseller.list.wallet")}</p>
             <p className="truncate text-base font-extrabold text-text">{formatToman(data.balance)}</p>
-            <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
+            <p className="mt-0.5 flex items-center gap-1 text-2xs text-muted">
               <Flame size={11} />
               {t("reseller.perHour", { amount: formatToman(data.burn_per_hour) })}
             </p>
           </div>
           <div className="shrink-0 text-end">
-            <p className="text-[11px] text-muted">{t("reseller.runway")}</p>
+            <p className="text-2xs text-muted">{t("reseller.runway")}</p>
             <Badge tone={runwayTone(data.runway_hours, 24)}>{formatRunway(t, data.runway_hours)}</Badge>
           </div>
         </Card>

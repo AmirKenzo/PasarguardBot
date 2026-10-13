@@ -57,14 +57,14 @@ export function PanelCard({ panel, trialEnabled, onView, onEdit, onSettings }: P
   return (
     <Card interactive className="flex flex-col gap-3.5 p-4">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold tracking-wide text-muted ltr-field">#{panel.code}</span>
+        <span className="text-2xs font-semibold tracking-wide text-muted ltr-field">#{panel.code}</span>
         {panel.enable ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/12 px-2.5 py-1 text-[11px] font-semibold text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/12 px-2.5 py-1 text-2xs font-semibold text-success">
             <span className="h-1.5 w-1.5 rounded-full bg-success" />
             {t("panel.common.active")}
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-muted">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 text-2xs font-semibold text-muted">
             <span className="h-1.5 w-1.5 rounded-full bg-muted" />
             {t("panel.common.inactive")}
           </span>
@@ -73,7 +73,7 @@ export function PanelCard({ panel, trialEnabled, onView, onEdit, onSettings }: P
 
       <div className="flex items-center gap-3">
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-lg font-bold text-primary"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border text-lg font-bold text-primary"
           style={{ background: accent.bg, borderColor: accent.border }}
         >
           {panel.name.trim().charAt(0) || "؟"}
@@ -88,12 +88,12 @@ export function PanelCard({ panel, trialEnabled, onView, onEdit, onSettings }: P
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-muted">
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1 text-2xs text-muted">
           {panel.auth_type === "api_key" ? <KeyRound size={11} /> : <Lock size={11} />}
           {panel.auth_type === "api_key" ? t("panel.common.apiKey") : t("panel.panels.usernamePassword")}
         </span>
         {trialEnabled && (
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(196,138,255,0.35)] bg-[rgba(196,138,255,0.13)] px-2.5 py-1 text-[11px] font-semibold text-[#9333EA] dark:text-[#C48AFF]">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(196,138,255,0.35)] bg-[rgba(196,138,255,0.13)] px-2.5 py-1 text-2xs font-semibold text-[#9333EA] dark:text-[#C48AFF]">
             <Gift size={11} />
             {t("panel.panels.trialActiveBadge")}
           </span>

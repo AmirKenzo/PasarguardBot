@@ -234,7 +234,7 @@ export default function AdminPlansPage() {
                             · {t("panel.plans.durationDays", { count: row.duration })}
                           </span>
                         </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-2xs text-muted">
                           {orphaned ? (
                             <Badge tone="danger">{t("panel.plans.orphanPanel")}</Badge>
                           ) : (
@@ -250,7 +250,7 @@ export default function AdminPlansPage() {
                           {row.ip_limit > 0 && <Badge tone="muted">IP {row.ip_limit}</Badge>}
                           {hasCustomButton && (
                             <span
-                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-3xs font-medium ${
                                 STYLE_PREVIEW_CLASSES[row.button_style || ""]
                               }`}
                             >

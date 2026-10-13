@@ -154,7 +154,7 @@ export function UsageAreaChart({
           <p className="mt-0.5 text-base font-bold text-text">{formatBytes(hoverDay.bytes, 1)}</p>
           <div className="mt-2 max-h-28 space-y-1.5 overflow-y-auto">
             {hoverBreakdown.map((node) => (
-              <div key={node.name} className="flex items-center justify-between gap-2 text-[11px]">
+              <div key={node.name} className="flex items-center justify-between gap-2 text-2xs">
                 <span className="flex min-w-0 items-center gap-1.5 text-text">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: node.color }} />
                   <span className="truncate">{node.name}</span>

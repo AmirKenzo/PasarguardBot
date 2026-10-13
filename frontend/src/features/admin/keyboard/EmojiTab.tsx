@@ -22,7 +22,7 @@ export function EmojiTab({ data }: { data: PanelKeyboardResponse }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3">
+      <div className="flex items-start gap-3 rounded-sm border border-primary/25 bg-primary/5 p-3">
         <Info size={18} className="mt-0.5 shrink-0 text-primary" />
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-semibold text-text">{t("panel.keyboard.premiumEmojiInfoTitle")}</p>
@@ -36,7 +36,7 @@ export function EmojiTab({ data }: { data: PanelKeyboardResponse }) {
         <Stat label={t("panel.keyboard.statTotal")} value={data.buttons.length} tone="text-primary" />
       </div>
 
-      <div className="rounded-xl border border-border bg-surface p-3 sm:p-4">
+      <div className="rounded-sm border border-border bg-surface p-3 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-text">{t("panel.keyboard.iconsTitle")}</h2>
@@ -68,8 +68,8 @@ export function EmojiTab({ data }: { data: PanelKeyboardResponse }) {
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-3">
-      <p className="truncate text-[11px] text-muted sm:text-xs">{label}</p>
+    <div className="rounded-sm border border-border bg-surface p-3">
+      <p className="truncate text-2xs text-muted sm:text-xs">{label}</p>
       <p className={`mt-1 text-lg font-bold sm:text-xl ${tone}`}>{value}</p>
     </div>
   );
@@ -128,7 +128,7 @@ function IconRow({ button }: { button: PanelKeyboardButton }) {
             type="button"
             onClick={() => void copy()}
             title={t("panel.keyboard.copyId")}
-            className="ltr-field me-auto flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1.5 font-mono text-[11px] text-muted hover:text-text"
+            className="ltr-field me-auto flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1.5 font-mono text-2xs text-muted hover:text-text"
           >
             {button.icon}
             <Copy size={12} />

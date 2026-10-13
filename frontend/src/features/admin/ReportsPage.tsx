@@ -178,7 +178,7 @@ function RankList({
         <div className="-mt-1 divide-y divide-border/60">
           {rows.map((row) => (
             <div key={row.rank} className="flex items-center gap-2.5 py-2 first:pt-0 last:pb-0">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[11px] font-semibold text-muted">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-2xs font-semibold text-muted">
                 {row.rank}
               </span>
               <Link
@@ -190,7 +190,7 @@ function RankList({
               </Link>
               <div className="text-end">
                 <div className="text-xs font-semibold text-text">{valueLabel(row)}</div>
-                {countLabel && <div className="text-[11px] text-muted">{countLabel(row)}</div>}
+                {countLabel && <div className="text-2xs text-muted">{countLabel(row)}</div>}
               </div>
             </div>
           ))}

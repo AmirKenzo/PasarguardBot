@@ -26,7 +26,7 @@ export function ChargeItem({ charge, panelCounter, account }: ChargeItemProps) {
             {charge.is_debt && <Badge tone="danger">{t("reseller.charge.debt")}</Badge>}
             {account && <span className="ltr-field truncate text-xs font-semibold text-text">{account}</span>}
           </div>
-          <p className="mt-1 text-[11px] text-muted">{chargePeriod(t, charge)}</p>
+          <p className="mt-1 text-2xs text-muted">{chargePeriod(t, charge)}</p>
         </div>
         <p className="shrink-0 text-sm font-extrabold text-text">{formatToman(charge.amount)}</p>
       </div>
@@ -47,7 +47,7 @@ export function ChargeItem({ charge, panelCounter, account }: ChargeItemProps) {
         </div>
       </dl>
       {panelCounter != null && charge.kind !== "hourly" && (
-        <p className="mt-2 text-[11px] text-muted">
+        <p className="mt-2 text-2xs text-muted">
           {t("reseller.charge.panelCounter", { value: formatTraffic(panelCounter) })}
         </p>
       )}

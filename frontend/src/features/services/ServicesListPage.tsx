@@ -65,7 +65,7 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
               <h2 className="truncate text-sm font-bold text-text" dir="ltr" style={{ textAlign: "start" }}>
                 {service.username}
               </h2>
-              <p className="mt-0.5 truncate text-[11px] text-muted">{subtitle}</p>
+              <p className="mt-0.5 truncate text-2xs text-muted">{subtitle}</p>
             </div>
             <Badge tone={badgeTone}>{badgeLabel}</Badge>
           </div>

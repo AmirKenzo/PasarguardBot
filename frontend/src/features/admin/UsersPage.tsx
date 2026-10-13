@@ -197,12 +197,12 @@ export default function AdminUsersPage() {
                       </Link>
                       {row.number && <span className="ltr-field font-normal text-muted">{row.number}</span>}
                     </div>
-                    <div className="text-[11px] text-muted">
+                    <div className="text-2xs text-muted">
                       {t("panel.users.service")} <span className="ltr-field">{formatNumber(row.services)}</span>
                       {row.joined_at ? ` · ${formatUnixDate(row.joined_at)}` : ""}
                     </div>
                   </div>
-                  <div className="text-[11px] font-semibold text-text">{formatToman(row.balance)}</div>
+                  <div className="text-2xs font-semibold text-text">{formatToman(row.balance)}</div>
                   <span
                     title={
                       row.state === "blocked_bot"

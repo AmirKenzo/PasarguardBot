@@ -1,9 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
-import { m } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Button } from "../../../components/ui";
-import { useDialogLayer } from "../../../hooks/useDialogLayer";
+import { Button, DialogShell } from "../../../components/ui";
 
 export interface ChoiceAction {
   label: string;
@@ -36,7 +34,6 @@ export function ChoiceDialog({ open, tone, icon: Icon, title, text, actions, onC
   const { t } = useTranslation();
   const actionsRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  useDialogLayer(open, onClose);
 
   useEffect(() => {
     if (!open) return;
@@ -44,50 +41,38 @@ export function ChoiceDialog({ open, tone, icon: Icon, title, text, actions, onC
     return () => cancelAnimationFrame(frame);
   }, [open]);
 
-  if (!open) return null;
-
   return (
-    <m.div
-      className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.15 }}
+    <DialogShell
+      open={open}
+      onClose={onClose}
+      placement="responsive"
+      labelledBy={titleId}
+      className="safe-area-pb max-h-[85dvh] w-full overflow-y-auto rounded-t-md border border-border bg-surface p-5 shadow-lg md:max-w-md md:rounded-md"
     >
-      <div className="absolute inset-0 bg-overlay" onClick={onClose} />
-      <m.div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="safe-area-pb relative max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-surface p-5 shadow-lg md:max-w-md md:rounded-2xl"
-        initial={{ y: 24 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 380, damping: 32 }}
-      >
-        <span className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${TONE_CLASSES[tone]}`}>
-          <Icon size={22} />
-        </span>
-        <h3 id={titleId} className="text-base font-semibold text-text">
-          {title}
-        </h3>
-        <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
-        <div ref={actionsRef} className="mt-5 flex gap-2">
-          {actions.map((action) => (
-            <Button
-              key={action.label}
-              size="sm"
-              variant={action.variant}
-              loading={action.loading}
-              className="flex-1"
-              onClick={action.onClick}
-            >
-              {action.label}
-            </Button>
-          ))}
-          <Button size="sm" variant="ghost" className="flex-1" onClick={onClose}>
-            {t("panel.texts.cancel")}
+      <span className={`mb-3 flex h-11 w-11 items-center justify-center rounded-sm ${TONE_CLASSES[tone]}`}>
+        <Icon size={22} />
+      </span>
+      <h3 id={titleId} className="text-base font-semibold text-text">
+        {title}
+      </h3>
+      <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
+      <div ref={actionsRef} className="mt-5 flex gap-2">
+        {actions.map((action) => (
+          <Button
+            key={action.label}
+            size="sm"
+            variant={action.variant}
+            loading={action.loading}
+            className="flex-1"
+            onClick={action.onClick}
+          >
+            {action.label}
           </Button>
-        </div>
-      </m.div>
-    </m.div>
+        ))}
+        <Button size="sm" variant="ghost" className="flex-1" onClick={onClose}>
+          {t("panel.texts.cancel")}
+        </Button>
+      </div>
+    </DialogShell>
   );
 }

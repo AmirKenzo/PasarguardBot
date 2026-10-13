@@ -38,7 +38,7 @@ export default function OverviewTab({ onNavigate }: { onNavigate: Navigate }) {
   return (
     <div className="space-y-4">
       {!data.sale_enabled && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-sm border border-warning/30 bg-warning/10 px-4 py-3 text-sm">
           <Power size={16} className="shrink-0 text-warning" />
           <span className="flex-1 text-text">{t("panel.resellerHub.overview.saleOff")}</span>
           <Button size="sm" variant="secondary" onClick={() => onNavigate("settings")}>
@@ -225,7 +225,7 @@ export default function OverviewTab({ onNavigate }: { onNavigate: Navigate }) {
           onOpenAccount={(code) => openAccounts({ open: String(code) })}
         />
         {data.recent_events.length > 0 && (
-          <p className="mt-2 text-end text-[11px] text-muted">
+          <p className="mt-2 text-end text-2xs text-muted">
             {t("panel.resellerHub.overview.updated", { when: formatRelativeTime(Math.floor(query.dataUpdatedAt / 1000)) })}
           </p>
         )}

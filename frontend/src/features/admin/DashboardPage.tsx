@@ -166,7 +166,7 @@ function HeroStat({ icon: Icon, value, label }: { icon: LucideIcon; value: strin
         <p className="font-semibold text-primary-text" dir="ltr">
           {value}
         </p>
-        <p className="text-[10px] text-primary-text/70">{label}</p>
+        <p className="text-3xs text-primary-text/70">{label}</p>
       </div>
     </div>
   );

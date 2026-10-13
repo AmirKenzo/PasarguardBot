@@ -79,7 +79,7 @@ export default function AdminReferralPage() {
         <div>
           {formatToman(row.reward_amount)}
           {row.reward_percent != null && row.base_amount != null && (
-            <p className="text-[11px] text-muted">
+            <p className="text-2xs text-muted">
               {t("panel.referral.rewardOfPurchase", { percent: row.reward_percent, amount: formatToman(row.base_amount) })}
             </p>
           )}
@@ -94,7 +94,7 @@ export default function AdminReferralPage() {
         <div>
           {formatToman(row.bonus_amount)}
           {row.bonus_percent != null && row.base_amount != null && (
-            <p className="text-[11px] text-muted">
+            <p className="text-2xs text-muted">
               {t("panel.referral.rewardOfPurchase", { percent: row.bonus_percent, amount: formatToman(row.base_amount) })}
             </p>
           )}
@@ -368,7 +368,7 @@ function PayoutsSection() {
         ) : (
           <div>
             <code className="ltr-field text-xs">{row.card_number}</code>
-            <p className="text-[11px] text-muted">{row.card_holder}</p>
+            <p className="text-2xs text-muted">{row.card_holder}</p>
           </div>
         ),
     },

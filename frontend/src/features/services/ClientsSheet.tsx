@@ -24,7 +24,7 @@ function CopyRow({ label, value, icon }: { label: string; value?: string | null;
     <div className="flex items-center gap-2 rounded-md bg-surface-2 px-3 py-2.5 ring-1 ring-border">
       <div className="text-muted">{icon}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] text-muted">{label}</p>
+        <p className="text-3xs text-muted">{label}</p>
         <p className="truncate font-mono text-xs text-text" dir="ltr">
           {value}
         </p>
@@ -39,7 +39,7 @@ function CopyRow({ label, value, icon }: { label: string; value?: string | null;
         }}
         className="shrink-0 rounded-md p-1.5 text-muted transition hover:bg-surface hover:text-primary"
       >
-        {copied ? <span className="text-[10px] text-success">✓</span> : <Copy size={14} />}
+        {copied ? <span className="text-3xs text-success">✓</span> : <Copy size={14} />}
       </button>
     </div>
   );
@@ -79,17 +79,17 @@ export function ClientsSheet({ open, onClose, code, username }: ClientsSheetProp
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-text">{client.app_name || t("common.unknown")}</p>
-                  <p className="text-[11px] text-muted">{formatRelativeTime(client.created_at)}</p>
+                  <p className="text-2xs text-muted">{formatRelativeTime(client.created_at)}</p>
                 </div>
               </div>
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {client.version && (
-                  <span className="rounded-full bg-warning/12 px-2 py-0.5 text-[10px] font-medium text-warning ring-1 ring-warning/20">
+                  <span className="rounded-full bg-warning/12 px-2 py-0.5 text-3xs font-medium text-warning ring-1 ring-warning/20">
                     v{client.version}
                   </span>
                 )}
                 {client.platform && (
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${platformTone(client.platform)}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-3xs font-medium ring-1 ${platformTone(client.platform)}`}>
                     {client.platform}
                   </span>
                 )}

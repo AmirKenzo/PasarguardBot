@@ -592,7 +592,7 @@ function PlanCard({ plan, onEdit, onDelete }: { plan: PanelResellerPlanRow; onEd
         )}
       </div>
       <p className="text-lg font-bold text-primary">{priceLine(t, plan)}</p>
-      <div className="flex flex-wrap gap-1.5 text-[11px]">
+      <div className="flex flex-wrap gap-1.5 text-2xs">
         {isLegacyMode(plan.pricing_mode) && <Badge tone="warning">{t("panel.resellerHub.planForm.legacyBadge")}</Badge>}
         {plan.duration > 0 && <Badge tone="muted">{t("panel.plans.durationDays", { count: plan.duration })}</Badge>}
         {plan.data_limit_gb > 0 ? (
@@ -608,7 +608,7 @@ function PlanCard({ plan, onEdit, onDelete }: { plan: PanelResellerPlanRow; onEd
         {plan.role_name && <Badge tone="muted">{plan.role_name}</Badge>}
       </div>
       {addons.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 text-[11px]">
+        <div className="flex flex-wrap gap-1.5 text-2xs">
           {addons.map(({ addon, price }) => (
             <Badge key={addon} tone="primary">
               {t(`panel.resellerHub.planForm.addonBadge.${ADDON_LABEL_KEYS[addon]}`, { amount: formatToman(price) })}

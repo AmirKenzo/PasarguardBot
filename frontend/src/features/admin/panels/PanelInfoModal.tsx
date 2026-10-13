@@ -75,7 +75,7 @@ export function PanelInfoModal({ code, name, onClose }: PanelInfoModalProps) {
           <div>
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs font-bold text-primary">{t("panel.panels.infoServerTitle")}</p>
-              {status.version && <span className="text-[11px] text-muted">{t("panel.panels.version")} {status.version}</span>}
+              {status.version && <span className="text-2xs text-muted">{t("panel.panels.version")} {status.version}</span>}
             </div>
 
             {status.status_error ? (
@@ -87,7 +87,7 @@ export function PanelInfoModal({ code, name, onClose }: PanelInfoModalProps) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col items-center gap-1.5 rounded-md border border-border bg-surface-2/40 p-3">
                     <ProgressRing percent={ramPercent} size={84} strokeWidth={8} label={t("panel.panels.ram")} />
-                    <span className="text-[11px] text-muted">
+                    <span className="text-2xs text-muted">
                       {bytesToGb(status.mem_used)} / {bytesToGb(status.mem_total)} GB
                     </span>
                   </div>
@@ -99,7 +99,7 @@ export function PanelInfoModal({ code, name, onClose }: PanelInfoModalProps) {
                       tone="warning"
                       label={t("panel.panels.cpu")}
                     />
-                    <span className="text-[11px] text-muted">
+                    <span className="text-2xs text-muted">
                       {status.cpu_cores ?? "—"} {t("panel.panels.cores")}
                     </span>
                   </div>

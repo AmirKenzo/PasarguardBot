@@ -92,7 +92,7 @@ function daysUntil(timestamp: number | null | undefined): number | null {
 function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="truncate text-[11px] text-muted">{label}</p>
+      <p className="truncate text-2xs text-muted">{label}</p>
       <p className="mt-0.5 truncate text-sm font-bold text-text">{value}</p>
       {hint && <p className="mt-0.5 text-[10.5px] leading-4 text-muted">{hint}</p>}
     </div>
@@ -435,7 +435,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
             />
             <Stat label={t("reseller.detail.billedTotal")} value={formatToman(data.billed_total ?? 0)} />
             <div>
-              <p className="text-[11px] text-muted">{t("reseller.runway")}</p>
+              <p className="text-2xs text-muted">{t("reseller.runway")}</p>
               <div className="mt-1">
                 <Badge tone={runwayTone(data.runway_hours, 24)}>{formatRunway(t, data.runway_hours)}</Badge>
               </div>
@@ -467,7 +467,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
             >
               <div className="min-w-0 flex-1">
                 <p className="text-[10.5px] text-muted">{t("reseller.password")}</p>
-                <p className="font-mono text-[13px] tracking-widest text-text">••••••••</p>
+                <p className="font-mono text-xs-plus tracking-widest text-text">••••••••</p>
               </div>
               <span className="flex items-center gap-1 text-xs font-semibold text-primary">
                 <Eye size={14} />
@@ -643,7 +643,7 @@ function ChangeRow({ label, before, after, changed = true }: { label: string; be
   const { i18n } = useTranslation();
   const Arrow = i18n.dir() === "rtl" ? ArrowLeft : ArrowRight;
   return (
-    <div className="flex items-center justify-between gap-3 text-[13px]">
+    <div className="flex items-center justify-between gap-3 text-xs-plus">
       <span className="shrink-0 text-muted">{label}</span>
       <span className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 text-end">
         <span className={changed ? "text-muted" : "font-semibold text-text"}>{before}</span>

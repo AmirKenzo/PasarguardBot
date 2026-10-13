@@ -92,7 +92,7 @@ export function UsageChartPanel({ code, embedded = false }: UsageChartPanelProps
             <p className="text-base font-bold text-text">
               {t("usageChart.totalPeriodUsage")}: {formatBytes(periodTotalBytes, 1)}
             </p>
-            <p className="mt-1 text-[11px] text-muted">{t("usageChart.chartHint")}</p>
+            <p className="mt-1 text-2xs text-muted">{t("usageChart.chartHint")}</p>
           </Card>
         </>
       )}

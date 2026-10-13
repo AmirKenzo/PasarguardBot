@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { ChevronDown, Save, Search, SearchX } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, EmptyState, ErrorState, Input, Skeleton } from "../../../components/ui";
+import { Badge, Button, EmptyState, ErrorState, Input, Skeleton, Switch } from "../../../components/ui";
 import { panelResellersApi } from "../../../api/panel";
 import { formatNumber } from "../../../lib/format";
 import type {
@@ -38,29 +38,6 @@ function normalizeSearch(value: string): string {
     .replace(/[\u06f0-\u06f9]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
     .trim()
     .toLowerCase();
-}
-
-/** A bare switch for dense rows (Toggle carries its own label). */
-function Switch({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      title={label}
-      onClick={() => onChange(!checked)}
-      className={`h-6 w-11 shrink-0 rounded-full border transition-colors ${
-        checked ? "border-primary bg-primary" : "border-border bg-surface-2"
-      }`}
-    >
-      <span
-        className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-[22px] rtl:-translate-x-[22px]" : "translate-x-0.5 rtl:-translate-x-0.5"
-        }`}
-      />
-    </button>
-  );
 }
 
 const allButtons = (value: boolean): Partial<PanelResellerButtons> =>
@@ -179,11 +156,11 @@ export default function SettingsTab() {
         </div>
 
         {matches.length === 0 ? (
-          <div className="rounded-xl border border-border bg-surface p-4">
+          <div className="rounded-sm border border-border bg-surface p-4">
             <EmptyState icon={SearchX} title={t("panel.resellerHub.settings.noPanelMatch")} />
           </div>
         ) : (
-          <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface">
+          <ul className="divide-y divide-border/60 overflow-hidden rounded-sm border border-border bg-surface">
             {matches.slice(0, limit).map((panel) => {
               const open = openCode === panel.code;
               const onCount = BUTTON_KEYS.filter((key) => panel.buttons[key]).length;
@@ -205,7 +182,7 @@ export default function SettingsTab() {
                       <span className="min-w-0 flex-1">
                         <span className="flex min-w-0 items-center gap-1.5">
                           <span className="truncate text-sm font-medium text-text">{panel.name || `#${panel.code}`}</span>
-                          <span className="ltr-field shrink-0 text-[11px] text-muted">#{panel.code}</span>
+                          <span className="ltr-field shrink-0 text-2xs text-muted">#{panel.code}</span>
                           {edited && (
                             <span
                               className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning"

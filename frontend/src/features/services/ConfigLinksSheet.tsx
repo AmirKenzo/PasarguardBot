@@ -67,7 +67,7 @@ export function ConfigLinksSheet({ open, onClose, code, username, fallbackLinks 
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-text">{item.name}</p>
-                <p className="mt-0.5 text-[11px] text-muted">
+                <p className="mt-0.5 text-2xs text-muted">
                   {copied === item.index ? t("configLinks.copied") : t("configLinks.clickToCopy")}
                 </p>
               </div>

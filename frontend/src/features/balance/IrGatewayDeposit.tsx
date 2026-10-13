@@ -128,7 +128,7 @@ export default function IrGatewayDeposit() {
       <PageHeader title={t("irGatewayDeposit.title", { name: title })} back="/balance" />
 
       {(method?.sandbox || payment?.sandbox) && (
-        <div className="mb-4 flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs leading-relaxed text-primary">
+        <div className="mb-4 flex items-start gap-2 rounded-sm border border-primary/30 bg-primary/10 p-3 text-xs leading-relaxed text-primary">
           <FlaskConical size={15} className="mt-0.5 shrink-0" />
           <p>{t("irGatewayDeposit.sandboxNote")}</p>
         </div>

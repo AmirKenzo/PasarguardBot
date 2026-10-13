@@ -208,7 +208,7 @@ export function LayoutTab({
   const crossRowTarget = targetRowId && targetRowId !== dragSourceRow ? targetRowId : null;
 
   const editor = (
-    <div className="rounded-xl border border-border bg-surface p-3 sm:p-4">
+    <div className="rounded-sm border border-border bg-surface p-3 sm:p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-text">{t("panel.keyboard.mainMenuLayout")}</h2>
@@ -371,7 +371,7 @@ function SortableRow({
         className="flex w-7 shrink-0 cursor-grab touch-none flex-col items-center justify-center rounded-md text-muted hover:bg-surface hover:text-text active:cursor-grabbing"
       >
         <GripVertical size={15} />
-        <span className="text-[10px] leading-none">{index + 1}</span>
+        <span className="text-3xs leading-none">{index + 1}</span>
       </button>
       <div className="flex min-h-[40px] min-w-0 flex-1 gap-1.5">
         {children}
@@ -465,7 +465,7 @@ function KeyboardPreview({
     .map((row) => row.keys.filter((key) => !hidden.includes(key) && !buttonsByKey.get(key)?.blocked))
     .filter((keys) => keys.length > 0);
   return (
-    <div className="rounded-xl border border-border bg-surface p-3">
+    <div className="rounded-sm border border-border bg-surface p-3">
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
@@ -500,7 +500,7 @@ function KeyboardPreview({
           </div>
         )}
       </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-muted">{t("panel.keyboard.previewHint")}</p>
+      <p className="mt-2 text-2xs leading-relaxed text-muted">{t("panel.keyboard.previewHint")}</p>
       </div>
     </div>
   );

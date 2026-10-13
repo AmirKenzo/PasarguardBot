@@ -57,8 +57,8 @@ export function TrendChart({ points, format, tone = "primary", total }: TrendCha
             {active && hover === index && (
               <div className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex justify-center">
                 <div className="whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-center shadow-lg">
-                  <p className="text-[11px] font-semibold text-text">{format(active.value)}</p>
-                  <p className="text-[10px] text-muted">{dayFormatter.format(new Date(active.ts * 1000))}</p>
+                  <p className="text-2xs font-semibold text-text">{format(active.value)}</p>
+                  <p className="text-3xs text-muted">{dayFormatter.format(new Date(active.ts * 1000))}</p>
                 </div>
               </div>
             )}

@@ -68,7 +68,7 @@ const tileVariants = {
 function StatCell({ icon: Icon, label, value }: { icon?: LucideIcon; label: string; value: string }) {
   return (
     <div className="rounded-md bg-surface-2/70 px-3 py-2.5 shadow-sm ring-1 ring-border">
-      <p className="flex items-center gap-1 text-[11px] text-muted">
+      <p className="flex items-center gap-1 text-2xs text-muted">
         {Icon && <Icon size={11} />}
         {label}
       </p>
@@ -129,7 +129,7 @@ function ActionTile({
         <Icon size={16} strokeWidth={1.9} className={loading ? "animate-spin" : ""} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-[13px] font-semibold ${danger ? "text-danger" : "text-text"}`}>
+        <span className={`block truncate text-xs-plus font-semibold ${danger ? "text-danger" : "text-text"}`}>
           {label}
         </span>
         {hint && <span className="block truncate text-[10.5px] leading-4 text-muted">{hint}</span>}
@@ -691,7 +691,7 @@ export default function ServiceDetailPage() {
                   />
                 )}
               </m.div>
-              <p className="mt-2 text-[11px] leading-5 text-muted">{t("serviceDetail.changeSubWarning")}</p>
+              <p className="mt-2 text-2xs leading-5 text-muted">{t("serviceDetail.changeSubWarning")}</p>
             </Section>
           )}
         </div>
