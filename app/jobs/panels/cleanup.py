@@ -69,7 +69,7 @@ async def get_cookies():
 
     panels = await PanelsManager().get_all_panels()
     if not panels:
-        await send_log_message(LogType.OTHER, message="❌ هیچ پنلی برای به‌روزرسانی کوکی یافت نشد.")
+        # Nothing to refresh is the normal state before the first panel is added: no channel log.
         logger.debug("%s get_cookies completed: 0 panels found", LogTag.JOB)
         return
 
