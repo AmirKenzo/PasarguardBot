@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { renewApi, servicesApi, upgradeApi, usageChartApi } from "../api/webapp";
 import { useWebAppAuth } from "../hooks/useWebAppAuth";
 
@@ -16,6 +16,8 @@ export function useServicesQuery(page: number, limit: number, search: string, pa
         panel_code: panelCode,
       }),
     enabled: ready && auth != null,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[6] === panelCode ? keepPreviousData(previous) : undefined,
   });
 }
 

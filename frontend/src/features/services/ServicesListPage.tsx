@@ -137,13 +137,23 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
   const [selectedPanel, setSelectedPanel] = useState<PanelGroupItem | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    if (searchQuery === debouncedSearch) return;
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
     return () => window.clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, debouncedSearch]);
 
-  useEffect(() => {
+  const selectPanel = (panel: PanelGroupItem | null) => {
+    setSelectedPanel(panel);
     setPage(1);
-  }, [debouncedSearch, limit, selectedPanel]);
+  };
+
+  const changeLimit = (value: number) => {
+    setLimit(value);
+    setPage(1);
+  };
 
   const { data, isLoading, error, refetch } = useServicesQuery(
     page,
@@ -171,7 +181,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
         {selectedPanel ? (
           <button
             type="button"
-            onClick={() => setSelectedPanel(null)}
+            onClick={() => selectPanel(null)}
             className="mb-1 flex items-center gap-1.5 text-sm font-medium text-primary"
           >
             <ChevronRight size={16} />
@@ -231,7 +241,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
               <PanelGroupCard
                 key={group.panel_code}
                 group={group}
-                onSelect={() => setSelectedPanel(group)}
+                onSelect={() => selectPanel(group)}
                 t={t}
               />
             ))}
@@ -270,7 +280,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
               <SegmentedControl
                 options={LIMIT_SEGMENTS}
                 value={String(limit)}
-                onChange={(v) => setLimit(Number(v))}
+                onChange={(v) => changeLimit(Number(v))}
                 columns={LIMIT_SEGMENTS.length}
               />
             </div>
