@@ -12,11 +12,11 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-query": "^5.104.2",
     "clsx": "^2.1.1",
-    "framer-motion": "^14.0.0",
-    "i18next": "^26.4.2",
-    "lucide-react": "^1.52.0",
+    "framer-motion": "^14.1.0",
+    "i18next": "^26.4.4",
+    "lucide-react": "^1.55.0",
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -30,10 +30,10 @@
     "@types/react-dom": "^19.3.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
-    "postcss": "^8.5.29",
+    "postcss": "^8.5.30",
     "tailwindcss": "^4.3.3",
     "typescript": "~7.0.2",
-    "vite": "^8.3.3",
+    "vite": "^8.3.4",
     "vite-plugin-pwa": "^2.0.0"
   }
 }
