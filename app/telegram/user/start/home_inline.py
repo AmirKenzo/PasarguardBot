@@ -21,22 +21,22 @@ from types import SimpleNamespace
 from telethon import events
 
 from app.db.crud.keyboards import get_button_text
-from app.telegram.admin.admin_home.callbacks import callback_back_to_admin_panel
+from app.telegram.admin.admin_home import callback_back_to_admin_panel
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import delete_data, get_step, set_step
 from app.telegram.user.balance.callbacks import back_to_balance_callback
-from app.telegram.user.help.callbacks import callback_back_to_help
-from app.telegram.user.profile.callbacks import callback_back_to_profile
+from app.telegram.user.help import callback_back_to_help
+from app.telegram.user.profile import callback_back_to_profile
 from app.telegram.user.reseller.helpers import show_reseller_panel_picker
 from app.telegram.user.reseller.messages import _send_my_resellers_list
 from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
 from app.telegram.user.services.messages import my_services_handler
-from app.telegram.user.settings.messages import advanced_settings_handler
+from app.telegram.user.settings import advanced_settings_handler
 from app.telegram.user.shop.messages import buy_service_handler
 from app.telegram.user.start.helpers import fetch_welcome_text, get_user_lang
-from app.telegram.user.support.messages import support_menu
-from app.telegram.user.trial.messages import free_trial_handler
+from app.telegram.user.support import support_menu
+from app.telegram.user.trial import free_trial_handler
 from config import ADMIN_ID
 
 # key -> (keyboard-button config key, default label, reply-keyboard handler reused as-is)

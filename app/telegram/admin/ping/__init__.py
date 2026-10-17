@@ -1,1 +1,0 @@
-"""Admin ping command module."""

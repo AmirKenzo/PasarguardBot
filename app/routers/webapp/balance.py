@@ -49,8 +49,7 @@ from app.telegram.state import set_step
 from app.telegram.user.balance import states
 from app.telegram.user.balance.keyboards import transaction_review_buttons
 from app.telegram.user.balance.texts import DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE, DUPLICATE_RECEIPT_LOG_HEADER
-from app.telegram.user.payment import create_star_invoice_link
-from app.telegram.user.payment.helpers import STAR_USD_PRICE
+from app.telegram.user.payment import STAR_USD_PRICE, create_star_invoice_link
 from app.utils.formatting.dates import Time_Date
 
 logger = get_logger(__name__)

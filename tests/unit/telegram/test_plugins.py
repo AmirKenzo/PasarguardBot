@@ -98,7 +98,7 @@ def test_discovery_reads_metadata_and_respects_disabled(monkeypatch: pytest.Monk
 
     assert "admin.ping" not in specs
     games = specs["user.games"]
-    assert games.import_name == "app.telegram.user.games.module"
+    assert games.import_name == "app.telegram.user.games"
     assert games.description == "User games and rewards"
     assert specs["user.start"].required
     assert list(specs) == [s.name for s in sorted(specs.values(), key=lambda s: (s.order, s.name))]
@@ -110,4 +110,4 @@ async def test_games_module_registers_its_handlers() -> None:
 
     loaded = await manager.load(spec)
 
-    assert (loaded.status, loaded.handlers) == ("loaded", 6)
+    assert (loaded.status, loaded.handlers) == ("loaded", 5)

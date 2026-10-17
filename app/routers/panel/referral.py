@@ -22,7 +22,7 @@ from app.panel import audit, queries
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
 from app.services.billing.referral_rewards import SIDE_BONUS, referral_reward_mode, referral_side_mode
-from app.telegram.user.referral_earnings.service import notify_user_of_settlement
+from app.telegram.user.referral_earnings import notify_user_of_settlement
 
 router = APIRouter()
 

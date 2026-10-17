@@ -22,7 +22,7 @@ from app.models.panel.common import ActionResponse, PanelRequest
 from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
-from app.telegram.admin.logs.states import ALL_LOG_TYPES
+from app.telegram.admin.logs import ALL_LOG_TYPES
 
 router = APIRouter()
 

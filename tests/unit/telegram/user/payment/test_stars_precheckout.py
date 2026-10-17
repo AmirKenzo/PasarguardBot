@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.telegram.user.payment.stars_precheckout import STARS_INVOICE_TTL_SECONDS, stars_precheckout_ok
+from app.telegram.user.payment import STARS_INVOICE_TTL_SECONDS, stars_precheckout_ok
 
 NOW = 1_700_000_000
 
