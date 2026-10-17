@@ -730,7 +730,19 @@
       "sortOldest": "Oldest first",
       "sortLabel": "Sort",
       "stateNew": "New",
-      "newBadge": "New"
+      "newBadge": "New",
+      "statNew24h": "New in last 24h",
+      "statNew24hShort": "New today",
+      "statTrendUp": "{{diff}} more than yesterday",
+      "statTrendDown": "{{diff}} fewer than yesterday",
+      "statTrendSame": "Same as yesterday",
+      "statNew7d": "Last 7 days",
+      "statDayBar": "{{count}} users",
+      "statBuyers": "New users who bought",
+      "statBuyersHint": "{{buyers}} of {{total}} users",
+      "statActive": "Active users",
+      "statActiveHint": "{{percent}}% of all users",
+      "statPercent": "{{value}}%"
     },
     "services": {
       "deleteWarning": "This removes the service from the bot's database only; it stays on the panel itself. Continue?",

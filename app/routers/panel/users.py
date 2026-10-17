@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import APIRouter, Request
 
-from app.models.panel.common import ActionResponse, page_meta
+from app.models.panel.common import ActionResponse, PanelRequest, page_meta
 from app.models.panel.users import (
     PanelTransferAdminRow,
     PanelTransferAdminsRequest,
@@ -32,6 +32,7 @@ from app.models.panel.users import (
     PanelUserServiceRow,
     PanelUsersRequest,
     PanelUsersResponse,
+    PanelUsersStatsResponse,
     PanelUserTransactionRow,
     UserState,
 )
@@ -89,6 +90,14 @@ async def list_users(payload: PanelUsersRequest, request: Request) -> PanelUsers
         )
 
     return await guard.run(payload, request, PanelUsersResponse, handle)
+
+
+@router.post("/panel/users/stats", response_model=PanelUsersStatsResponse)
+async def users_stats(payload: PanelRequest, request: Request) -> PanelUsersStatsResponse:
+    async def handle(_: PanelActor) -> PanelUsersStatsResponse:
+        return PanelUsersStatsResponse(**await queries.users_stats())
+
+    return await guard.run(payload, request, PanelUsersStatsResponse, handle)
 
 
 @router.post("/panel/users/detail", response_model=PanelUserDetailResponse)

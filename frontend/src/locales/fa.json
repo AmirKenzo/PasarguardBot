@@ -724,7 +724,19 @@
       "sortOldest": "قدیمی‌ترین",
       "sortLabel": "مرتب‌سازی",
       "stateNew": "جدیدها",
-      "newBadge": "جدید"
+      "newBadge": "جدید",
+      "statNew24h": "عضو جدید ۲۴ ساعت اخیر",
+      "statNew24hShort": "جدید امروز",
+      "statTrendUp": "{{diff}} نفر بیشتر از دیروز",
+      "statTrendDown": "{{diff}} نفر کمتر از دیروز",
+      "statTrendSame": "مثل دیروز",
+      "statNew7d": "۷ روز اخیر",
+      "statDayBar": "{{count}} نفر",
+      "statBuyers": "خرید کرده از جدیدها",
+      "statBuyersHint": "{{buyers}} نفر از {{total}} نفر",
+      "statActive": "کاربران فعال",
+      "statActiveHint": "{{percent}}٪ از کل کاربرها",
+      "statPercent": "{{value}}٪"
     },
     "services": {
       "deleteWarning": "این سرویس فقط از دیتابیس ربات حذف می‌شود و روی خود پنل باقی می‌ماند. ادامه می‌دهی؟",

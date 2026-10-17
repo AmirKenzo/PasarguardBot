@@ -1,23 +1,16 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { ArrowDownAZ, ArrowUpAZ, Ban, ChevronLeft, Search, SlidersHorizontal, User, X } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Badge, ErrorState, IconBadge, Input, Pagination, Skeleton } from "../../components/ui";
-import { formatNumber, formatToman, formatUnixDate } from "../../lib/format";
+import { ErrorState, Input, Pagination, Skeleton } from "../../components/ui";
+import { formatNumber } from "../../lib/format";
 import { panelUsersApi } from "../../api/panel";
-import type { UserState } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
-import { ConfirmButton, IconMenuButton, MenuHeader, MenuRow, SectionCard } from "./components";
+import { IconMenuButton, MenuHeader, MenuRow, SectionCard } from "./components";
+import { UserListRow } from "./users/UserListRow";
+import { UsersStatCards } from "./users/UsersStatCards";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-
-const STATE_TONE: Record<UserState, "success" | "warning" | "danger" | "muted"> = {
-  active: "success",
-  banned: "danger",
-  blocked_bot: "warning",
-  deleted: "muted",
-};
 
 const TAB_ACTIVE_CLASSES: Record<"primary" | "success" | "warning" | "danger" | "muted", string> = {
   primary: "bg-primary/12 text-primary",
@@ -26,13 +19,6 @@ const TAB_ACTIVE_CLASSES: Record<"primary" | "success" | "warning" | "danger" | 
   danger: "bg-danger/12 text-danger",
   muted: "bg-surface-2 text-text",
 };
-
-const stateLabels = (t: TFunction): Record<UserState, string> => ({
-  active: t("panel.common.active"),
-  banned: t("panel.users.stateBanned"),
-  blocked_bot: t("panel.users.stateBlockedBot"),
-  deleted: t("panel.users.stateDeleted"),
-});
 
 /** Quick top-level tabs — the one filter dimension used often enough to skip the dropdown. */
 const stateTabs = (t: TFunction) => [
@@ -75,6 +61,8 @@ export default function AdminUsersPage() {
     { placeholderData: keepPreviousData }
   );
 
+  // Prefix ["users"] also covers ["users", "stats"], so the cards refresh after a block.
+  const stats = usePanelQuery(["users", "stats"], (auth) => panelUsersApi.usersStats(auth));
   const block = usePanelAction(panelUsersApi.setBlocked, { invalidate: [["users"]] });
 
   const rows = query.data?.users || [];
@@ -99,6 +87,10 @@ export default function AdminUsersPage() {
         title={t("panel.common.users")}
         subtitle={query.data ? t("panel.users.countLabel", { count: query.data.meta.total }) : undefined}
       />
+
+      <div className="mb-3">
+        <UsersStatCards stats={stats.data} />
+      </div>
 
       <SectionCard title={t("panel.users.title")} description={t("panel.users.hint")}>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2.5">
@@ -153,7 +145,7 @@ export default function AdminUsersPage() {
             </button>
           )}
 
-          <div className="flex flex-wrap items-center gap-1 sm:ms-auto">
+          <div className="no-scrollbar -mx-0.5 flex w-full items-center gap-1 overflow-x-auto px-0.5 sm:mx-0 sm:ms-auto sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0">
             {stateTabs(t).map((tab) => {
               const active = tab.value === filters.state;
               return (
@@ -161,13 +153,16 @@ export default function AdminUsersPage() {
                   key={tab.value}
                   type="button"
                   onClick={() => updateFilter("state", tab.value)}
-                  className={`shrink-0 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
                     active ? TAB_ACTIVE_CLASSES[tab.tone] : "text-muted hover:bg-surface-2 hover:text-text"
                   }`}
                 >
+                  {tab.value === "new" && <Sparkles size={12} />}
                   {tab.label}
                   {tab.value === "new" && newCount > 0 && (
-                    <span className="ltr-field ms-1">{formatNumber(newCount)}</span>
+                    <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-3xs font-bold text-primary-text">
+                      {formatNumber(newCount)}
+                    </span>
                   )}
                 </button>
               );
@@ -178,75 +173,25 @@ export default function AdminUsersPage() {
         {query.isError ? (
           <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
         ) : query.isLoading ? (
-          <div className="mt-4 space-y-2">
+          <div className="mt-2 space-y-1.5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-md" />
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
             ))}
           </div>
         ) : rows.length ? (
           <div
-            className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+            className={`mt-2 space-y-1.5 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
             aria-busy={query.isPlaceholderData || undefined}
           >
-            {rows.map((row) => {
-              // Only an admin ban is reversible from here — BlockedBot/deleted
-              // self-clear once the user interacts with the bot again, an
-              // admin "unblock" click cannot fix either.
-              const canToggleBlock = row.state === "active" || row.state === "banned";
-              return (
-                <div key={row.id} className="flex flex-wrap items-center gap-2.5 py-2.5 first:pt-0 last:pb-0">
-                  <IconBadge icon={User} tone={row.is_new ? "primary" : "muted"} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-text">
-                      <Link to={`/panel/users/${row.id}`} className="ltr-field text-primary hover:underline">
-                        #{row.id}
-                      </Link>
-                      {row.number && <span className="ltr-field font-normal text-muted">{row.number}</span>}
-                      {row.is_new && <Badge tone="primary">{t("panel.users.newBadge")}</Badge>}
-                    </div>
-                    <div className="text-2xs text-muted">
-                      {t("panel.users.service")} <span className="ltr-field">{formatNumber(row.services)}</span>
-                      {row.joined_at ? ` · ${formatUnixDate(row.joined_at)}` : ""}
-                    </div>
-                  </div>
-                  <div className="text-2xs font-semibold text-text">{formatToman(row.balance)}</div>
-                  <span
-                    title={
-                      row.state === "blocked_bot"
-                        ? t("panel.users.blockedBotHint")
-                        : row.state === "deleted"
-                          ? t("panel.users.deletedHint")
-                          : undefined
-                    }
-                  >
-                    <Badge tone={STATE_TONE[row.state]}>{stateLabels(t)[row.state]}</Badge>
-                  </span>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Link to={`/panel/users/${row.id}`} title={t("panel.users.manage")}>
-                      <span className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary">
-                        <ChevronLeft size={13} className="ltr:rotate-180" />
-                      </span>
-                    </Link>
-                    {canToggleBlock && (
-                      <ConfirmButton
-                        size="sm"
-                        variant="ghost"
-                        className={`!h-7 !w-7 !px-0 ${row.state === "banned" ? "text-success hover:bg-success/10" : "text-danger hover:bg-danger/10"}`}
-                        title={row.state === "banned" ? t("panel.common.unblock") : t("panel.users.blocked")}
-                        message={
-                          row.state === "banned"
-                            ? t("panel.users.unblockConfirm", { id: row.id })
-                            : t("panel.users.blockConfirm", { id: row.id })
-                        }
-                        onConfirm={() => block.mutate({ user_id: row.id, blocked: row.state !== "banned", notify: true })}
-                      >
-                        <Ban size={13} />
-                      </ConfirmButton>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {rows.map((row) => (
+              <UserListRow
+                key={row.id}
+                row={row}
+                onToggleBlock={(target) =>
+                  block.mutate({ user_id: target.id, blocked: target.state !== "banned", notify: true })
+                }
+              />
+            ))}
           </div>
         ) : (
           <p className="py-8 text-center text-sm text-muted">{t("panel.users.empty")}</p>

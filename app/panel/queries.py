@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from itertools import pairwise
 from typing import Any
@@ -215,6 +216,55 @@ async def count_new_users() -> int:
     async with Session() as session:
         result = await session.execute(select(func.count()).select_from(User).where(User.time_s >= new_user_cutoff()))
         return int(result.scalar() or 0)
+
+
+NEW_USER_DAILY_BUCKETS = 7
+
+
+async def _user_join_counts(now: int) -> tuple[int, int, list[int]]:
+    starts = [now - (NEW_USER_DAILY_BUCKETS - index) * DAY for index in range(NEW_USER_DAILY_BUCKETS)]
+    buckets = [
+        func.sum(
+            case(
+                (User.time_s >= start, 1)
+                if index == NEW_USER_DAILY_BUCKETS - 1
+                else ((User.time_s >= start) & (User.time_s < start + DAY), 1),
+                else_=0,
+            )
+        )
+        for index, start in enumerate(starts)
+    ]
+    active = func.sum(case((or_(User.status.is_(None), User.status.notin_(INACTIVE_STATUSES)), 1), else_=0))
+    async with Session() as session:
+        row = (await session.execute(select(func.count(), active, *buckets).select_from(User))).one()
+    total, active_count, *daily = row
+    return int(total or 0), int(active_count or 0), [int(value or 0) for value in daily]
+
+
+async def _count_new_buyers(cutoff: int) -> int:
+    paid = select(Service.id).where(Service.id == User.id, or_(Service.is_test.is_(None), Service.is_test.is_(False)))
+    async with Session() as session:
+        result = await session.execute(
+            select(func.count()).select_from(User).where(User.time_s >= cutoff, paid.exists())
+        )
+        return int(result.scalar() or 0)
+
+
+async def users_stats() -> dict[str, Any]:
+    now = int(time.time())
+    (total, active, daily), buyers = await asyncio.gather(
+        _user_join_counts(now),
+        _count_new_buyers(now - NEW_USER_WINDOW),
+    )
+    return {
+        "new_24h": daily[-1],
+        "new_prev_24h": daily[-2],
+        "new_7d": sum(daily),
+        "new_daily": daily,
+        "new_buyers_24h": buyers,
+        "active": active,
+        "total": total,
+    }
 
 
 async def get_user(user_id: int) -> User | None:

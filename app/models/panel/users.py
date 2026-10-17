@@ -32,6 +32,16 @@ class PanelUsersResponse(PanelResponse):
     new_count: int = 0
 
 
+class PanelUsersStatsResponse(PanelResponse):
+    new_24h: int = 0
+    new_prev_24h: int = 0
+    new_7d: int = 0
+    new_daily: list[int] = Field(default_factory=list, description="Rolling 24h join buckets, oldest first")
+    new_buyers_24h: int = 0
+    active: int = 0
+    total: int = 0
+
+
 class PanelUserServiceRow(BaseModel):
     code: int
     username: str | None = None

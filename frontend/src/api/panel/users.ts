@@ -1,5 +1,6 @@
 import type {
   ActionResponse,
+  PanelAuthRequest,
   PanelUserBalanceRequest,
   PanelUserBalanceResponse,
   PanelUserBlockRequest,
@@ -18,11 +19,16 @@ import type {
   PanelUserPhoneResponse,
   PanelUsersRequest,
   PanelUsersResponse,
+  PanelUsersStatsResponse,
 } from "../../types/panel";
 import { panelPost } from "./client";
 
 export function listUsers(body: PanelUsersRequest) {
   return panelPost<PanelUsersResponse>("/users", body);
+}
+
+export function usersStats(body: PanelAuthRequest) {
+  return panelPost<PanelUsersStatsResponse>("/users/stats", body);
 }
 
 export function getUser(body: PanelUserDetailRequest) {
