@@ -293,7 +293,8 @@ def parse_pack(raw: Any) -> ParsedPack:
     if layout is not None:
         items.append(_parse_layout(layout))
     if not items:
-        raise PackError("empty")
+        # A shared web app color theme rides in the same format; it is imported from its own tab.
+        raise PackError("webapp_only" if isinstance(raw.get("webapp"), dict) else "empty")
     return ParsedPack(
         name=_clean_str(raw.get("name"), MAX_NAME_LENGTH),
         source={
@@ -1029,6 +1030,7 @@ ERROR_TEXTS = {
     "too_large": "حجم پک بیشتر از حد مجاز (۱ مگابایت) است.",
     "too_many_entries": "تعداد موارد این پک بیشتر از حد مجاز است.",
     "empty": "این پک هیچ مورد قابل استفاده‌ای ندارد.",
+    "webapp_only": "این فایل فقط رنگ‌های وب‌اپ را دارد؛ آن را از تب «رنگ وب‌اپ» وارد کنید.",
     "library_full": f"کتابخانه پر است (حداکثر {MAX_LIBRARY_PACKS} پک)؛ اول یک پک را حذف کنید.",
     "not_found": "پک پیدا نشد.",
     "invalid_entries": "بعضی موارد این پک نامعتبرند؛ اول آن‌ها را درست کنید.",

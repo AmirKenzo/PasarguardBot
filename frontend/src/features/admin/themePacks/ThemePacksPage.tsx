@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Download, FileUp, Palette, Pencil, Plus, RotateCcw, Send, Shuffle, Trash2 } from "lucide-react";
+import { Download, FileUp, Paintbrush, Palette, Pencil, Plus, RotateCcw, Send, Shuffle, Trash2, Type } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { panelThemePacksApi } from "../../../api/panel";
 import { useWebAppAuth } from "../../../hooks/useWebAppAuth";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Badge, Button, EmptyState, ErrorState, Skeleton } from "../../../components/ui";
+import { Badge, Button, EmptyState, ErrorState, Skeleton, Tabs } from "../../../components/ui";
 import { useToast } from "../../../components/ui/Toast";
 import type { ThemePackData, ThemePackLibraryEntry, ThemePackSource } from "../../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../../queries/usePanelApi";
@@ -14,6 +14,11 @@ import { CreatePackDialog } from "./CreatePackDialog";
 import { ImportDialog } from "./ImportDialog";
 import { PackEditor } from "./PackEditor";
 import { countsLabel, downloadPack, formatDate, INVALIDATE_ALL, THEME_PACKS_QUERY_KEY } from "./shared";
+import { WebappThemesTab } from "./webapp/WebappThemesTab";
+
+type PageTab = "texts" | "webapp";
+
+const WEBAPP_TAB_HASH = "#colors";
 
 interface ApplyState {
   title: string;
@@ -37,6 +42,7 @@ export default function ThemePacksPage() {
   const [applying, setApplying] = useState<ApplyState | null>(null);
   const [deleting, setDeleting] = useState<ThemePackLibraryEntry | null>(null);
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [tab, setTab] = useState<PageTab>(() => (window.location.hash === WEBAPP_TAB_HASH ? "webapp" : "texts"));
 
   const overview = query.data;
 
@@ -72,6 +78,29 @@ export default function ThemePacksPage() {
 
   const last = overview?.last_import;
 
+  const tabs = (
+    <div className="mb-4">
+      <Tabs
+        value={tab}
+        onChange={(value) => setTab(value as PageTab)}
+        items={[
+          { value: "texts", label: t("panel.webappThemes.tabTexts"), icon: Type },
+          { value: "webapp", label: t("panel.webappThemes.tabColors"), icon: Paintbrush },
+        ]}
+      />
+    </div>
+  );
+
+  if (tab === "webapp") {
+    return (
+      <>
+        <PageHeader title={t("panel.themePacks.title")} subtitle={t("panel.webappThemes.subtitle")} />
+        {tabs}
+        <WebappThemesTab />
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -90,6 +119,7 @@ export default function ThemePacksPage() {
           </div>
         }
       />
+      {tabs}
 
       {query.isLoading ? (
         <div className="grid gap-3 md:grid-cols-2">

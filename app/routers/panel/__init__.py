@@ -26,6 +26,7 @@ Split by feature, mirroring ``app/routers/webapp``:
   - help_buttons: help menu buttons, download apps, release files and stored versions
   - settings: the bot settings form
   - pwa: installable-webapp branding (name, description, icon)
+  - webapp_theme: web app color themes (library, active theme, sharing)
   - reports: sales and customer reports
   - tools: system status, backups, bulk volume/time increase
   - audit: the panel activity log
@@ -57,6 +58,7 @@ from app.routers.panel.theme_pack import router as theme_pack_router
 from app.routers.panel.tools import router as tools_router
 from app.routers.panel.transactions import router as transactions_router
 from app.routers.panel.users import router as users_router
+from app.routers.panel.webapp_theme import router as webapp_theme_router
 
 logger = get_logger(__name__)
 
@@ -79,6 +81,7 @@ panel_router.include_router(texts_router)
 panel_router.include_router(keyboard_router)
 panel_router.include_router(help_buttons_router)
 panel_router.include_router(theme_pack_router)
+panel_router.include_router(webapp_theme_router)
 panel_router.include_router(settings_router)
 panel_router.include_router(pwa_router)
 panel_router.include_router(reports_router)

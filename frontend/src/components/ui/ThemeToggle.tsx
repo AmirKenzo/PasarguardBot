@@ -12,7 +12,10 @@ const OPTIONS: { value: ThemeMode; icon: typeof Sun; labelKey: string }[] = [
 
 export function ThemeToggle() {
   const { t } = useTranslation();
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, canChangeScheme } = useTheme();
+
+  // The admin locked the light/dark switch: the app follows the device / Telegram.
+  if (!canChangeScheme) return null;
 
   return (
     <div className="relative inline-flex items-center gap-0.5 rounded-full border border-border bg-surface-2 p-1">

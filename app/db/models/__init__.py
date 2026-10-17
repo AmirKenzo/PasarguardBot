@@ -29,6 +29,7 @@ from . import (
     transaction,
     user,
     wallet,
+    webapp_theme,
 )
 
 __all__ = [
@@ -62,4 +63,5 @@ __all__ = [
     "transaction",
     "user",
     "wallet",
+    "webapp_theme",
 ]

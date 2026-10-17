@@ -8,6 +8,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { LanguageToggle } from "../ui/LanguageToggle";
 import { AppVersion } from "../ui/AppVersion";
 import { FullscreenToggle } from "../ui/FullscreenToggle";
+import { useTheme } from "../../design/ThemeProvider";
 
 function NAV_ITEMS() {
   return [
@@ -94,6 +95,7 @@ function NavButtons({ orientation }: { orientation: "row" | "col" }) {
 export function AppShell() {
   const location = useLocation();
   const { t } = useTranslation();
+  const { canChangeScheme } = useTheme();
 
   // React Router's plain <Routes> tree doesn't reset scroll on navigation
   // (that's only built into its data-router APIs), so without this,
@@ -130,10 +132,12 @@ export function AppShell() {
         </div>
         <NavButtons orientation="col" />
         <div className="mt-auto flex flex-col gap-3 px-1 pt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">{t("nav.appearance")}</span>
-            <ThemeToggle />
-          </div>
+          {canChangeScheme && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">{t("nav.appearance")}</span>
+              <ThemeToggle />
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted">🌐 {t("nav.language", "Language")}</span>
             <LanguageToggle />

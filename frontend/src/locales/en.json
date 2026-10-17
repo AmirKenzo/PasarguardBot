@@ -205,6 +205,11 @@
       "done": "Done",
       "genericError": "Failed to generate the API key"
     },
+    "theme": {
+      "title": "Color theme",
+      "botDefault": "Bot default",
+      "telegram": "Telegram colors"
+    },
     "stars": "Stars",
     "tonpays": "TonPays"
   },
@@ -2363,6 +2368,193 @@
       "syncNow": "Update now",
       "syncHint": "New files are downloaded and uploaded to the log channel; files already up to date are skipped.",
       "syncRunning": "Updating…"
+    },
+    "webappThemes": {
+      "tabTexts": "Texts & buttons",
+      "tabColors": "Web app colors",
+      "subtitle": "Change the web app's colors for every user, keep a few themes ready and switch between them in one tap.",
+      "light": "Light",
+      "dark": "Dark",
+      "sourceTitle": "Where do the web app colors come from?",
+      "sourceText": "With Telegram colors, each user sees their own Telegram theme. With a custom theme, every user sees the theme you pick.",
+      "mode": {
+        "telegram": "Telegram colors",
+        "custom": "My custom theme",
+        "telegramText": "Matches each user's Telegram theme; you don't control it",
+        "customText": "Every user sees “{{name}}”",
+        "none": "Default"
+      },
+      "userScheme": "Users can switch light/dark",
+      "userSchemeText": "When off, the web app always follows the device and Telegram light or dark setting.",
+      "userPick": "Users can pick their own theme",
+      "userPickText": "Adds a “Color theme” section to the user's profile with the presets and your themes.",
+      "switched": "“{{name}}” is now live for every user. People with the web app open see it the next time they open it.",
+      "undo": "Bring back the previous theme",
+      "libraryTitle": "Theme library",
+      "libraryText": "Tap a theme to preview it. Your themes: {{count}} of {{max}}",
+      "newTheme": "New theme",
+      "newName": "New theme",
+      "copyName": "{{name}} (my copy)",
+      "filterAll": "All",
+      "filterMine": "My themes",
+      "filterPresets": "Presets",
+      "fromColor": "Make a theme from one color",
+      "previewOf": "Preview {{name}}",
+      "activeBadge": "Live",
+      "kindPreset": "Preset",
+      "kindImported": "Imported",
+      "kindCustom": "Made here",
+      "activate": "Make live",
+      "shareAction": "Share",
+      "presetHint": "Presets can't be edited directly; Edit makes your own copy of one.",
+      "previewEditing": "Editing: {{name}}",
+      "previewOfLabel": "Preview: {{name}}",
+      "previewNote": "This is what users see inside the web app.",
+      "previewTelegramNote": "Users currently see their own Telegram colors; this theme applies once you switch to a custom theme.",
+      "deleteTitle": "Delete theme",
+      "deleteText": "Delete “{{name}}” from the library?",
+      "deleteActiveText": "“{{name}}” is live right now. After deleting it, the web app goes back to the default theme.",
+      "errorTextPack": "This file holds bot texts and buttons, not web app colors; import it from the Texts & buttons tab.",
+      "errorNoColors": "No web app colors were found in this file.",
+      "editor": {
+        "editTitle": "Edit theme",
+        "newTitle": "New theme",
+        "hint": "Every change shows in the preview right away. Nothing changes for users until you save.",
+        "name": "Theme name",
+        "editing": "Version you're editing",
+        "quickTitle": "Quick start from one color",
+        "quickText": "Pick a color and every light and dark color is built from it; then adjust any of them by hand.",
+        "quickHue": "Build from hue {{hue}}",
+        "quickCustom": "Any color",
+        "groups": {
+          "backgrounds": "Backgrounds",
+          "text": "Text",
+          "brand": "Brand",
+          "status": "Status"
+        },
+        "colors": {
+          "bg": {
+            "title": "Page background",
+            "text": "Behind everything"
+          },
+          "surface": {
+            "title": "Cards",
+            "text": "Service cards, top and bottom bars"
+          },
+          "surface_2": {
+            "title": "Second surface",
+            "text": "Secondary buttons, fields, progress bars"
+          },
+          "text": {
+            "title": "Main text",
+            "text": "Headings and important text"
+          },
+          "text_muted": {
+            "title": "Muted text",
+            "text": "Descriptions and labels"
+          },
+          "primary": {
+            "title": "Brand color",
+            "text": "Main buttons and the active icon"
+          },
+          "primary_strong": {
+            "title": "Strong brand color",
+            "text": "The far end of button gradients"
+          },
+          "primary_text": {
+            "title": "Button text",
+            "text": "Text on main buttons"
+          },
+          "accent": {
+            "title": "Link color",
+            "text": "Links and highlights"
+          },
+          "success": {
+            "title": "Success / active",
+            "text": "Active services, successful payments"
+          },
+          "warning": {
+            "title": "Warning",
+            "text": "Running out, pending"
+          },
+          "danger": {
+            "title": "Error / expired",
+            "text": "Expired services and errors"
+          }
+        },
+        "hexOf": "{{name}} hex code",
+        "radius": "Corner roundness",
+        "border": "Border strength ({{scheme}})",
+        "readability": "Readability ({{scheme}} version)",
+        "sample": "Aa",
+        "checks": {
+          "textOnBg": "Main text on the background",
+          "textOnCard": "Main text on cards",
+          "mutedOnCard": "Muted text on cards",
+          "buttonText": "Button text on the brand color",
+          "linkOnCard": "Links on cards"
+        },
+        "readable": "Readable",
+        "fix": "Too faint, fix it",
+        "unsaved": "Unsaved changes",
+        "save": "Save to library",
+        "saveActivate": "Save and make live"
+      },
+      "share": {
+        "title": "Share “{{name}}”",
+        "text": "Send this theme to another bot's admin. They add it with Import on this same tab.",
+        "copy": "Copy code",
+        "copied": "Theme code copied",
+        "copyFailed": "Couldn't copy; select the code by hand.",
+        "download": "Download file",
+        "telegram": "Send in Telegram",
+        "code": "Theme code",
+        "hint": "If downloading doesn't work inside Telegram, use Send in Telegram and the bot sends you the file in your private chat."
+      },
+      "import": {
+        "button": "Import",
+        "title": "Import a theme",
+        "defaultName": "Imported theme",
+        "name": "Theme name",
+        "from": "Made on the {{bot}} bot",
+        "filled": "{{count}} colors were missing from the file and were filled with the defaults.",
+        "add": "Add to library",
+        "addActivate": "Add and make live",
+        "back": "Choose another file",
+        "pickFile": "Choose a theme file",
+        "code": "Theme code"
+      },
+      "preview": {
+        "close": "Close",
+        "botName": "Shop",
+        "avatar": "A",
+        "hello": "Hi, Alex",
+        "lastSeen": "Last seen today 14:20",
+        "balance": "Wallet balance",
+        "balanceValue": "240,000 Toman",
+        "topUp": "Top up",
+        "service1": "Germany 1",
+        "active": "Active",
+        "usage": "Usage",
+        "usageValue": "18.6 of 30 GB",
+        "daysLeft": "12 days left",
+        "renew": "Renew",
+        "subLink": "Sub link",
+        "service2": "Netherlands",
+        "ending": "Running out",
+        "service2Detail": "2 days left · 27.3 of 30 GB",
+        "service3": "Turkey",
+        "service3Detail": "Ended 3 days ago",
+        "expired": "Expired",
+        "discount": "Discount code",
+        "apply": "Apply",
+        "plans": "See plans and prices",
+        "toast": "Payment completed",
+        "navHome": "Home",
+        "navBuy": "Buy",
+        "navServices": "Services",
+        "navProfile": "Profile"
+      }
     }
   },
   "reseller": {
@@ -2673,6 +2865,42 @@
       "disabledPlan": "This plan is no longer sold to new buyers, but you can still renew it.",
       "usersUnchanged": "unchanged",
       "nothingResets": "The plan's days and volume are added to what you have; nothing resets, and users and add-ons stay as they are."
+    }
+  },
+  "webappTheme": {
+    "presets": {
+      "default": "Default",
+      "telegram": "Telegram classic",
+      "ocean": "Ocean",
+      "sky": "Sky",
+      "teal": "Teal",
+      "emerald": "Emerald",
+      "mint": "Mint",
+      "forest": "Forest",
+      "lime": "Lime",
+      "amber": "Amber",
+      "sunset": "Sunset",
+      "peach": "Peach",
+      "coral": "Coral",
+      "crimson": "Crimson",
+      "ruby": "Ruby",
+      "rose": "Rose",
+      "sakura": "Sakura",
+      "violet": "Violet night",
+      "lavender": "Lavender",
+      "royal": "Royal",
+      "aurora": "Aurora",
+      "midnight_gold": "Midnight gold",
+      "coffee": "Coffee",
+      "paper": "Paper",
+      "slate": "Slate",
+      "graphite": "Graphite",
+      "amoled": "AMOLED black",
+      "cyber": "Cyber",
+      "nord": "Nord",
+      "dracula": "Dracula",
+      "solarized": "Solarized",
+      "github": "GitHub"
     }
   }
 }

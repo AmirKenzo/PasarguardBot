@@ -72,7 +72,7 @@ export function parsePackText(text: string): ThemePackData {
   return data as ThemePackData;
 }
 
-export function downloadPack(pack: ThemePackData, fileName: string): void {
+export function downloadPack(pack: ThemePackData | object, fileName: string): void {
   const blob = new Blob([JSON.stringify(pack, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
