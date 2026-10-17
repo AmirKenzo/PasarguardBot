@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from app.db.crud.bot_texts import BotTextCRUD
+from app.db.models.bot_text import BotText
+from app.i18n import DEFAULT_LANGUAGE
 from app.models.panel.common import ActionResponse
 from app.models.panel.texts import (
     BANNER_POSITIONS,
@@ -48,10 +50,18 @@ def _matches(query: str, key: str, definition: dict, row) -> bool:
     return query in haystack
 
 
+def _stored_by_key(rows: list[BotText]) -> dict[str, BotText]:
+    stored: dict[str, BotText] = {}
+    for row in rows:
+        if row.key not in stored or row.lang == DEFAULT_LANGUAGE:
+            stored[row.key] = row
+    return stored
+
+
 @router.post("/panel/texts", response_model=PanelTextsResponse)
 async def list_texts(payload: PanelTextsRequest, request: Request) -> PanelTextsResponse:
     async def handle(_: PanelActor) -> PanelTextsResponse:
-        stored = {row.key: row for row in await BotTextCRUD().get_all()}
+        stored = _stored_by_key(await BotTextCRUD().get_all())
         query = payload.q.strip().lower()
         known: set[str] = set()
         sections: list[PanelTextSection] = []

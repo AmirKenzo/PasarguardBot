@@ -1,8 +1,10 @@
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import Select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.bot_text import BotText
+from app.i18n import DEFAULT_LANGUAGE
 
 
 def panel_locations_text_key(panel_code: int) -> str:
@@ -10,13 +12,21 @@ def panel_locations_text_key(panel_code: int) -> str:
     return f"panel_locations_{int(panel_code)}"
 
 
+def resolve_text_lang(lang: str | None) -> str:
+    """Language a text row is stored under; calls without one mean the default language."""
+    code = (lang or "").strip().lower()[:10]
+    return code or DEFAULT_LANGUAGE
+
+
+def _by_key(key: str, lang: str | None) -> Select[tuple[BotText]]:
+    return select(BotText).where(BotText.key == key, BotText.lang == resolve_text_lang(lang))
+
+
 class BotTextCRUD:
     async def get_text(self, key: str, lang: str | None = None) -> str | None:
         try:
             async with Session() as session:
-                stmt = select(BotText).where(BotText.key == key)
-                if lang:
-                    stmt = stmt.where(BotText.lang == lang)
+                stmt = _by_key(key, lang)
                 result = await session.execute(stmt)
                 row = result.scalars().first()
                 return row.value if row else None
@@ -27,9 +37,7 @@ class BotTextCRUD:
         """Get the full BotText object including banner fields"""
         try:
             async with Session() as session:
-                stmt = select(BotText).where(BotText.key == key)
-                if lang:
-                    stmt = stmt.where(BotText.lang == lang)
+                stmt = _by_key(key, lang)
                 result = await session.execute(stmt)
                 return result.scalars().first()
         except SQLAlchemyError:
@@ -43,33 +51,35 @@ class BotTextCRUD:
         banner_url: str | None = None,
         banner_position: str | None = None,
     ) -> bool:
-        try:
-            async with Session() as session:
-                stmt = select(BotText).where(BotText.key == key)
-                if lang:
-                    stmt = stmt.where(BotText.lang == lang)
-                result = await session.execute(stmt)
-                existing = result.scalars().first()
-                if existing:
-                    existing.value = value
-                    if banner_url is not None:
-                        existing.banner_url = banner_url
-                    if banner_position is not None:
-                        existing.banner_position = banner_position
-                else:
-                    session.add(
-                        BotText(
-                            key=key,
-                            value=value,
-                            lang=lang,
-                            banner_url=banner_url,
-                            banner_position=banner_position,
+        for _ in range(2):
+            try:
+                async with Session() as session:
+                    stmt = _by_key(key, lang)
+                    result = await session.execute(stmt)
+                    existing = result.scalars().first()
+                    if existing:
+                        existing.value = value
+                        if banner_url is not None:
+                            existing.banner_url = banner_url
+                        if banner_position is not None:
+                            existing.banner_position = banner_position
+                    else:
+                        session.add(
+                            BotText(
+                                key=key,
+                                value=value,
+                                lang=resolve_text_lang(lang),
+                                banner_url=banner_url,
+                                banner_position=banner_position,
+                            )
                         )
-                    )
-                await session.commit()
-                return True
-        except SQLAlchemyError:
-            return False
+                    await session.commit()
+                    return True
+            except IntegrityError:
+                continue
+            except SQLAlchemyError:
+                return False
+        return False
 
     async def set_banner(
         self, key: str, banner_url: str | None, banner_position: str | None, lang: str | None = None
@@ -77,9 +87,7 @@ class BotTextCRUD:
         """Set banner URL and position for a bot text"""
         try:
             async with Session() as session:
-                stmt = select(BotText).where(BotText.key == key)
-                if lang:
-                    stmt = stmt.where(BotText.lang == lang)
+                stmt = _by_key(key, lang)
                 result = await session.execute(stmt)
                 existing = result.scalars().first()
                 if existing:
@@ -103,9 +111,7 @@ class BotTextCRUD:
         """Delete a text entry (reset to default)"""
         try:
             async with Session() as session:
-                stmt = select(BotText).where(BotText.key == key)
-                if lang:
-                    stmt = stmt.where(BotText.lang == lang)
+                stmt = _by_key(key, lang)
                 result = await session.execute(stmt)
                 existing = result.scalars().first()
                 if existing:
