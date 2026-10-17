@@ -77,6 +77,7 @@ DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {
     "test_mode": False,
     "test_panel_id": 0,
     "test_phone_verify": True,
+    "admin_unlimited_trial": False,
     "direct_pay_purchase_mode": False,
     "direct_pay_renew_mode": False,
 }

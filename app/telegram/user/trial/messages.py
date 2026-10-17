@@ -21,7 +21,7 @@ from app.logger import LogType, get_logger
 from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.settings import panel_test_duration_days, panel_test_volume_gb
-from app.services.panels.trials import trial_panels
+from app.services.panels.trials import admin_unlimited_trial, trial_panels
 from app.services.subscriptions.links import format_subscription_links_for_message
 from app.telegram.keyboards.common import (
     is_keyboard_config_step,
@@ -78,14 +78,15 @@ async def trial_panel_pick_callback(event: events.CallbackQuery.Event):
         raise events.StopPropagation from None
 
     setting = await SettingsManager().get_settings()
+    unlimited = admin_unlimited_trial(user_id, setting)
     # Re-checked rather than trusted: the button may be minutes old, and the
     # trial could have been taken or switched off in between.
-    if not setting or setting.test_mode == 0:
+    if not unlimited and (not setting or setting.test_mode == 0):
         await event.answer("دریافت تست غیرفعال شده است.", alert=True)
         raise events.StopPropagation
 
     user = await UserCRUD().read_user(user_id=user_id)
-    if user and user.tested != 0:
+    if not unlimited and user and user.tested != 0:
         await event.answer("شما قبلاً تست خود را گرفته‌اید.", alert=True)
         raise events.StopPropagation
 
@@ -96,7 +97,7 @@ async def trial_panel_pick_callback(event: events.CallbackQuery.Event):
 
     with contextlib.suppress(Exception):
         await event.delete()
-    await deliver_trial(event, user_id, lang, panel)
+    await deliver_trial(event, user_id, lang, panel, mark_tested=not unlimited)
     raise events.StopPropagation
 
 
@@ -121,13 +122,14 @@ async def free_trial_filter(event: Message) -> bool:
 
 @bot_is_offline
 async def free_trial_handler(event: Message):
-    if not await ensure_channel_membership(event):
+    user_id = event.sender_id
+    paneltest = await SettingsManager().get_settings()
+    unlimited = admin_unlimited_trial(user_id, paneltest)
+    if not unlimited and not await ensure_channel_membership(event):
         raise events.StopPropagation
 
-    user_id = event.sender_id
     lang = await _user_lang(user_id)
-    paneltest = await SettingsManager().get_settings()
-    if paneltest.test_mode == 0:
+    if not unlimited and paneltest.test_mode == 0:
         await event.respond("😢 دریافت تست از سمت ادمین غیرفعال شده", buttons=await bhome_buttons(user_id, lang))
         raise events.StopPropagation
     panels = await trial_panels(paneltest)
@@ -138,7 +140,7 @@ async def free_trial_handler(event: Message):
     try:
         tested = await UserCRUD().read_user(user_id=user_id)
 
-        test_phone_verify = getattr(paneltest, "test_phone_verify", True)
+        test_phone_verify = getattr(paneltest, "test_phone_verify", True) and not unlimited
         if test_phone_verify and (
             not tested.number or not (tested.number.startswith("+98") or tested.number.startswith("98"))
         ):
@@ -151,7 +153,7 @@ async def free_trial_handler(event: Message):
             await set_step(user_id=user_id, step="test_phone_verify")
             raise events.StopPropagation
 
-        if tested.tested != 0:
+        if not unlimited and tested.tested != 0:
             await event.respond(
                 "😢 دوست عزیز شما قبلا تست خودتون رو گرفتید",
                 buttons=await bhome_buttons(user_id, lang),
@@ -162,7 +164,7 @@ async def free_trial_handler(event: Message):
             await event.respond(TRIAL_PICKER_PROMPT, buttons=_trial_picker_buttons(panels))
             raise events.StopPropagation
 
-        await deliver_trial(event, user_id, lang, panels[0])
+        await deliver_trial(event, user_id, lang, panels[0], mark_tested=not unlimited)
 
     except events.StopPropagation:
         raise
@@ -270,14 +272,14 @@ def register(client):
     )
 
 
-async def deliver_trial(event, user_id: int, lang: str, panel) -> None:
-    """Create the trial account on ``panel`` and hand it to the user."""
+async def deliver_trial(event, user_id: int, lang: str, panel, *, mark_tested: bool = True) -> None:
     try:
         test_volume_gb = panel_test_volume_gb(panel)
         test_duration_days = panel_test_duration_days(panel)
 
         code_service = random.randint(10000, 9999999)
-        await UserCRUD().update_user(user_id=user_id, tested=1)
+        if mark_tested:
+            await UserCRUD().update_user(user_id=user_id, tested=1)
         username = f"test_{code_service}"
         groups_resp = await fetch_panel_groups_with_auth(panel)
         group_ids: list[int] = _resolve_panel_group_ids(panel, groups_resp)

@@ -804,6 +804,7 @@
       "serviceUpgrade": "ارتقای سرویس",
       "serviceInfo": "اطلاعات سرویس",
       "phoneRequiredForTrial": "الزام تأیید شماره برای تست",
+      "adminUnlimitedTrial": "تست نامحدود برای ادمین اصلی",
       "phoneRequiredForPayment": "الزام تأیید شماره برای پرداخت",
       "randomCard": "انتخاب تصادفی کارت",
       "transferConfig": "انتقال کانفیگ",

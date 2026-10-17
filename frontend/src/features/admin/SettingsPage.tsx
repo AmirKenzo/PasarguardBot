@@ -76,6 +76,7 @@ const labels = (t: TFunction): Record<string, string> => ({
   test_mode: t("panel.settings.trialService"),
   test_panel_id: t("panel.settings.trialPanelCode"),
   test_phone_verify: t("panel.settings.phoneRequiredForTrial"),
+  admin_unlimited_trial: t("panel.settings.adminUnlimitedTrial"),
   direct_pay_purchase_mode: t("panel.settings.directBuy"),
   direct_pay_renew_mode: t("panel.settings.directRenew"),
   qr_mode: t("panel.settings.showQr"),

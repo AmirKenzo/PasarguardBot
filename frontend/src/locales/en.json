@@ -812,6 +812,7 @@
       "serviceUpgrade": "Service upgrade",
       "serviceInfo": "Service info",
       "phoneRequiredForTrial": "Require phone verification for trials",
+      "adminUnlimitedTrial": "Unlimited trials for main admins",
       "phoneRequiredForPayment": "Require phone verification for payments",
       "randomCard": "Pick a card at random",
       "transferConfig": "Transfer config",

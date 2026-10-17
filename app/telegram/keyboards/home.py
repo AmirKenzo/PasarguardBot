@@ -11,7 +11,7 @@ from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
 from app.db.models.settings import DEFAULT_HOME_MENU_SETTINGS
 from app.services.panels.settings import panel_reseller_sale_enabled, panel_shop_sale_enabled
-from app.services.panels.trials import trial_offered
+from app.services.panels.trials import admin_unlimited_trial, trial_offered, trial_panels
 from app.telegram.shared.utils.miniapp import miniapp_url
 from config import ADMIN_ID, DISABLE_UPTIME_BUTTONS, LINK_UPTIME_BUTTONS, WEBAPP_URL
 
@@ -209,7 +209,10 @@ async def bhome_buttons(user_id, lang):
     conditions = await home_button_conditions()
     visible = {key: not reason for key, reason in conditions.items()}
     # Conditions that depend on who is looking.
-    visible["bt.menu_get_trial"] = visible["bt.menu_get_trial"] and bool(user_data and user_data.tested == 0)
+    if admin_unlimited_trial(user_id, setting):
+        visible["bt.menu_get_trial"] = bool(await trial_panels(setting))
+    else:
+        visible["bt.menu_get_trial"] = visible["bt.menu_get_trial"] and bool(user_data and user_data.tested == 0)
     visible["bt.menu_admin_panel"] = is_admin
 
     def widget(key: str):
