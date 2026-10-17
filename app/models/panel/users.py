@@ -17,17 +17,19 @@ class PanelUserRow(BaseModel):
     balance: int = 0
     joined_at: int | None = None
     services: int = 0
+    is_new: bool = False
 
 
 class PanelUsersRequest(PagedRequest):
     q: str = Field("", max_length=64)
-    state: str = Field("", description="empty | active | banned | blocked_bot | deleted")
+    state: str = Field("", description="empty | new | active | banned | blocked_bot | deleted")
     sort: str = Field("newest", description="newest | oldest")
 
 
 class PanelUsersResponse(PanelResponse):
     users: list[PanelUserRow] = Field(default_factory=list)
     meta: PageMeta = Field(default_factory=PageMeta)
+    new_count: int = 0
 
 
 class PanelUserServiceRow(BaseModel):

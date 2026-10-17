@@ -728,7 +728,9 @@
       "deletedHint": "Telegram reports this account was deleted. The bot cannot message it until the account exists again.",
       "sortNewest": "Newest first",
       "sortOldest": "Oldest first",
-      "sortLabel": "Sort"
+      "sortLabel": "Sort",
+      "stateNew": "New",
+      "newBadge": "New"
     },
     "services": {
       "deleteWarning": "This removes the service from the bot's database only; it stays on the panel itself. Continue?",

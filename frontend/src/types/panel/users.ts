@@ -15,11 +15,12 @@ export interface PanelUserRow {
   balance: number;
   joined_at?: number | null;
   services: number;
+  is_new?: boolean;
 }
 
 export interface PanelUsersRequest extends PagedRequest {
   q?: string;
-  /** empty | active | banned | blocked_bot | deleted */
+  /** empty | new | active | banned | blocked_bot | deleted */
   state?: string;
   /** newest | oldest */
   sort?: string;
@@ -28,6 +29,7 @@ export interface PanelUsersRequest extends PagedRequest {
 export interface PanelUsersResponse extends PanelEnvelope {
   users: PanelUserRow[];
   meta: PageMeta;
+  new_count?: number;
 }
 
 export interface PanelUserServiceRow {

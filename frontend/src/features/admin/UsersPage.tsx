@@ -19,7 +19,8 @@ const STATE_TONE: Record<UserState, "success" | "warning" | "danger" | "muted"> 
   deleted: "muted",
 };
 
-const TAB_ACTIVE_CLASSES: Record<"success" | "warning" | "danger" | "muted", string> = {
+const TAB_ACTIVE_CLASSES: Record<"primary" | "success" | "warning" | "danger" | "muted", string> = {
+  primary: "bg-primary/12 text-primary",
   success: "bg-success/12 text-success",
   warning: "bg-warning/12 text-warning",
   danger: "bg-danger/12 text-danger",
@@ -36,6 +37,7 @@ const stateLabels = (t: TFunction): Record<UserState, string> => ({
 /** Quick top-level tabs — the one filter dimension used often enough to skip the dropdown. */
 const stateTabs = (t: TFunction) => [
   { value: "", label: t("panel.common.all"), tone: "muted" as const },
+  { value: "new", label: t("panel.users.stateNew"), tone: "primary" as const },
   { value: "active", label: t("panel.common.active"), tone: "success" as const },
   { value: "banned", label: t("panel.users.stateBanned"), tone: "danger" as const },
   { value: "blocked_bot", label: t("panel.users.stateBlockedBot"), tone: "warning" as const },
@@ -76,6 +78,7 @@ export default function AdminUsersPage() {
   const block = usePanelAction(panelUsersApi.setBlocked, { invalidate: [["users"]] });
 
   const rows = query.data?.users || [];
+  const newCount = query.data?.new_count ?? 0;
 
   function updateFilter(key: "state" | "sort", value: string) {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -163,6 +166,9 @@ export default function AdminUsersPage() {
                   }`}
                 >
                   {tab.label}
+                  {tab.value === "new" && newCount > 0 && (
+                    <span className="ltr-field ms-1">{formatNumber(newCount)}</span>
+                  )}
                 </button>
               );
             })}
@@ -189,13 +195,14 @@ export default function AdminUsersPage() {
               const canToggleBlock = row.state === "active" || row.state === "banned";
               return (
                 <div key={row.id} className="flex flex-wrap items-center gap-2.5 py-2.5 first:pt-0 last:pb-0">
-                  <IconBadge icon={User} tone="muted" size="sm" />
+                  <IconBadge icon={User} tone={row.is_new ? "primary" : "muted"} size="sm" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-text">
                       <Link to={`/panel/users/${row.id}`} className="ltr-field text-primary hover:underline">
                         #{row.id}
                       </Link>
                       {row.number && <span className="ltr-field font-normal text-muted">{row.number}</span>}
+                      {row.is_new && <Badge tone="primary">{t("panel.users.newBadge")}</Badge>}
                     </div>
                     <div className="text-2xs text-muted">
                       {t("panel.users.service")} <span className="ltr-field">{formatNumber(row.services)}</span>

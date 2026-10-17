@@ -30,6 +30,7 @@ INACTIVE_STATUSES = ("ban", "BlockedBot", "DeleteAccount")
 # Status the bot writes when a deposit is approved.
 APPROVED_STATUS = "approved"
 DAY = 86400
+NEW_USER_WINDOW = DAY
 
 
 def _page_bounds(page: int, per_page: int) -> tuple[int, int]:
@@ -187,7 +188,9 @@ async def list_users(*, q: str = "", state: str = "", page: int = 1, per_page: i
     if q:
         like = f"%{q}%"
         filters.append(or_(cast(User.id, String).like(like), User.number.like(like)))
-    if state == "active":
+    if state == "new":
+        filters.append(User.time_s >= new_user_cutoff())
+    elif state == "active":
         filters.append(or_(User.status.is_(None), User.status.notin_(INACTIVE_STATUSES)))
     elif state in USER_STATE_TO_STATUS:
         filters.append(User.status == USER_STATE_TO_STATUS[state])
@@ -202,6 +205,16 @@ async def list_users(*, q: str = "", state: str = "", page: int = 1, per_page: i
         total = int((await session.execute(counter)).scalar() or 0)
         rows = (await session.execute(base.order_by(order, User.id.desc()).limit(limit).offset(offset))).scalars().all()
     return list(rows), total
+
+
+def new_user_cutoff() -> int:
+    return int(time.time()) - NEW_USER_WINDOW
+
+
+async def count_new_users() -> int:
+    async with Session() as session:
+        result = await session.execute(select(func.count()).select_from(User).where(User.time_s >= new_user_cutoff()))
+        return int(result.scalar() or 0)
 
 
 async def get_user(user_id: int) -> User | None:
