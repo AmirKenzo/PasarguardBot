@@ -1,4 +1,4 @@
-"""Help download apps: patterns, GitHub, manager, admin UI, sync."""
+"""Help download apps: patterns, GitHub, manager, sync."""
 
 from __future__ import annotations
 
@@ -42,27 +42,6 @@ VERSION_PLACEHOLDER = "{{VERSION}}"
 SEGMENT_PLACEHOLDER = "{{SEGMENT}}"
 _VERSION_RE = r"\d+(?:\.\d+)*"
 _SEGMENT_RE = r"[^_]+"
-
-HELP_TARGETS_GUIDE_FA = """📖 **راهنمای الگو و دکمه‌های دانلود**
-
-**الگوی نام فایل (`%`):**
-• `%` = یک بخش بین `_` (مثلاً نسخه `2.1.8`)
-• `%.%.%` = همان نسخه کامل (مثل `2.1.8`) — برای نام‌هایی مثل:
-  `v2rayNG_%.%.%_universal.apk` → `v2rayNG_2.1.8_universal.apk`
-• اگر `%` نگذارید، همان متن به‌صورت **شامل بودن در اسم فایل** چک می‌شود (قدیمی)
-
-**مثال برای V2rayNG:**
-```
-v2rayNG_%.%.%_universal.apk
-v2rayNG_%.%.%_x86.apk
-v2rayNG_%.%.%_arm64-v8a.apk
-```
-
-**دکمه دانلود:** برای هر نسخه/پلتفرم یک دکمه با متن، رنگ و آیکون جدا.
-بعد از «🈸 آپدیت برنامه‌ها» فقط **tag جدید** عوض می‌شود؛ الگوها ثابت می‌مانند.
-
-**افزودن اپ:** مخزن GitHub → **📥 دکمه‌های دانلود** → ➕ افزودن دکمه → متن دکمه → الگوها (هر خط یک الگو).
-"""
 
 
 def new_target_id() -> str:
@@ -362,6 +341,20 @@ async def fetch_latest_release_github(
     return latest_release["tag_name"], downloads
 
 
+async def fetch_latest_release_assets(repo_owner: str, repo_name: str) -> tuple[str, list[dict]] | None:
+    """Tag and raw asset list of a repo's latest GitHub release, or None when it can't be read."""
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, headers=_github_api_headers(), timeout=10)
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            logger.error(f"GitHub latest release request failed for {repo_owner}/{repo_name}: {e}")
+            return None
+    release = response.json()
+    return release.get("tag_name") or "", list(release.get("assets") or [])
+
+
 async def fetch_latest_release_github_targets(
     repo_owner: str,
     repo_name: str,
@@ -626,7 +619,7 @@ class AppDownloadManager:
             if from_stored:
                 message += "\n💡 با زدن «دریافت نسخه» همان فایل‌های ذخیره‌شده برای شما ارسال می‌شود.\n"
             else:
-                message += "\n💡 برای دریافت مستقیم در تلگرام، ادمین باید «🈸 آپدیت برنامه‌ها» را اجرا کند.\n"
+                message += "\n💡 برای دریافت مستقیم در تلگرام، ادمین باید فایل‌ها را از پنل وب (دکمه‌های راهنما) بروزرسانی کند.\n"
 
             if from_db and app.get("ios_url"):
                 message += f"\n🍎 **iOS:** [دانلود از اپ استور]({app['ios_url']})\n"
@@ -1005,7 +998,7 @@ class AppDownloadManager:
             all_app_files = await self.app_file_manager.get_app_files_by_key(app_key)
             latest_files = self._filter_latest_version_files(all_app_files)
             if not latest_files:
-                msg = "❌ این برنامه هنوز در ربات ذخیره نشده.\nلطفاً از ادمین بخواهید «🈸 آپدیت برنامه‌ها» را اجرا کند."
+                msg = "❌ این برنامه هنوز در ربات ذخیره نشده.\nلطفاً از ادمین بخواهید فایل‌ها را از پنل وب بروزرسانی کند."
                 if hasattr(event, "answer"):
                     await event.answer(msg, alert=True)
                 else:
@@ -1058,159 +1051,6 @@ async def send_app_list(event, app_key):
     return await app_download_manager.send_app_list(event, app_key)
 
 
-# --- admin_ui.py ---
-
-
-def create_download_app_config_submenu(app_id: int, app) -> list:
-    is_github = app and (app.repo_owner or app.repo_name)
-    is_text_only = app and getattr(app, "custom_message", None)
-    rows = [
-        [Button.inline("✏️ متن دکمه", data=f"help_download_app_config_edit_text:{app_id}")],
-        [
-            Button.inline("آبی", data=f"help_download_app_config_color:{app_id}:primary"),
-            Button.inline("سبز", data=f"help_download_app_config_color:{app_id}:success"),
-            Button.inline("قرمز", data=f"help_download_app_config_color:{app_id}:danger"),
-            Button.inline("—", data=f"help_download_app_config_color:{app_id}:none"),
-        ],
-        [Button.inline("🖼 آیکون", data=f"help_download_app_config_icon:{app_id}")],
-        [Button.inline("🧹 حذف آیکون", data=f"help_download_app_config_icon_clear:{app_id}")],
-    ]
-    if is_github:
-        rows.append([Button.inline("📥 دکمه‌های دانلود (الگو)", data=f"help_download_app_targets:{app_id}")])
-        rows.append([Button.inline("📦 مخزن (GitHub)", data=f"help_download_app_config_repo:{app_id}")])
-        rows.append([Button.inline("🍎 لینک iOS", data=f"help_download_app_config_ios:{app_id}")])
-    if is_text_only:
-        rows.append([Button.inline("📝 متن پیام", data=f"help_download_app_config_custom_msg:{app_id}")])
-    rows.append([Button.inline("🔙 بازگشت", data="help_download_apps_manage")])
-    return rows
-
-
-async def fetch_app(app_id: int):
-    return await HelpDownloadAppCRUD().get_by_id(app_id)
-
-
-async def load_targets(app_id: int) -> list[dict]:
-    app = await fetch_app(app_id)
-    if not app:
-        return []
-    return get_download_targets(app)
-
-
-async def save_targets(app_id: int, targets: list[dict]) -> bool:
-    normalized = normalize_targets(targets)
-    return await HelpDownloadAppCRUD().update(app_id, download_targets=normalized)
-
-
-async def append_target(app_id: int, button_text: str, patterns: list[str]) -> bool:
-    targets = await load_targets(app_id)
-    targets.append(
-        normalize_target(
-            {
-                "id": new_target_id(),
-                "button_text": button_text,
-                "patterns": patterns,
-            },
-            len(targets),
-        )
-    )
-    return await save_targets(app_id, targets)
-
-
-async def update_target(app_id: int, target_id: str, **fields) -> bool:
-    targets = await load_targets(app_id)
-    updated = []
-    found = False
-    for t in targets:
-        if t.get("id") == target_id:
-            found = True
-            merged = {**t, **fields}
-            if "patterns" in fields and isinstance(fields["patterns"], str):
-                merged["patterns"] = [ln.strip() for ln in fields["patterns"].splitlines() if ln.strip()]
-            updated.append(normalize_target(merged, len(updated)))
-        else:
-            updated.append(t)
-    if not found:
-        return False
-    return await save_targets(app_id, updated)
-
-
-async def delete_target(app_id: int, target_id: str) -> bool:
-    targets = [t for t in await load_targets(app_id) if t.get("id") != target_id]
-    return await save_targets(app_id, targets)
-
-
-async def migrate_categories_to_targets(app_id: int) -> bool:
-    app = await fetch_app(app_id)
-    if not app or not app.categories:
-        return False
-    if normalize_targets(getattr(app, "download_targets", None)):
-        return False
-    targets = categories_to_targets(app.categories)
-    return await save_targets(app_id, targets)
-
-
-def targets_list_message(app, targets: list[dict]) -> str:
-    lines = [f"📥 **دکمه‌های دانلود — {app.button_text}**\n"]
-    if not targets:
-        lines.append("هنوز دکمه‌ای تعریف نشده. «➕ افزودن دکمه» را بزنید.\n")
-    else:
-        for i, t in enumerate(targets, 1):
-            pats = t.get("patterns") or []
-            preview = ", ".join(f"`{p}`" for p in pats[:3])
-            if len(pats) > 3:
-                preview += f" (+{len(pats) - 3})"
-            lines.append(f"{i}. **{t.get('button_text', '?')}** — {preview or 'بدون الگو'}\n")
-    lines.append("\n" + HELP_TARGETS_GUIDE_FA)
-    return "".join(lines)
-
-
-def targets_list_buttons(app_id: int, targets: list[dict]) -> list:
-    rows = []
-    for t in targets:
-        tid = t["id"]
-        label = (t.get("button_text") or tid)[:24]
-        rows.append(
-            [
-                Button.inline(f"✏️ {label}", data=f"help_download_app_target:{app_id}:{tid}"),
-                Button.inline("🗑", data=f"help_download_app_target_del:{app_id}:{tid}"),
-            ]
-        )
-    rows.append([Button.inline("➕ افزودن دکمه", data=f"help_download_app_target_add:{app_id}")])
-    if not targets:
-        rows.append([Button.inline("📋 تبدیل از categories قدیمی", data=f"help_download_app_target_migrate:{app_id}")])
-    rows.append([Button.inline("🔙 بازگشت", data=f"help_download_app_config:{app_id}")])
-    return rows
-
-
-def target_edit_buttons(app_id: int, target_id: str) -> list:
-    return [
-        [Button.inline("✏️ متن دکمه", data=f"help_download_app_target_text:{app_id}:{target_id}")],
-        [Button.inline("📄 الگوهای فایل", data=f"help_download_app_target_patterns:{app_id}:{target_id}")],
-        [
-            Button.inline("آبی", data=f"help_download_app_target_color:{app_id}:{target_id}:primary"),
-            Button.inline("سبز", data=f"help_download_app_target_color:{app_id}:{target_id}:success"),
-            Button.inline("قرمز", data=f"help_download_app_target_color:{app_id}:{target_id}:danger"),
-            Button.inline("—", data=f"help_download_app_target_color:{app_id}:{target_id}:none"),
-        ],
-        [Button.inline("🖼 آیکون", data=f"help_download_app_target_icon:{app_id}:{target_id}")],
-        [Button.inline("🧹 حذف آیکون", data=f"help_download_app_target_icon_clear:{app_id}:{target_id}")],
-        [Button.inline("🗑 حذف دکمه", data=f"help_download_app_target_del:{app_id}:{target_id}")],
-        [Button.inline("🔙 بازگشت", data=f"help_download_app_targets:{app_id}")],
-    ]
-
-
-def patterns_edit_hint(target: dict) -> str:
-    current = "\n".join(target.get("patterns") or []) or "(خالی)"
-    return (
-        f"📄 **الگوهای فایل — {target.get('button_text', '')}**\n\n"
-        f"الگوهای فعلی:\n```\n{current}\n```\n\n"
-        "هر خط یک الگو. مثال:\n"
-        "`v2rayNG_%.%.%_universal.apk`\n"
-        "`v2rayNG_%.%.%_x86.apk`\n\n"
-        "الگوی جدید را در یک پیام بفرستید (جایگزین می‌شود):"
-    )
-
-
 # --- sync.py ---
 
 
@@ -1238,9 +1078,7 @@ async def run_admin_app_files_sync(status_message) -> None:
         }
 
     if not apps_to_update:
-        await status_message.edit(
-            "❌ هیچ اپی در لیست نیست. از **تنظیمات راهنما** > مدیریت اپ‌های دانلود، اپ اضافه کنید یا «اپ‌های پیش‌فرض» را بزنید."
-        )
+        await status_message.edit("❌ هیچ اپی در لیست نیست. از **پنل وب** > دکمه‌های راهنما، اپ دانلود اضافه کنید.")
         return
 
     total_files = 0

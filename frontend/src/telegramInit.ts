@@ -2,12 +2,19 @@
  * Extract Telegram WebApp init data on load, before HashRouter overwrites the hash.
  * Store in sessionStorage for useAuth.
  */
+import { takeOpenParam } from "./deepLink";
+
 const TG_INIT_STORAGE = "tg_webapp_init_data";
 
 function captureTelegramInitData(): void {
+  // `?open=/panel/help-buttons` deep link: start on that route instead of the dashboard.
+  const openTarget = takeOpenParam();
   try {
     const hash = window.location.hash.slice(1);
-    if (!hash) return;
+    if (!hash) {
+      if (openTarget) window.location.hash = `#${openTarget}`;
+      return;
+    }
 
     const params = new URLSearchParams(hash);
     const tgWebAppData = params.get("tgWebAppData");
@@ -21,7 +28,9 @@ function captureTelegramInitData(): void {
         }
       }
       sessionStorage.setItem(TG_INIT_STORAGE, initData);
-      window.location.hash = "#/";
+      window.location.hash = openTarget ? `#${openTarget}` : "#/";
+    } else if (openTarget) {
+      window.location.hash = `#${openTarget}`;
     }
   } catch {
     // ignore

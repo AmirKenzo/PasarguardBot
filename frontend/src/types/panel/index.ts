@@ -12,6 +12,7 @@ export * from "./broadcast";
 export * from "./channels";
 export * from "./texts";
 export * from "./keyboard";
+export * from "./helpButtons";
 export * from "./settings";
 export * from "./pwa";
 export * from "./reports";

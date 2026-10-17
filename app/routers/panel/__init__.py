@@ -23,6 +23,7 @@ Split by feature, mirroring ``app/routers/webapp``:
   - channels: join-lock channels and log destinations
   - texts: the editable bot texts
   - keyboard: home menu layout, button labels, colours and icons
+  - help_buttons: help menu buttons, download apps, release files and stored versions
   - settings: the bot settings form
   - pwa: installable-webapp branding (name, description, icon)
   - reports: sales and customer reports
@@ -38,6 +39,7 @@ from app.routers.panel.broadcast import router as broadcast_router
 from app.routers.panel.channels import router as channels_router
 from app.routers.panel.dashboard import router as dashboard_router
 from app.routers.panel.discounts import router as discounts_router
+from app.routers.panel.help_buttons import router as help_buttons_router
 from app.routers.panel.keyboard import router as keyboard_router
 from app.routers.panel.panels import router as panels_router
 from app.routers.panel.payments import router as payments_router
@@ -75,6 +77,7 @@ panel_router.include_router(broadcast_router)
 panel_router.include_router(channels_router)
 panel_router.include_router(texts_router)
 panel_router.include_router(keyboard_router)
+panel_router.include_router(help_buttons_router)
 panel_router.include_router(theme_pack_router)
 panel_router.include_router(settings_router)
 panel_router.include_router(pwa_router)

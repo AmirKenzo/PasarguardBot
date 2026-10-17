@@ -13,6 +13,7 @@ export * as panelBroadcastApi from "./broadcast";
 export * as panelChannelsApi from "./channels";
 export * as panelTextsApi from "./texts";
 export * as panelKeyboardApi from "./keyboard";
+export * as panelHelpButtonsApi from "./helpButtons";
 export * as panelSettingsApi from "./settings";
 export * as panelPwaApi from "./pwa";
 export * as panelReportsApi from "./reports";

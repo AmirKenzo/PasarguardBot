@@ -13,6 +13,7 @@ import {
   Gem,
   Gift,
   Keyboard,
+  LifeBuoy,
   Landmark,
   LayoutDashboard,
   Megaphone,
@@ -134,6 +135,7 @@ const navGroups = (t: TFunction): NavGroup[] => [
     title: t("panel.shell.groupConfiguration"),
     items: [
       { to: "/panel/keyboard", label: t("panel.common.keyboardLayout"), icon: Keyboard },
+      { to: "/panel/help-buttons", label: t("panel.common.helpButtons"), icon: LifeBuoy },
       { to: "/panel/theme-packs", label: t("panel.common.themePacks"), icon: Palette },
       {
         to: "/panel/settings",

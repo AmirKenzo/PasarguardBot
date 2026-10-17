@@ -143,7 +143,6 @@ Panel_Admin_Buttons = [
         # phone. Pressing it brings an inline web-view button instead.
         *([create_button("🖥 پنل تحت وب")] if WEB_PANEL_URL else []),
     ],
-    [create_button("🈸 آپدیت برنامه ها")],
     [create_button("🏠")],
 ]
 
