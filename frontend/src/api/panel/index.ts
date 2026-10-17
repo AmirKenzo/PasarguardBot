@@ -18,3 +18,4 @@ export * as panelPwaApi from "./pwa";
 export * as panelReportsApi from "./reports";
 export * as panelAuditApi from "./audit";
 export * as panelToolsApi from "./tools";
+export * as panelThemePacksApi from "./themePacks";

@@ -18,6 +18,7 @@ import {
   Megaphone,
   Menu,
   MessageSquareText,
+  Palette,
   Radio,
   Receipt,
   Server,
@@ -133,6 +134,7 @@ const navGroups = (t: TFunction): NavGroup[] => [
     title: t("panel.shell.groupConfiguration"),
     items: [
       { to: "/panel/keyboard", label: t("panel.common.keyboardLayout"), icon: Keyboard },
+      { to: "/panel/theme-packs", label: t("panel.common.themePacks"), icon: Palette },
       {
         to: "/panel/settings",
         label: t("panel.common.botSettings"),

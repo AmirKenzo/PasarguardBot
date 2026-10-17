@@ -16,3 +16,4 @@ export * from "./settings";
 export * from "./pwa";
 export * from "./reports";
 export * from "./tools";
+export * from "./themePacks";

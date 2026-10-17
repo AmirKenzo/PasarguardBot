@@ -51,6 +51,7 @@ from app.routers.panel.resellers import router as resellers_router
 from app.routers.panel.services import router as services_router
 from app.routers.panel.settings import router as settings_router
 from app.routers.panel.texts import router as texts_router
+from app.routers.panel.theme_pack import router as theme_pack_router
 from app.routers.panel.tools import router as tools_router
 from app.routers.panel.transactions import router as transactions_router
 from app.routers.panel.users import router as users_router
@@ -74,6 +75,7 @@ panel_router.include_router(broadcast_router)
 panel_router.include_router(channels_router)
 panel_router.include_router(texts_router)
 panel_router.include_router(keyboard_router)
+panel_router.include_router(theme_pack_router)
 panel_router.include_router(settings_router)
 panel_router.include_router(pwa_router)
 panel_router.include_router(reports_router)

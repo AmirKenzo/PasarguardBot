@@ -23,7 +23,7 @@ from app.panel import audit
 from app.panel.forms import parse_icon
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
-from app.telegram.keyboards.home import DEFAULT_HOME_LAYOUT, home_button_conditions
+from app.telegram.keyboards.home import DEFAULT_HOME_LAYOUT, current_home_layout, home_button_conditions
 from app.telegram.keyboards.registry import (
     KEYBOARD_BUTTON_DEFAULT_STYLES,
     KEYBOARD_BUTTON_DEFAULTS,
@@ -50,17 +50,8 @@ def _default_text(key: str) -> str:
 
 def _current_layout(buttons: dict) -> list[list[str]]:
     """Rebuild the saved layout, falling back to the bot's default."""
-    placed = [(row.sort_row, row.sort_order or 0, key) for key, row in buttons.items() if row.sort_row is not None]
-    if not placed:
-        return [list(row) for row in DEFAULT_HOME_LAYOUT]
-    rows: dict[int, list[tuple[int, str]]] = {}
-    for row_index, order, key in placed:
-        rows.setdefault(int(row_index), []).append((int(order), key))
-    layout = [[key for _, key in sorted(items)] for _, items in sorted(rows.items())]
-    # any home button the admin never placed goes to its own trailing row
-    seen = {key for row in layout for key in row}
-    layout.extend([key] for key in HOME_KEYS if key not in seen)
-    return layout
+    placement = {key: (row.sort_row, row.sort_order or 0) for key, row in buttons.items() if row.sort_row is not None}
+    return current_home_layout(placement)
 
 
 async def _log(actor: PanelActor, action: str, **kwargs) -> None:
