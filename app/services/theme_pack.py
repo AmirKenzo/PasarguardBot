@@ -12,13 +12,13 @@ Pack layout (version 1)::
         "version": 1,
         "name": "...",
         "source": {"bot": "pasarguard", "app_version": "...", "created_at": 1700000000},
-        "texts": {"<key>": {"<lang>": {"value": "...", "banner_url": null, "banner_position": null}}},
+        "texts": {"<key>": {"<lang>": {"value": "..."}}},
         "buttons": {"<key>": {"text": "...", "style": "primary", "icon": "5895443668663275064"}},
         "layout": {"rows": [["bt.menu_my_services", "bt.menu_buy_service"], ...], "hidden": [...]},
     }
 
-Optional fields are written only when they carry something: a missing ``banner_url``, ``style``
-or ``icon`` leaves the receiver's value alone, an explicit ``null`` banner removes theirs.
+Optional button fields are written only when they carry something: a missing ``style`` or
+``icon`` leaves the receiver's value alone. Banner fields from older packs are ignored.
 Emoji ids travel as strings because they do not fit in a JavaScript number.
 """
 
@@ -41,7 +41,6 @@ from app.db.models.theme_pack import ThemePack, ThemePackImport
 from app.i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES
 from app.logger import get_logger
 from app.models.panel.keyboard import OTHER_SECTION, SECTION_PREFIXES, STYLE_OPTIONS
-from app.models.panel.texts import BANNER_POSITIONS
 from app.telegram.keyboards.home import HOME_BUTTON_KEYS, current_home_layout
 from app.telegram.keyboards.registry import KEYBOARD_BUTTON_DEFAULTS, KEYBOARD_BUTTON_TITLES
 from app.telegram.keyboards.texts import TEXT_KEYS_CONFIG, TEXT_SECTIONS
@@ -61,7 +60,6 @@ MAX_ENTRIES = 1000
 MAX_NAME_LENGTH = 100
 MAX_TEXT_LENGTH = 8192
 MAX_BUTTON_TEXT_LENGTH = 100
-MAX_BANNER_URL_LENGTH = 500
 KEEP_IMPORTS = 10
 
 # Texts tied to this bot's own panels; they mean nothing on another bot.
@@ -339,20 +337,7 @@ def _parse_texts(texts: dict[str, Any]) -> list[PackItem]:
             value = entry["value"]
             item.incoming = value
             item.warnings, item.errors = check_text(key, value)
-            item.data = {"value": value, "has_banner": "banner_url" in entry}
-            if "banner_url" in entry:
-                url = entry.get("banner_url")
-                position = entry.get("banner_position") or ""
-                if url is not None and (
-                    not isinstance(url, str) or not url.startswith("https://") or len(url) > MAX_BANNER_URL_LENGTH
-                ):
-                    item.errors.append("bad_banner")
-                if position not in BANNER_POSITIONS:
-                    item.errors.append("bad_banner")
-                item.data["banner_url"] = url or None
-                item.data["banner_position"] = position or None
-                if url:
-                    item.warnings.append("has_banner")
+            item.data = {"value": value}
             if item.errors:
                 item.status = STATUS_INVALID
     return items
@@ -489,7 +474,6 @@ async def inventory() -> dict[str, Any]:
                 "section": meta.get("section") or OTHER_TEXT_SECTION,
                 "langs": [row.lang for row in rows],
                 "has_default": default_bot_text(key) is not None,
-                "has_banner": any(row.banner_url for row in rows),
                 "hints": hints,
             }
         )
@@ -525,7 +509,6 @@ async def build_pack(
     text_keys: list[str] | tuple[str, ...] = (),
     button_keys: list[str] | tuple[str, ...] = (),
     include_layout: bool = False,
-    include_banners: bool = True,
     include_icons: bool = True,
     include_defaults: bool = False,
 ) -> dict[str, Any]:
@@ -538,11 +521,7 @@ async def build_pack(
         rows = sorted((row for (k, _l), row in texts_state.items() if k == key), key=lambda r: r.lang)
         entries: dict[str, dict[str, Any]] = {}
         for row in rows:
-            entry: dict[str, Any] = {"value": row.value}
-            if include_banners:
-                entry["banner_url"] = row.banner_url or None
-                entry["banner_position"] = row.banner_position or None
-            entries[row.lang] = entry
+            entries[row.lang] = {"value": row.value}
         if not entries and include_defaults and (default := default_bot_text(key)) is not None:
             entries[DEFAULT_LANGUAGE] = {"value": default}
         if entries:
@@ -626,11 +605,7 @@ async def preview(raw: Any) -> ParsedPack:
             if row is None:
                 item.status = STATUS_NEW
             else:
-                same_banner = not item.data["has_banner"] or (
-                    (row.banner_url or None) == item.data.get("banner_url")
-                    and (row.banner_position or None) == item.data.get("banner_position")
-                )
-                item.status = STATUS_SAME if row.value == item.data["value"] and same_banner else STATUS_CHANGED
+                item.status = STATUS_SAME if row.value == item.data["value"] else STATUS_CHANGED
         elif item.kind == KIND_BUTTON:
             row = buttons.get(item.key)
             item.current = (row.button_text if row and row.button_text else None) or KEYBOARD_BUTTON_DEFAULTS.get(
@@ -739,9 +714,6 @@ async def apply(
                 row = BotText(key=item.key, lang=item.lang, value=item.data["value"])
                 session.add(row)
             row.value = item.data["value"]
-            if item.data["has_banner"]:
-                row.banner_url = item.data.get("banner_url")
-                row.banner_position = item.data.get("banner_position")
 
         if layout_item is not None:
             backup["layout"] = {
@@ -917,11 +889,7 @@ def pack_from_items(parsed: ParsedPack, *, name: str | None = None) -> dict[str,
         if item.status in (STATUS_INVALID, STATUS_UNKNOWN) or not item.data:
             continue
         if item.kind == KIND_TEXT and item.lang:
-            entry: dict[str, Any] = {"value": item.data["value"]}
-            if item.data["has_banner"]:
-                entry["banner_url"] = item.data.get("banner_url")
-                entry["banner_position"] = item.data.get("banner_position")
-            texts.setdefault(item.key, {})[item.lang] = entry
+            texts.setdefault(item.key, {})[item.lang] = {"value": item.data["value"]}
         elif item.kind == KIND_BUTTON:
             entry = {name_: item.data[name_] for name_ in ("text", "style") if name_ in item.data}
             if "icon" in item.data:

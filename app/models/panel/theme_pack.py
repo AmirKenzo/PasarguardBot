@@ -17,7 +17,6 @@ class ThemePackTextInfo(BaseModel):
     section: str
     langs: list[str] = Field(default_factory=list)
     has_default: bool = False
-    has_banner: bool = False
     # Kinds of personal data the stored text seems to carry (username, link, card_number, phone).
     hints: list[str] = Field(default_factory=list)
 
@@ -74,7 +73,6 @@ class ThemePackCreateRequest(PanelRequest):
     text_keys: list[str] = Field(default_factory=list, max_length=MAX_SELECTION)
     button_keys: list[str] = Field(default_factory=list, max_length=MAX_SELECTION)
     include_layout: bool = False
-    include_banners: bool = True
     include_icons: bool = True
     include_defaults: bool = False
 

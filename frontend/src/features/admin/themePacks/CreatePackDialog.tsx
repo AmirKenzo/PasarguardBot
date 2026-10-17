@@ -22,7 +22,6 @@ export function CreatePackDialog({ open, overview, onClose, onCreated }: CreateP
   const [textKeys, setTextKeys] = useState<Set<string>>(new Set());
   const [buttonKeys, setButtonKeys] = useState<Set<string>>(new Set());
   const [includeLayout, setIncludeLayout] = useState(false);
-  const [includeBanners, setIncludeBanners] = useState(true);
   const [includeIcons, setIncludeIcons] = useState(true);
   const [includeDefaults, setIncludeDefaults] = useState(false);
 
@@ -43,7 +42,6 @@ export function CreatePackDialog({ open, overview, onClose, onCreated }: CreateP
         text_keys: [...textKeys],
         button_keys: [...buttonKeys],
         include_layout: includeLayout,
-        include_banners: includeBanners,
         include_icons: includeIcons,
         include_defaults: includeDefaults,
       },
@@ -73,7 +71,6 @@ export function CreatePackDialog({ open, overview, onClose, onCreated }: CreateP
         />
         <div className="flex flex-col gap-3 rounded-xl border border-border p-3">
           <ToggleRow checked={includeLayout} onChange={setIncludeLayout} label={t("panel.themePacks.includeLayout")} />
-          <ToggleRow checked={includeBanners} onChange={setIncludeBanners} label={t("panel.themePacks.includeBanners")} />
           <ToggleRow checked={includeIcons} onChange={setIncludeIcons} label={t("panel.themePacks.includeIcons")} />
           <ToggleRow checked={includeDefaults} onChange={setIncludeDefaults} label={t("panel.themePacks.includeDefaults")} />
         </div>

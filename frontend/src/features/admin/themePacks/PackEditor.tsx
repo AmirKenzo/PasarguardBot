@@ -232,21 +232,6 @@ export function PackEditor({ packId, overview, onBack }: PackEditorProps) {
                       }
                       className="min-h-24 w-full resize-y rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm leading-relaxed text-text outline-none focus:border-primary"
                     />
-                    {"banner_url" in entry && (
-                      <Input
-                        dense
-                        ltr
-                        className="mt-1.5"
-                        label={t("panel.themePacks.bannerUrl")}
-                        value={entry.banner_url ?? ""}
-                        placeholder="https://"
-                        onChange={(event) =>
-                          update((next) => {
-                            next.texts![key]![lang]!.banner_url = event.target.value.trim() || null;
-                          })
-                        }
-                      />
-                    )}
                     {renderIssues(id)}
                   </li>
                 );

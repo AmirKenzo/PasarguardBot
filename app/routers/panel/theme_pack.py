@@ -73,7 +73,6 @@ async def create_from_current(payload: ThemePackCreateRequest, request: Request)
             text_keys=payload.text_keys,
             button_keys=payload.button_keys,
             include_layout=payload.include_layout,
-            include_banners=payload.include_banners,
             include_icons=payload.include_icons,
             include_defaults=payload.include_defaults,
         )

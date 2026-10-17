@@ -149,7 +149,6 @@ def test_build_pack_exports_only_what_is_asked(db) -> None:
             name="Blue",
             text_keys=["help_message", "panel_locations_1", "support_message"],
             button_keys=["bt.menu_help", "bt.menu_profile", "nope"],
-            include_banners=False,
         )
     )
     assert pack["texts"] == {"help_message": {"en": {"value": "Help!"}, "fa": {"value": "راهنما"}}}
@@ -225,25 +224,25 @@ def test_replace_mode_resets_what_the_pack_leaves_out(db) -> None:
     assert "bt.menu_help" not in run(_buttons(db))
 
 
-def test_banner_in_pack_replaces_or_clears(db) -> None:
+def test_banner_fields_from_older_packs_are_ignored(db) -> None:
     async def seed_banner():
         async with db() as s:
-            s.add(BotText(key="start_message", lang="fa", value="v", banner_url="https://old", banner_position="top"))
+            s.add(BotText(key="start_message", lang="fa", value="old", banner_url="https://old", banner_position="top"))
             await s.commit()
 
     run(seed_banner())
-    pack = _pack(texts={"start_message": {"fa": {"value": "v", "banner_url": None, "banner_position": None}}})
-    assert [item.status for item in run(tp.preview(pack)).items] == ["changed"]
+    pack = _pack(texts={"start_message": {"fa": {"value": "new", "banner_url": "http://x", "banner_position": "?"}}})
+    items = run(tp.preview(pack)).items
+    assert [(item.status, item.errors, item.warnings) for item in items] == [("changed", [], [])]
     run(tp.apply(pack, None, actor_id=None))
 
-    async def banner():
+    async def stored():
         async with db() as s:
             row = (await s.execute(select(BotText))).scalars().one()
-            return row.banner_url, row.banner_position
+            return row.value, row.banner_url, row.banner_position
 
-    assert run(banner()) == (None, None)
-    bad = tp.parse_pack(_pack(texts={"start_message": {"fa": {"value": "v", "banner_url": "http://x"}}}))
-    assert bad.items[0].errors == ["bad_banner"]
+    assert run(stored()) == ("new", "https://old", "top")
+    assert "banner_url" not in json.dumps(run(tp.build_pack(text_keys=["start_message"])))
 
 
 # --- library --------------------------------------------------------------------------

@@ -5,9 +5,6 @@ export const THEME_PACK_FORMAT = "kenzo-theme-pack";
 
 export interface ThemePackTextEntry {
   value: string;
-  /** Present only when the pack carries banners; null removes the receiver's banner. */
-  banner_url?: string | null;
-  banner_position?: string | null;
 }
 
 export interface ThemePackButtonEntry {
@@ -39,7 +36,6 @@ export interface ThemePackTextInfo {
   section: string;
   langs: string[];
   has_default: boolean;
-  has_banner: boolean;
   /** username | link | card_number | phone */
   hints: string[];
 }
@@ -100,7 +96,6 @@ export interface ThemePackCreateRequest extends PanelAuthRequest {
   text_keys: string[];
   button_keys: string[];
   include_layout: boolean;
-  include_banners: boolean;
   include_icons: boolean;
   include_defaults: boolean;
 }
