@@ -22,7 +22,7 @@ MODULE_REQUIRED = True
 MODULE_DESCRIPTION = "User start and home navigation"
 
 
-def setup(ctx: PluginContext) -> None:
-    messages.register(ctx)
-    callbacks.register(ctx)
-    home_inline.register(ctx)
+def setup(kenzo: PluginContext) -> None:
+    messages.register(kenzo)
+    callbacks.register(kenzo)
+    home_inline.register(kenzo)

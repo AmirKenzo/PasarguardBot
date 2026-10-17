@@ -133,12 +133,12 @@ async def callback_back_to_profile(event: events.CallbackQuery.Event):
     await event.edit(profile_message, buttons=[[home_back_button()]])
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         menu_profile,
         events.NewMessage(incoming=True, func=menu_profile_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         callback_back_to_profile,
         events.CallbackQuery(data=CALLBACK_BACK_TO_PROFILE),
     )

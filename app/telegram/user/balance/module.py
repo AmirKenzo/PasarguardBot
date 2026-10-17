@@ -8,8 +8,8 @@ MODULE_REQUIRED = True
 MODULE_DESCRIPTION = "User balance and payment flow"
 
 
-def setup(ctx: PluginContext) -> None:
-    messages.register(ctx)
-    callbacks.register(ctx)
-    tonpays.register(ctx)
-    ir_gateways.register(ctx)
+def setup(kenzo: PluginContext) -> None:
+    messages.register(kenzo)
+    callbacks.register(kenzo)
+    tonpays.register(kenzo)
+    ir_gateways.register(kenzo)

@@ -7,6 +7,6 @@ MODULE_NAME = "admin.channel_lock"
 MODULE_DESCRIPTION = "Admin channel lock flow"
 
 
-def setup(ctx: PluginContext) -> None:
-    messages.register(ctx)
-    callbacks.register(ctx)
+def setup(kenzo: PluginContext) -> None:
+    messages.register(kenzo)
+    callbacks.register(kenzo)

@@ -8,6 +8,6 @@ MODULE_ORDER = 1010
 MODULE_DESCRIPTION = "Admin reseller plan management"
 
 
-def setup(ctx: PluginContext) -> None:
-    messages.register(ctx)
-    callbacks.register(ctx)
+def setup(kenzo: PluginContext) -> None:
+    messages.register(kenzo)
+    callbacks.register(kenzo)

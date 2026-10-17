@@ -7,6 +7,6 @@ MODULE_NAME = "admin.wallets"
 MODULE_DESCRIPTION = "Admin wallet flow"
 
 
-def setup(ctx: PluginContext) -> None:
-    messages.register(ctx)
-    callbacks.register(ctx)
+def setup(kenzo: PluginContext) -> None:
+    messages.register(kenzo)
+    callbacks.register(kenzo)

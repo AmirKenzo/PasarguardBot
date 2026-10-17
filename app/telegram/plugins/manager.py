@@ -10,7 +10,7 @@ A module is ``app/telegram/{admin,user,business}/<name>.py`` or ``.../<name>/mod
     MODULE_VERSION = ""
 
 
-    def setup(ctx: PluginContext) -> None: ...  # may be async; ``register`` is also accepted
+    def setup(kenzo: PluginContext) -> None: ...  # may be async; ``register`` is also accepted
 
 A module without ``setup``/``register`` registers its handlers on import (``@Kenzo.on``).
 An optional module that fails is logged and skipped; the rest of the bot keeps running.
@@ -158,12 +158,12 @@ class PluginManager:
         return tuple(self._modules.values())
 
     async def load(self, spec: ModuleSpec) -> LoadedModule:
-        ctx = PluginContext(spec.name, self.client)
+        kenzo = PluginContext(spec.name, self.client)
         try:
             module = importlib.import_module(spec.import_name)
             entry = getattr(module, "setup", None) or getattr(module, "register", None)
             if callable(entry):
-                result = entry(ctx)
+                result = entry(kenzo)
                 if inspect.isawaitable(result):
                     await result
         except Exception as exc:
@@ -180,7 +180,7 @@ class PluginManager:
                 raise RequiredModuleError(f"Required module {spec.name} failed to load") from exc
             return loaded
 
-        loaded = LoadedModule(spec, "loaded", ctx.handler_count, len(ctx.job_ids), legacy=not callable(entry))
+        loaded = LoadedModule(spec, "loaded", kenzo.handler_count, len(kenzo.job_ids), legacy=not callable(entry))
         self._modules[spec.name] = loaded
         logger.info("%s %s %s", LogTag.PLUGIN, "↩" if loaded.legacy else "✓", spec.name)
         return loaded

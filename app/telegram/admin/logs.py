@@ -533,9 +533,9 @@ async def message_handler_log_admin(event: Message):
         raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         message_handler_log_admin,
         events.NewMessage(incoming=True, from_users=ADMIN_ID, func=_log_admin_message_filter),
     )
-    ctx.add_event_handler(callback_log_admin, events.CallbackQuery(func=log_callback_filter))
+    kenzo.add_event_handler(callback_log_admin, events.CallbackQuery(func=log_callback_filter))

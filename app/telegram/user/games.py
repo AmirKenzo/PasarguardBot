@@ -219,11 +219,11 @@ async def rps_choice(event) -> None:
     await send_log_message(LogType.OTHER, message=f"✂️ کاربر {user_id} در سنگ کاغذ قیچی {prize:,} تومان برنده شد! 🎉")
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         dice_shortcut, events.NewMessage(incoming=True, pattern=r"^/dice$", func=lambda e: not e.is_channel)
     )
-    ctx.add_event_handler(games_command, events.NewMessage(pattern="/games"))
-    ctx.add_event_handler(back_to_games, events.CallbackQuery(data=b"back_to_games"))
-    ctx.add_event_handler(play_game, events.CallbackQuery(pattern=rb"game_.*"))
-    ctx.add_event_handler(rps_choice, events.CallbackQuery(pattern=rb"rps_.*"))
+    kenzo.add_event_handler(games_command, events.NewMessage(pattern="/games"))
+    kenzo.add_event_handler(back_to_games, events.CallbackQuery(data=b"back_to_games"))
+    kenzo.add_event_handler(play_game, events.CallbackQuery(pattern=rb"game_.*"))
+    kenzo.add_event_handler(rps_choice, events.CallbackQuery(pattern=rb"rps_.*"))

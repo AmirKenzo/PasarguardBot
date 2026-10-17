@@ -7,6 +7,6 @@ MODULE_NAME = "admin.plans"
 MODULE_DESCRIPTION = "Admin plan management flow"
 
 
-def setup(ctx: PluginContext) -> None:
-    messages.register(ctx)
-    callbacks.register(ctx)
+def setup(kenzo: PluginContext) -> None:
+    messages.register(kenzo)
+    callbacks.register(kenzo)

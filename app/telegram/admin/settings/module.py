@@ -7,6 +7,6 @@ MODULE_NAME = "admin.settings"
 MODULE_DESCRIPTION = "Admin settings flow"
 
 
-def setup(ctx: PluginContext) -> None:
-    messages.register(ctx)
-    callbacks.register(ctx)
+def setup(kenzo: PluginContext) -> None:
+    messages.register(kenzo)
+    callbacks.register(kenzo)

@@ -32,6 +32,6 @@ async def open_web_panel(event: Message) -> None:
     raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(open_webapp, events.NewMessage(pattern=r"/webapp$", incoming=True, from_users=ADMIN_ID))
-    ctx.add_event_handler(open_web_panel, events.NewMessage(incoming=True, func=_web_panel_filter))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(open_webapp, events.NewMessage(pattern=r"/webapp$", incoming=True, from_users=ADMIN_ID))
+    kenzo.add_event_handler(open_web_panel, events.NewMessage(incoming=True, func=_web_panel_filter))

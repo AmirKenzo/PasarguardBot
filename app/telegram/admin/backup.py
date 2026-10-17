@@ -130,6 +130,6 @@ async def backup_message(event: Message) -> None:
     raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(backup_message, events.NewMessage(incoming=True, func=_message_filter))
-    ctx.add_event_handler(backup_callback, events.CallbackQuery(func=_callback_filter))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(backup_message, events.NewMessage(incoming=True, func=_message_filter))
+    kenzo.add_event_handler(backup_callback, events.CallbackQuery(func=_callback_filter))

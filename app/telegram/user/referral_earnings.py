@@ -425,7 +425,7 @@ async def admin_callback(event: events.CallbackQuery.Event):
     raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(user_callback, events.CallbackQuery(func=_user_callback_filter))
-    ctx.add_event_handler(admin_callback, events.CallbackQuery(func=_admin_callback_filter))
-    ctx.add_event_handler(step_message, events.NewMessage(incoming=True, func=_step_filter))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(user_callback, events.CallbackQuery(func=_user_callback_filter))
+    kenzo.add_event_handler(admin_callback, events.CallbackQuery(func=_admin_callback_filter))
+    kenzo.add_event_handler(step_message, events.NewMessage(incoming=True, func=_step_filter))

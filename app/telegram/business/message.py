@@ -400,5 +400,5 @@ async def _handle_business_message(event: types.UpdateBotNewBusinessMessage) -> 
         await handle_admin_commands(bm, event, msg.strip(), sender_id)
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(handle_business_message, events.Raw(types.UpdateBotNewBusinessMessage))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(handle_business_message, events.Raw(types.UpdateBotNewBusinessMessage))

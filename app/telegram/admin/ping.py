@@ -20,5 +20,5 @@ async def ping_pong(event) -> None:
     await message.edit(f"**Pong!**\nTook `{time.monotonic() - started:.3f}` seconds")
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(ping_pong, events.NewMessage(pattern=r"/ping$", incoming=True, from_users=ADMIN_ID))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(ping_pong, events.NewMessage(pattern=r"/ping$", incoming=True, from_users=ADMIN_ID))

@@ -41,8 +41,8 @@ def write_module(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 @pytest.mark.parametrize(
     "source",
     [
-        "from telethon import events\nasync def h(e): pass\ndef setup(ctx):\n    ctx.add_event_handler(h, events.Raw())\n",
-        "from telethon import events\nasync def h(e): pass\nasync def setup(ctx):\n    ctx.add_event_handler(h, events.Raw())\n",
+        "from telethon import events\nasync def h(e): pass\ndef setup(kenzo):\n    kenzo.add_event_handler(h, events.Raw())\n",
+        "from telethon import events\nasync def h(e): pass\nasync def setup(kenzo):\n    kenzo.add_event_handler(h, events.Raw())\n",
         "from telethon import events\nasync def h(e): pass\ndef register(client):\n    client.add_event_handler(h, events.Raw())\n",
     ],
     ids=["setup", "async-setup", "register"],
@@ -67,7 +67,7 @@ async def test_module_without_entry_point_is_legacy(write_module) -> None:
 async def test_failing_optional_module_is_isolated(write_module) -> None:
     manager = PluginManager(FakeClient())  # type: ignore[arg-type]
 
-    loaded = await manager.load(write_module("mod", "def setup(ctx):\n    raise RuntimeError('boom')\n"))
+    loaded = await manager.load(write_module("mod", "def setup(kenzo):\n    raise RuntimeError('boom')\n"))
 
     assert (loaded.status, loaded.error) == ("failed", "RuntimeError: boom")
     assert manager.modules == (loaded,)
@@ -82,7 +82,7 @@ async def test_failing_required_module_aborts(write_module) -> None:
 
 
 async def test_load_all_follows_discovery_order(write_module, monkeypatch: pytest.MonkeyPatch) -> None:
-    source = "from telethon import events\nasync def h(e): pass\ndef setup(ctx):\n    ctx.add_event_handler(h, events.Raw())\n"
+    source = "from telethon import events\nasync def h(e): pass\ndef setup(kenzo):\n    kenzo.add_event_handler(h, events.Raw())\n"
     specs = [write_module(name, source) for name in ("b", "a")]
     monkeypatch.setattr(pm, "discover_modules", lambda: specs)
     manager = PluginManager(FakeClient())  # type: ignore[arg-type]

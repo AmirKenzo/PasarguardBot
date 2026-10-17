@@ -51,8 +51,8 @@ async def callback_noop_ghost(event: events.CallbackQuery.Event) -> None:
     await event.answer(message="👻", alert=False)
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(data_cancel_callback, events.CallbackQuery(data="DataCancel"))
-    ctx.add_event_handler(session_restart_callback, events.CallbackQuery(data=SESSION_RESTART_CALLBACK))
-    ctx.add_event_handler(callback_noop_disabled, events.CallbackQuery(data="none"))
-    ctx.add_event_handler(callback_noop_ghost, events.CallbackQuery(data="no_action"))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(data_cancel_callback, events.CallbackQuery(data="DataCancel"))
+    kenzo.add_event_handler(session_restart_callback, events.CallbackQuery(data=SESSION_RESTART_CALLBACK))
+    kenzo.add_event_handler(callback_noop_disabled, events.CallbackQuery(data="none"))
+    kenzo.add_event_handler(callback_noop_ghost, events.CallbackQuery(data="no_action"))

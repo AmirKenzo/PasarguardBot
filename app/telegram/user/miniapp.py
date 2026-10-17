@@ -44,5 +44,5 @@ async def miniapp_button_handler(event: Message) -> None:
     raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(miniapp_button_handler, events.NewMessage(incoming=True, func=_miniapp_button_filter))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(miniapp_button_handler, events.NewMessage(incoming=True, func=_miniapp_button_filter))

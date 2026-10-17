@@ -420,16 +420,16 @@ async def deliver_trial(event, user_id: int, lang: str, panel, *, mark_tested: b
         await event.respond("ساخت سرویس تست انجام نشد. بعداً دوباره تلاش کن.")
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         free_trial_handler,
         events.NewMessage(incoming=True, func=free_trial_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         trial_phone_verify_handler,
         events.NewMessage(incoming=True, func=trial_phone_verify_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         trial_panel_pick_callback,
         events.CallbackQuery(pattern=rf"^{TRIAL_PICK_PREFIX}\d+$"),
     )

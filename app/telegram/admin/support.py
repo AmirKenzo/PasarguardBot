@@ -112,6 +112,6 @@ async def support_reply(event: Message) -> None:
         await event.reply(f"ارسال پیام به کاربر با خطا مواجه شد: {exc}")
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(support_reply, events.NewMessage(incoming=True, from_users=ADMIN_ID))
-    ctx.add_event_handler(support_callback, events.CallbackQuery(func=_callback_filter))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(support_reply, events.NewMessage(incoming=True, from_users=ADMIN_ID))
+    kenzo.add_event_handler(support_callback, events.CallbackQuery(func=_callback_filter))

@@ -194,9 +194,9 @@ async def payment_receiveddd(event):
     raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(precheckout, events.Raw(types.UpdateBotPrecheckoutQuery))
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(precheckout, events.Raw(types.UpdateBotPrecheckoutQuery))
+    kenzo.add_event_handler(
         payment_receiveddd,
         events.Raw(
             types.UpdateNewMessage,

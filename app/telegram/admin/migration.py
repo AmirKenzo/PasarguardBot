@@ -279,6 +279,6 @@ async def migration_callback(event: events.CallbackQuery.Event) -> None:
     await event.edit(text, buttons=_source_buttons(), parse_mode="md")
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(migration_message, events.NewMessage(incoming=True, func=_message_filter))
-    ctx.add_event_handler(migration_callback, events.CallbackQuery(func=_callback_filter))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(migration_message, events.NewMessage(incoming=True, func=_message_filter))
+    kenzo.add_event_handler(migration_callback, events.CallbackQuery(func=_callback_filter))

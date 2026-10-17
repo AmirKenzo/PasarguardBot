@@ -203,6 +203,6 @@ async def tonpays_admin_message(event: Message):
     raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(tonpays_admin_callback, events.CallbackQuery(func=_callback_filter))
-    ctx.add_event_handler(tonpays_admin_message, events.NewMessage(incoming=True, func=_message_filter))
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(tonpays_admin_callback, events.CallbackQuery(func=_callback_filter))
+    kenzo.add_event_handler(tonpays_admin_message, events.NewMessage(incoming=True, func=_message_filter))

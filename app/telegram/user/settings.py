@@ -168,16 +168,16 @@ async def callback_user_settings(event: events.CallbackQuery.Event):
     await event.edit("تنظیمات نمایش سرویس", buttons=buttons)
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         advanced_settings_handler,
         events.NewMessage(incoming=True, func=advanced_settings_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         qr_text_message_handler,
         events.NewMessage(incoming=True, func=_qr_text_message_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         callback_user_settings,
         events.CallbackQuery(pattern=rb"user_setting\..*"),
     )

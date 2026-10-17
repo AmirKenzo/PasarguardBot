@@ -165,20 +165,20 @@ async def help_menu_handler(event: Message):
     raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         help_menu_handler,
         events.NewMessage(incoming=True, func=help_menu_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         callback_back_to_help,
         events.CallbackQuery(data="backTOhelp"),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         help_download_user_callback,
         events.CallbackQuery(pattern=rb"^Download_"),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         help_download_ios_callback,
         events.CallbackQuery(pattern=rb"^IOS_"),
     )

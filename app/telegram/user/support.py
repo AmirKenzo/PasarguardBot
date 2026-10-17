@@ -172,12 +172,12 @@ async def support_message(event: Message):
         await event.reply("⚠️ پیام شما بیش از حد طولانی است. لطفا پیام کوتاه‌تری ارسال کنید.")
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         support_menu,
         events.NewMessage(incoming=True, func=support_menu_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         support_message,
         events.NewMessage(incoming=True, func=is_support_message),
     )

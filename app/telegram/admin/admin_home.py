@@ -135,16 +135,16 @@ async def admin_menu_entry_handler(event: Message):
     await send_admin_home(event.sender_id, user.username if user else None)
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         message_handler_admin_panel,
         events.NewMessage(incoming=True, func=_panel_command_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         admin_menu_entry_handler,
         events.NewMessage(incoming=True, func=_admin_menu_entry_filter),
     )
-    ctx.add_event_handler(
+    kenzo.add_event_handler(
         callback_back_to_admin_panel,
         events.CallbackQuery(data="back_to_admin_panel", func=lambda e: e.sender_id in ADMIN_ID),
     )

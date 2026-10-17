@@ -532,9 +532,9 @@ async def message_handler_referral_admin(event: Message):
         raise events.StopPropagation
 
 
-def setup(ctx: PluginContext) -> None:
-    ctx.add_event_handler(
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(
         message_handler_referral_admin,
         events.NewMessage(incoming=True, from_users=ADMIN_ID, func=_referral_admin_message_filter),
     )
-    ctx.add_event_handler(callback_referral, events.CallbackQuery(func=referral_callback_filter))
+    kenzo.add_event_handler(callback_referral, events.CallbackQuery(func=referral_callback_filter))
