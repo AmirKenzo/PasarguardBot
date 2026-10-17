@@ -30,6 +30,15 @@ _SETUP_WARNING = (
 )
 
 
+_OFFICIAL_CHANNEL_URL = "https://t.me/CodeByAK"
+
+_FREE_NOTICE = (
+    "💚 **این ربات کاملا رایگان است.**\n"
+    "اگر بابت آن پولی پرداخت کرده‌اید، کلاهبرداری شده‌اید؛ فروشنده را در کانال رسمی گزارش دهید:\n"
+    f"📢 {_OFFICIAL_CHANNEL_URL}"
+)
+
+
 def _admin_home_message(user_id: int, username: str | None, *, setup_warning: str | None = None) -> str:
     user_label = username or "—"
     message = (
@@ -37,6 +46,7 @@ def _admin_home_message(user_id: int, username: str | None, *, setup_warning: st
         f"ایدی عددی شما: `{user_id}`\n"
         f"نام کاربری شما: @{user_label}\n"
         f"\n📚 مستندات ربات: {DOCS_URL}\n"
+        f"\n{_FREE_NOTICE}\n"
     )
     if setup_warning:
         message += f"\n{setup_warning}\n"
