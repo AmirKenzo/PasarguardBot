@@ -14,6 +14,7 @@ class PanelTextEntry(BaseModel):
     title: str | None = None
     placeholders: dict[str, str] = Field(default_factory=dict)
     value: str | None = None
+    default_value: str | None = None
     lang: str | None = None
     banner_url: str | None = None
     banner_position: str | None = None

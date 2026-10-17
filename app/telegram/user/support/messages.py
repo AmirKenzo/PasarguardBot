@@ -12,6 +12,7 @@ from app.telegram.shared.guards.channel_gate import ensure_channel_membership
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import get_step, set_step
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 from config import ADMIN_ID
 
 
@@ -35,7 +36,7 @@ async def support_menu(event: Message):
 
     support_text = await get_bot_text(
         key="support_message",
-        default="👈🏻 جهت ارتباط به صورت مستقیم (مشکلات سرویس):\n📍 @AmirKenzoo\n\n🗯 سؤال، پیشنهاد، مشکل و یا انتقاد خودرا در قالب یک پیام متنی واحد به طور کامل ارسال کنید :",
+        default=DEFAULT_BOT_TEXTS["support_message"],
         lang="fa",
     )
     if hasattr(event, "answer"):

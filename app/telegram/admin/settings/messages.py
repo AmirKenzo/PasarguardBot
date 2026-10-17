@@ -27,6 +27,7 @@ from app.telegram.keyboards.registry import KEYBOARD_BUTTON_TITLES
 from app.telegram.keyboards.settings import create_buttons_settings, get_settings_menu_text, settings_menu_rich_blocks
 from app.telegram.keyboards.texts import TEXT_KEYS_CONFIG, create_text_sections_buttons, render_stored_text_html
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
+from app.utils.text.default_texts import default_bot_text
 from config import ADMIN_ID
 
 logger = get_logger(__name__)
@@ -486,7 +487,7 @@ async def message_handler_settings_admin(event: Message):
         else:
             # Get existing bot text to preserve value and position
             bot_text_obj = await BotTextCRUD().get_bot_text(key=key, lang=lang_code)
-            current_value = bot_text_obj.value if bot_text_obj else ""
+            current_value = bot_text_obj.value if bot_text_obj else (default_bot_text(key, lang_code) or "")
             current_position = bot_text_obj.banner_position if bot_text_obj else None
 
             # If message is empty or just whitespace, remove banner

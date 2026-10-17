@@ -40,6 +40,7 @@ from app.utils.formatting.conversions import convert_storage, day_to_timestamp, 
 from app.utils.formatting.dates import Time_Date
 from app.utils.media.qrcode import create_qr_code
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -325,17 +326,7 @@ async def deliver_trial(event, user_id: int, lang: str, panel, *, mark_tested: b
 
         txt_template = await get_bot_text(
             key="test_config_delivery_message",
-            default=(
-                "**🎉 کانفیگ اختصاصی V2Ray شما در عرض فقط {creation_time} توسط ربات ساخته شد . !**\n"
-                "🌐 نام پنل 🧪 تست\n"
-                "**#️⃣ کد سرویس(در ربات):** `{service_code}`\n"
-                "**🔷 اسم کانفیگ:** `{account_name}`\n"
-                "**📥 حجم تست:** {test_volume}\n"
-                "**⏰ مدت زمان :** {test_duration} روز (تست رایگان)\n"
-                "**🔗 لینک اختصاصی شما:**\n\n"
-                "`{subscription_url}`\n"
-                "{config_links_with_txt}\n"
-            ),
+            default=DEFAULT_BOT_TEXTS["test_config_delivery_message"],
             lang="fa",
         )
         txt_template = txt_template.replace("`{subscription_url}`", "{subscription_url}")

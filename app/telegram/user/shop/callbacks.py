@@ -42,6 +42,7 @@ from app.telegram.user.shop.helpers import (
     show_buy_vpn_plans,
 )
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -101,7 +102,7 @@ async def select_duration_group_for_buy_callback(event: events.CallbackQuery.Eve
 
     panel_volume_text = await get_bot_text(
         key="buy_select_panel_volume_message",
-        default="✅ شما پنل **{panel_name}** رو انتخاب کردید :\n\n📊 لطفاً تعرفه مورد نظر خود را انتخاب کنید:",
+        default=DEFAULT_BOT_TEXTS["buy_select_panel_volume_message"],
         lang=await _user_lang(event.sender_id),
     )
     formatted_message = panel_volume_text.replace("{panel_name}", selected_panel.name)
@@ -137,11 +138,7 @@ async def select_plan_for_buy_callback(event: events.CallbackQuery.Event):
     await set_step(event.sender_id, "enter_username")
     username_message = await get_bot_text(
         key="enter_username_message",
-        default=(
-            "🔸 یک نام برای کانفیگ وارد کنید:\n"
-            "^qc^نام کاربری باید بین ۳ تا ۳۲ کاراکتر و فقط شامل حروف انگلیسی، اعداد و زیرخط باشد.\n"
-            "نمونه:\nAmir_Kenzo123\nNeda\nNeda123\nNeda_123^qc^"
-        ),
+        default=DEFAULT_BOT_TEXTS["enter_username_message"],
         lang=await _user_lang(event.sender_id),
     )
     await event.edit(
@@ -196,13 +193,7 @@ async def custom_buy_callback(event: events.CallbackQuery.Event):
     await set_step(event.sender_id, "custom_buy_enter_gb")
     gb_prompt = await _format_bot_text(
         key="custom_buy_enter_gb_message",
-        default=(
-            "**🧩 خرید دلخواه — {panel_name}**\n\n"
-            "💰 هر گیگ: `{price_per_gb}` تومان\n"
-            "⏰ هر روز: `{price_per_day}` تومان\n\n"
-            "📥 حجم مورد نظر را به گیگ وارد کنید "
-            "(بین `{min_gb}` تا `{max_gb}`):"
-        ),
+        default=DEFAULT_BOT_TEXTS["custom_buy_enter_gb_message"],
         lang=await _user_lang(event.sender_id),
         panel_name=panel.name,
         price_per_gb=f"{settings['price_per_gb']:,}",

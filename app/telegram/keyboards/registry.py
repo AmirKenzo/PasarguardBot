@@ -1,5 +1,6 @@
 """Keyboard customization registry: titles, defaults, and style labels."""
 
+from app.i18n import DEFAULT_LANGUAGE, namespace, t
 from app.services.payments.ir_gateways.providers import GATEWAYS
 
 KEYBOARD_BUTTON_TITLES = {
@@ -82,89 +83,14 @@ KEYBOARD_BUTTON_TITLES = {
 }
 
 
-KEYBOARD_BUTTON_DEFAULTS = {
-    "bt.menu_my_services": "🔑 سرویس های من",
-    "bt.menu_get_trial": "🎁 دریافت تست",
-    "bt.menu_buy_service": "🛍 خرید سرویس",
-    "bt.menu_buy_reseller": "🏢 خرید پنل نمایندگی",
-    "bt.menu_my_resellers": "📋 نمایندگی‌های من",
-    "bt.menu_profile": "🙍 پروفایل من",
-    "bt.menu_add_balance": "💰 افزایش موجودی",
-    "bt.menu_support": "☎️ پشتیبانی",
-    "bt.menu_uptime": "🔋 وضعیت سرویس ها",
-    "bt.menu_help": "📚 راهنما",
-    "bt.menu_advanced_settings": "⚙️ تنظیمات پیشرفته",
-    "bt.menu_admin_panel": "⚙️ پنل مدیریت",
-    "bt.menu_miniapp": "🚀 ورود به اپلیکیشن",
-    "bt.menu_miniapp_open": "🚀 باز کردن اپلیکیشن",
-    "in.ms.change_sub": "🔗 تغییر ساب",
-    "in.ms.change_link": "🔗 تغییر لینک",
-    "in.ms.copy_link": "🔗 کپی لینک",
-    "in.ms.info": "⚙️ نمایش اطلاعات بیشتر",
-    "in.ms.extra_volume": "♾️ حجم اضافه",
-    "in.ms.extend_time": "📅 تمدید زمان",
-    "in.ms.extend_service": "💎 تمدیدسرویس",
-    "in.ms.qrcode": "🔘 دریافت Qrcode",
-    "in.ms.transfer_config": "🔎 واگذاری کانفیگ",
-    "in.ms.other_links": "➕ نمایش لینک‌های دیگر",
-    "in.ms.show_clients": "🖥 نمایش کلاینت‌ها",
-    "in.ms.usage_chart": "📊 نمودار مصرف",
-    "in.ms.delete_service": "🗑 حذف این کانفیگ برای همیشه",
-    "in.ms.back_to_services": "بازگشت به لیست سرویس‌ها",
-    "in.ms.renew.discount": "🎁 کد تخفیف (تمدید)",
-    "in.ms.renew.back": "◀️ بازگشت",
-    "in.ms.renew.confirm": "💎 تأیید تمدید اکانت",
-    "in.ms.sub_links.prev": "صفحه قبلی →",
-    "in.ms.sub_links.next": "← صفحه بعدی",
-    "in.ms.sub_links.get_all": "📥 دریافت تمام لینک‌های کانفیگ",
-    "in.ms.sub_links.back": "بازگشت به قبل",
-    "in.balance.crypto": "💵 پرداخت ارزی",
-    "in.balance.stars": "⭐ پرداخت با استارز",
-    "in.balance.tonpays": "💎 پرداخت آنلاین (TonPays)",
-    "in.balance.manual": "💳 کارت به کارت (تایید زیر 5 دقیقه)",
-    "in.balance.disabled": "❌ شارژ حساب غیرفعال می‌باشد",
-    "in.balance.referral": "🎁 دعوت دوستان",
-    "in.balance.trx": "💵 پرداخت با TRX (ترون)",
-    "in.balance.usdt": "💵 پرداخت با USDT (تتر - شبکه ترون)",
-    "in.balance.usdt_ton": "💵 پرداخت با USDT (تتر - شبکه تون)",
-    "in.balance.usdt_bep20": "💵 پرداخت با USDT (تتر - شبکه بایننس)",
-    "in.balance.ton": "💎 پرداخت با TON (تون)",
-    "in.balance.pol": "🟣 پرداخت با POL (پالیگان)",
-    "in.balance.crypto_back": "🔙 بازگشت به روش‌های پرداخت",
-    "in.balance.send_receipt": "💰 پرداخت کردم | ارسال رسید واریزی",
-    "in.balance.flow_cancel": "🔙 انصراف · بازگشت به منوی شارژ",
-    "in.balance.back_home": "🏠 بازگشت به منوی اصلی",
-    "in.buy.cancel": "❌ انصراف",
-    "in.buy.back": "🔙 بازگشت",
-    "in.buy.confirm": "✅ تأیید خرید",
-    "in.buy.topup": "💰 افزایش موجودی",
-    "in.buy.discount": "🎉 اعمال کد تخفیف",
-    "in.buy.default_username": "🎲 اسم پیشفرض ربات",
-    "in.buy.retry_username": "🔄 تغییر مجدد نام کانفیگ",
-    "in.buy.custom": "🧩 حجم و زمان دلخواه",
-    "in.buy.empty_list": "🚀 خرید اکانت ویتوری",
-    "in.rs.show_creds": "🔑 نمایش رمز ورود",
-    "in.rs.change_password": "🔄 تغییر رمز عبور",
-    "in.rs.resume": "▶️ فعال‌سازی پنل",
-    "in.rs.pause": "⏸ غیرفعال‌سازی پنل",
-    "in.rs.renew": "💎 تمدید",
-    "in.rs.usage_report": "📊 گزارش مصرف",
-    "in.rs.usage_cap": "📦 محدودیت مصرف",
-    "in.rs.usage_cap_set": "✏️ تنظیم سقف (گیگ)",
-    "in.rs.usage_cap_clear": "🗑 حذف سقف مصرف",
-    "in.rs.buy_user_capacity": "👥 یوزر اضافه",
-    "in.rs.extra_days": "📅 روز اضافه",
-    "in.rs.extra_volume": "📦 حجم اضافه",
-    "in.rs.delete": "🗑 حذف نمایندگی",
-    "in.rs.buy_random_username": "🎲 نام تصادفی",
-    "in.rs.delete_confirm": "✅ بله، کامل حذف شود",
-    "in.rs.chpwd_confirm": "✅ بله، رمز عوض شود",
-}
+KEYBOARD_BUTTON_DEFAULTS: dict[str, str] = namespace("buttons", DEFAULT_LANGUAGE)
 
 # One balance button per Iranian direct gateway, generated so a new provider needs no edit here.
 for _provider in GATEWAYS.values():
     KEYBOARD_BUTTON_TITLES[f"in.balance.{_provider.key}"] = f"پرداخت با {_provider.title}"
-    KEYBOARD_BUTTON_DEFAULTS[f"in.balance.{_provider.key}"] = f"{_provider.emoji} پرداخت آنلاین ({_provider.title})"
+    KEYBOARD_BUTTON_DEFAULTS[f"in.balance.{_provider.key}"] = t(
+        "button_templates.gateway_payment", DEFAULT_LANGUAGE, emoji=_provider.emoji, title=_provider.title
+    )
 
 
 KEYBOARD_BUTTON_DEFAULT_STYLES = {

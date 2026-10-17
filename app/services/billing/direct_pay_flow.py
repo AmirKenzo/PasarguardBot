@@ -19,6 +19,7 @@ from app.telegram.user.balance.states import (
     STEP_CART_B_CART,
 )
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 CALLBACK_DIRECT_PAY_TOPUP = "direct_pay_topup"
 REDIS_DIRECT_PAY_READY = "direct_pay_ready"
@@ -28,66 +29,20 @@ REDIS_DIRECT_PAY_KIND = "direct_pay_kind"
 REDIS_DIRECT_PAY_PAYLOAD = "direct_pay_payload"
 REDIS_MABLAGH = "mablagh"
 
-INSUFFICIENT_BALANCE_DEFAULT = (
-    "‼️ موجودی کیف پول شما کافی نیست\n\n"
-    "💰 برای خرید این پلان شما باید ({required} تومان) موجودی داشته باشید.\n\n"
-    "📌 برای افزایش موجودی، روی دکمه 'افزایش موجودی' کلیک کنید و پس از افزایش "
-    "با یکی از روش‌های پرداخت، مجدد مراحل خرید را طی کنید."
-)
+INSUFFICIENT_BALANCE_DEFAULT = DEFAULT_BOT_TEXTS["insufficient_balance_message"]
 
-INSUFFICIENT_BALANCE_DIRECT_PAY_DEFAULT = (
-    "‼️ موجودی کیف پول شما کافی نیست\n\n"
-    "💰 مبلغ لازم برای خرید: ({required} تومان)\n"
-    "📉 کمبود موجودی شما: ({shortfall} تومان)\n"
-    "📦 محصول: {product_label}\n"
-    "📥 حجم: {volume}\n\n"
-    "📌 روی دکمه «افزایش موجودی» بزنید؛ مبلغ به‌صورت خودکار تنظیم می‌شود و "
-    "پس از تایید پرداخت، محصول برای شما ساخته می‌شود."
-)
+INSUFFICIENT_BALANCE_DIRECT_PAY_DEFAULT = DEFAULT_BOT_TEXTS["insufficient_balance_direct_pay"]
 
-INSUFFICIENT_BALANCE_DIRECT_PAY_RENEW_DEFAULT = (
-    "‼️ موجودی کیف پول شما کافی نیست\n\n"
-    "💰 مبلغ لازم برای تمدید: ({required} تومان)\n"
-    "📉 کمبود موجودی شما: ({shortfall} تومان)\n"
-    "📦 محصول: {product_label}\n"
-    "📥 حجم: {volume}\n\n"
-    "📌 روی دکمه «افزایش موجودی» بزنید؛ مبلغ به‌صورت خودکار تنظیم می‌شود و "
-    "پس از تایید پرداخت، سرویس شما تمدید می‌شود."
-)
+INSUFFICIENT_BALANCE_DIRECT_PAY_RENEW_DEFAULT = DEFAULT_BOT_TEXTS["insufficient_balance_direct_pay_renew"]
 
-DIRECT_PAY_TOPUP_INTRO_DEFAULT = (
-    "💳 پرداخت مستقیم خرید\n\n"
-    "📦 محصول: {product_label}\n"
-    "📥 حجم: {volume}\n"
-    "💰 مبلغ شارژ: ({topup_amount} تومان)\n"
-    "🛒 مبلغ کل خرید: ({required} تومان)\n\n"
-    "یک روش پرداخت را انتخاب کنید. نیازی به وارد کردن مبلغ نیست؛ "
-    "پس از تایید تراکنش، کانفیگ/پنل برای شما ساخته می‌شود."
-)
+DIRECT_PAY_TOPUP_INTRO_DEFAULT = DEFAULT_BOT_TEXTS["direct_pay_topup_intro"]
 
-DIRECT_PAY_RENEW_TOPUP_INTRO_DEFAULT = (
-    "💳 پرداخت مستقیم تمدید\n\n"
-    "📦 محصول: {product_label}\n"
-    "📥 حجم: {volume}\n"
-    "💰 مبلغ شارژ: ({topup_amount} تومان)\n"
-    "🛒 مبلغ کل تمدید: ({required} تومان)\n\n"
-    "یک روش پرداخت را انتخاب کنید. نیازی به وارد کردن مبلغ نیست؛ "
-    "پس از تایید تراکنش، سرویس شما تمدید می‌شود."
-)
+DIRECT_PAY_RENEW_TOPUP_INTRO_DEFAULT = DEFAULT_BOT_TEXTS["direct_pay_renew_topup_intro"]
 
 
-INVOICE_SHORTFALL_DIRECT_DEFAULT = (
-    "👛 موجودی فعلی شما: ({balance} تومان)\n"
-    "📉 کسری موجودی: ({shortfall} تومان)\n"
-    "📌 با زدن «افزایش موجودی»، روش‌های پرداخت با همین مبلغ باز می‌شود و "
-    "پس از تایید پرداخت، سفارش شما خودکار انجام می‌شود."
-)
+INVOICE_SHORTFALL_DIRECT_DEFAULT = DEFAULT_BOT_TEXTS["invoice_shortfall_direct_pay"]
 
-INVOICE_SHORTFALL_DEFAULT = (
-    "👛 موجودی فعلی شما: ({balance} تومان)\n"
-    "📉 کسری موجودی: ({shortfall} تومان)\n"
-    "📌 ابتدا کیف پول را شارژ کنید، سپس دوباره همین مراحل را انجام دهید."
-)
+INVOICE_SHORTFALL_DEFAULT = DEFAULT_BOT_TEXTS["invoice_shortfall"]
 
 
 def fill_placeholders(template: str, **parts: object) -> str:

@@ -7,7 +7,7 @@ import { panelTextsApi } from "../../api/panel";
 import type { PanelTextEntry, PanelTextSection } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
 import { ChoiceDialog } from "./texts/ChoiceDialog";
-import { canSaveText, TextEditor } from "./texts/TextEditor";
+import { baselineText, canSaveText, TextEditor } from "./texts/TextEditor";
 
 const ALL = "all";
 const UNLISTED_SECTION = "unlisted";
@@ -41,7 +41,7 @@ export default function AdminTextsPage() {
   const sections = useMemo(() => query.data?.sections ?? [], [query.data]);
   const allEntries = useMemo(() => sections.flatMap((item) => item.entries), [sections]);
   const selected = allEntries.find((entry) => entry.key === selectedKey) ?? null;
-  const dirty = selected !== null && draft !== (selected.value || "");
+  const dirty = selected !== null && draft !== baselineText(selected);
 
   useEffect(() => {
     if (!dirty) return;
@@ -65,14 +65,14 @@ export default function AdminTextsPage() {
           if (filter === "set" && !entry.stored) return false;
           if (filter === "unset" && entry.stored) return false;
           if (!needle) return true;
-          return [entry.key, entry.title, entry.value].some((value) => (value || "").toLowerCase().includes(needle));
+          return [entry.key, entry.title, entry.value, entry.default_value].some((value) => (value || "").toLowerCase().includes(needle));
         }),
       }))
       .filter((item) => item.entries.length > 0);
   }, [sections, section, filter, search]);
 
   const saveDraft = (onDone?: () => void) => {
-    if (!selected || !canSaveText(draft, selected.value || "")) return;
+    if (!selected || !canSaveText(draft, baselineText(selected), !selected.stored)) return;
     // Banner fields are left out on purpose so whatever is stored stays untouched.
     save.mutate(
       { key: selected.key, value: draft, lang: selected.lang || DEFAULT_TEXT_LANGUAGE },
@@ -82,7 +82,7 @@ export default function AdminTextsPage() {
 
   function open(entry: PanelTextEntry | null) {
     setSelectedKey(entry?.key ?? null);
-    setDraft(entry?.value || "");
+    setDraft(entry ? baselineText(entry) : "");
     if (entry && window.matchMedia("(max-width: 1023px)").matches) window.scrollTo({ top: 0 });
   }
 
@@ -307,7 +307,7 @@ export default function AdminTextsPage() {
               if (dialog?.kind !== "unsaved") return;
               const next = dialog.next;
               // An empty or oversized draft cannot be saved, so continuing would drop it: keep the user here.
-              if (!selected || !canSaveText(draft, selected.value || "")) {
+              if (!selected || !canSaveText(draft, baselineText(selected), !selected.stored)) {
                 setDialog(null);
                 return;
               }
@@ -348,7 +348,7 @@ export default function AdminTextsPage() {
                 { key: selected.key, lang: selected.lang || "" },
                 {
                   onSuccess: () => {
-                    setDraft("");
+                    setDraft(selected.default_value || "");
                     setDialog(null);
                   },
                 }

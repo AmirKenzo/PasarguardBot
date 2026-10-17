@@ -7,6 +7,7 @@ export interface PanelTextEntry {
   title?: string | null;
   placeholders: Record<string, string>;
   value?: string | null;
+  default_value?: string | null;
   lang?: string | null;
   banner_url?: string | null;
   banner_position?: string | null;

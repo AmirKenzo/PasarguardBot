@@ -68,6 +68,7 @@ from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_ip_limit
 from app.utils.media.qrcode import create_qr_code
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -101,13 +102,7 @@ async def check_user_balance(user_id: int, required_amount: int):
 async def _buy_intro_text(lang: str) -> str:
     return await get_bot_text(
         key="buy_service_intro",
-        default=(
-            "**🎉 سرویس معمولی مستقیم** ^q^شامل کانفیگ‌های مستقیم و سی‌دی‌ان برای اتصال ساده.^q^\n"
-            "**🌍 سرویس تانل:** ^q^علاوه بر سرویس‌های معمولی، این سرویس شامل سرویس‌های تانل‌شده است "
-            "که در صورت فیلتر شدن آی‌پی، بدون مشکل و به راحتی کار خواهد کرد. "
-            "(در حالی که سرویس معمولی در چنین شرایطی ممکن است دچار مشکل شود.)^q^\n\n"
-            "**💬 لطفاً پنل مورد نظر خود را انتخاب کنید:**"
-        ),
+        default=DEFAULT_BOT_TEXTS["buy_service_intro"],
         lang=lang,
     )
 
@@ -266,13 +261,13 @@ async def show_buy_vpn_plans(event, panel, *, lang: str = "fa", back_data: str =
                 buttons.append(back_row)
         message = await get_bot_text(
             key="buy_select_duration_message",
-            default="⚡️ یکی از پلن های موجود رو از ۷ روزه تا ۹۰ روزه انتخاب کن :",
+            default=DEFAULT_BOT_TEXTS["buy_select_duration_message"],
             lang=lang,
         )
     else:
         panel_volume_text = await get_bot_text(
             key="buy_select_panel_volume_message",
-            default="شما پنل **{panel_name}** را انتخاب کردید. لطفاً حجم را انتخاب کنید::",
+            default=DEFAULT_BOT_TEXTS["buy_select_panel_volume_message"],
             lang=lang,
         )
         message = panel_volume_text.replace("{panel_name}", panel.name)
@@ -321,17 +316,7 @@ async def _buy_confirm_text(*, username: str, panel, gig, plan, lang: str) -> st
     )
     template = await get_bot_text(
         key="config_purchase_confirm",
-        default=(
-            "ساخت کانفیگ اختصاصی V2Ray با مشخصات زیر را تأیید می‌کنید؟\n\n"
-            "**▪️ حجم سرویس :** {volume}\n"
-            "**⏰ مدت زمان :** {duration} روز\n"
-            "**▫️نام کانفیگ :** `{config_name}`\n"
-            "**▫️نوع کانفیگ :** {config_type}\n"
-            "**▫️ لوکیشن های موجودسرویس :** \n**^qc^{locations}^qc^**\n"
-            "**🔌 محدودیت کاربر :** {user_limit}\n"
-            "**💸 قیمت نهایی :** {price} هزار تومان\n\n"
-            "^q^پس از خرید، امکان افزایش حجم و زمان وجود دارد. مقدار باقی‌مانده‌ی حجم و روزها از بخش «سرویس‌های من» قابل مشاهده است.^q^"
-        ),
+        default=DEFAULT_BOT_TEXTS["config_purchase_confirm"],
         lang=lang,
     )
     return (
@@ -348,11 +333,7 @@ async def _buy_confirm_text(*, username: str, panel, gig, plan, lang: str) -> st
 async def _show_buy_username_prompt(event) -> None:
     username_message = await get_bot_text(
         key="enter_username_message",
-        default=(
-            "🔸 یک نام برای کانفیگ وارد کنید:\n"
-            "^qc^نام کاربری باید بین ۳ تا ۳۲ کاراکتر و فقط شامل حروف انگلیسی، اعداد و زیرخط باشد.\n"
-            "نمونه:\nAmir_Kenzo123\nNeda\nNeda123\nNeda_123^qc^"
-        ),
+        default=DEFAULT_BOT_TEXTS["enter_username_message"],
         lang=await _user_lang(event.sender_id),
     )
     await event.edit(username_message, buttons=await build_buy_username_prompt_rows())
@@ -551,20 +532,7 @@ async def create_vpn_purchase_for_user(
 
     txt_template = await get_bot_text(
         key="config_purchase_success_message",
-        default=(
-            "**🎉 کانفیگ اختصاصی V2Ray شما در عرض فقط {creation_time} توسط ربات ساخته شد . !**\n"
-            "**#️⃣ کد سرویس(در ربات):** `{service_code}`\n"
-            "**🔷 اسم کانفیگ:** `{account_name}`\n"
-            "**📥 حجم انتخابی :** {volume}\n"
-            "**⏰ مدت زمان :** {duration} روز\n"
-            "**🔌 محدودیت کاربر :** {user_limit}\n\n"
-            "**🌏 لینک سابسکریپشن آیپی‌ثابت + مولتی‌لوکیشن (یکجا) :**\n"
-            "{subscription_url}\n\n"
-            "{config_links_with_txt}\n\n"
-            "💵 مبلغ `{amount_deducted}` تومان از موجودی **کیف‌ پول** شما کسر شد.\n"
-            "💰 موجودی جدید **کیف‌ پول** شما:  `{new_balance}` تومان\n\n"
-            "🚦جهت راهنمای اتصال اندروید/ویندوز/مک/آیفون/تلویزیون به بخش راهنمای ربات /help بروید."
-        ),
+        default=DEFAULT_BOT_TEXTS["config_purchase_success_message"],
         lang="fa",
     )
     txt = (

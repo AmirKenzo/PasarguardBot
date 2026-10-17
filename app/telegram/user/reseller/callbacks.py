@@ -112,6 +112,7 @@ from app.telegram.user.reseller.states import (
 )
 from app.telegram.user.start.helpers import fetch_welcome_text
 from app.utils.formatting.dates import Time_Date
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -450,7 +451,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         panel_name = panel.name
         prompt = await get_reseller_text(
             "reseller_select_plan_prompt",
-            f"**پنل {panel_name}**\n\nپلن نمایندگی را انتخاب کنید:",
+            DEFAULT_BOT_TEXTS["reseller_select_plan_prompt"],
             user_id,
             panel_name=panel_name,
         )
@@ -534,7 +535,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             await event.edit(
                 await get_reseller_text(
                     "reseller_my_list_empty",
-                    "**📋 نمایندگی‌های من**\n\nشما نمایندگی فعالی ندارید.",
+                    DEFAULT_BOT_TEXTS["reseller_my_list_empty"],
                     user_id,
                 ),
                 buttons=[[Button.inline("🏢 خرید پنل نمایندگی", data="ResellerBuy_start")]]
@@ -545,7 +546,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         await event.edit(
             await get_reseller_text(
                 "reseller_my_list_intro",
-                f"**📋 نمایندگی‌های من** ({len(accounts)} مورد)\n\nیک نمایندگی را انتخاب کنید:",
+                DEFAULT_BOT_TEXTS["reseller_my_list_intro"],
                 user_id,
                 count=str(len(accounts)),
             ),

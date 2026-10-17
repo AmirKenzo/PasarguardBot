@@ -94,6 +94,7 @@ from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_ip_limit, format_size
 from app.utils.media.qrcode import create_qr_code
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 from config import ADMIN_ID
 
 logger = get_logger(__name__)
@@ -245,23 +246,14 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     )
                     duration_message_tamdid = await get_bot_text(
                         key="buy_select_duration_message",
-                        default="⚡️ یکی از پلن های موجود رو از ۷ روزه تا ۹۰ روزه انتخاب کن :",
+                        default=DEFAULT_BOT_TEXTS["buy_select_duration_message"],
                         lang="fa",
                     )
                     renewal_text += f"**{duration_message_tamdid}**"
                 else:
                     renewal_text = await get_bot_text(
                         key="renewal_step_one_text",
-                        default=(
-                            "🌐 مرحله اول تمدید اکانت :\n\n"
-                            "📆 زمان اشتراک خود را انتخاب کنید:\n\n"
-                            "‼️نکته مهم :\n\n"
-                            "❌ با تمدید سرویس حجم باقی‌مانده اشتراک شما به دوره جدید اضافه میشه و نمیسوزه ولی زمان اشتراک ریست میشه و از ابتدا محاسبه میشه.\n\n"
-                            "🔑 مثال: اگر 2 گیگ و 8 روز از اکانت شما باقی مونده باشه و پلنی که انتخاب کردید 100 گیگ 30 روزه باشه بعد از تمدید مشخصات اکانت شما به شکل زیر خواهد شد:\n\n"
-                            "📥 مثال حجم جدید: 102 گیگ می‌شود.\n"
-                            "⏰ مثال زمان جدید: 30 روزه میشود.\n\n"
-                            "✅ حالا برای تمدید زمان اکانتت یکی از پلن های موجود رو از ۷ روزه تا ۹۰ روزه انتخاب کن :👇"
-                        ),
+                        default=DEFAULT_BOT_TEXTS["renewal_step_one_text"],
                         lang="fa",
                     )
 
@@ -294,16 +286,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                 else:
                     renewal_text = await get_bot_text(
                         key="renewal_step_one_text",
-                        default=(
-                            "🌐 مرحله اول تمدید اکانت :\n\n"
-                            "📆 زمان اشتراک خود را انتخاب کنید:\n\n"
-                            "‼️نکته مهم :\n\n"
-                            "❌ با تمدید سرویس حجم باقی‌مانده اشتراک شما به دوره جدید اضافه میشه و نمیسوزه ولی زمان اشتراک ریست میشه و از ابتدا محاسبه میشه.\n\n"
-                            "🔑 مثال: اگر 2 گیگ و 8 روز از اکانت شما باقی مونده باشه و پلنی که انتخاب کردید 100 گیگ 30 روزه باشه بعد از تمدید مشخصات اکانت شما به شکل زیر خواهد شد:\n\n"
-                            "📥 مثال حجم جدید: 102 گیگ می‌شود.\n"
-                            "⏰ مثال زمان جدید: 30 روزه میشود.\n\n"
-                            "✅ حالا برای تمدید زمان اکانتت یکی از پلن های موجود رو از ۷ روزه تا ۹۰ روزه انتخاب کن :👇"
-                        ),
+                        default=DEFAULT_BOT_TEXTS["renewal_step_one_text"],
                         lang="fa",
                     )
 
@@ -354,11 +337,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
             # Get renewal text from database with placeholders
             renewal_text_template = await get_bot_text(
                 key="renewal_step_two_text",
-                default=(
-                    "✅ مرحله دوم تمدید اکانت : {panel_name}\n\n"
-                    "🗓 مدت زمانی که برای این اکانت انتخاب کردید {duration} است !\n\n"
-                    "📥 در این مرحله یکی از پلن های زیر را انتخاب کنید :"
-                ),
+                default=DEFAULT_BOT_TEXTS["renewal_step_two_text"],
                 lang="fa",
             )
 
@@ -425,21 +404,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
         # Get renewal confirmation text from database with placeholders
         confirm_text_template = await get_bot_text(
             key="renewal_final_step_text",
-            default=(
-                "‼️ مرحله نهایی تمدید اکانت :\n\n"
-                "⚠️ لطفاً قبل از تأیید نهایی موارد زیر را بررسی کنید :\n\n"
-                "#️⃣ کدسرویس: {service_code}\n"
-                "📥 پلن انتخابی : {plan_name}\n"
-                "📦حجم باقیمانده الان: {current_remaining_volume}\n"
-                "🗳حجم باقیمانده بعد تمدید: {new_remaining_volume}\n"
-                "⏰ مدت زمان بعد تمدید: {duration} روز دیگر\n"
-                "🔌 محدودیت کاربر: {ip_limit}\n"
-                "💸 قیمت نهایی: {price} هزار تومان\n\n"
-                "⚠️ ❗️توجه:\n\n"
-                "📩 بعد از تمدید - حجم باقی‌مانده از این اکانت به دوره جدید اضافه میشه و سوخت نمیشه !\n\n"
-                "⏳ اما زمان انتخابی از ابتدا ریست میشه و به زمان باقیمانده فعلی اضافه نمیشه.\n\n"
-                "✅ جهت تایید نهایی تمدید اکانت و کسر مبلغ از کیف پول روی دکمه تایید خرید کلیک کنید :👇"
-            ),
+            default=DEFAULT_BOT_TEXTS["renewal_final_step_text"],
             lang="fa",
         )
 
@@ -572,19 +537,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                 # Get renewal success text from database with placeholders
                 success_text_template = await get_bot_text(
                     key="renewal_success_text",
-                    default=(
-                        "✅ از اعتماد شما ممنونیم !\n\n"
-                        "🎉 اکانت شما با مشخصات زیر تمدید شد :\n\n"
-                        "🎫 کد سرویس: {service_code}\n"
-                        "📝 نام کانفیگ: {config_name}\n"
-                        "📥 پلن انتخابی: {plan_name}\n"
-                        "📥 حجم جدید شما: {new_volume}\n"
-                        "⏳ تاریخ انقضا اکانت: {expiration_date}\n\n"
-                        "💰 مبلغ {price} هزارتومان از موجودی شما کسر شد.\n\n"
-                        "💵 موجودی جدید کیف‌پول شما:\n"
-                        "{new_balance} هزارتومان\n\n"
-                        "🌐 جهت مدیریت اکانت ها روی /myaccount کلیک کنید."
-                    ),
+                    default=DEFAULT_BOT_TEXTS["renewal_success_text"],
                     lang="fa",
                 )
 
@@ -752,19 +705,7 @@ async def service_callback_handler(event: events.CallbackQuery.Event, data: str 
                     # Get renewal success text from database with placeholders
                     success_text_template = await get_bot_text(
                         key="renewal_success_text",
-                        default=(
-                            "✅ از اعتماد شما ممنونیم !\n\n"
-                            "🎉 اکانت شما با مشخصات زیر تمدید شد :\n\n"
-                            "🎫 کد سرویس: {service_code}\n"
-                            "📝 نام کانفیگ: {config_name}\n"
-                            "📥 پلن انتخابی: {plan_name}\n"
-                            "📥 حجم جدید شما: {new_volume}\n"
-                            "⏳ تاریخ انقضا اکانت: {expiration_date}\n\n"
-                            "💰 مبلغ {price} هزارتومان از موجودی شما کسر شد.\n\n"
-                            "💵 موجودی جدید کیف‌پول شما:\n"
-                            "{new_balance} هزارتومان\n\n"
-                            "🌐 جهت مدیریت اکانت ها روی /myaccount کلیک کنید."
-                        ),
+                        default=DEFAULT_BOT_TEXTS["renewal_success_text"],
                         lang="fa",
                     )
 

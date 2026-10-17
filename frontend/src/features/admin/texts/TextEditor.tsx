@@ -48,8 +48,12 @@ function parseEmojiId(raw: string): string | null {
   return id && id.length >= 5 ? id : null;
 }
 
-export function canSaveText(value: string, stored: string): boolean {
-  return value !== stored && value.trim().length > 0 && value.length <= MAX_MESSAGE_LENGTH;
+export function baselineText(entry: PanelTextEntry): string {
+  return entry.stored ? entry.value || "" : entry.default_value || "";
+}
+
+export function canSaveText(value: string, stored: string, allowUnchanged = false): boolean {
+  return (allowUnchanged || value !== stored) && value.trim().length > 0 && value.length <= MAX_MESSAGE_LENGTH;
 }
 
 interface TextEditorProps {
@@ -75,10 +79,10 @@ export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onR
   const [emojiError, setEmojiError] = useState(false);
   const emojiInputRef = useRef<HTMLInputElement>(null);
 
-  const stored = entry.value || "";
+  const stored = baselineText(entry);
   const dirty = value !== stored;
   const overLimit = value.length > MAX_MESSAGE_LENGTH;
-  const canSave = canSaveText(value, stored);
+  const canSave = canSaveText(value, stored, !entry.stored);
 
   useEffect(() => {
     const onSelectionChange = () => {
@@ -307,6 +311,13 @@ export function TextEditor({ entry, value, saving, onChange, onSave, onBack, onR
             </span>
           </div>
         </div>
+
+        {!entry.stored && !dirty && !!entry.default_value && (
+          <p className="flex items-start gap-2 rounded-lg bg-surface-2 px-2.5 py-2 text-xs text-muted">
+            <Info size={14} className="mt-0.5 shrink-0" />
+            {t("panel.texts.defaultPrefilled")}
+          </p>
+        )}
 
         {dirty && !value.trim() && (
           <p className="flex items-start gap-2 rounded-lg bg-warning/12 px-2.5 py-2 text-xs text-warning">

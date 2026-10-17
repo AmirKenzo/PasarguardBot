@@ -20,20 +20,13 @@ from app.db.crud.log_channels import LogChannelManager
 from app.logger import LogType, get_logger
 from app.services.send_queue import enqueue
 from app.utils.formatting import Time_Date
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
 TEXT_KEY = "purchase_report_message"
 
-DEFAULT_TEMPLATE = (
-    "✅ **گزارش خرید** #سفارش_جدید\n\n"
-    "👤 آیدی کاربر : `{user}`\n"
-    "🖥 پنل : {panel}\n"
-    "📦 دسته‌بندی : {plan}\n"
-    "🎁 سرویس : {service}\n"
-    "💰 مبلغ پرداختی : {price} تومان\n\n"
-    "📅 {date} — ⏰ {time}"
-)
+DEFAULT_TEMPLATE = DEFAULT_BOT_TEXTS["purchase_report_message"]
 
 BUTTON_LABEL = "🛒 خرید از ربات"
 VISIBLE_ID_DIGITS = 5

@@ -15,6 +15,7 @@ from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import get_step, set_step
 from app.utils.media.qrcode import create_qr_code
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 BOT_LANGUAGE = "fa"
 
@@ -48,7 +49,7 @@ async def advanced_settings_handler(event: Message):
     buttons = create_buttons_user_settings(user)
     adv_text = await get_bot_text(
         key="advanced_settings_intro",
-        default="تنظیمات نمایش سرویس",
+        default=DEFAULT_BOT_TEXTS["advanced_settings_intro"],
         lang=lang,
     )
     if is_callback:

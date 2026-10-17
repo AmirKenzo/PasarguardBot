@@ -65,6 +65,7 @@ from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
 from app.utils.formatting.dates import timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -117,7 +118,7 @@ async def show_reseller_panel_picker(event) -> None:
     buttons = await build_reseller_panel_list_buttons(panel_codes)
     text = await get_reseller_text(
         "reseller_buy_panel_picker",
-        "**🏢 خرید نمایندگی**\n\nپنل مورد نظر را انتخاب کنید:",
+        DEFAULT_BOT_TEXTS["reseller_buy_panel_picker"],
         user_id,
     )
     await reseller_flow_edit(event, text, buttons=buttons)

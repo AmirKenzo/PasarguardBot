@@ -12,22 +12,15 @@ from app.services.billing.direct_pay_renew import create_vpn_renew_for_user
 from app.telegram.user.reseller.helpers import create_reseller_purchase_for_user
 from app.telegram.user.shop.helpers import create_vpn_purchase_for_user
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
-FULFILL_FAILED_DEFAULT = (
-    "موجودی شما شارژ شد، اما ساخت خودکار محصول انجام نشد.\n"
-    "لطفاً دوباره از منوی خرید اقدام کنید یا با پشتیبانی تماس بگیرید.\n"
-    "💰 موجودی فعلی: `{balance}` تومان"
-)
+FULFILL_FAILED_DEFAULT = DEFAULT_BOT_TEXTS["direct_pay_fulfill_failed"]
 
-RENEW_FULFILL_FAILED_DEFAULT = (
-    "موجودی شما شارژ شد، اما تمدید خودکار سرویس انجام نشد.\n"
-    "لطفاً دوباره از منوی سرویس‌ها تمدید را انجام دهید یا با پشتیبانی تماس بگیرید.\n"
-    "💰 موجودی فعلی: `{balance}` تومان"
-)
+RENEW_FULFILL_FAILED_DEFAULT = DEFAULT_BOT_TEXTS["direct_pay_renew_fulfill_failed"]
 
-DIRECT_PAY_CANCELLED_DEFAULT = "سفارش پرداخت مستقیم شما لغو شد.\nدر صورت نیاز دوباره مراحل خرید را طی کنید."
+DIRECT_PAY_CANCELLED_DEFAULT = DEFAULT_BOT_TEXTS["direct_pay_cancelled"]
 
 
 async def _notify_fulfill_failed(user_id: int, balance: int, *, renew: bool = False) -> None:

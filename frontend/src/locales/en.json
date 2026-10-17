@@ -1534,6 +1534,7 @@
       "moreVariables": "+{{count}} more",
       "showLess": "Show less",
       "unsetPlaceholder": "This text isn’t set, so the bot shows its default. Write your own text here to set it.",
+      "defaultPrefilled": "Showing the bot’s built-in default. Edit it, or save as-is, to set your own text.",
       "formatHint": "Select text and format it from the toolbar",
       "emptyValue": "An empty text can’t be saved. To show the bot default, press Remove set text.",
       "banner": "Banner",

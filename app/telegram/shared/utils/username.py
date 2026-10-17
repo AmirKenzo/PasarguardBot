@@ -9,6 +9,7 @@ from app.services.users.identifiers import generate_username
 from app.telegram.keyboards.buy import buy_cancel_button, buy_retry_username_button
 from app.telegram.state import set_step
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -58,7 +59,7 @@ async def username_check_failed_text() -> str:
     """Bot text telling the user the panel could not verify the name and they should retry."""
     return await get_bot_text(
         key="buy_username_check_failed",
-        default="❌ بررسی نام کانفیگ در پنل ممکن نشد؛ لطفاً کمی بعد دوباره تلاش کنید.",
+        default=DEFAULT_BOT_TEXTS["buy_username_check_failed"],
         lang="fa",
     )
 
@@ -70,16 +71,12 @@ def is_panel_username_conflict(exc: BaseException) -> bool:
 async def handle_buy_username_conflict(event, username: str) -> None:
     alert_text = await get_bot_text(
         key="buy_username_conflict_alert",
-        default="نام «{username}» قبلاً در پنل ثبت شده است.",
+        default=DEFAULT_BOT_TEXTS["buy_username_conflict_alert"],
         lang="fa",
     )
     conflict_text = await get_bot_text(
         key="buy_username_conflict_message",
-        default=(
-            "❌ **نام کانفیگ `{username}` تکراری است**\n\n"
-            "این نام قبلاً توسط ادمین دیگری در پنل ساخته شده است.\n"
-            "لطفاً با دکمه زیر نام دیگری انتخاب کنید."
-        ),
+        default=DEFAULT_BOT_TEXTS["buy_username_conflict_message"],
         lang="fa",
     )
     await event.answer(alert_text.replace("{username}", username), alert=True)

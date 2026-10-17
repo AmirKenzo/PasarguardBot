@@ -12,11 +12,12 @@ from app.telegram.keyboards.home import MINIAPP_MODE_OFF, miniapp_mode
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.miniapp import send_miniapp_launcher
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 from app.utils.text.glass import unglass_text
 
 DEFAULT_MINIAPP_BUTTON = "🚀 ورود به اپلیکیشن"
 MINIAPP_OPEN_LABEL = "🚀 باز کردن اپلیکیشن"
-MINIAPP_INTRO = "برای ورود، دکمهٔ زیر را بزن. همین پیام در چت می‌ماند، پس دفعهٔ بعد یک کلیک کافی است."
+MINIAPP_INTRO = DEFAULT_BOT_TEXTS["miniapp_launcher_message"]
 
 
 async def _miniapp_button_filter(event: Message) -> bool:

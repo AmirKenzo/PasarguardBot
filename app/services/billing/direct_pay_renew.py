@@ -23,22 +23,11 @@ from app.utils.formatting.conversions import convert_storage
 from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_size
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
-RENEWAL_SUCCESS_DEFAULT = (
-    "✅ از اعتماد شما ممنونیم !\n\n"
-    "🎉 اکانت شما با مشخصات زیر تمدید شد :\n\n"
-    "🎫 کد سرویس: {service_code}\n"
-    "📝 نام کانفیگ: {config_name}\n"
-    "📥 پلن انتخابی: {plan_name}\n"
-    "📥 حجم جدید شما: {new_volume}\n"
-    "⏳ تاریخ انقضا اکانت: {expiration_date}\n\n"
-    "💰 مبلغ {price} هزارتومان از موجودی شما کسر شد.\n\n"
-    "💵 موجودی جدید کیف‌پول شما:\n"
-    "{new_balance} هزارتومان\n\n"
-    "🌐 جهت مدیریت اکانت ها روی /myaccount کلیک کنید."
-)
+RENEWAL_SUCCESS_DEFAULT = DEFAULT_BOT_TEXTS["renewal_success_text"]
 
 
 async def create_vpn_renew_for_user(

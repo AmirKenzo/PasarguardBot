@@ -1,66 +1,24 @@
 """Text templates for user balance."""
 
-MANUAL_CARD_INFO_DEFAULT = (
-    "کاربر گرامی 🌟\n"
-    "لطفاً مبلغ زیر را به شماره کارت واریز کنید:\n\n"
-    "{card_line}\n\n"
-    "💰 حداقل شارژ: {min_amount} تومان\n\n"
-    "💵 **مبلغ انتخابی شما:** `{amount_toman}` تومان\n"
-    "💴 **مبلغ واریزی (ریال):** `{amount_rial}` ریال\n"
-    "⚠️ لطفاً دقیقاً همین مبلغ را واریز کنید.\n\n"
-    "🏧 پس از انجام واریز، جهت ثبت و بررسی پرداخت، از طریق دکمه زیر "
-    "مراحل کارت‌به‌کارت را ادامه دهید.\n\n"
-    "🚫 ارسال رسید نامعتبر = مسدودیت دائمی"
-)
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
-ADD_BALANCE_INTRO_DEFAULT = (
-    "📁 برای خرید کافیست ابتدا کیف پول خود را به مقدار دلخواه شارژ کنید.\n---\n"
-    "📝 لطفا روش پرداخت و شارژ کیف پول را انتخاب بفرمایید:"
-)
+MANUAL_CARD_INFO_DEFAULT = DEFAULT_BOT_TEXTS["manual_card_info"]
 
-MANUAL_CARD_AMOUNT_REQUEST_DEFAULT = (
-    "💰 مبلغ شارژ را به **تومان** (فقط عدد انگلیسی) ارسال کنید.\n\n"
-    "📉 حداقل: `{min_amount}` تومان\n"
-    "📈 حداکثر: `{max_amount}` تومان\n\n"
-    "🌀 مثال: برای ۱۰۰ هزار تومان بنویسید: `100000`"
-)
+ADD_BALANCE_INTRO_DEFAULT = DEFAULT_BOT_TEXTS["add_balance_intro"]
 
-MANUAL_CARD_RECEIPT_REQUEST_DEFAULT = (
-    "🧾 رسید واریزی خود را ارسال کنید.\n\n💵 مبلغ ثبت‌شده: `{amount_toman}` تومان\n💴 مبلغ واریزی: `{amount_rial}` ریال"
-)
+MANUAL_CARD_AMOUNT_REQUEST_DEFAULT = DEFAULT_BOT_TEXTS["manual_card_amount_request"]
 
-MANUAL_CARD_RECEIPT_CONFIRMED_DEFAULT = (
-    "**📩 رسید شما با مبلغ** `{amount}` **تومان ثبت شد**\n**🪄 رسید شما توسط پشتیبانی در کمترین زمان برسی خواهد شد**"
-)
+MANUAL_CARD_RECEIPT_REQUEST_DEFAULT = DEFAULT_BOT_TEXTS["manual_card_receipt_request"]
 
-MANUAL_CARD_LOG_CHANNEL_MISSING_DEFAULT = (
-    "**❌ رسید شما ثبت نشد**\n\n"
-    "🛠 دلیل: کانال دریافت رسید کارت‌به‌کارت هنوز توسط پشتیبانی تنظیم نشده و امکان بررسی رسید وجود ندارد.\n\n"
-    "📩 لطفاً به پشتیبانی اطلاع دهید تا کانال لاگ کارت‌به‌کارت را برای ربات تنظیم کند، سپس دوباره رسید را ارسال کنید."
-)
+MANUAL_CARD_RECEIPT_CONFIRMED_DEFAULT = DEFAULT_BOT_TEXTS["manual_card_receipt_confirmed"]
 
-MANUAL_CARD_RECEIPT_PHOTO_ERROR_DEFAULT = (
-    "⚠️ خطا ⚠️\n\n"
-    "📲  لطفا عکس رسید به صورت بزرگ و از گالری گوشی خود بفرستید.\n\n"
-    "📌  توجه کنید فایل قابل قبول نیست !\n\n"
-    "🚧 ساعت + تاریخ + مقصد + مبدا آن مشخص باشد و اسم یا شماره کارت خود را خط نزنید \n\n"
-    "📲 در صورتی که عکس ندارید از پیامک بانک خود (SMS) به طوری که ساعت + تاریخ + مبلغ آن مشخص باشد اسکرین شات بگیرید: 👇"
-)
+MANUAL_CARD_LOG_CHANNEL_MISSING_DEFAULT = DEFAULT_BOT_TEXTS["manual_card_log_channel_missing"]
 
-MANUAL_CARD_AMOUNT_RANGE_ERROR_DEFAULT = (
-    "⚠️ خطا ⚠️\n\n"
-    "❌ لطفا مبلغی بین {min_amount} تا {max_amount} تومان وارد کنید:\n\n"
-    "🌀 مثلا برای شارژ ۵۰ هزار تومان بنویسید 50000 (50 سه تا صفر):\n\n"
-    "⬅️ بدون هیچ فاصله یا ویرگول به انگلیسی و هزارتومان:\n\n"
-    "✅ 50000 ✅"
-)
+MANUAL_CARD_RECEIPT_PHOTO_ERROR_DEFAULT = DEFAULT_BOT_TEXTS["manual_card_receipt_photo_error"]
 
-MANUAL_CARD_NUMERIC_ERROR_DEFAULT = (
-    "⚠️ لطفا فقط عدد تنها و به هزارتومان وارد کنید !\n\n"
-    "🌀 مثلا: برای شارژ ۱۹۹ هزار تومان بنویسید 199 سه تا صفر :\n\n"
-    "✅ پیام درست: \n"
-    "✅ 199000"
-)
+MANUAL_CARD_AMOUNT_RANGE_ERROR_DEFAULT = DEFAULT_BOT_TEXTS["manual_card_amount_range_error"]
+
+MANUAL_CARD_NUMERIC_ERROR_DEFAULT = DEFAULT_BOT_TEXTS["manual_card_numeric_error"]
 
 AUTO_CARD_AMOUNT_RANGE_ERROR_DEFAULT = (
     "⚠️ خطا ⚠️\n\n"
@@ -70,13 +28,9 @@ AUTO_CARD_AMOUNT_RANGE_ERROR_DEFAULT = (
 
 AUTO_CARD_NUMERIC_ERROR_DEFAULT = "⚠️ لطفا فقط عدد ارسال کنید."
 
-CRYPTO_AMOUNT_RANGE_ERROR_DEFAULT = (
-    "⚠️ خطا ⚠️\n\n"
-    "❌ مبلغ باید بین {min_amount} تا {max_amount} تومان باشد.\n\n"
-    "🌀 مثلا برای شارژ ۱۰۰ هزار تومان بنویسید: 100000"
-)
+CRYPTO_AMOUNT_RANGE_ERROR_DEFAULT = DEFAULT_BOT_TEXTS["crypto_amount_range_error"]
 
-CRYPTO_NUMERIC_ERROR_DEFAULT = "⚠️ لطفا فقط عدد ارسال کنید."
+CRYPTO_NUMERIC_ERROR_DEFAULT = DEFAULT_BOT_TEXTS["crypto_numeric_error"]
 
 STARS_AMOUNT_RANGE_ERROR_DEFAULT = (
     "⚠️ خطا ⚠️\n\n"

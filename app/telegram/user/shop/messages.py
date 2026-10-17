@@ -62,6 +62,7 @@ from app.telegram.user.shop.helpers import (
 from app.utils.formatting.conversions import convert_storage
 from app.utils.formatting.traffic import format_ip_limit
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -151,7 +152,7 @@ async def custom_buy_input_handler(event: Message):
         await set_step(user_id, "custom_buy_enter_days")
         days_prompt = await _format_bot_text(
             key="custom_buy_enter_days_message",
-            default=("✅ حجم `{gb}` گیگ ثبت شد.\n\n⏰ تعداد روز را وارد کنید (بین `{min_days}` تا `{max_days}`):"),
+            default=(DEFAULT_BOT_TEXTS["custom_buy_enter_days_message"]),
             lang=await _user_lang(user_id),
             gb=format_gb_value(value),
             min_days=settings["min_days"],
@@ -184,11 +185,7 @@ async def custom_buy_input_handler(event: Message):
         await set_step(user_id, "enter_username")
         username_message = await get_bot_text(
             key="enter_username_message",
-            default=(
-                "🔸 یک نام برای کانفیگ وارد کنید:\n"
-                "^qc^نام کاربری باید بین ۳ تا ۳۲ کاراکتر و فقط شامل حروف انگلیسی، اعداد و زیرخط باشد.\n"
-                "نمونه:\nAmir_Kenzo123\nNeda\nNeda123\nNeda_123^qc^"
-            ),
+            default=DEFAULT_BOT_TEXTS["enter_username_message"],
             lang=await _user_lang(user_id),
         )
         await _edit(
@@ -268,18 +265,7 @@ async def buy_discount_code_handler(event: Message):
     )
     confirm_text_template = await get_bot_text(
         key="config_purchase_discount_confirm",
-        default=(
-            "**ساخت کانفیگ اختصاصی V2Ray با مشخصات زیر را تأیید می‌کنید؟**\n\n"
-            "**▪️ حجم سرویس :** {volume}\n"
-            "**⏰ مدت زمان :** {duration} روز\n"
-            "**▫️نام کانفیگ :** `{config_name}`\n"
-            "**▫️نوع کانفیگ :** {config_type}\n"
-            "**▫️ لوکیشن های موجودسرویس :** \n**^qc^{locations}^qc^**\n"
-            "**🔌 محدودیت کاربر :** {user_limit}\n"
-            "**💸 مبلغ قبل:** `{original_price}` **مبلغ جدید:** `{new_price}`\n"
-            "❗️ نکته؛\n"
-            "(پس از خرید؛ امکان افزایش حجم وجود دارد و همچنین مقدار باقیمانده حجم و روز از بخش سرویس‌های من قابل مشاهده است)"
-        ),
+        default=DEFAULT_BOT_TEXTS["config_purchase_discount_confirm"],
         lang="fa",
     )
     confirm_text = (

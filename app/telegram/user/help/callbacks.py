@@ -15,6 +15,7 @@ from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.rate_limit import debounce_callback
 from app.telegram.user.start.helpers import get_user_lang
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -26,7 +27,7 @@ async def callback_back_to_help(event: events.CallbackQuery.Event):
     try:
         help_message_text = await get_bot_text(
             key="help_message",
-            default="**تمام اموزش های ربات در این بخش میباشد\n🔰لطفا یکی از گزینه های زیر را انتخاب کنید🔰**",
+            default=DEFAULT_BOT_TEXTS["help_message"],
             lang=lang,
         )
         dynamic_buttons = [*await get_help_buttons(event.sender_id), [home_back_button()]]

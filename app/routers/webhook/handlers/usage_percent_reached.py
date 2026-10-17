@@ -13,6 +13,7 @@ from app.routers.webhook.helpers import find_service_by_username
 from app.services.panels.settings import panel_webhook_notifications_enabled
 from app.utils.formatting.traffic import format_size
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -42,13 +43,7 @@ async def handle_usage_percent_reached(event: WebhookEvent) -> None:
     remaining_text = format_size(remaining, decimal_places=2)
     message_template = await get_bot_text(
         key="webhook_notification_low_data",
-        default=(
-            "<b>#Low_Data</b>\n"
-            "🔔 حجم باقی‌مانده‌ی سرویس شما: <b>{remaining_volume}</b>\n"
-            "برای جلوگیری از قطع سرویس، لطفاً پلن خود را تمدید یا ارتقا دهید.\n\n"
-            "🔢 <b>کدسرویس:</b> <code>{service_code}</code>\n"
-            "👤 <b>اسم کانفیگ:</b> <code>{config_name}</code>"
-        ),
+        default=DEFAULT_BOT_TEXTS["webhook_notification_low_data"],
         lang="fa",
     )
 
