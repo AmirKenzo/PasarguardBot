@@ -115,6 +115,13 @@ def build_admin_reseller_delete_confirm_buttons(user_id: int, account_code: int)
     ]
 
 
+def build_admin_reseller_delete_final_buttons(user_id: int, account_code: int) -> list:
+    return [
+        [Button.inline("🗑 حذف نهایی و غیرقابل بازگشت", data=f"AdminReseller_delete_final:{user_id}:{account_code}")],
+        [Button.inline("❌ انصراف", data=f"AdminReseller_view:{user_id}:{account_code}")],
+    ]
+
+
 def build_admin_reseller_chpwd_confirm_buttons(user_id: int, account_code: int) -> list:
     return [
         [Button.inline("✅ بله، رمز عوض شود", data=f"AdminReseller_chpwd_confirm:{user_id}:{account_code}")],

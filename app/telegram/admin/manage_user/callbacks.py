@@ -48,6 +48,7 @@ from app.telegram.keyboards.admin import (
     build_admin_reseller_account_buttons,
     build_admin_reseller_chpwd_confirm_buttons,
     build_admin_reseller_delete_confirm_buttons,
+    build_admin_reseller_delete_final_buttons,
     build_admin_reseller_list_buttons,
     build_admin_reseller_usage_cap_buttons,
     create_inline_manageuser,
@@ -217,6 +218,20 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         return True
 
     if data.startswith("AdminReseller_delete_confirm:"):
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        await event.edit(
+            f"**🚨 تأیید نهایی حذف `{account.username}`**\n\n"
+            "با زدن دکمه زیر، ادمین پنل و **همه یوزرهایش** همین الان حذف می‌شوند "
+            "و هیچ راهی برای برگرداندنشان نیست.",
+            buttons=build_admin_reseller_delete_final_buttons(user_id, account_code),
+            parse_mode="markdown",
+        )
+        return True
+
+    if data.startswith("AdminReseller_delete_final:"):
         account = await _admin_get_user_reseller(user_id, account_code)
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)

@@ -41,6 +41,7 @@ from app.models.webapp.reseller import (
     WebAppResellerCapacityPreviewResponse,
     WebAppResellerCapacityRequest,
     WebAppResellerCodeRequest,
+    WebAppResellerDeleteRequest,
     WebAppResellerEventsResponse,
     WebAppResellerPageRequest,
     WebAppResellerPasswordResponse,
@@ -72,9 +73,11 @@ from app.services.reseller.accounts import (
     ACTION_RESUME,
     ACTION_USAGE_CAP,
     ACTION_USAGE_REPORT,
+    DELETE_CONFIRM_MISMATCH,
     PAYG_MODES,
     account_actions,
     delete_account,
+    delete_confirmation_matches,
     get_owned_account,
     grace_seconds,
     is_admin_locked,
@@ -777,10 +780,12 @@ async def reseller_events(request: WebAppResellerPageRequest) -> WebAppResellerE
 
 
 @router.post("/webapp/reseller/account/delete", response_model=WebAppResellerActionResponse)
-async def reseller_delete(request: WebAppResellerCodeRequest) -> WebAppResellerActionResponse:
+async def reseller_delete(request: WebAppResellerDeleteRequest) -> WebAppResellerActionResponse:
     async def call() -> WebAppResellerActionResponse:
         user_id = await _user(request)
         account, _, _ = await _owned(request.code, user_id, ACTION_DELETE)
+        if not delete_confirmation_matches(account, request.confirm_username):
+            raise _Refused(DELETE_CONFIRM_MISMATCH)
         ok, message = await delete_account(account, actor_id=user_id)
         if not ok:
             raise _Refused(message)

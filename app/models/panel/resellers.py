@@ -193,7 +193,8 @@ class PanelResellerCodeRequest(PanelRequest):
     code: int
 
 
-PanelResellerDeleteRequest = PanelResellerCodeRequest
+class PanelResellerDeleteRequest(PanelResellerCodeRequest):
+    confirm_username: str = Field("", max_length=64, description="Must equal the reseller username")
 
 
 class PanelResellerRenewRequest(PanelRequest):

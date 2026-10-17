@@ -414,6 +414,15 @@ async def set_max_users_by_admin(account, *, max_users: int, actor_id: int | Non
     return True, "سقف یوزر به‌روزرسانی شد." if max_users else "سقف یوزر برداشته شد."
 
 
+DELETE_CONFIRM_MISMATCH = "برای حذف، یوزرنیم نمایندگی را دقیق وارد کنید."
+
+
+def delete_confirmation_matches(account, typed: str | None) -> bool:
+    """Web deletes are irreversible, so the caller must retype the reseller's username."""
+    expected = str(getattr(account, "username", "") or "").strip()
+    return bool(expected) and str(typed or "").strip().casefold() == expected.casefold()
+
+
 async def delete_account(account, *, actor_id: int | None = None, actor_role: str = "کاربر") -> tuple[bool, str]:
     deleted_users, safe_to_drop = await purge_reseller_from_panel(account)
     if not safe_to_drop:

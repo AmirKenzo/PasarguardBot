@@ -93,6 +93,7 @@ from app.telegram.user.reseller.keyboards import (
     build_addon_confirm_buttons,
     build_addon_preset_buttons,
     build_delete_confirm_buttons,
+    build_delete_final_buttons,
     build_my_reseller_account_buttons,
     build_my_resellers_list_buttons,
     build_password_confirm_buttons,
@@ -771,6 +772,19 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         return
 
     if data.startswith("ResellerAccount_delete_confirm:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        if not acc or await _reject_unless_allowed(event, acc, ACTION_DELETE):
+            return
+        await event.edit(
+            f"**🚨 تأیید نهایی حذف `{acc.username}`**\n\n"
+            "با زدن دکمه زیر، ادمین پنل و **همه یوزرهایش** همین الان حذف می‌شوند "
+            "و هیچ راهی برای برگرداندنشان نیست.",
+            buttons=await build_delete_final_buttons(code),
+        )
+        return
+
+    if data.startswith("ResellerAccount_delete_final:"):
         code = int(data.split(":")[1])
         acc = await _get_owned_account(event, code)
         if not acc or await _reject_unless_allowed(event, acc, ACTION_DELETE):
