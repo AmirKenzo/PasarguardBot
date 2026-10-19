@@ -102,6 +102,7 @@
     "in.balance.stars": "⭐ Pay with Stars",
     "in.balance.tonpays": "💎 Pay online (TonPays)",
     "in.balance.manual": "💳 Card to card (approved within 5 minutes)",
+    "in.balance.auto": "💷 Automatic card to card",
     "in.balance.disabled": "❌ Top-ups are disabled",
     "in.balance.referral": "🎁 Invite friends",
     "in.balance.trx": "💵 Pay with TRX (Tron)",

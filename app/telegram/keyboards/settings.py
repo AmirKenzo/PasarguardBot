@@ -79,6 +79,7 @@ SETTINGS_MENU_SECTIONS = (
         "فعال یا غیرفعال کردن دکمه‌های کارت دستی و درگاه ارزی در منوی شارژ کیف پول.",
         (
             SettingsMenuItem("دکمه کارت دستی", "pay_mode"),
+            SettingsMenuItem("دکمه کارت خودکار", "auto_cart"),
             SettingsMenuItem("دکمه درگاه ارزی", "arz_mode"),
             SettingsMenuItem("دکمه پرداخت استارز", "cart_sta"),
             SettingsMenuItem("درگاه TonPays", "tonpays_enabled"),

@@ -12,7 +12,7 @@ from app.services.billing.direct_pay_flow import (
     is_direct_pay_active,
     start_direct_pay_topup,
 )
-from app.telegram.admin.settings_payment.texts import is_manual_card_visible
+from app.telegram.admin.settings_payment.texts import is_auto_card_visible, is_manual_card_visible
 from app.telegram.keyboards.balance import (
     balance_flow_cancel_rows,
     create_inline_crypto_payment_buttons,
@@ -26,6 +26,7 @@ from app.telegram.user.balance.messages import (
     _prompt_crypto_amount,
     _request_phone_for_balance_payment,
     _require_balance_payment_step,
+    create_auto_card_invoice,
     create_crypto_invoice,
     manual_card_amount_placeholders,
     manual_card_prompt_amount,
@@ -36,6 +37,44 @@ from app.telegram.user.balance.messages import (
 )
 from app.telegram.user.payment import send_star_invoice
 from app.utils.text.bot_texts import get_bot_text
+
+
+@bot_is_offline
+@debounce_callback()
+async def auto_card_to_card_callback(event: events.CallbackQuery.Event):
+    if not await _require_balance_payment_step(event):
+        return
+    settings = await SettingsManager().get_settings()
+    if not settings.auto_cart:
+        await event.answer(texts.PAYMENT_DISABLED_ALERT, alert=True)
+        raise events.StopPropagation
+
+    user = await UserManager().get_user_by_id(event.sender_id)
+    if not is_auto_card_visible(settings, user):
+        await event.answer(message=texts.AUTO_CARD_SAFE_DISABLED_ALERT, alert=True)
+        raise events.StopPropagation
+    if not user.number:
+        await _request_phone_for_balance_payment(event)
+        raise events.StopPropagation
+
+    prefill = (
+        await get_direct_pay_prefilled_amount(event.sender_id) if await is_direct_pay_active(event.sender_id) else None
+    )
+    if prefill is not None:
+        amount = clamp_deposit_amount(prefill, settings.auto_deposit_min, settings.auto_deposit_max)
+        await set_data(event.sender_id, "mablagh", amount)
+        await create_auto_card_invoice(event, amount)
+    else:
+        await event.edit(
+            texts.AUTO_CARD_AMOUNT_PROMPT_TEMPLATE.format(
+                min=f"{settings.auto_deposit_min:,}",
+                max=f"{settings.auto_deposit_max:,}",
+            ),
+            buttons=await balance_flow_cancel_rows(),
+        )
+        await remember_balance_flow_message(event.sender_id, event.message_id)
+        await set_step(user_id=event.sender_id, step=states.STEP_AUTO_CARD_2)
+    raise events.StopPropagation
 
 
 @bot_is_offline
@@ -317,6 +356,10 @@ async def cart_b_cart_callback(event: events.CallbackQuery.Event):
 
 
 def register(client):
+    client.add_event_handler(
+        auto_card_to_card_callback,
+        events.CallbackQuery(data=states.CALLBACK_AUTO_CARD),
+    )
     client.add_event_handler(
         crypto_payments_callback,
         events.CallbackQuery(data=states.CALLBACK_CRYPTO),

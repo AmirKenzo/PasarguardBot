@@ -1,6 +1,8 @@
 import type {
   ActionResponse,
   PanelAuthRequest,
+  PanelAutoCardResponse,
+  PanelAutoCardSaveRequest,
   PanelCardActionRequest,
   PanelCardCreateRequest,
   PanelPaymentsResponse,
@@ -52,6 +54,18 @@ export function toggleRule(body: PanelRuleToggleRequest) {
 
 export function deleteRule(body: PanelRuleDeleteRequest) {
   return panelPost<ActionResponse>("/payments/rules/delete", body);
+}
+
+export function getAutoCard(body: PanelAuthRequest) {
+  return panelPost<PanelAutoCardResponse>("/payments/auto-card", body);
+}
+
+export function saveAutoCard(body: PanelAutoCardSaveRequest) {
+  return panelPost<ActionResponse>("/payments/auto-card/save", body);
+}
+
+export function rotateAutoCardKey(body: PanelAuthRequest) {
+  return panelPost<ActionResponse>("/payments/auto-card/rotate-key", body);
 }
 
 export function getTonPays(body: PanelAuthRequest) {

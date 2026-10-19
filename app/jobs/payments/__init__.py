@@ -5,6 +5,7 @@ This module contains payment processors for different payment methods.
 Each processor handles checking and confirming payments for a specific payment type.
 """
 
+from app.jobs.payments.auto_card import AutoCardExpiryProcessor
 from app.jobs.payments.base import BasePaymentProcessor
 from app.jobs.payments.ir_gateways import IrGatewaysProcessor
 from app.jobs.payments.manual_card import ManualCardProcessor
@@ -17,6 +18,7 @@ from app.jobs.payments.usdt import USDTProcessor
 from app.jobs.payments.usdt_networks import USDTNetworksProcessor
 
 __all__ = [
+    "AutoCardExpiryProcessor",
     "BasePaymentProcessor",
     "IrGatewaysProcessor",
     "ManualCardProcessor",

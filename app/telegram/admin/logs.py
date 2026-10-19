@@ -47,6 +47,7 @@ LOG_TYPE_PREFIX = "log_type:"
 
 ALL_LOG_TYPES: tuple[tuple[str, str], ...] = (
     ("manual_card", "💳 کارت به کارت دستی"),
+    ("auto_card", "🤖 کارت به کارت خودکار"),
     ("crypto", "💱 واریزی ارزی"),
     ("reseller", "🏢 لاگ نمایندگی‌ها"),
     ("referral", "🎁 دعوت دوستان و برداشت‌ها"),

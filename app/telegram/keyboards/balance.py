@@ -4,7 +4,7 @@ from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.referral import ReferralManager
 from app.services.payments.ir_gateways import config as ir_gateway_config
 from app.services.payments.tonpays_config import is_ready as tonpays_ready
-from app.telegram.admin.settings_payment.texts import is_manual_card_visible
+from app.telegram.admin.settings_payment.texts import is_auto_card_visible, is_manual_card_visible
 
 from .common import _get_keyboard_button_config, styled_callback_button
 from .registry import KEYBOARD_BUTTON_DEFAULTS
@@ -107,6 +107,18 @@ async def create_inline_cartbcard(settings, user=None) -> list:
                 )
             ]
         )
+
+    if is_auto_card_visible(settings, user):
+        auto_btn = await _balance_inline_button(
+            keyboard_crud,
+            "in.balance.auto",
+            KEYBOARD_BUTTON_DEFAULTS["in.balance.auto"],
+            b"AutoCardToCard",
+            bonus_enabled=settings.auto_bonus_enabled,
+            bonus_percent=settings.auto_bonus_percent,
+        )
+        insert_index = 2 if len(buttons) >= 2 else len(buttons)
+        buttons.insert(insert_index, [auto_btn])
 
     if not buttons:
         disabled_text, disabled_style = await _get_keyboard_button_config(

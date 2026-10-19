@@ -15,6 +15,10 @@ from app.models.webapp.auth import (
     WebAppInfoResponse,
 )
 from app.models.webapp.balance import (
+    BalanceAutoCardStatusRequest,
+    BalanceAutoCardStatusResponse,
+    BalanceDepositAutoRequest,
+    BalanceDepositAutoResponse,
     BalanceDepositCryptoRequest,
     BalanceDepositCryptoResponse,
     BalanceDepositManualReceiptResponse,
@@ -115,6 +119,10 @@ __all__ = [
     "ApiKeyGenerateRequest",
     "ApiKeyGenerateResponse",
     "ApiKeyLoginRequest",
+    "BalanceAutoCardStatusRequest",
+    "BalanceAutoCardStatusResponse",
+    "BalanceDepositAutoRequest",
+    "BalanceDepositAutoResponse",
     "BalanceDepositCryptoRequest",
     "BalanceDepositCryptoResponse",
     "BalanceDepositManualReceiptResponse",

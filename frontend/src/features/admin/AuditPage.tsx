@@ -57,6 +57,8 @@ const actionLabels = (t: TFunction): Record<string, string> => ({
   wallet_create: t("panel.common.addWallet"),
   wallet_delete: t("panel.audit.walletDelete"),
   card_create: t("panel.common.addCard"),
+  auto_card_settings_update: t("panel.audit.autoCardSettingsUpdate"),
+  sms_webhook_rotate: t("panel.audit.smsWebhookRotate"),
   card_activate: t("panel.audit.cardEnable"),
   card_delete: t("panel.audit.cardDelete"),
   auto_approve_rule_create: t("panel.audit.autoRuleAdd"),
