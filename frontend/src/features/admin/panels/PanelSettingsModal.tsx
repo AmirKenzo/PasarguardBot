@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Button, Input } from "../../../components/ui";
+import { Button, ErrorState, Input } from "../../../components/ui";
 import { SegmentedControl } from "../../../components/ui/Select";
 import { FormModal, Toggle } from "../components";
 import { panelPanelsApi } from "../../../api/panel";
@@ -35,15 +35,9 @@ import type {
   PanelVolumeUpgradePlan,
 } from "../../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../../queries/usePanelApi";
+import { STYLE_CLASSES, SWATCH_CLASSES } from "../keyboard/shared";
 
 type TabKey = "style" | "buttons" | "subscription" | "trial" | "renewal" | "addons" | "features" | "reseller";
-
-const STYLE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  primary: { bg: "rgba(59,130,246,0.16)", fg: "#93C5FD", border: "rgba(59,130,246,0.4)" },
-  success: { bg: "rgba(34,197,94,0.16)", fg: "#86EFAC", border: "rgba(34,197,94,0.4)" },
-  danger: { bg: "rgba(239,68,68,0.16)", fg: "#FCA5A5", border: "rgba(239,68,68,0.4)" },
-  "": { bg: "rgba(255,255,255,0.05)", fg: "#C7CCDB", border: "rgba(255,255,255,0.12)" },
-};
 
 function buttonDefs(t: TFunction): { key: keyof PanelButtonSettings; label: string; desc: string }[] {
   return [
@@ -279,7 +273,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
   });
 
   const handleSave = () => {
-    if (!draft || !code) return;
+    if (!draft || !code || saveSettings.isPending || saveStyle.isPending) return;
     if (!planRowsValid(volumePlanRows, false) || !planRowsValid(timePlanRows, true)) {
       setShowPlanErrors(true);
       setActiveTab("addons");
@@ -305,7 +299,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
         price: Number(row.price),
       })),
     };
-    saveSettings.mutate(payload);
+    const saves: Promise<unknown>[] = [saveSettings.mutateAsync(payload)];
     const styleChanged =
       styleDraft &&
       styleQuery.data &&
@@ -314,18 +308,23 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
         (styleDraft.icon_id ?? null) !== (styleQuery.data.icon_id ?? null));
     if (styleDraft && styleChanged) {
       const iconCleared = originalIconId != null && styleDraft.icon_id == null;
-      saveStyle.mutate({
-        code,
-        text: styleDraft.text,
-        style: styleDraft.style,
-        icon_id: styleDraft.icon_id ?? undefined,
-        clear_icon: iconCleared,
-      });
+      saves.push(
+        saveStyle.mutateAsync({
+          code,
+          text: styleDraft.text,
+          style: styleDraft.style,
+          icon_id: styleDraft.icon_id ?? undefined,
+          clear_icon: iconCleared,
+        })
+      );
     }
-    onClose();
+    // Close only once every save succeeded; failures are toasted by usePanelAction and keep the modal open.
+    Promise.all(saves).then(onClose, () => undefined);
   };
 
   const isLoading = settingsQuery.isLoading || styleQuery.isLoading;
+  // A failed background refetch keeps the cached data usable; only a failed first load blocks the form.
+  const loadError = (!settingsQuery.data && settingsQuery.error) || (!styleQuery.data && styleQuery.error) || null;
 
   const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
     { key: "style", label: t("panel.panels.tab.style"), icon: Palette },
@@ -345,7 +344,15 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
       title={name ? t("panel.panels.settingsTitle", { name }) : t("panel.panels.fullSettings")}
       size="xl"
     >
-      {isLoading || !draft || !styleDraft ? (
+      {loadError ? (
+        <ErrorState
+          message={loadError.message}
+          onRetry={() => {
+            if (settingsQuery.isError) void settingsQuery.refetch();
+            if (styleQuery.isError) void styleQuery.refetch();
+          }}
+        />
+      ) : isLoading || !draft || !styleDraft ? (
         <div className="h-72 animate-pulse rounded-md bg-surface-2" />
       ) : (
         <div className="flex flex-col gap-4">
@@ -375,12 +382,9 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                 <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border p-5">
                   <span className="text-xs text-muted">{t("panel.panels.stylePreview")}</span>
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold"
-                    style={{
-                      background: STYLE_COLORS[styleDraft.style]?.bg,
-                      color: STYLE_COLORS[styleDraft.style]?.fg,
-                      border: `1px solid ${STYLE_COLORS[styleDraft.style]?.border}`,
-                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-4 py-2 text-sm font-semibold ${
+                      STYLE_CLASSES[styleDraft.style] ?? STYLE_CLASSES[""]
+                    }`}
                   >
                     {styleDraft.icon_id ? <span>✨</span> : null}
                     {styleDraft.text || name}
@@ -408,11 +412,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                         }`}
                       >
                         <span
-                          className="h-2 w-2 rounded-full"
-                          style={{
-                            background: value ? STYLE_COLORS[value]?.fg : "transparent",
-                            border: value ? "none" : "1.5px solid currentColor",
-                          }}
+                          className={`h-2 w-2 rounded-full ${value ? SWATCH_CLASSES[value] : "border-[1.5px] border-current"}`}
                         />
                         {value === "primary" && t("panel.panels.colorBlue")}
                         {value === "success" && t("panel.panels.colorGreen")}
@@ -656,7 +656,7 @@ export function PanelSettingsModal({ code, name, onClose }: PanelSettingsModalPr
                       value={draft.subscription.locations_text ?? ""}
                       rows={6}
                       maxLength={3000}
-                      placeholder={"🌍 لوکیشن‌ها:\n🇩🇪 آلمان ⌁ 🇫🇮 فنلاند ⌁ 🇳🇱 هلند"}
+                      placeholder={t("panel.panels.locationsPlaceholder")}
                       onChange={(event) =>
                         setDraft({
                           ...draft,

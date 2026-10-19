@@ -1,14 +1,13 @@
 /** Mirrors app/models/panel/texts.py */
 import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
-export const BANNER_POSITIONS = ["", "top", "bottom"] as const;
-
 /** One editable key: its definition plus the stored override, if any. */
 export interface PanelTextEntry {
   key: string;
   title?: string | null;
   placeholders: Record<string, string>;
   value?: string | null;
+  default_value?: string | null;
   lang?: string | null;
   banner_url?: string | null;
   banner_position?: string | null;

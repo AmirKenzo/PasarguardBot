@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { CalendarClock, Flame, Plus, Store, Users, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge, Card, EmptyState, IconBadge } from "../../components/ui";
@@ -29,9 +29,9 @@ function AccountCard({ account }: { account: ResellerAccountItem }) {
   const tone = expiringSoon ? "warning" : STATUS_TONE[account.status] || "muted";
 
   return (
-    <motion.div variants={itemVariants} layout>
+    <m.div variants={itemVariants} layout>
       <Link to={`/services/reseller/${account.code}`} onClick={() => haptic.select()} className="block h-full">
-        <motion.article
+        <m.article
           whileTap={{ scale: 0.985 }}
           className={`flex h-full flex-col gap-3 rounded-lg border bg-surface p-3.5 shadow-sm transition-colors hover:border-primary/30 ${
             expiringSoon ? "border-warning/40" : "border-border"
@@ -43,7 +43,7 @@ function AccountCard({ account }: { account: ResellerAccountItem }) {
               <h2 className="truncate text-sm font-bold text-text" dir="ltr" style={{ textAlign: "start" }}>
                 {account.username}
               </h2>
-              <p className="mt-0.5 truncate text-[11px] text-muted">
+              <p className="mt-0.5 truncate text-2xs text-muted">
                 {[account.panel_name, resellerModeLabel(t, account.pricing_mode)].filter(Boolean).join(" · ")}
               </p>
             </div>
@@ -70,9 +70,9 @@ function AccountCard({ account }: { account: ResellerAccountItem }) {
               <span>{t("reseller.noExpiry")}</span>
             )}
           </div>
-        </motion.article>
+        </m.article>
       </Link>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -89,7 +89,7 @@ export default function ResellerAccountsList({
 
   return (
     <div className="space-y-4">
-      <motion.header
+      <m.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -98,7 +98,7 @@ export default function ResellerAccountsList({
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight text-text">{t("reseller.list.title")}</h1>
           <p className="text-sm text-muted">
-            {t("reseller.list.subtitle", { count: formatNumber(data.accounts.length) })}
+            {t("reseller.list.subtitle", { count: data.accounts.length })}
           </p>
         </div>
         {data.can_buy && (
@@ -111,7 +111,7 @@ export default function ResellerAccountsList({
             <Plus size={20} />
           </Link>
         )}
-      </motion.header>
+      </m.header>
 
       {chips}
 
@@ -121,13 +121,13 @@ export default function ResellerAccountsList({
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted">{t("reseller.list.wallet")}</p>
             <p className="truncate text-base font-extrabold text-text">{formatToman(data.balance)}</p>
-            <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
+            <p className="mt-0.5 flex items-center gap-1 text-2xs text-muted">
               <Flame size={11} />
               {t("reseller.perHour", { amount: formatToman(data.burn_per_hour) })}
             </p>
           </div>
           <div className="shrink-0 text-end">
-            <p className="text-[11px] text-muted">{t("reseller.runway")}</p>
+            <p className="text-2xs text-muted">{t("reseller.runway")}</p>
             <Badge tone={runwayTone(data.runway_hours, 24)}>{formatRunway(t, data.runway_hours)}</Badge>
           </div>
         </Card>
@@ -136,7 +136,7 @@ export default function ResellerAccountsList({
       {data.accounts.length === 0 ? (
         <EmptyState icon={Store} title={t("reseller.list.empty")} />
       ) : (
-        <motion.div
+        <m.div
           variants={listVariants}
           initial="hidden"
           animate="show"
@@ -145,7 +145,7 @@ export default function ResellerAccountsList({
           {data.accounts.map((account) => (
             <AccountCard key={account.code} account={account} />
           ))}
-        </motion.div>
+        </m.div>
       )}
     </div>
   );

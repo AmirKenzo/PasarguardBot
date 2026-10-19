@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -92,7 +92,7 @@ function daysUntil(timestamp: number | null | undefined): number | null {
 function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="truncate text-[11px] text-muted">{label}</p>
+      <p className="truncate text-2xs text-muted">{label}</p>
       <p className="mt-0.5 truncate text-sm font-bold text-text">{value}</p>
       {hint && <p className="mt-0.5 text-[10.5px] leading-4 text-muted">{hint}</p>}
     </div>
@@ -261,6 +261,8 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
   const actions = new Set(data.actions);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [password, setPassword] = useState<string | null>(null);
+  const [deleteTyped, setDeleteTyped] = useState("");
+  const deleteMatches = deleteTyped.trim().toLowerCase() === account.username.trim().toLowerCase();
 
   const reveal = useResellerMutation(resellerApi.revealPassword, { refresh: false });
   const reset = useResellerMutation(resellerApi.resetPassword);
@@ -296,7 +298,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+    <m.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {/* Identity */}
       <Card className="flex items-center gap-3 p-4">
         <IconBadge icon={Store} tone="primary" size="lg" />
@@ -320,7 +322,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
       )}
       {data.grace_days_left != null && (
         <p className="rounded-md border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger">
-          {t("reseller.detail.graceLeft", { count: formatNumber(data.grace_days_left) })}
+          {t("reseller.detail.graceLeft", { count: data.grace_days_left })}
         </p>
       )}
       {account.status === "paused" && (
@@ -399,7 +401,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
               daysLeft === null
                 ? t("reseller.noExpiry")
                 : daysLeft > 0
-                  ? t("renewFlow.days", { count: formatNumber(daysLeft) })
+                  ? t("renewFlow.days", { count: daysLeft })
                   : t("reseller.detail.expiredValue")
             }
             hint={account.expiration_timestamp ? formatUnixDate(account.expiration_timestamp) : undefined}
@@ -435,7 +437,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
             />
             <Stat label={t("reseller.detail.billedTotal")} value={formatToman(data.billed_total ?? 0)} />
             <div>
-              <p className="text-[11px] text-muted">{t("reseller.runway")}</p>
+              <p className="text-2xs text-muted">{t("reseller.runway")}</p>
               <div className="mt-1">
                 <Badge tone={runwayTone(data.runway_hours, 24)}>{formatRunway(t, data.runway_hours)}</Badge>
               </div>
@@ -467,7 +469,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
             >
               <div className="min-w-0 flex-1">
                 <p className="text-[10.5px] text-muted">{t("reseller.password")}</p>
-                <p className="font-mono text-[13px] tracking-widest text-text">••••••••</p>
+                <p className="font-mono text-xs-plus tracking-widest text-text">••••••••</p>
               </div>
               <span className="flex items-center gap-1 text-xs font-semibold text-primary">
                 <Eye size={14} />
@@ -589,18 +591,37 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
         </Button>
       </Sheet>
 
-      <Sheet open={sheet === "delete"} onClose={() => setSheet(null)} title={t("reseller.detail.delete")}>
+      <Sheet
+        open={sheet === "delete"}
+        onClose={() => {
+          setSheet(null);
+          setDeleteTyped("");
+        }}
+        title={t("reseller.detail.delete")}
+      >
         <p className="rounded-md border border-danger/25 bg-danger/5 px-4 py-3 text-sm leading-7 text-danger">
           {t("reseller.detail.deleteNote", { name: account.username })}
         </p>
+        <div className="mt-4">
+          <Input
+            label={t("reseller.detail.deleteTypeLabel", { name: account.username })}
+            value={deleteTyped}
+            onChange={(event) => setDeleteTyped(event.target.value)}
+            placeholder={account.username}
+            autoComplete="off"
+            spellCheck={false}
+            ltr
+          />
+        </div>
         <Button
           className="mt-4"
           fullWidth
           variant="danger"
+          disabled={!deleteMatches}
           loading={remove.isPending}
           onClick={() =>
             remove.mutate(
-              { code: account.code },
+              { code: account.code, confirm_username: deleteTyped.trim() },
               {
                 onSuccess: (res) => {
                   done(res.message);
@@ -620,7 +641,7 @@ function AccountView({ data }: { data: WebAppResellerAccountResponse }) {
       {(sheet === "extra_days" || sheet === "extra_volume" || sheet === "buy_user_capacity") && (
         <AddonSheet key={sheet} addon={sheet} data={data} onClose={() => setSheet(null)} onDone={done} />
       )}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -643,7 +664,7 @@ function ChangeRow({ label, before, after, changed = true }: { label: string; be
   const { i18n } = useTranslation();
   const Arrow = i18n.dir() === "rtl" ? ArrowLeft : ArrowRight;
   return (
-    <div className="flex items-center justify-between gap-3 text-[13px]">
+    <div className="flex items-center justify-between gap-3 text-xs-plus">
       <span className="shrink-0 text-muted">{label}</span>
       <span className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 text-end">
         <span className={changed ? "text-muted" : "font-semibold text-text"}>{before}</span>
@@ -727,7 +748,7 @@ function expiryValue(t: TFunction, timestamp: number | null | undefined): string
 function daysLeftValue(t: TFunction, timestamp: number | null | undefined): string {
   const days = daysUntil(timestamp);
   if (days === null) return t("reseller.noExpiry");
-  return days > 0 ? t("renewFlow.days", { count: formatNumber(days) }) : t("reseller.detail.expiredValue");
+  return days > 0 ? t("renewFlow.days", { count: days }) : t("reseller.detail.expiredValue");
 }
 
 function volumeValue(t: TFunction, bytes: number): string {
@@ -798,7 +819,7 @@ function RenewSheet({ data, onClose, onDone }: SheetProps) {
               {[
                 plan.data_limit_bytes ? t("reseller.renew.addsVolume", { volume: formatBytes(plan.data_limit_bytes) }) : null,
                 plan.duration_days
-                  ? t("reseller.renew.addsDays", { count: formatNumber(plan.duration_days) })
+                  ? t("reseller.renew.addsDays", { count: plan.duration_days })
                   : null,
               ]
                 .filter(Boolean)
@@ -1042,7 +1063,7 @@ function AddonSheet({ addon, data, onClose, onDone }: SheetProps & { addon: Rese
                   !custom && quantity === preset ? "border-primary bg-primary/10 text-primary" : "border-border text-text"
                 }`}
               >
-                {t(text.preset, { count: formatNumber(preset) })}
+                {t(text.preset, { count: preset })}
               </button>
             ))}
           </div>

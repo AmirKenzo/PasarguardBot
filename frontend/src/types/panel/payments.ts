@@ -1,8 +1,6 @@
 /** Mirrors app/models/panel/payments.py */
 import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
-export const WALLET_TYPES = ["TRX", "USDT", "TON"] as const;
-
 export interface PanelWalletRow {
   id: number;
   type: string;

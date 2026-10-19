@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Filter, Power, Search, Server, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, ErrorState, IconBadge, Input, Pagination, Skeleton } from "../../components/ui";
-import { formatBytes, formatExpiry, formatNumber } from "../../lib/format";
+import { formatBytes, formatExpiry } from "../../lib/format";
 import { panelServicesApi } from "../../api/panel";
 import type { PanelServiceRow } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
@@ -62,7 +63,8 @@ export default function AdminServicesPage() {
   }, [searchInputs]);
 
   const query = usePanelQuery(["services", filters.q, filters.panel, filters.state, page], (auth) =>
-    panelServicesApi.listServices({ ...auth, ...filters, page, limit: 10 })
+    panelServicesApi.listServices({ ...auth, ...filters, page, limit: 10 }),
+    { placeholderData: keepPreviousData }
   );
 
   const toggle = usePanelAction(panelServicesApi.toggleService, { invalidate: [["services"]] });
@@ -91,18 +93,18 @@ export default function AdminServicesPage() {
     <>
       <PageHeader
         title={t("panel.common.services")}
-        subtitle={query.data ? t("panel.services.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined}
+        subtitle={query.data ? t("panel.services.countLabel", { count: query.data.meta.total }) : undefined}
       />
 
       <SectionCard title={t("panel.services.title")}>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2.5">
           <div className="relative min-w-0 flex-1 sm:max-w-[12rem] sm:flex-none sm:w-48">
-            <Search size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ltr:left-2.5 rtl:right-2.5" />
+            <Search size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted start-2.5" />
             <Input
               dense
               placeholder={t("panel.services.searchPlaceholder")}
               aria-label={t("panel.common.search")}
-              className="ltr:pl-7 rtl:pr-7"
+              className="ps-7"
               value={searchInputs.q}
               onChange={(e) => setSearchInputs((s) => ({ ...s, q: e.target.value }))}
             />
@@ -174,7 +176,10 @@ export default function AdminServicesPage() {
             ))}
           </div>
         ) : rows.length ? (
-          <div className="mt-2 divide-y divide-border/60">
+          <div
+            className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={query.isPlaceholderData || undefined}
+          >
             {rows.map((row) => {
               const state = serviceState(row);
               const expiry = formatExpiry(row.expiration_time);
@@ -184,17 +189,17 @@ export default function AdminServicesPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-text">
                       {row.username || "—"}
-                      <code className="ltr-field text-[11px] font-normal text-muted">#{row.code}</code>
+                      <code className="ltr-field text-2xs font-normal text-muted">#{row.code}</code>
                     </div>
-                    <div className="text-[11px] text-muted">
+                    <div className="text-2xs text-muted">
                       {t("common.user")} <span className="ltr-field">{row.user_id ?? "—"}</span>
                       {row.panel ? ` · ${row.panel}` : ""}
                     </div>
                   </div>
-                  <div className="text-[11px] text-muted">
+                  <div className="text-2xs text-muted">
                     {row.package_size ? formatBytes(row.package_size, 1) : t("common.unlimited")}
                   </div>
-                  <div className="text-[11px] text-muted">{expiry.remaining}</div>
+                  <div className="text-2xs text-muted">{expiry.remaining}</div>
                   <Badge tone={STATE_TONE[state]}>
                     {state === "test" ? t("panel.services.trial") : t(`panel.common.${state}`)}
                   </Badge>

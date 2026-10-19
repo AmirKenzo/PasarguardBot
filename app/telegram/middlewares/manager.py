@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from functools import wraps
-
 from app.logger import get_logger
 from app.telegram.middlewares.base import BaseMiddleware, StopPipeline
 from app.telegram.middlewares.context import MiddlewareContext
@@ -71,26 +68,3 @@ middleware_manager = MiddlewareManager()
 
 PIPELINE_NEWMESSAGE = "newmessage_global"
 PIPELINE_CALLBACK = "callback_global"
-
-
-def handler_middleware(*middleware_classes: type[BaseMiddleware]) -> Callable:
-    """Per-handler middleware decorator (runs before the handler only)."""
-
-    instances = [cls() for cls in middleware_classes]
-
-    def decorator(func: Callable) -> Callable:
-        async def wrapper(event, *args, **kwargs):
-            ctx = MiddlewareContext.from_event(event)
-            for mw in sorted(instances, key=lambda m: m.priority):
-                if not mw.applies(ctx):
-                    continue
-                await mw.before(ctx)
-            result = await func(event, *args, **kwargs)
-            for mw in sorted(instances, key=lambda m: m.priority, reverse=True):
-                if mw.applies(ctx):
-                    await mw.after(ctx, result)
-            return result
-
-        return wraps(func)(wrapper)
-
-    return decorator

@@ -29,6 +29,7 @@ from app.models.webapp import (
     WebAppTransferConfigResponse,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.routers.webapp.services import _resolve_owned_service, ensure_service_action
 from app.services.billing.renewal import require_panel_userid
 from app.services.billing.wallet_charge import charge_then_apply
@@ -68,8 +69,8 @@ async def get_extend_time_options(request: WebAppExtendTimeOptionsRequest) -> We
         )
     except ValueError as e:
         return WebAppExtendTimeOptionsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppExtendTimeOptionsResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppExtendTimeOptionsResponse(ok=False, error=internal_error("get_extend_time_options"))
 
 
 @router.post("/webapp/services/extend-time/confirm", response_model=WebAppExtendTimeConfirmResponse)
@@ -174,8 +175,8 @@ async def get_extra_volume_options(request: WebAppExtraVolumeOptionsRequest) -> 
         )
     except ValueError as e:
         return WebAppExtraVolumeOptionsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppExtraVolumeOptionsResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppExtraVolumeOptionsResponse(ok=False, error=internal_error("get_extra_volume_options"))
 
 
 @router.post("/webapp/services/extra-volume/confirm", response_model=WebAppExtraVolumeConfirmResponse)

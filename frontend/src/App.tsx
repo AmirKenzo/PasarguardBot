@@ -43,6 +43,8 @@ const AdminBroadcastPage = lazy(() => import("./features/admin/BroadcastPage"));
 const AdminChannelsPage = lazy(() => import("./features/admin/ChannelsPage"));
 const AdminTextsPage = lazy(() => import("./features/admin/TextsPage"));
 const AdminKeyboardPage = lazy(() => import("./features/admin/KeyboardPage"));
+const AdminHelpButtonsPage = lazy(() => import("./features/admin/HelpButtonsPage"));
+const AdminThemePacksPage = lazy(() => import("./features/admin/themePacks/ThemePacksPage"));
 const AdminSettingsPage = lazy(() => import("./features/admin/SettingsPage"));
 const AdminReportsPage = lazy(() => import("./features/admin/ReportsPage"));
 const AdminToolsPage = lazy(() => import("./features/admin/ToolsPage"));
@@ -169,6 +171,8 @@ export default function App() {
           <Route path="channels" element={<AdminChannelsPage />} />
           <Route path="texts" element={<AdminTextsPage />} />
           <Route path="keyboard" element={<AdminKeyboardPage />} />
+          <Route path="help-buttons" element={<AdminHelpButtonsPage />} />
+          <Route path="theme-packs" element={<AdminThemePacksPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="tools" element={<AdminToolsPage />} />

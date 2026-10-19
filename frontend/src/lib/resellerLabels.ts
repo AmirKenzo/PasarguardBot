@@ -37,8 +37,6 @@ export const RESELLER_EVENT_KEYS = [
 
 /** Plan types: the four offered for new plans first, then the legacy ones. */
 export const RESELLER_MODE_KEYS = ["fixed", "unlimited", "usage", "hourly", "per_gb", "per_tb"] as const;
-export const RESELLER_CREATABLE_MODES = ["fixed", "unlimited", "usage", "hourly"] as const;
-
 export const statusLabels = (t: TFunction): Record<string, string> =>
   Object.fromEntries(RESELLER_STATUS_KEYS.map((key) => [key, t(`reseller.status.${key}`)]));
 
@@ -88,7 +86,7 @@ export function formatRunway(t: TFunction, hours: number | null | undefined): st
   if (hours === null || hours === undefined) return "—";
   if (hours < 1) return t("reseller.runwayMinutes", { count: formatNumber(Math.max(1, Math.round(hours * 60))) });
   if (hours < 48) return t("reseller.runwayHours", { count: formatNumber(Math.round(hours)) });
-  return t("reseller.runwayDays", { count: formatNumber(Math.round(hours / 24)) });
+  return t("reseller.runwayDays", { count: Math.round(hours / 24) });
 }
 
 export function runwayTone(hours: number | null | undefined, warnHours: number): ResellerTone {
@@ -106,14 +104,9 @@ export function eventAmount(data: Record<string, unknown>): number {
 
 const isKnownMode = (mode: string): boolean => (RESELLER_MODE_KEYS as readonly string[]).includes(mode);
 
-/** Full plan type name, e.g. "مصرفی (بر اساس حجم مصرف)". */
+/** Full plan type name, e.g. "Usage-based (by data used)". */
 export function resellerModeLabel(t: TFunction, mode: string): string {
   return isKnownMode(mode) ? t(`reseller.mode.${mode}`) : mode;
-}
-
-/** Short plan type name for tight spaces, e.g. "مصرفی". */
-export function resellerModeShortLabel(t: TFunction, mode: string): string {
-  return isKnownMode(mode) ? t(`reseller.modeShort.${mode}`) : mode;
 }
 
 export const MODE_TONE: Record<string, ResellerTone> = {

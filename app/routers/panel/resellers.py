@@ -57,8 +57,10 @@ from app.services.billing.reseller_renewal import renew_reseller_account
 from app.services.panels.admins import fetch_panel_roles
 from app.services.reseller.accounts import (
     ADMIN_LOCKED_STATUS,
+    DELETE_CONFIRM_MISMATCH,
     PAYG_MODES,
     delete_account,
+    delete_confirmation_matches,
     extend_account_by_admin,
     grace_seconds,
     load_account_live_info,
@@ -600,6 +602,8 @@ async def delete_reseller(payload: PanelResellerDeleteRequest, request: Request)
         account = await queries.get_reseller(payload.code)
         if account is None:
             return ActionResponse(ok=False, error=NOT_FOUND)
+        if not delete_confirmation_matches(account, payload.confirm_username):
+            return ActionResponse(ok=False, error=DELETE_CONFIRM_MISMATCH)
         ok, message = await delete_account(account, actor_id=actor.user_id, actor_role=ADMIN_ROLE)
         if ok:
             await _record(actor, "reseller_delete", payload.code, {"username": account.username})

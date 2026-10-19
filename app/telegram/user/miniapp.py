@@ -1,0 +1,48 @@
+"""The home menu button that opens the mini app."""
+
+from __future__ import annotations
+
+from telethon import events
+from telethon.tl.custom import Message
+
+from app.db.crud.keyboards import KeyboardButtonCRUD, get_button_text
+from app.db.crud.settings import SettingsManager
+from app.telegram.keyboards.common import _get_keyboard_button_config
+from app.telegram.keyboards.home import MINIAPP_MODE_OFF, miniapp_mode
+from app.telegram.plugins import PluginContext
+from app.telegram.shared.utils.maintenance import bot_is_offline
+from app.telegram.shared.utils.miniapp import send_miniapp_launcher
+from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
+from app.utils.text.glass import unglass_text
+
+MODULE_NAME = "user.miniapp"
+MODULE_DESCRIPTION = "Mini app entry button"
+
+DEFAULT_MINIAPP_BUTTON = "🚀 ورود به اپلیکیشن"
+MINIAPP_OPEN_LABEL = "🚀 باز کردن اپلیکیشن"
+MINIAPP_INTRO = DEFAULT_BOT_TEXTS["miniapp_launcher_message"]
+
+
+async def _miniapp_button_filter(event: Message) -> bool:
+    if not event.is_private or event.is_channel:
+        return False
+    if miniapp_mode(await SettingsManager().get_settings()) == MINIAPP_MODE_OFF:
+        return False
+    msg = unglass_text((event.message.text or "").strip())
+    label = unglass_text(await get_button_text("bt.menu_miniapp", DEFAULT_MINIAPP_BUTTON))
+    return msg in {label, DEFAULT_MINIAPP_BUTTON}
+
+
+@bot_is_offline
+async def miniapp_button_handler(event: Message) -> None:
+    label, style = await _get_keyboard_button_config(
+        KeyboardButtonCRUD(), "bt.menu_miniapp_open", MINIAPP_OPEN_LABEL, default_style="primary"
+    )
+    intro = await get_bot_text(key="miniapp_launcher_message", default=MINIAPP_INTRO, lang="fa")
+    await send_miniapp_launcher(event, label=label, intro=intro, style=style)
+    raise events.StopPropagation
+
+
+def setup(kenzo: PluginContext) -> None:
+    kenzo.add_event_handler(miniapp_button_handler, events.NewMessage(incoming=True, func=_miniapp_button_filter))

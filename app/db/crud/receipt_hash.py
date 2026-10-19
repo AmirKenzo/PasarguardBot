@@ -8,6 +8,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.receipt_hash import ReceiptHash
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Normalize to fixed size then content-hash so any pixel change yields different hash.
 _CONTENT_HASH_MAX_SIZE = 512
@@ -15,7 +18,10 @@ _CONTENT_HASH_MAX_SIZE = 512
 
 def compute_receipt_phash(image_bytes: bytes | bytearray) -> str | None:
     """Content hash (SHA256 of normalized pixels). Any change in image = different hash.
-    Returns 64-char hex or None on error. imagehash stays installed; not used here for accuracy."""
+    Returns 64-char hex or None on error. imagehash stays installed; not used here for accuracy.
+
+    ``None`` means the duplicate check cannot run for this receipt: callers still accept it,
+    but must flag it in the admin log and keep it out of auto-approval."""
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         w, h = img.size
@@ -24,6 +30,7 @@ def compute_receipt_phash(image_bytes: bytes | bytearray) -> str | None:
             img = img.resize((int(w * ratio), int(h * ratio)), Image.Resampling.LANCZOS)
         return hashlib.sha256(img.tobytes()).hexdigest()
     except Exception:
+        logger.warning("Receipt hashing failed; duplicate check skipped (%s bytes)", len(image_bytes), exc_info=True)
         return None
 
 

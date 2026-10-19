@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from app import Kenzo
 from app.logger import get_logger
+from config import LOG_CHANNEL
 
 if TYPE_CHECKING:
     from app.logger import LogType
@@ -11,8 +13,6 @@ logger = get_logger(__name__)
 
 
 async def _send_to_entity(**kwargs):
-    from app import Kenzo
-
     if "file" in kwargs:
         return await Kenzo.send_file(**kwargs)
     return await Kenzo.send_message(**kwargs)
@@ -23,9 +23,8 @@ async def send_log_message(log_type: str | LogType, **kwargs):
     if hasattr(log_type, "value"):
         log_type = log_type.value
 
-    from config import LOG_CHANNEL
-
     try:
+        # Local import: avoids a circular import with app.db.crud.log_channels.
         from app.db.crud.log_channels import LogChannelManager
 
         log_manager = LogChannelManager()

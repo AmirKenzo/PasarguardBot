@@ -9,6 +9,7 @@ class StarsTransaction(Base):
     __table_args__ = (
         Index("ix_stars_invoice_no", "invoice_no", unique=True),
         Index("ix_stars_user_status", "user_id", "status"),
+        Index("ix_stars_status_created", "status", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

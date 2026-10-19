@@ -4,6 +4,7 @@ from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.panels import PanelsManager
+from app.db.crud.plans import PlanManager
 from app.logger import get_logger
 from app.services.panels.settings import (
     panel_button_enabled,
@@ -71,8 +72,6 @@ async def create_inline_service_buttons(services, panel=None, settings=None, adm
 
     is_fair_usage_plan = False
     if services.package_size and panel:
-        from app.db.crud.plans import PlanManager
-
         plan = await PlanManager().get_plan_by_volume_for_display(
             gb=services.package_size / (1024**3),
             panel_code=panel.code,

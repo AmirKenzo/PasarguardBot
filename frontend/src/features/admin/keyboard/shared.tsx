@@ -42,7 +42,7 @@ export const STYLE_CLASSES: Record<string, string> = {
   primary: "border-primary/35 bg-primary/15 text-primary",
   success: "border-success/35 bg-success/15 text-success",
   danger: "border-danger/35 bg-danger/15 text-danger",
-  glass: "border-white/25 bg-white/5 text-text backdrop-blur",
+  glass: "border-text/20 bg-text/5 text-text backdrop-blur",
   "": "border-border bg-surface-2 text-text",
 };
 

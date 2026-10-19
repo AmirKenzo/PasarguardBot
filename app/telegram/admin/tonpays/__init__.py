@@ -1,1 +1,0 @@
-"""Admin TonPays gateway settings."""

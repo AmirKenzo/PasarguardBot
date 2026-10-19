@@ -6,6 +6,7 @@ from typing import Any
 from telethon import Button
 
 from app.db.crud.keyboards import KeyboardButtonCRUD
+from app.db.crud.plans import PlanManager
 from app.telegram.keyboards.common import build_telegram_button_style, styled_callback_button
 from app.telegram.keyboards.registry import STYLE_LABELS
 
@@ -30,8 +31,6 @@ def parse_duration_from_keyboard_key(button_key: str, panel_code: int | str) -> 
 
 
 async def get_orphan_duration_values(panel_code: int | str, active_durations: set[int] | None = None) -> list[int]:
-    from app.db.crud.plans import PlanManager
-
     if active_durations is None:
         active_durations = set(await PlanManager().get_unique_durations(int(panel_code)))
     keyboard_crud = KeyboardButtonCRUD()
@@ -45,8 +44,6 @@ async def get_orphan_duration_values(panel_code: int | str, active_durations: se
 
 
 async def cleanup_duration_button_after_plan_delete(panel_code: int | str, duration: int) -> bool:
-    from app.db.crud.plans import PlanManager
-
     remaining = await PlanManager().get_unique_durations(int(panel_code))
     if duration in remaining:
         return False
@@ -64,8 +61,6 @@ async def cleanup_all_orphan_duration_buttons(panel_code: int | str) -> int:
 
 
 async def build_manage_duration_buttons_view(panel_code: int | str) -> tuple[str, list]:
-    from app.db.crud.plans import PlanManager
-
     panel_code = int(panel_code)
     active_durations = sorted(await PlanManager().get_unique_durations(panel_code))
     orphan_durations = await get_orphan_duration_values(panel_code, set(active_durations))
@@ -179,16 +174,6 @@ async def build_duration_selection_button_rows(
         duration_buttons.append(row)
     duration_buttons.append(back_row)
     return duration_buttons
-
-
-def duration_has_display_override(button_obj) -> bool:
-    if not button_obj:
-        return False
-    return bool(
-        getattr(button_obj, "button_text", None)
-        or getattr(button_obj, "button_style", None) is not None
-        or getattr(button_obj, "button_icon", None)
-    )
 
 
 def duration_display_config_text(panel_code: int | str, duration: int, button_obj) -> str:

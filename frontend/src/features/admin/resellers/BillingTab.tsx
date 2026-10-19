@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button, ErrorState, Input, Pagination } from "../../../components/ui";
 import { panelResellersApi } from "../../../api/panel";
-import { formatNumber, formatToman } from "../../../lib/format";
+import { formatToman } from "../../../lib/format";
 import { ChargeItem } from "../../../components/ChargeItem";
 import { toCharge } from "./parts";
 import { usePanelQuery } from "../../../queries/usePanelApi";
@@ -59,7 +60,7 @@ export default function BillingTab() {
         page,
         limit: 25,
       }),
-    { enabled: view === "ledger" }
+    { enabled: view === "ledger", placeholderData: keepPreviousData }
   );
   const events = usePanelQuery(
     ["reseller-events", filters, page],
@@ -72,7 +73,7 @@ export default function BillingTab() {
         page,
         limit: 25,
       }),
-    { enabled: view === "events" }
+    { enabled: view === "events", placeholderData: keepPreviousData }
   );
 
   const labels = eventLabels(t);
@@ -157,7 +158,7 @@ export default function BillingTab() {
           actions={
             ledger.data ? (
               <div className="text-end">
-                <p className="text-[11px] text-muted">{t("panel.resellerHub.billing.totalBilled")}</p>
+                <p className="text-2xs text-muted">{t("panel.resellerHub.billing.totalBilled")}</p>
                 <p className="text-sm font-bold text-text">{formatToman(ledger.data.total_billed)}</p>
               </div>
             ) : undefined
@@ -166,7 +167,10 @@ export default function BillingTab() {
           {ledger.isLoading ? (
             <p className="py-8 text-center text-sm text-muted">{t("reseller.loading")}</p>
           ) : ledger.data?.rows.length ? (
-            <ul className="grid gap-2.5 lg:grid-cols-2">
+            <ul
+              className={`grid gap-2.5 transition-opacity lg:grid-cols-2 ${ledger.isPlaceholderData ? "opacity-60" : ""}`}
+              aria-busy={ledger.isPlaceholderData || undefined}
+            >
               {ledger.data.rows.map((row) => (
                 <ChargeItem
                   key={row.id}
@@ -190,14 +194,19 @@ export default function BillingTab() {
         <SectionCard
           title={t("panel.resellerHub.billing.events")}
           description={
-            events.data ? t("panel.resellerHub.billing.eventCount", { count: formatNumber(events.data.meta.total) }) : undefined
+            events.data ? t("panel.resellerHub.billing.eventCount", { count: events.data.meta.total }) : undefined
           }
         >
-          <EventList
-            events={events.data?.events || []}
-            showAccount
-            onOpenAccount={(code) => setDraft((prev) => ({ ...prev, account: String(code) }))}
-          />
+          <div
+            className={`transition-opacity ${events.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={events.isPlaceholderData || undefined}
+          >
+            <EventList
+              events={events.data?.events || []}
+              showAccount
+              onOpenAccount={(code) => setDraft((prev) => ({ ...prev, account: String(code) }))}
+            />
+          </div>
         </SectionCard>
       )}
 

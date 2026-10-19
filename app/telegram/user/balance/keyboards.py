@@ -3,8 +3,13 @@
 from telethon import Button
 from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
-from app.telegram.keyboards.balance import balance_back_home_button, balance_send_receipt_button
+from app.telegram.keyboards.balance import (
+    balance_back_home_button,
+    balance_flow_cancel_rows,
+    balance_send_receipt_button,
+)
 from app.telegram.keyboards.common import build_telegram_button_style, styled_copy_button, styled_url_button
+from app.telegram.user.balance import texts
 
 _TON_BUTTON_ICON = 5305626186544599263
 
@@ -26,8 +31,6 @@ def tonkeeper_usdt_transfer_url(wallet_address: str, amount_usdt: str | float, j
 
 
 async def manual_card_channel_info_rows():
-    from app.telegram.keyboards.balance import balance_flow_cancel_rows
-
     return [[await balance_send_receipt_button()], *(await balance_flow_cancel_rows())]
 
 
@@ -51,8 +54,6 @@ def crypto_copy_markup(
     open_url: str | None = None,
     open_label: str | None = None,
 ) -> ReplyInlineMarkup:
-    from app.telegram.user.balance import texts
-
     amount_text = str(amount)
     wallet_text = str(wallet_address)
     rows = [

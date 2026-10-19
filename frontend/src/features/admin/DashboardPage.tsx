@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import {
   Ban,
@@ -55,7 +55,7 @@ export default function AdminDashboardPage() {
     <>
       <PageHeader title={t("panel.common.dashboard")} subtitle={t("panel.dashboard.subtitle")} />
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -77,7 +77,7 @@ export default function AdminDashboardPage() {
               className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/25"
             >
               {formatNumber(stats.pending_tx)} {t("panel.dashboard.pendingTransactions")}
-              <ChevronLeft size={13} />
+              <ChevronLeft size={13} className="ltr:rotate-180" />
             </Link>
           )}
         </div>
@@ -87,7 +87,7 @@ export default function AdminDashboardPage() {
           <HeroStat icon={Users} value={formatNumber(stats.users_total)} label={t("common.user")} />
           <HeroStat icon={Boxes} value={formatNumber(stats.services_active)} label={t("panel.dashboard.activeService")} />
         </div>
-      </motion.div>
+      </m.div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile
@@ -149,8 +149,8 @@ export default function AdminDashboardPage() {
       <SectionCard title={t("panel.dashboard.signupsPerDay")} description={t("panel.dashboard.lastFourteenDays")}>
         <TrendChart
           points={series.map((point) => ({ ts: point.ts, value: point.signups }))}
-          format={(value) => t("panel.dashboard.userCount", { count: formatNumber(value) })}
-          total={t("panel.dashboard.userCount", { count: formatNumber(series.reduce((sum, point) => sum + point.signups, 0)) })}
+          format={(value) => t("panel.dashboard.userCount", { count: value })}
+          total={t("panel.dashboard.userCount", { count: series.reduce((sum, point) => sum + point.signups, 0) })}
           tone="accent"
         />
       </SectionCard>
@@ -166,7 +166,7 @@ function HeroStat({ icon: Icon, value, label }: { icon: LucideIcon; value: strin
         <p className="font-semibold text-primary-text" dir="ltr">
           {value}
         </p>
-        <p className="text-[10px] text-primary-text/70">{label}</p>
+        <p className="text-3xs text-primary-text/70">{label}</p>
       </div>
     </div>
   );

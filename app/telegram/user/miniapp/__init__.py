@@ -1,1 +1,0 @@
-"""User mini app package."""

@@ -42,7 +42,7 @@ export function IconMenuButton({ icon: Icon, title, active, badge, spin, width, 
         }`}
       >
         <Icon size={14} className={spin ? "animate-spin" : undefined} />
-        {badge && <span className="absolute -top-0.5 h-1.5 w-1.5 rounded-full bg-primary ltr:-right-0.5 rtl:-left-0.5" />}
+        {badge && <span className="absolute -top-0.5 h-1.5 w-1.5 rounded-full bg-primary -end-0.5" />}
       </button>
       {open &&
         placement &&
@@ -64,7 +64,7 @@ export function IconMenuButton({ icon: Icon, title, active, badge, spin, width, 
 export function MenuHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="px-3 pb-1.5">
-      <p className="text-[11px] font-semibold text-muted">{title}</p>
+      <p className="text-2xs font-semibold text-muted">{title}</p>
       {subtitle && <p className="text-xs text-text">{subtitle}</p>}
     </div>
   );

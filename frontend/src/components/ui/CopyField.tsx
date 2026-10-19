@@ -44,12 +44,12 @@ export function CopyField({ label, value, display, mono = true, onCopied }: Copy
     >
       <div className="min-w-0 flex-1">
         <p className="text-[10.5px] text-muted">{copied ? `${label} · ${t("ui.copied")}` : label}</p>
-        <p className={`truncate text-[13px] font-semibold text-text ${mono ? "font-mono" : ""}`}>
+        <p className={`truncate text-xs-plus font-semibold text-text ${mono ? "font-mono" : ""}`}>
           <bdi dir="ltr">{display ?? value}</bdi>
         </p>
       </div>
       <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-sm ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xs ${
           copied ? "bg-success/15 text-success" : "bg-primary/12 text-primary"
         }`}
       >

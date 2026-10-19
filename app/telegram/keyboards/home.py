@@ -11,7 +11,7 @@ from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
 from app.db.models.settings import DEFAULT_HOME_MENU_SETTINGS
 from app.services.panels.settings import panel_reseller_sale_enabled, panel_shop_sale_enabled
-from app.services.panels.trials import trial_offered
+from app.services.panels.trials import admin_unlimited_trial, trial_offered, trial_panels
 from app.telegram.shared.utils.miniapp import miniapp_url
 from config import ADMIN_ID, DISABLE_UPTIME_BUTTONS, LINK_UPTIME_BUTTONS, WEBAPP_URL
 
@@ -64,6 +64,23 @@ DEFAULT_HOME_LAYOUT: tuple[tuple[str, ...], ...] = (
 )
 
 HOME_BUTTON_KEYS: tuple[str, ...] = tuple(key for row in DEFAULT_HOME_LAYOUT for key in row)
+
+
+def current_home_layout(placement: dict[str, tuple[int, int]]) -> list[list[str]]:
+    """Rows of home keys from ``{key: (row, order)}``; the built-in layout when nothing is placed.
+
+    A home button the admin never placed goes to its own trailing row.
+    """
+    if not placement:
+        return [list(row) for row in DEFAULT_HOME_LAYOUT]
+    rows: dict[int, list[tuple[int, str]]] = {}
+    for key, (row_index, order) in placement.items():
+        rows.setdefault(int(row_index), []).append((int(order), key))
+    layout = [[key for _, key in sorted(items)] for _, items in sorted(rows.items())]
+    seen = {key for row in layout for key in row}
+    layout.extend([key] for key in HOME_BUTTON_KEYS if key not in seen)
+    return layout
+
 
 # ``app.telegram.user.start.home_inline``.
 _INLINE_CALLBACK_KEYS: dict[str, str] = {
@@ -209,7 +226,10 @@ async def bhome_buttons(user_id, lang):
     conditions = await home_button_conditions()
     visible = {key: not reason for key, reason in conditions.items()}
     # Conditions that depend on who is looking.
-    visible["bt.menu_get_trial"] = visible["bt.menu_get_trial"] and bool(user_data and user_data.tested == 0)
+    if admin_unlimited_trial(user_id, setting):
+        visible["bt.menu_get_trial"] = bool(await trial_panels(setting))
+    else:
+        visible["bt.menu_get_trial"] = visible["bt.menu_get_trial"] and bool(user_data and user_data.tested == 0)
     visible["bt.menu_admin_panel"] = is_admin
 
     def widget(key: str):

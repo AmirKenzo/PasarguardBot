@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, File, Form, Request, UploadFile
 
 from app.db.crud.settings import SettingsManager
@@ -76,7 +78,7 @@ async def upload_pwa_icon(
             return PwaIconUploadResponse(ok=False, error="حجم تصویر نباید بیشتر از ۵ مگابایت باشد.")
 
         try:
-            save_icon(content)
+            await asyncio.to_thread(save_icon, content)
         except Exception:
             return PwaIconUploadResponse(ok=False, error="تصویر نامعتبر است.")
 

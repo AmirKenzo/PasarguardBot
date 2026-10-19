@@ -17,6 +17,7 @@ from app.models.webapp import (
     WebAppRenewOptionsResponse,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.routers.webapp.services import ensure_service_action
 from app.routers.webapp.state import renew_confirm_lock
 from app.services.billing.renewal import PaidRenewalError, execute_paid_service_renewal, require_panel_userid
@@ -95,8 +96,8 @@ async def get_renew_options(request: WebAppRenewOptionsRequest) -> WebAppRenewOp
         )
     except ValueError as e:
         return WebAppRenewOptionsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppRenewOptionsResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppRenewOptionsResponse(ok=False, error=internal_error("get_renew_options"))
 
 
 @router.post("/webapp/renew/confirm", response_model=WebAppRenewConfirmResponse)
@@ -106,8 +107,10 @@ async def confirm_renew(request: WebAppRenewConfirmRequest) -> WebAppRenewConfir
     try:
         user_id = await authenticate_user(init_data=request.init_data, session_token=request.session_token)
         found, service = await ServiceCRUD().get_service(request.code)
-    except Exception as e:
+    except ValueError as e:
         return WebAppRenewConfirmResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppRenewConfirmResponse(ok=False, error=internal_error("confirm_renew"))
     if not found or not service or int(service.id) != user_id:
         return WebAppRenewConfirmResponse(ok=False, error="سرویس یافت نشد")
 

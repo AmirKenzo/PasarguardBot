@@ -14,12 +14,14 @@ from app.services.panels.settings import panel_webhook_notifications_enabled
 from app.telegram.shared.utils.logging import send_log_message
 from app.utils.formatting.traffic import format_size
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
 _LOW_VOLUME_BYTES = 1 * 1024**3
+_UNLIMITED_REMAINING = 2**63 - 1
 _BATCH_SIZE = 500
-_PAGE_SIZE = 200
+_PAGE_SIZE = 500
 
 
 async def _notify_user(user_id: int, message: str, *, parse_mode: str | None = None) -> bool:
@@ -77,7 +79,7 @@ async def _load_panel_username_map(service_crud: ServiceCRUD, panel_code: int) -
     return users
 
 
-async def check_low_volume():
+async def check_low_volume() -> None:
     """Notify users when their remaining traffic is below 1GB."""
     start_time = time.time()
     logger.debug("%s check_low_volume started", LogTag.JOB)
@@ -93,14 +95,7 @@ async def check_low_volume():
     service_crud = ServiceCRUD()
     exhausted_template = await get_bot_text(
         key="webhook_notification_data_exhausted",
-        default=(
-            "<b>#اطلاع_رسانی</b>\n\n"
-            "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
-            "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
-            "<b>📅 سرویس شما به دلیل اتمام حجم غیرفعال شده است.</b>\n"
-            "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
-            "<b>#notification_{service_code}</b>"
-        ),
+        default=DEFAULT_BOT_TEXTS["webhook_notification_data_exhausted"],
         lang="fa",
     )
 
@@ -144,7 +139,7 @@ async def check_low_volume():
                     continue
                 remaining_usernames.discard(user.username)
 
-                remaining = (user.data_limit or 0) - (user.used_traffic or 0)
+                remaining = user.data_limit - (user.used_traffic or 0) if user.data_limit else _UNLIMITED_REMAINING
                 for service in users[user.username]:
                     if service.is_test:
                         # Time-expired tests are cleaned only by handle_service_expiration.
@@ -211,7 +206,7 @@ async def check_low_volume():
                         await service_crud.update_service(service.code, low_volume_notified=False)
                         service.low_volume_notified = False
 
-            if not remaining_usernames:
+            if not remaining_usernames or len(resp.users) < _PAGE_SIZE:
                 break
             offset += _PAGE_SIZE
 

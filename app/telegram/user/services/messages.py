@@ -16,6 +16,7 @@ from app.db.crud.user import UserCRUD
 from app.logger import LogType, get_logger
 from app.services.billing.direct_pay_flow import invoice_shortfall_notice
 from app.services.billing.renewal import (
+    preview_remaining_after_renewal,
     require_panel_userid,
 )
 from app.telegram.keyboards.buy import buy_topup_button
@@ -30,6 +31,7 @@ from app.telegram.user.services.search import validate_service_search_query
 from app.utils.formatting.conversions import convert_storage, gigabytes_to_bytes
 from app.utils.formatting.traffic import format_ip_limit, format_size
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 from config import ADMIN_ID
 
 logger = get_logger(__name__)
@@ -111,8 +113,6 @@ async def service_message_handler(event: Message):
             return
 
         try:
-            from app.services.billing.renewal import preview_remaining_after_renewal
-
             get_User = await PasarguardAPI(panel.base_url).get_user_by_id(
                 user_id=require_panel_userid(serv_msg), token=panel.cookie
             )
@@ -130,24 +130,7 @@ async def service_message_handler(event: Message):
 
         confirm_text_template = await get_bot_text(
             key="renewal_discount_confirm_text",
-            default=(
-                "‼️ مرحله نهایی تمدید اکانت :\n\n"
-                "⚠️ لطفاً قبل از تأیید نهایی موارد زیر را بررسی کنید :\n\n"
-                "#️⃣ کدسرویس: {service_code}\n"
-                "📥 پلن انتخابی : {plan_name}\n"
-                "📦حجم باقیمانده الان: {current_remaining_volume}\n"
-                "🗳حجم باقیمانده بعد تمدید: {new_remaining_volume}\n"
-                "⏰ مدت زمان بعد تمدید: {duration} روز دیگر\n"
-                "🔌 محدودیت کاربر: {ip_limit}\n"
-                "🎁 کد تخفیف: {discount_code}\n"
-                "💰 مبلغ کسر شده: {discount_amount} هزار تومان\n"
-                "💸 قیمت قبل از تخفیف: {original_price} هزار تومان\n"
-                "💸 قیمت نهایی: {final_price} هزار تومان\n\n"
-                "⚠️ ❗️توجه:\n\n"
-                "📩 بعد از تمدید - حجم باقی‌مانده ار این اکانت به دوره جدید اضافه میشه و سوخت نمیشه !\n\n"
-                "⏳ اما زمان انتخابی از ابتدا ریست میشه و به زمان باقیمانده فعلی اضافه نمیشه.\n\n"
-                "✅ جهت تایید نهایی تمدید اکانت و کسر مبلغ از کیف پول روی دکمه تایید خرید کلیک کنید :👇"
-            ),
+            default=DEFAULT_BOT_TEXTS["renewal_discount_confirm_text"],
             lang="fa",
         )
 

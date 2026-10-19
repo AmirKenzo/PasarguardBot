@@ -1,21 +1,15 @@
 """Package entry point for the user balance module."""
 
+from app.telegram.plugins import PluginContext
 from app.telegram.user.balance import callbacks, ir_gateways, messages, tonpays
 
 MODULE_NAME = "user.balance"
-MODULE_ENABLED = True
-MODULE_ORDER = 1000
+MODULE_REQUIRED = True
 MODULE_DESCRIPTION = "User balance and payment flow"
 
-_registered_clients: set[int] = set()
 
-
-def setup(client):
-    client_id = id(client)
-    if client_id in _registered_clients:
-        return
-    messages.register(client)
-    callbacks.register(client)
-    tonpays.register(client)
-    ir_gateways.register(client)
-    _registered_clients.add(client_id)
+def setup(kenzo: PluginContext) -> None:
+    messages.register(kenzo)
+    callbacks.register(kenzo)
+    tonpays.register(kenzo)
+    ir_gateways.register(kenzo)

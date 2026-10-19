@@ -60,7 +60,7 @@ const destinationLabels = (t: TFunction): Record<string, string> => ({
   supergroup: t("panel.channels.group"),
 });
 
-// Icon per report type — mirrors the bot's own "مدیریت لاگ‌ها" Telegram menu
+// Icon per report type — mirrors the bot's own "Log management" Telegram menu
 // (app/telegram/admin/logs/states.py: ALL_LOG_TYPES), which is also where
 // the picker's actual option list comes from (query.data.log_types).
 const REPORT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -98,6 +98,8 @@ export default function AdminChannelsPage() {
   const [topicId, setTopicId] = useState("");
   const [editingLog, setEditingLog] = useState<PanelLogChannelRow | null>(null);
   const [bulkSaving, setBulkSaving] = useState(false);
+  const channelFormReady = Boolean(channel.channel_id.trim() && channel.title.trim() && channel.link.trim());
+  const logFormReady = selectedTypes.size > 0 && chatId.trim() !== "";
 
   const query = usePanelQuery(["channels"], (a) => panelChannelsApi.getChannels(a));
   const createChannel = usePanelAction(panelChannelsApi.createChannel, { invalidate: INVALIDATE });
@@ -179,7 +181,7 @@ export default function AdminChannelsPage() {
       void queryClient.invalidateQueries({ queryKey: ["panel", "channels"] });
       resetLogForm();
     } catch (error) {
-      toast.show(error instanceof Error ? error.message : "عملیات انجام نشد", "error");
+      toast.show(error instanceof Error && error.message ? error.message : t("apiErrors.actionFailed"), "error");
     } finally {
       setBulkSaving(false);
     }
@@ -252,7 +254,7 @@ export default function AdminChannelsPage() {
           <div className="mt-4 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
             <Pencil size={14} className="text-primary" />
             <span>{t("panel.channels.editingChannel", { title: channel.title })}</span>
-            <button className="mr-auto text-xs font-semibold text-primary hover:underline" onClick={resetChannelForm}>
+            <button className="ms-auto text-xs font-semibold text-primary hover:underline" onClick={resetChannelForm}>
               {t("panel.channels.cancelEdit")}
             </button>
           </div>
@@ -282,13 +284,14 @@ export default function AdminChannelsPage() {
             <Button
               fullWidth
               loading={createChannel.isPending}
-              disabled={!channel.channel_id.trim() || !channel.title.trim() || !channel.link.trim()}
+              disabled={!channelFormReady}
               onClick={handleChannelSubmit}
             >
               {editingChannelId != null ? t("panel.channels.updateChannel") : t("panel.common.addChannel")}
             </Button>
           </div>
         </div>
+        {!channelFormReady && <p className="mt-2 text-xs text-muted">{t("panel.channels.channelRequiredHint")}</p>}
         <p className="mt-2 text-xs text-muted">{t("panel.channels.botMustBeAdmin")}</p>
       </SectionCard>
 
@@ -348,7 +351,7 @@ export default function AdminChannelsPage() {
             <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
               <Pencil size={14} className="text-primary" />
               <span>{t("panel.channels.editingTarget", { type: logTypeLabels(t)[editingLog.log_type] || editingLog.log_type })}</span>
-              <button className="mr-auto text-xs font-semibold text-primary hover:underline" onClick={resetLogForm}>
+              <button className="ms-auto text-xs font-semibold text-primary hover:underline" onClick={resetLogForm}>
                 {t("panel.channels.cancelEdit")}
               </button>
             </div>
@@ -429,7 +432,7 @@ export default function AdminChannelsPage() {
               <Button
                 fullWidth
                 loading={bulkSaving}
-                disabled={!selectedTypes.size || !chatId.trim()}
+                disabled={!logFormReady}
                 onClick={handleLogSubmit}
               >
                 {editingLog
@@ -440,6 +443,7 @@ export default function AdminChannelsPage() {
               </Button>
             </div>
           </div>
+          {!logFormReady && <p className="mt-2 text-xs text-muted">{t("panel.channels.targetRequiredHint")}</p>}
         </div>
       </SectionCard>
     </>

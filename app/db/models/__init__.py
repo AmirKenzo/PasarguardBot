@@ -25,10 +25,12 @@ from . import (
     services,
     settings,
     stars_transaction,
+    theme_pack,
     tonpays_invoice,
     transaction,
     user,
     wallet,
+    webapp_theme,
 )
 
 __all__ = [
@@ -58,8 +60,10 @@ __all__ = [
     "services",
     "settings",
     "stars_transaction",
+    "theme_pack",
     "tonpays_invoice",
     "transaction",
     "user",
     "wallet",
+    "webapp_theme",
 ]

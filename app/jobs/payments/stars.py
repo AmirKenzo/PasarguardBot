@@ -8,15 +8,17 @@ import contextlib
 from datetime import datetime
 
 from sqlalchemy.future import select
-from telethon import Button
+from telethon import Button, errors
 
 from app import Kenzo
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.stars_transaction import StarsTransaction
-from app.logger import LogType
+from app.logger import LogType, get_logger
 from app.services.send_queue import enqueue
 
 from .base import BasePaymentProcessor
+
+logger = get_logger(__name__)
 
 STARS_INVOICE_TTL_SECONDS = 1800
 
@@ -59,6 +61,7 @@ class StarsExpiryProcessor(BasePaymentProcessor):
                     log_type=LogType.STARS,
                     buttons=[[Button.inline("🚫 منقضی شد", b"no_action")]],
                 )
-
+            except errors.UserIsBlockedError:
+                logger.debug("Stars expire notice skipped, user blocked the bot: tx_id=%s", tx.id)
             except Exception:
-                pass
+                logger.exception("Stars expire notification failed for tx_id=%s user=%s", tx.id, tx.user_id)

@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from app.db.crud.bot_texts import BotTextCRUD
+from app.db.models.bot_text import BotText
+from app.i18n import DEFAULT_LANGUAGE
 from app.models.panel.common import ActionResponse
 from app.models.panel.texts import (
     BANNER_POSITIONS,
@@ -19,6 +21,7 @@ from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
 from app.telegram.keyboards.texts import TEXT_KEYS_CONFIG, TEXT_SECTIONS
+from app.utils.text.default_texts import default_bot_text
 
 router = APIRouter()
 
@@ -31,6 +34,7 @@ def _entry(key: str, definition: dict, row) -> PanelTextEntry:
         title=definition.get("title") or key,
         placeholders=definition.get("placeholders") or {},
         value=row.value if row else None,
+        default_value=default_bot_text(key, row.lang if row else None),
         lang=row.lang if row else None,
         banner_url=row.banner_url if row else None,
         banner_position=row.banner_position if row else None,
@@ -41,14 +45,23 @@ def _entry(key: str, definition: dict, row) -> PanelTextEntry:
 def _matches(query: str, key: str, definition: dict, row) -> bool:
     if not query:
         return True
-    haystack = " ".join([key, str(definition.get("title") or ""), (row.value if row else "") or ""]).lower()
+    value = (row.value if row else None) or default_bot_text(key, row.lang if row else None) or ""
+    haystack = " ".join([key, str(definition.get("title") or ""), value]).lower()
     return query in haystack
+
+
+def _stored_by_key(rows: list[BotText]) -> dict[str, BotText]:
+    stored: dict[str, BotText] = {}
+    for row in rows:
+        if row.key not in stored or row.lang == DEFAULT_LANGUAGE:
+            stored[row.key] = row
+    return stored
 
 
 @router.post("/panel/texts", response_model=PanelTextsResponse)
 async def list_texts(payload: PanelTextsRequest, request: Request) -> PanelTextsResponse:
     async def handle(_: PanelActor) -> PanelTextsResponse:
-        stored = {row.key: row for row in await BotTextCRUD().get_all()}
+        stored = _stored_by_key(await BotTextCRUD().get_all())
         query = payload.q.strip().lower()
         known: set[str] = set()
         sections: list[PanelTextSection] = []

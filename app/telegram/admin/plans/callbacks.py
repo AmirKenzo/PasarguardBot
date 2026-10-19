@@ -11,6 +11,7 @@ from app.db.crud.plans import PlanManager
 from app.logger import get_logger
 from app.services.panels.settings import panel_display_mode
 from app.telegram.admin.plans.service import display_plan_info, display_plans
+from app.telegram.keyboards.registry import STYLE_LABELS
 from app.telegram.shared.keyboards.duration_buttons import (
     build_manage_duration_buttons_view,
     cleanup_all_orphan_duration_buttons,
@@ -22,6 +23,7 @@ from app.telegram.shared.keyboards.duration_buttons import (
     get_orphan_duration_values,
 )
 from app.telegram.shared.keyboards.plan_buttons import (
+    build_default_plan_button_text,
     create_plan_display_config_submenu,
     plan_display_config_text,
 )
@@ -277,7 +279,6 @@ async def inline_callback(event: events.CallbackQuery.Event):
             await event.answer("پلن یافت نشد!", alert=True)
             return
         panel = await PanelsManager().get_panel_by_code(plan.panel_code)
-        from app.telegram.shared.keyboards.plan_buttons import build_default_plan_button_text
 
         current = plan.display_button_text or build_default_plan_button_text(plan, panel_display_mode(panel), "buy")
         await set_step(user_id, f"edit_plan_display:{plan_id}:{current_page}")
@@ -302,7 +303,6 @@ async def inline_callback(event: events.CallbackQuery.Event):
             await event.answer("پلن یافت نشد!", alert=True)
             return
         panel = await PanelsManager().get_panel_by_code(plan.panel_code)
-        from app.telegram.keyboards.registry import STYLE_LABELS
 
         if style_val == "none":
             await PlanManager().update_plan_display(plan_id, button_style="", set_button_style=True)

@@ -39,13 +39,13 @@ export function PlanTypeTiles({
             aria-checked={active}
             disabled={disabled && !active}
             onClick={() => onChange(mode)}
-            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-start transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`flex flex-col items-start gap-1 rounded-sm border p-3 text-start transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
               active ? "border-primary bg-primary/10 text-primary" : "border-border text-text hover:border-primary/40"
             }`}
           >
             <Icon size={18} />
             <span className="text-sm font-semibold">{short[mode]}</span>
-            <span className={`text-[11px] leading-5 ${active ? "text-primary/80" : "text-muted"}`}>
+            <span className={`text-2xs leading-5 ${active ? "text-primary/80" : "text-muted"}`}>
               {t(`panel.resellerHub.planForm.tile.${mode}`)}
             </span>
           </button>
@@ -101,7 +101,7 @@ export function PlanTypeGuide({ mode }: { mode: string }) {
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+    <div className="space-y-3 rounded-sm border border-primary/20 bg-primary/5 p-3.5">
       <div>
         <p className="text-sm font-semibold text-primary">
           {t("panel.resellerHub.guide.heading", { type: pricingLabels(t)[mode] || mode })}

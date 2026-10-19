@@ -128,7 +128,7 @@ function MethodLink({
           <p className="font-medium text-text">{title}</p>
           <p className="text-xs text-muted">{description}</p>
         </div>
-        <ChevronLeft size={18} className="text-muted" />
+        <ChevronLeft size={18} className="text-muted ltr:rotate-180" />
       </Card>
     </Link>
   );

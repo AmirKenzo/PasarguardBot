@@ -23,8 +23,10 @@ Split by feature, mirroring ``app/routers/webapp``:
   - channels: join-lock channels and log destinations
   - texts: the editable bot texts
   - keyboard: home menu layout, button labels, colours and icons
+  - help_buttons: help menu buttons, download apps, release files and stored versions
   - settings: the bot settings form
   - pwa: installable-webapp branding (name, description, icon)
+  - webapp_theme: web app color themes (library, active theme, sharing)
   - reports: sales and customer reports
   - tools: system status, backups, bulk volume/time increase
   - audit: the panel activity log
@@ -38,6 +40,7 @@ from app.routers.panel.broadcast import router as broadcast_router
 from app.routers.panel.channels import router as channels_router
 from app.routers.panel.dashboard import router as dashboard_router
 from app.routers.panel.discounts import router as discounts_router
+from app.routers.panel.help_buttons import router as help_buttons_router
 from app.routers.panel.keyboard import router as keyboard_router
 from app.routers.panel.panels import router as panels_router
 from app.routers.panel.payments import router as payments_router
@@ -51,9 +54,11 @@ from app.routers.panel.resellers import router as resellers_router
 from app.routers.panel.services import router as services_router
 from app.routers.panel.settings import router as settings_router
 from app.routers.panel.texts import router as texts_router
+from app.routers.panel.theme_pack import router as theme_pack_router
 from app.routers.panel.tools import router as tools_router
 from app.routers.panel.transactions import router as transactions_router
 from app.routers.panel.users import router as users_router
+from app.routers.panel.webapp_theme import router as webapp_theme_router
 
 logger = get_logger(__name__)
 
@@ -74,6 +79,9 @@ panel_router.include_router(broadcast_router)
 panel_router.include_router(channels_router)
 panel_router.include_router(texts_router)
 panel_router.include_router(keyboard_router)
+panel_router.include_router(help_buttons_router)
+panel_router.include_router(theme_pack_router)
+panel_router.include_router(webapp_theme_router)
 panel_router.include_router(settings_router)
 panel_router.include_router(pwa_router)
 panel_router.include_router(reports_router)

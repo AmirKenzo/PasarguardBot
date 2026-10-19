@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy import delete, select, update
 
+from app import Kenzo
 from app.db.base import AsyncSessionLocal as Session
 from app.db.crud.bot_texts import BotTextCRUD, panel_locations_text_key
 from app.db.crud.cards import ManualCardManager
@@ -52,8 +53,6 @@ async def _audit(ctx: PanelActor, action: str, **kwargs: Any) -> None:
 async def notify_user(user_id: int, text: str) -> None:
     """Send a Telegram message to the user; failures are logged and ignored."""
     try:
-        from app import Kenzo
-
         if Kenzo.is_connected():
             await Kenzo.send_message(int(user_id), text)
     except Exception as exc:

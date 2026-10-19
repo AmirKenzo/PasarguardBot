@@ -23,6 +23,7 @@ def invalidate_channel_list_cache() -> None:
 async def _notify_channel_gate_invalidation() -> None:
     """Bump membership-cache generation so all users re-check after lock-list changes."""
     try:
+        # Local import: avoids a circular import with app.telegram.shared.guards.channel_gate.
         from app.telegram.shared.guards.channel_gate import bump_channel_gate_generation
 
         await bump_channel_gate_generation()

@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button, ErrorState, Input, Pagination } from "../../../components/ui";
 import { panelResellersApi } from "../../../api/panel";
-import { formatNumber, formatUnixDate } from "../../../lib/format";
+import { formatUnixDate } from "../../../lib/format";
 import type { PanelResellerRow } from "../../../types/panel";
 import { usePanelQuery } from "../../../queries/usePanelApi";
 import { DataTable, SectionCard, SelectField, Toolbar } from "../components";
@@ -45,7 +46,8 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
       panel_code: filters.panel ? Number(filters.panel) : null,
       page,
       limit: 25,
-    })
+    }),
+    { placeholderData: keepPreviousData }
   );
 
   const closeDetail = () => {
@@ -72,7 +74,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
       cell: (row) => (
         <div className="min-w-0">
           <p className="ltr-field truncate text-sm font-medium text-text">{row.username || "—"}</p>
-          <p className="ltr-field text-[11px] text-muted">#{row.code}</p>
+          <p className="ltr-field text-2xs text-muted">#{row.code}</p>
         </div>
       ),
     },
@@ -172,7 +174,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
         <SectionCard
           title={t("panel.resellers.title")}
           description={
-            query.data ? t("panel.resellers.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined
+            query.data ? t("panel.resellers.countLabel", { count: query.data.meta.total }) : undefined
           }
         >
           <DataTable
@@ -180,6 +182,7 @@ export default function AccountsTab({ onNavigate }: { onNavigate: Navigate }) {
             rows={query.data?.resellers || []}
             rowKey={(row) => row.code}
             loading={query.isLoading}
+            stale={query.isPlaceholderData}
             emptyTitle={t("panel.resellerHub.accountsEmpty")}
           />
           <div className="mt-4">

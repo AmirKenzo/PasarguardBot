@@ -29,6 +29,7 @@ from app.telegram.shared.start_params import find_app_key_by_start_param, is_wel
 from app.telegram.state.keys import get_redis_namespace
 from app.utils.formatting.dates import Time_Date
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -36,14 +37,7 @@ BOT_LANGUAGE = "fa"
 _START_REACTION_KEY = "feature:start_reaction"
 
 
-DEFAULT_START_MESSAGE = (
-    "**🎈تبریک! به قندشکن خوش آمدید!**\n"
-    "**🛍 خرید سرویس پرسرعت و تحویل آنی**\n"
-    "**📊 تعرفه نیم بها**\n"
-    "**🔗 مناسب همه اپراتور ها**\n"
-    "**⚡️ بدون قطعی و پرسرعت**\n"
-    "**‼️ از این پایین یک گزینه رو انتخاب کن !**"
-)
+DEFAULT_START_MESSAGE = DEFAULT_BOT_TEXTS["start_message"]
 
 
 def _core_setting(setting, key: str):

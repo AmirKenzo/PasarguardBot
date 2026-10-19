@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app import Kenzo
+from app.db.crud.referral import ReferralManager
 from app.logger import LogType, get_logger
 from app.telegram.shared.utils.logging import send_log_message
 
@@ -107,8 +108,6 @@ def _how(quote: ReferralRewardQuote) -> str:
 async def process_referral_reward_payout(referrer_id: int, referred_id: int, *, paid_amount: int) -> None:
     """Pay a referral pair once, on the invited user's first purchase, and notify whoever earned something."""
     try:
-        from app.db.crud.referral import ReferralManager
-
         referral_manager = ReferralManager()
         settings = await referral_manager.get_referral_settings()
         if not settings or not settings.referral_enabled:

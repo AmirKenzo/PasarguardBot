@@ -78,7 +78,7 @@ def validate_locations_text(text: str) -> str | None:
 
 async def get_manual_locations_text(panel) -> str:
     """The stored text exactly as the admin wrote it; panels saved before the move fall back to their own field."""
-    text = await BotTextCRUD().get_text(key=panel_locations_text_key(panel.code))
+    text = await BotTextCRUD().get_text(key=panel_locations_text_key(panel.code), lang=LOCATIONS_TEXT_LANG)
     if text is not None:
         return text
     return "\n".join(parse_locations_value(subscription_settings(panel).get("locations")))
@@ -88,7 +88,7 @@ async def save_manual_locations_text(panel_code: int, text: str) -> bool:
     """Store the text as sent (an empty text clears it). Callers validate first."""
     key = panel_locations_text_key(panel_code)
     if not text.strip():
-        await BotTextCRUD().delete_text(key=key)
+        await BotTextCRUD().delete_text(key=key, lang=LOCATIONS_TEXT_LANG)
         return True
     return await BotTextCRUD().set_text(key=key, value=text.strip(), lang=LOCATIONS_TEXT_LANG)
 

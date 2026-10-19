@@ -1,6 +1,10 @@
 """Shared DTOs for the admin panel API."""
 
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, Field, PlainSerializer
+
+EmojiId = Annotated[int, PlainSerializer(str, return_type=str, when_used="json")]
 
 
 class PanelRequest(BaseModel):

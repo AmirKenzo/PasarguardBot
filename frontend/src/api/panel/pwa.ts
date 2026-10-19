@@ -1,5 +1,6 @@
 import type { ActionResponse, PanelAuthRequest, PwaIconUploadResponse, PwaSettingsResponse, PwaSettingsSaveRequest } from "../../types/panel";
-import { authHeaders } from "../webapp/client";
+import i18n from "../../i18n";
+import { apiErrorMessage, authHeaders } from "../webapp/client";
 import { ApiError, panelPost } from "./client";
 
 const API_BASE = (import.meta.env.VITE_PANEL_API_BASE as string | undefined) || "/api/panel";
@@ -27,9 +28,9 @@ export async function uploadPwaIcon(file: File, auth: PanelAuthRequest): Promise
       body: form,
     });
   } catch {
-    throw new ApiError("ارتباط با سرور برقرار نشد");
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
   }
   const payload = (await res.json().catch(() => ({}))) as PwaIconUploadResponse;
-  if (!payload.ok) throw new ApiError(payload.error || "خطای ناشناخته");
+  if (!payload.ok) throw new ApiError(apiErrorMessage(payload.error));
   return payload;
 }

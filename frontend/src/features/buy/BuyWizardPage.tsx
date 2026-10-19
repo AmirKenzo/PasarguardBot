@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Globe2, Store, Wallet } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { EmojiIcon } from "../../components/EmojiIcon";
 import { Button, Card, EmptyState, Input, Stepper } from "../../components/ui";
@@ -254,7 +254,7 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
 
       <AnimatePresence mode="wait">
         {step === "panel" && (
-          <motion.section key="panel" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
+          <m.section key="panel" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
             {onExit && (
               <Button type="button" variant="ghost" size="sm" onClick={onExit}>
                 {t("buy.back")}
@@ -268,7 +268,7 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
                   key={panel.code}
                   type="button"
                   onClick={() => void selectPanel(panel)}
-                  className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
+                  className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
                 >
                   <div className="flex items-center gap-4">
                     <div className="rounded-md bg-primary/10 p-3 text-primary ring-1 ring-primary/20">
@@ -287,11 +287,11 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
                 </button>
               ))
             )}
-          </motion.section>
+          </m.section>
         )}
 
         {step === "duration" && (
-          <motion.section key="duration" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+          <m.section key="duration" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <Button type="button" variant="ghost" size="sm" onClick={() => setStep("panel")}>
               {t("buy.back")}
             </Button>
@@ -310,11 +310,11 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
                 </button>
               ))}
             </div>
-          </motion.section>
+          </m.section>
         )}
 
         {step === "plan" && (
-          <motion.section key="plan" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+          <m.section key="plan" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <Button
               type="button"
               variant="ghost"
@@ -339,7 +339,7 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
                       setSelectedPlan(plan);
                       setStep("username");
                     }}
-                    className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
+                    className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -361,11 +361,11 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
                 ))}
               </div>
             )}
-          </motion.section>
+          </m.section>
         )}
 
         {step === "username" && selectedPlan && (
-          <motion.section key="username" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+          <m.section key="username" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <Button type="button" variant="ghost" size="sm" onClick={() => setStep("plan")}>
               {t("buy.back")}
             </Button>
@@ -392,11 +392,11 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
             <Button type="button" fullWidth loading={previewBuy.isPending} disabled={username.trim().length < 3} onClick={() => void handlePreview()}>
               {t("buy.reviewAndContinue")}
             </Button>
-          </motion.section>
+          </m.section>
         )}
 
         {step === "confirm" && selectedPlan && preview && (
-          <motion.section key="confirm" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+          <m.section key="confirm" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <Button type="button" variant="ghost" size="sm" onClick={() => setStep("username")}>
               {t("buy.back")}
             </Button>
@@ -425,11 +425,11 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
             <Button type="button" fullWidth loading={confirmBuy.isPending} disabled={!preview.can_pay} onClick={() => void handleConfirm()}>
               {t("buy.confirmAndBuy")}
             </Button>
-          </motion.section>
+          </m.section>
         )}
 
         {step === "success" && result && (
-          <motion.section key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
+          <m.section key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
             <Card className="border-success/30 bg-success/5 p-4">
               <p className="flex items-center gap-2 font-semibold text-success">
                 <EmojiIcon id="white_check_mark" size={24} />
@@ -467,7 +467,7 @@ function VpnBuyWizard({ onExit }: { onExit?: () => void }) {
             <Button type="button" fullWidth onClick={resetFlow}>
               {t("buy.buyAnother")}
             </Button>
-          </motion.section>
+          </m.section>
         )}
       </AnimatePresence>
     </div>
@@ -550,7 +550,7 @@ export default function BuyWizardPage() {
           </div>
           <Link
             to="/balance"
-            className="inline-flex h-9 shrink-0 items-center rounded-sm bg-primary px-4 text-sm font-medium text-primary-text hover:bg-primary/90"
+            className="inline-flex h-9 shrink-0 items-center rounded-xs bg-primary px-4 text-sm font-medium text-primary-text hover:bg-primary/90"
           >
             {t("buy.topUp")}
           </Link>

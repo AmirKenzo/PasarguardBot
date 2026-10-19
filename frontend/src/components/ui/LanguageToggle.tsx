@@ -1,6 +1,6 @@
 import { Globe } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useTranslation } from "react-i18next";
 
 export function LanguageToggle() {
@@ -14,7 +14,7 @@ export function LanguageToggle() {
 
   return (
     <div className="flex items-center gap-2">
-      <motion.button
+      <m.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={handleLanguageChange}
@@ -23,7 +23,7 @@ export function LanguageToggle() {
       >
         <Globe size={18} />
         <span className="ms-1.5 text-xs font-bold">{i18n.language === "fa" ? "EN" : "FA"}</span>
-      </motion.button>
+      </m.button>
     </div>
   );
 }

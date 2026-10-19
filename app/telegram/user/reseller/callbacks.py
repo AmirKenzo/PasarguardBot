@@ -93,6 +93,7 @@ from app.telegram.user.reseller.keyboards import (
     build_addon_confirm_buttons,
     build_addon_preset_buttons,
     build_delete_confirm_buttons,
+    build_delete_final_buttons,
     build_my_reseller_account_buttons,
     build_my_resellers_list_buttons,
     build_password_confirm_buttons,
@@ -112,6 +113,7 @@ from app.telegram.user.reseller.states import (
 )
 from app.telegram.user.start.helpers import fetch_welcome_text
 from app.utils.formatting.dates import Time_Date
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -334,7 +336,7 @@ async def _buy_addon_confirmed(event, code: int, addon: str) -> None:
     stored_code = await get_data(user_id, ADDON_CODE_KEY)
     stored_addon = await get_data(user_id, ADDON_TYPE_KEY)
     quantity_raw = await get_data(user_id, ADDON_QUANTITY_KEY)
-    if stored_code != str(code) or stored_addon != addon or not quantity_raw:
+    if str(stored_code) != str(code) or stored_addon != addon or not quantity_raw:
         await event.answer("نشست منقضی شده.", alert=True)
         return
     loaded = await _load_addon_account(event, code, addon)
@@ -450,7 +452,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         panel_name = panel.name
         prompt = await get_reseller_text(
             "reseller_select_plan_prompt",
-            f"**پنل {panel_name}**\n\nپلن نمایندگی را انتخاب کنید:",
+            DEFAULT_BOT_TEXTS["reseller_select_plan_prompt"],
             user_id,
             panel_name=panel_name,
         )
@@ -534,7 +536,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             await event.edit(
                 await get_reseller_text(
                     "reseller_my_list_empty",
-                    "**📋 نمایندگی‌های من**\n\nشما نمایندگی فعالی ندارید.",
+                    DEFAULT_BOT_TEXTS["reseller_my_list_empty"],
                     user_id,
                 ),
                 buttons=[[Button.inline("🏢 خرید پنل نمایندگی", data="ResellerBuy_start")]]
@@ -545,7 +547,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         await event.edit(
             await get_reseller_text(
                 "reseller_my_list_intro",
-                f"**📋 نمایندگی‌های من** ({len(accounts)} مورد)\n\nیک نمایندگی را انتخاب کنید:",
+                DEFAULT_BOT_TEXTS["reseller_my_list_intro"],
                 user_id,
                 count=str(len(accounts)),
             ),
@@ -774,6 +776,19 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         acc = await _get_owned_account(event, code)
         if not acc or await _reject_unless_allowed(event, acc, ACTION_DELETE):
             return
+        await event.edit(
+            f"**🚨 تأیید نهایی حذف `{acc.username}`**\n\n"
+            "با زدن دکمه زیر، ادمین پنل و **همه یوزرهایش** همین الان حذف می‌شوند "
+            "و هیچ راهی برای برگرداندنشان نیست.",
+            buttons=await build_delete_final_buttons(code),
+        )
+        return
+
+    if data.startswith("ResellerAccount_delete_final:"):
+        code = int(data.split(":")[1])
+        acc = await _get_owned_account(event, code)
+        if not acc or await _reject_unless_allowed(event, acc, ACTION_DELETE):
+            return
         ok, msg = await delete_account(acc)
         await event.answer(msg, alert=True)
         if ok:
@@ -903,8 +918,8 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             return
         if (
             await get_step(user_id) != "reseller_renew_confirm"
-            or await get_data(user_id, "reseller_renew_account_code") != str(code)
-            or await get_data(user_id, "reseller_renew_plan_id") != str(plan.id)
+            or str(await get_data(user_id, "reseller_renew_account_code")) != str(code)
+            or str(await get_data(user_id, "reseller_renew_plan_id")) != str(plan.id)
         ):
             await event.answer("نشست منقضی شده؛ دوباره تمدید را باز کنید.", alert=True)
             return

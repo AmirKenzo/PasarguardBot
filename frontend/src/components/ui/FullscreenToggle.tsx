@@ -1,5 +1,5 @@
 import { Maximize, Minimize } from "lucide-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useTelegramFullscreen } from "../../hooks/useTelegramViewportFix";
 
 export function FullscreenToggle() {
@@ -7,7 +7,7 @@ export function FullscreenToggle() {
   if (!supported) return null;
 
   return (
-    <motion.button
+    <m.button
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={toggle}
@@ -15,6 +15,6 @@ export function FullscreenToggle() {
       title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
     >
       {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-    </motion.button>
+    </m.button>
   );
 }

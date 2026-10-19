@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import type { AuthPayload } from "../api/panel";
 import { useWebAppAuth } from "../hooks/useWebAppAuth";
@@ -38,6 +39,7 @@ export function usePanelAction<TVars, TRes extends { message?: string | null }>(
   const { auth } = useWebAppAuth();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { t } = useTranslation();
 
   return useMutation<TRes, Error, TVars>({
     mutationFn: (vars: TVars) => call({ ...(vars as object), ...(auth || {}) } as TVars & AuthPayload),
@@ -49,7 +51,7 @@ export function usePanelAction<TVars, TRes extends { message?: string | null }>(
       }
     },
     onError: (error) => {
-      toast.show(error.message || "عملیات انجام نشد", "error");
+      toast.show(error.message || t("apiErrors.actionFailed"), "error");
     },
   });
 }

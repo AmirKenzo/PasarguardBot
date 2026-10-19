@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { HTMLAttributes, MouseEvent as ReactMouseEvent, ReactNode } from "react";
-import { motion, useMotionTemplate, useMotionValue } from "framer-motion";
+import { m, useMotionTemplate, useMotionValue } from "framer-motion";
 import { cn } from "../../lib/cn";
 
 export interface MagicCardProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
@@ -52,7 +52,7 @@ export function MagicCard({
       className={cn("group relative overflow-hidden rounded-lg border border-border bg-surface shadow-sm", className)}
       {...rest}
     >
-      <motion.div
+      <m.div
         className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
         style={{ background }}
       />

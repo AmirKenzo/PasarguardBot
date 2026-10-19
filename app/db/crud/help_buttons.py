@@ -150,6 +150,54 @@ class HelpButtonCRUD:
         except SQLAlchemyError:
             return False
 
+    async def apply_layout(self, rows: list[list[int]]) -> bool:
+        """Renumber buttons from rows of ids: one row = consecutive numbers, a gap of one between rows.
+
+        Rows that are not mentioned keep their order and are placed after the given rows.
+        """
+        try:
+            async with Session() as session:
+                result = await session.execute(select(HelpButton).order_by(HelpButton.button_number))
+                buttons = list(result.scalars().all())
+                by_id = {btn.id: btn for btn in buttons}
+
+                placed: set[int] = set()
+                ordered_rows: list[list[HelpButton]] = []
+                for row in rows:
+                    row_buttons = [by_id[i] for i in row if i in by_id and i not in placed]
+                    if not row_buttons:
+                        continue
+                    placed.update(btn.id for btn in row_buttons)
+                    ordered_rows.append(row_buttons)
+                for btn in buttons:
+                    if btn.id not in placed:
+                        ordered_rows.append([btn])
+
+                # Move everything out of the way first: button_number is unique.
+                for btn in buttons:
+                    btn.button_number = -btn.id
+                await session.flush()
+
+                number = 1
+                for row_buttons in ordered_rows:
+                    for btn in row_buttons:
+                        btn.button_number = number
+                        number += 1
+                    number += 1
+                await session.commit()
+                return True
+        except SQLAlchemyError:
+            return False
+
+    async def next_row_number(self) -> int:
+        """A button_number that starts a new row after every existing button."""
+        try:
+            async with Session() as session:
+                max_num = (await session.execute(select(func.max(HelpButton.button_number)))).scalar()
+                return (max_num + 2) if max_num else 1
+        except SQLAlchemyError:
+            return 1
+
     async def get_all_buttons(self) -> list[HelpButton]:
 
         try:

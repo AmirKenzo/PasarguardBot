@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 
 export interface ProgressRingProps {
   percent: number;
@@ -25,7 +25,7 @@ export function ProgressRing({ percent, size = 116, strokeWidth = 10, tone = "pr
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} className="stroke-surface-2" fill="none" />
-        <motion.circle
+        <m.circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -41,8 +41,8 @@ export function ProgressRing({ percent, size = 116, strokeWidth = 10, tone = "pr
       </svg>
       <div className="absolute flex flex-col items-center justify-center text-center">
         <span className="text-lg font-bold text-text">{clamped}%</span>
-        {label && <span className="text-[11px] text-muted">{label}</span>}
-        {sublabel && <span className="text-[10px] text-muted">{sublabel}</span>}
+        {label && <span className="text-2xs text-muted">{label}</span>}
+        {sublabel && <span className="text-3xs text-muted">{sublabel}</span>}
       </div>
     </div>
   );

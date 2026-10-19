@@ -9,9 +9,8 @@ import type {
   WebAppResellerBuyOptionsResponse,
   WebAppResellerBuyPreviewResponse,
   WebAppResellerBuyRequest,
-  WebAppResellerCapacityPreviewResponse,
-  WebAppResellerCapacityRequest,
   WebAppResellerCodeRequest,
+  WebAppResellerDeleteRequest,
   WebAppResellerEventsResponse,
   WebAppResellerPageRequest,
   WebAppResellerPasswordResponse,
@@ -76,14 +75,6 @@ export function setUsageCap(body: WebAppResellerUsageCapRequest) {
   return apiPost<WebAppResellerActionResponse>("/reseller/account/usage-cap", body);
 }
 
-export function previewCapacity(body: WebAppResellerCapacityRequest) {
-  return apiPost<WebAppResellerCapacityPreviewResponse>("/reseller/account/capacity/preview", body);
-}
-
-export function confirmCapacity(body: WebAppResellerCapacityRequest) {
-  return apiPost<WebAppResellerActionResponse>("/reseller/account/capacity/confirm", body);
-}
-
 export function previewAddon(body: WebAppResellerAddonRequest) {
   return apiPost<WebAppResellerAddonPreviewResponse>("/reseller/account/addon/preview", body);
 }
@@ -100,6 +91,6 @@ export function getEvents(body: WebAppResellerPageRequest) {
   return apiPost<WebAppResellerEventsResponse>("/reseller/account/events", body);
 }
 
-export function deleteAccount(body: WebAppResellerCodeRequest) {
+export function deleteAccount(body: WebAppResellerDeleteRequest) {
   return apiPost<WebAppResellerActionResponse>("/reseller/account/delete", body);
 }

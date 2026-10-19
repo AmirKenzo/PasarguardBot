@@ -2,6 +2,7 @@
 Router initialization and FastAPI app setup.
 """
 
+import json
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -10,7 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from app.routers.webapp.state import verified_session_tokens, webapp_auth_headers
+from app.routers.webapp.errors import SESSION_INVALID
+from app.routers.webapp.state import rejected_session, verified_session_tokens, webapp_auth_headers
 from app.utils.security import maybe_renew_session_token
 from app.version import VERSIONS
 from config import API_DOCS_ENABLED
@@ -41,6 +43,25 @@ def _extract_bearer(authorization: str | None) -> str | None:
 
 # Routes whose handlers read credentials from the auth ContextVar.
 AUTH_HEADER_PREFIXES = ("/api/webapp", "/api/panel")
+SESSION_CODE_PREFIX = "/api/webapp"
+
+
+async def _tag_session_invalid(response: Response) -> Response:
+    """Add ``error_code: session_invalid`` to an ``ok: false`` JSON body, keeping status and headers."""
+    if not (response.headers.get("content-type") or "").startswith("application/json"):
+        return response
+    body = b"".join([chunk async for chunk in response.body_iterator])  # type: ignore[attr-defined]
+    try:
+        data = json.loads(body)
+    except ValueError:
+        data = None
+    if isinstance(data, dict) and data.get("ok") is False and not data.get("error_code"):
+        data["error_code"] = SESSION_INVALID
+        body = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    tagged = Response(content=body, status_code=response.status_code)
+    tagged.raw_headers = [(k, v) for k, v in response.raw_headers if k.lower() != b"content-length"]
+    tagged.raw_headers.append((b"content-length", str(len(body)).encode("latin-1")))
+    return tagged
 
 
 class WebAppAuthHeaderMiddleware(BaseHTTPMiddleware):
@@ -60,11 +81,16 @@ class WebAppAuthHeaderMiddleware(BaseHTTPMiddleware):
             token = webapp_auth_headers.set((session or None, init_data or None))
             verified: set[str] = set()
             verified_token = verified_session_tokens.set(verified)
+            rejected: list[bool] = []
+            rejected_token = rejected_session.set(rejected)
             try:
                 response = await call_next(request)
             finally:
+                rejected_session.reset(rejected_token)
                 verified_session_tokens.reset(verified_token)
                 webapp_auth_headers.reset(token)
+            if rejected and path.startswith(SESSION_CODE_PREFIX):
+                response = await _tag_session_invalid(response)
             if session and session in verified:
                 renewed = maybe_renew_session_token(session)
                 if renewed:

@@ -98,17 +98,6 @@ def format_reseller_plan_button_short(plan: ResellerPlan) -> str:
     return f"{mode} · {format_reseller_plan_price_short(plan)}"
 
 
-def format_reseller_plan_admin_list_label(plan: ResellerPlan) -> str:
-    """Short label for admin plan list buttons."""
-    status = "✅" if plan.enable else "❌"
-    custom = (plan.display_button_text or "").strip()
-    name = custom.split("\n", 1)[0].strip()[:20] if custom else ""
-    price = format_reseller_plan_price_short(plan)
-    if name:
-        return f"#{plan.id} {name} · {price} {status}"
-    return f"#{plan.id} · {price} {status}"
-
-
 def volume_unit_label(mode: str) -> str:
     return "ترابایت" if mode == "per_tb" else "گیگابایت"
 

@@ -16,6 +16,7 @@ from typing import Any
 from app.db.crud.panels import PanelsManager
 from app.db.crud.settings import SettingsManager
 from app.services.panels.settings import panel_test_enabled
+from config import ADMIN_ID
 
 
 async def trial_panels(setting: Any | None = None) -> list[Any]:
@@ -41,3 +42,7 @@ async def trial_offered(setting: Any | None = None) -> bool:
     if not (setting and setting.test_mode):
         return False
     return bool(await trial_panels(setting))
+
+
+def admin_unlimited_trial(user_id: int, setting: Any | None) -> bool:
+    return bool(setting and getattr(setting, "admin_unlimited_trial", False)) and int(user_id) in ADMIN_ID

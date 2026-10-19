@@ -13,6 +13,8 @@ launcher message stays in the chat, so later visits are a single tap on it.
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from telethon.errors.rpcerrorlist import ButtonUrlInvalidError
 from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
 
@@ -32,6 +34,16 @@ MINIAPP_REJECTED = "تلگرام این آدرس را نپذیرفت. باید �
 def miniapp_url(*, panel: bool = False) -> str:
     base = WEBAPP_URL.rstrip("/")
     return f"{base}?panel=1" if panel else WEBAPP_URL
+
+
+def miniapp_deeplink(path: str) -> str:
+    """Mini app URL that lands on ``path`` (a hash route such as ``/panel/help-buttons``).
+
+    The page reads the ``open`` query value on load (``frontend/src/telegramInit.ts``);
+    the query string survives Telegram appending its own data to the hash.
+    """
+    separator = "&" if "?" in WEBAPP_URL else "?"
+    return f"{WEBAPP_URL}{separator}open={quote(path, safe='/')}"
 
 
 def miniapp_ready() -> bool:

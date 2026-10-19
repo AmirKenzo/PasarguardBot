@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { CalendarClock, ChevronRight, Database, Plus, Search, Satellite, Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmojiIcon } from "../../components/EmojiIcon";
@@ -51,9 +51,9 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
     .join(" · ");
 
   return (
-    <motion.div variants={itemVariants} layout>
+    <m.div variants={itemVariants} layout>
       <Link to={`/services/${service.code}`} onClick={() => haptic.select()} className="block h-full">
-        <motion.article
+        <m.article
           whileTap={{ scale: 0.985 }}
           className={`flex h-full flex-col gap-3 rounded-lg border bg-surface p-3.5 shadow-sm transition-colors hover:border-primary/30 ${
             expiringSoon ? "border-warning/40" : "border-border"
@@ -65,7 +65,7 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
               <h2 className="truncate text-sm font-bold text-text" dir="ltr" style={{ textAlign: "start" }}>
                 {service.username}
               </h2>
-              <p className="mt-0.5 truncate text-[11px] text-muted">{subtitle}</p>
+              <p className="mt-0.5 truncate text-2xs text-muted">{subtitle}</p>
             </div>
             <Badge tone={badgeTone}>{badgeLabel}</Badge>
           </div>
@@ -89,17 +89,17 @@ function ServiceCard({ service }: { service: ServiceStatus }) {
               )}
             </div>
           )}
-        </motion.article>
+        </m.article>
       </Link>
-    </motion.div>
+    </m.div>
   );
 }
 
 function PanelGroupCard({ group, onSelect, t }: { group: PanelGroupItem; onSelect: () => void; t: (key: string) => string }) {
   const { haptic } = useTelegram();
   return (
-    <motion.div variants={itemVariants} layout>
-      <motion.button
+    <m.div variants={itemVariants} layout>
+      <m.button
         type="button"
         onClick={() => {
           haptic.select();
@@ -107,7 +107,7 @@ function PanelGroupCard({ group, onSelect, t }: { group: PanelGroupItem; onSelec
         }}
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.985 }}
-        className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:border-primary/50"
+        className="group w-full overflow-hidden rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:border-primary/50"
       >
         <div className="flex items-center gap-4">
           <div className="rounded-md bg-primary/10 p-3 text-primary ring-1 ring-primary/20">
@@ -123,8 +123,8 @@ function PanelGroupCard({ group, onSelect, t }: { group: PanelGroupItem; onSelec
             {t("services.view")}
           </span>
         </div>
-      </motion.button>
-    </motion.div>
+      </m.button>
+    </m.div>
   );
 }
 
@@ -137,13 +137,23 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
   const [selectedPanel, setSelectedPanel] = useState<PanelGroupItem | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    if (searchQuery === debouncedSearch) return;
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
     return () => window.clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, debouncedSearch]);
 
-  useEffect(() => {
+  const selectPanel = (panel: PanelGroupItem | null) => {
+    setSelectedPanel(panel);
     setPage(1);
-  }, [debouncedSearch, limit, selectedPanel]);
+  };
+
+  const changeLimit = (value: number) => {
+    setLimit(value);
+    setPage(1);
+  };
 
   const { data, isLoading, error, refetch } = useServicesQuery(
     page,
@@ -161,7 +171,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
 
   return (
     <div className="space-y-5">
-      <motion.header
+      <m.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -171,10 +181,10 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
         {selectedPanel ? (
           <button
             type="button"
-            onClick={() => setSelectedPanel(null)}
+            onClick={() => selectPanel(null)}
             className="mb-1 flex items-center gap-1.5 text-sm font-medium text-primary"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={16} className="ltr:rotate-180" />
             {t("services.backToPanel")}
           </button>
         ) : null}
@@ -188,26 +198,26 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
               ? `${total} ${t("services.activeServices")}`
               : t("services.manageServices")}
         </p>
-      </motion.header>
+      </m.header>
 
       {chips}
 
       {!showPanelGroups && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05, duration: 0.3 }}
           className="relative"
         >
-          <Search size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <Search size={16} className="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <Input
             type="search"
             placeholder={t("services.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10"
+            className="ps-10"
           />
-        </motion.div>
+        </m.div>
       )}
 
       {error && <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />}
@@ -226,16 +236,16 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
             description={t("services.noPanelsDesc")}
           />
         ) : (
-          <motion.div variants={listVariants} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-2">
+          <m.div variants={listVariants} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-2">
             {panelGroups.map((group) => (
               <PanelGroupCard
                 key={group.panel_code}
                 group={group}
-                onSelect={() => setSelectedPanel(group)}
+                onSelect={() => selectPanel(group)}
                 t={t}
               />
             ))}
-          </motion.div>
+          </m.div>
         )
       ) : services.length === 0 ? (
         <EmptyState
@@ -246,7 +256,7 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
       ) : (
         <>
           <AnimatePresence mode="wait">
-            <motion.div
+            <m.div
               key={`${page}-${limit}-${debouncedSearch}-${selectedPanel?.panel_code ?? "all"}`}
               variants={listVariants}
               initial="hidden"
@@ -256,10 +266,10 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
               {services.map((svc) => (
                 <ServiceCard key={svc.code} service={svc} />
               ))}
-            </motion.div>
+            </m.div>
           </AnimatePresence>
 
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
@@ -270,12 +280,12 @@ function VpnServicesList({ chips }: { chips: ReactNode }) {
               <SegmentedControl
                 options={LIMIT_SEGMENTS}
                 value={String(limit)}
-                onChange={(v) => setLimit(Number(v))}
+                onChange={(v) => changeLimit(Number(v))}
                 columns={LIMIT_SEGMENTS.length}
               />
             </div>
             <Pagination page={page} totalPages={totalPages || 1} onChange={setPage} />
-          </motion.div>
+          </m.div>
         </>
       )}
     </div>

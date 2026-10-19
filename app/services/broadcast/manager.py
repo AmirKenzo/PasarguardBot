@@ -13,6 +13,7 @@ Features:
 import asyncio
 import time
 
+from sqlalchemy import text
 from telethon import errors
 
 from app.db.base import DATABASE_DIALECT, AsyncSessionLocal as Session
@@ -93,8 +94,6 @@ class BroadcastManager:
 
         session = Session()
         try:
-            from sqlalchemy import text
-
             result = await session.execute(text(f"SELECT GET_LOCK('broadcast_manager_lock', {lock_wait_seconds})"))
             lock_result = result.scalar()
             logger.debug(f"MySQL lock acquire result: {lock_result} (1=acquired, 0=timeout, NULL=error)")
@@ -132,8 +131,6 @@ class BroadcastManager:
         session = self._mysql_lock_session
         self._mysql_lock_session = None
         try:
-            from sqlalchemy import text
-
             result = await session.execute(text("SELECT RELEASE_LOCK('broadcast_manager_lock')"))
             released = result.scalar()
             logger.debug(f"MySQL lock release result: {released} (1=released, 0=not held, NULL=error)")

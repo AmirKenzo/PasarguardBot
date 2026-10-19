@@ -4,30 +4,41 @@ TON Payment Processor
 This processor handles checking and confirming TON (Toncoin) cryptocurrency payments.
 """
 
-import contextlib
-from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import httpx
-from telethon import Button
 
-from app import Kenzo
 from app.db.crud.cryptopayments import CryptoPaymentsCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.wallets import WalletCRUD
-from app.logger import LogType, get_logger
-from app.services.billing.direct_pay_fulfillment import (
-    cancel_after_crypto_expire,
-    try_fulfill_after_crypto_credit,
-)
-from app.services.billing.payment_bonus import calculate_payment_bonus
-from app.telegram.shared.utils.logging import send_log_message
+from app.logger import get_logger
 from config import TON_TESTNET_MODE
 
 from .base import BasePaymentProcessor
+from .crypto_common import (
+    PricedNotice,
+    PriceRow,
+    confirm_priced_payment,
+    expire_priced_payment,
+    expire_unmatched,
+    match_transfers,
+    tx_time_in_window,
+)
 from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
+
+NOTICE = PricedNotice(
+    name="TON",
+    amount_label="TON",
+    unit="TON",
+    confirm_prices=(PriceRow("TON", "arz_ton"), PriceRow("دلار", "arz_usd")),
+    expire_prices=(PriceRow("TON", "arz_ton"), PriceRow("دلار", "arz_usd")),
+    explorer_line="<b>🔗 مشاهده در TON Explorer:</b> <a href='https://tonscan.org/tx/{hash}'>لینک تراکنش</a>",
+    timestamp_in_ms=False,
+    tag="ton",
+    log=logger,
+)
 
 
 async def _fetch_ton_transactions(client, base_url, address_wallet, start_time, order_id=None):
@@ -128,137 +139,6 @@ def _extract_transaction_details(transaction, address_wallet):
     }
 
 
-def _format_user_payment_message(payment, settings, bonus, total_amount, new_amount):
-    msg_parts = [
-        "🎉 <b>پرداخت شما با موفقیت انجام شد!</b>",
-        "",
-        f"📋 <b>شماره فاکتور:</b> <code>{payment.order_id}</code>",
-        f"💵 <b>مبلغ:</b> <code>{int(payment.amount_irt):,}</code> تومان",
-    ]
-
-    if bonus > 0:
-        msg_parts.extend(
-            [
-                f"🎁 <b>بونوس:</b> +<code>{int(bonus):,}</code> تومان ({settings.crypto_bonus_percent}%)",
-                f"💰 <b>مجموع:</b> <code>{int(total_amount):,}</code> تومان",
-            ]
-        )
-
-    msg_parts.extend(
-        [
-            f"💎 <b>مقدار TON:</b> <code>{payment.amount}</code> TON",
-            f"📊 <b>قیمت TON:</b> <code>{settings.arz_ton:,}</code> هزارتومان",
-            f"📊 <b>قیمت دلار:</b> <code>{settings.arz_usd:,}</code> هزارتومان",
-            "",
-            f"💳 <b>موجودی جدید:</b> <code>{int(new_amount):,}</code> تومان",
-            "",
-            f"<code>#{payment.arz}_{payment.order_id}</code>",
-        ]
-    )
-
-    return "\n".join(msg_parts)
-
-
-def _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details):
-    tx_time_str = "N/A"
-    if tx_details["timestamp"]:
-        try:
-            tx_time = datetime.fromtimestamp(tx_details["timestamp"], tz=UTC)
-            tx_time_str = tx_time.strftime("%Y-%m-%d %H:%M:%S UTC")
-        except Exception:
-            pass
-
-    log_parts = [
-        "#فاکتور_ارزی",
-        "<b>✅ فاکتور ارزی کاربر با موفقیت پرداخت شد</b>",
-        "",
-        f"<b>👤 شناسه کاربری:</b> <code>{payment.user_id}</code> | "
-        f"<a href='tg://user?id={payment.user_id}'>پروفایل کاربر</a>",
-        f"<b>📋 شماره فاکتور:</b> <code>{payment.order_id}</code>",
-        f"<b>💵 مبلغ فاکتور:</b> <code>{int(payment.amount_irt):,}</code> تومان",
-    ]
-
-    if bonus > 0:
-        log_parts.extend(
-            [
-                f"<b>🎁 بونوس:</b> +<code>{int(bonus):,}</code> تومان ({settings.crypto_bonus_percent}%)",
-                f"<b>💰 مجموع:</b> <code>{int(total_amount):,}</code> تومان",
-            ]
-        )
-
-    log_parts.extend(
-        [
-            f"<b>💎 مقدار TON:</b> <code>{payment.amount}</code> TON",
-            f"<b>📊 قیمت TON:</b> <code>{settings.arz_ton:,}</code> هزارتومان",
-            f"<b>📊 قیمت دلار:</b> <code>{settings.arz_usd:,}</code> هزارتومان",
-            f"<b>💳 موجودی جدید کاربر:</b> <code>{int(new_amount):,}</code> تومان",
-            "",
-            "<b>🔗 جزئیات تراکنش بلاکچین:</b>",
-            f"<b>📝 هش تراکنش:</b> <code>{tx_details['hash']}</code>",
-            f"<b>👤 از آدرس:</b> <code>{tx_details['from']}</code>",
-            f"<b>👥 به آدرس:</b> <code>{tx_details['to']}</code>",
-            f"<b>⏰ زمان تراکنش:</b> <code>{tx_time_str}</code>",
-            f"<b>📦 شماره بلاک:</b> <code>{tx_details['block']}</code>",
-            f"<b>✅ وضعیت:</b> {'تایید شده' if tx_details['confirmed'] else 'در انتظار تایید'}",
-            f"<b>🔗 مشاهده در TON Explorer:</b> <a href='https://tonscan.org/tx/{tx_details['hash']}'>لینک تراکنش</a>",
-            "",
-            f"<code>#{payment.arz}_{payment.order_id}</code>",
-        ]
-    )
-
-    return "\n".join(log_parts)
-
-
-async def _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime: int):
-    tx_details = _extract_transaction_details(transaction, address_wallet)
-
-    bonus = await calculate_payment_bonus(
-        amount=int(payment.amount_irt),
-        bonus_enabled=settings.crypto_bonus_enabled,
-        bonus_percent=settings.crypto_bonus_percent,
-    )
-    total_amount = int(payment.amount_irt) + bonus
-    approved = await CryptoPaymentsCRUD().approve_and_credit(payment.order_id, total_amount, paytime)
-    if not approved:
-        logger.warning("TON payment already processed or invalid: order_id=%s", payment.order_id)
-        return
-    payment, new_amount = approved
-    try:
-        fulfilled = await try_fulfill_after_crypto_credit(int(payment.order_id))
-        if not fulfilled:
-            user_msg = _format_user_payment_message(payment, settings, bonus, total_amount, new_amount)
-            await Kenzo.send_message(
-                payment.user_id,
-                user_msg,
-                parse_mode="html",
-                buttons=[
-                    [
-                        Button.inline(
-                            text=f"💳 موجودی: {int(new_amount):,} تومان",
-                            data="no_action",
-                        )
-                    ]
-                ],
-            )
-
-        admin_log = _format_admin_log_message(payment, settings, bonus, total_amount, new_amount, tx_details)
-        await send_log_message(
-            LogType.CRYPTO,
-            message=admin_log,
-            parse_mode="html",
-            buttons=[
-                [
-                    Button.inline(
-                        text=f"💳 موجودی: {int(new_amount):,} تومان",
-                        data="no_action",
-                    )
-                ]
-            ],
-        )
-    except Exception as e:
-        logger.error("Post-credit notification failed for order_id=%s: %s", payment.order_id, e)
-
-
 class TONProcessor(BasePaymentProcessor):
     def __init__(self):
         super().__init__("ton")
@@ -283,23 +163,7 @@ class TONProcessor(BasePaymentProcessor):
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             crud = CryptoPaymentsCRUD()
-            pending_payments = await crud.get_pending_by_arz("TON")
-
-            if not pending_payments:
-                return
-
-            # Expire old payments first
-            current_time = datetime.now(UTC)
-            valid_payments = []
-            for payment in pending_payments:
-                created_time = datetime.fromtimestamp(payment.createtime, tz=UTC)
-                time_diff = current_time - created_time
-
-                if time_diff > timedelta(minutes=30):
-                    await self._expire_payment(payment, settings)
-                else:
-                    valid_payments.append(payment)
-
+            valid_payments = await crud.get_pending_by_arz("TON")
             if not valid_payments:
                 return
 
@@ -314,25 +178,21 @@ class TONProcessor(BasePaymentProcessor):
             # Fetch all transactions once
             all_transactions = await _fetch_ton_transactions(client, base_url, address_wallet, earliest_time, None)
             logger.debug("Fetched %s total transactions from TonCenter", len(all_transactions))
-            consumed: set[str] = set()
+            consumed = await crud.get_used_tx_hashes(chain_tx_id(tx) for tx in all_transactions)
 
-            # Process each payment with the fetched transactions
-            for payment in valid_payments:
+            def candidates(payment):
                 logger.debug(
                     "Checking TON payment %s amount=%s createtime=%s",
                     payment.order_id,
                     payment.amount,
                     payment.createtime,
                 )
-
-                # Filter transactions for this specific payment (after payment creation time)
-                payment_transactions = [tx for tx in all_transactions if tx.get("utime", 0) >= payment.createtime]
+                payment_transactions = [tx for tx in all_transactions if tx_time_in_window(payment, tx.get("utime"))]
                 logger.debug(
                     "Found %s TON txs after createtime for payment %s",
                     len(payment_transactions),
                     payment.order_id,
                 )
-
                 for transaction in payment_transactions:
                     in_msg = transaction.get("in_msg", {})
                     tx_destination = in_msg.get("destination", "") if isinstance(in_msg, dict) else ""
@@ -342,22 +202,24 @@ class TONProcessor(BasePaymentProcessor):
                         address_wallet,
                         payment.order_id,
                     )
-                    txid = chain_tx_id(transaction)
-                    if txid and txid in consumed:
-                        continue
+                    yield transaction
 
-                    is_valid = await self._validate_transaction(transaction, payment.amount, address_wallet)
-                    if not is_valid:
-                        continue
+            matched = await match_transfers(
+                valid_payments,
+                candidates,
+                consumed,
+                tx_id=chain_tx_id,
+                accepts=lambda payment, tx: self._validate_transaction(tx, payment.amount, address_wallet),
+                confirm=lambda payment, tx, txid: confirm_priced_payment(
+                    payment, settings, _extract_transaction_details(tx, address_wallet), tx_hash=txid, notice=NOTICE
+                ),
+                name="TON",
+                error_message="Error processing TON payment %s: %s",
+                log=logger,
+                retry_after_error=True,
+            )
 
-                    paytime = int(datetime.now(UTC).timestamp())
-                    try:
-                        await _process_payment_confirmation(payment, settings, transaction, address_wallet, paytime)
-                        if txid:
-                            consumed.add(txid)
-                        break
-                    except Exception as e:
-                        logger.error("Error processing TON payment %s: %s", payment.order_id, e)
+            await expire_unmatched(valid_payments, matched, lambda payment: self._expire_payment(payment, settings))
 
     async def _validate_transaction(self, transaction, payment_amount, address_wallet):
         logger.debug("TON validate payment_amount=%s", payment_amount)
@@ -384,42 +246,4 @@ class TONProcessor(BasePaymentProcessor):
         return is_valid
 
     async def _expire_payment(self, payment, settings):
-        crud = CryptoPaymentsCRUD()
-        await crud.expire_payment(payment.order_id)
-        await cancel_after_crypto_expire(int(payment.order_id))
-
-        try:
-            if hasattr(payment, "msg_id") and payment.msg_id:
-                with contextlib.suppress(Exception):
-                    await Kenzo.delete_messages(payment.user_id, payment.msg_id)
-
-            expire_msg = (
-                f"<b>#اطلاع_رسانی</b>\n\n"
-                f"<b>📅 فاکتور شماره [ {payment.order_id} ] به دلیل گذشتن زمان منقضی شد.</b>\n"
-                f"<b>💵 مبلغ فاکتور:</b> <code>{int(payment.amount_irt):,}</code> <b>تومان</b>\n"
-                f"<b>💰 مقدار TON:</b> <code>{payment.amount}</code> TON\n"
-                f"<b>📊 قیمت TON:</b> <code>{settings.arz_ton:,}</code> <b>هزارتومان</b>\n"
-                f"<b>📊 قیمت دلار:</b> <code>{settings.arz_usd:,}</code> <b>هزارتومان</b>\n"
-                f"<b>#notification_{payment.order_id}</b>"
-            )
-            await Kenzo.send_message(
-                payment.user_id,
-                expire_msg,
-                parse_mode="html",
-                buttons=[[Button.inline(text="🚫 منقضی شد", data="no_action")]],
-            )
-
-            log_text = (
-                "#فاکتور_منقضی\n"
-                f"👤 شناسه کاربر: <code>{payment.user_id}</code> | "
-                f"<a href='tg://user?id={payment.user_id}'>پروفایل کاربر</a>\n"
-                f"💡 شماره فاکتور: <code>{payment.order_id}</code>\n"
-                f"💵 مبلغ فاکتور: <code>{int(payment.amount_irt):,}</code> تومان\n"
-                f"💰 مقدار TON: <code>{payment.amount}</code>\n"
-                f"📊 قیمت TON: <code>{settings.arz_ton:,}</code> هزار تومان\n"
-                f"📊 قیمت دلار: <code>{settings.arz_usd:,}</code> هزار تومان\n"
-                f"#ton_{payment.order_id}"
-            )
-            await send_log_message(LogType.CRYPTO, message=log_text, parse_mode="html")
-        except Exception:
-            pass
+        await expire_priced_payment(payment, settings, notice=NOTICE)

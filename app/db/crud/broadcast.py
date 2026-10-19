@@ -1,3 +1,5 @@
+import time
+
 from sqlalchemy import and_, distinct, func, or_, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
@@ -200,7 +202,6 @@ class BroadcastJobCRUD:
                     query = select(func.count()).select_from(User).where(base_filter)
                 elif job.target_mode == "users_with_active_service":
                     # Users with active service: enable=True and expiration_time > NOW()
-                    import time
 
                     now = int(time.time())
                     # Count distinct user IDs with active services that match base filter
@@ -280,7 +281,6 @@ class BroadcastJobCRUD:
                     query = select(User).where(base_filter).order_by(User.id).limit(batch_size)
                 elif job.target_mode == "users_with_active_service":
                     # Users with active service
-                    import time
 
                     now = int(time.time())
                     # First get distinct user IDs with active services

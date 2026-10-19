@@ -1,3 +1,6 @@
+import { useId } from "react";
+import { Switch } from "../../../components/ui";
+
 export interface ToggleProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -7,27 +10,27 @@ export interface ToggleProps {
 }
 
 export function Toggle({ checked, onChange, label, hint, disabled = false }: ToggleProps) {
+  const labelId = useId();
+  const hintId = useId();
   return (
-    <label className="flex cursor-pointer items-start gap-3 py-1.5">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
+    <label className={`flex items-start gap-3 py-1.5 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
+      <Switch
+        checked={checked}
+        onChange={onChange}
         disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`mt-0.5 h-6 w-11 shrink-0 rounded-full border transition-colors disabled:opacity-50 ${
-          checked ? "border-primary bg-primary" : "border-border bg-surface-2"
-        }`}
-      >
-        <span
-          className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-            checked ? "-translate-x-[22px]" : "-translate-x-0.5"
-          }`}
-        />
-      </button>
+        labelledBy={labelId}
+        describedBy={hint ? hintId : undefined}
+        className="mt-0.5"
+      />
       <span className="text-sm">
-        <span className="block text-text">{label}</span>
-        {hint && <span className="mt-0.5 block text-xs text-muted">{hint}</span>}
+        <span id={labelId} className="block text-text">
+          {label}
+        </span>
+        {hint && (
+          <span id={hintId} className="mt-0.5 block text-xs text-muted">
+            {hint}
+          </span>
+        )}
       </span>
     </label>
   );

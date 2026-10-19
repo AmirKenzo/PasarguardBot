@@ -1,8 +1,6 @@
 /** Mirrors app/models/panel/broadcast.py */
 import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
-export const TARGET_MODES = ["all", "active", "users_with_active_service"] as const;
-
 export interface PanelBroadcastJobRow {
   id: number;
   text: string;

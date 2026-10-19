@@ -9,9 +9,7 @@ from app.services.billing.reseller_pricing import (
     volume_unit_label,
 )
 from app.services.reseller.plan_rules import ADDON_PRICE_FIELDS, rule_for
-from app.telegram.keyboards.common import styled_callback_button
 from app.telegram.keyboards.registry import STYLE_LABELS
-from app.telegram.shared.keyboards.plan_buttons import resolve_plan_button_style
 from app.telegram.shared.reseller_plan_guides import (
     ADDON_NAMES,
     HOURLY,
@@ -159,12 +157,6 @@ def reseller_plan_display_buttons(plan_id: int, panel_code: int) -> list:
         [Button.inline("♻️ ریست نمایش", data=f"ResellerPlanBtnReset_{plan_id}")],
         [Button.inline("🔙 بازگشت", data=f"ResellerPlanView_{plan_id}")],
     ]
-
-
-def build_reseller_plan_list_button(plan):
-    text = format_reseller_plan_list_label(plan)
-    style = resolve_plan_button_style(plan)
-    return styled_callback_button(text, f"ResellerPlanView_{plan.id}", style)
 
 
 _EDIT_BUTTON_LABELS = {

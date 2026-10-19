@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Moon, Sun, SunMoon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../../design/ThemeProvider";
@@ -12,7 +12,10 @@ const OPTIONS: { value: ThemeMode; icon: typeof Sun; labelKey: string }[] = [
 
 export function ThemeToggle() {
   const { t } = useTranslation();
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, canChangeScheme } = useTheme();
+
+  // The admin locked the light/dark switch: the app follows the device / Telegram.
+  if (!canChangeScheme) return null;
 
   return (
     <div className="relative inline-flex items-center gap-0.5 rounded-full border border-border bg-surface-2 p-1">
@@ -28,7 +31,7 @@ export function ThemeToggle() {
             className="relative flex h-8 w-8 items-center justify-center rounded-full"
           >
             {active && (
-              <motion.span
+              <m.span
                 layoutId="theme-toggle-pill"
                 className="absolute inset-0 rounded-full bg-primary shadow-md"
                 transition={{ type: "spring", stiffness: 500, damping: 32 }}

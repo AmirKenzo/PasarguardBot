@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from app.models.panel.common import PagedRequest, PageMeta, PanelRequest, PanelResponse
+from app.models.panel.common import EmojiId, PagedRequest, PageMeta, PanelRequest, PanelResponse
 from app.models.panel.plans import BUTTON_STYLE_VALUES
 from app.models.panel.services import PanelPanelOption
 
@@ -193,7 +193,8 @@ class PanelResellerCodeRequest(PanelRequest):
     code: int
 
 
-PanelResellerDeleteRequest = PanelResellerCodeRequest
+class PanelResellerDeleteRequest(PanelResellerCodeRequest):
+    confirm_username: str = Field("", max_length=64, description="Must equal the reseller username")
 
 
 class PanelResellerRenewRequest(PanelRequest):
@@ -334,7 +335,7 @@ class PanelResellerPlanRow(BaseModel):
     enable: bool = True
     display_button_text: str | None = None
     button_style: str | None = None
-    button_icon: int | None = None
+    button_icon: EmojiId | None = None
     linked_accounts: int = 0
     addon_day_price: float = 0
     addon_gb_price: float = 0

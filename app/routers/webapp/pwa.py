@@ -13,6 +13,7 @@ from fastapi import APIRouter
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.db.crud.settings import SettingsManager
+from app.services import webapp_theme
 from app.services.pwa_icons import icon_filenames, resolve_icon_path
 from config import WEBAPP_URL
 
@@ -84,3 +85,10 @@ async def webapp_icon(filename: str) -> Response:
     # Content is versioned via the manifest's ?v= query string, so a long
     # max-age is safe: a changed icon gets a new URL, not a stale cache hit.
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000"})
+
+
+@router.get("/webapp/theme")
+async def webapp_theme_config() -> Response:
+    """The admin-chosen web app colors, read by every user's web app on load (no login needed)."""
+    config = await webapp_theme.public_config()
+    return JSONResponse(config, headers={"Cache-Control": "no-cache"})

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Home, ListVideo, ShoppingBag, User, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { LanguageToggle } from "../ui/LanguageToggle";
 import { AppVersion } from "../ui/AppVersion";
 import { FullscreenToggle } from "../ui/FullscreenToggle";
+import { useTheme } from "../../design/ThemeProvider";
 
 function NAV_ITEMS() {
   return [
@@ -32,7 +33,7 @@ function NavButtons({ orientation }: { orientation: "row" | "col" }) {
           end={item.end}
           className={({ isActive }) =>
             `relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
-              orientation === "col" ? "flex-row" : "flex-1 flex-col gap-1 py-2 text-[11px]"
+              orientation === "col" ? "flex-row" : "flex-1 flex-col gap-1 py-2 text-2xs"
             } ${isActive ? "text-primary" : "text-muted hover:text-text"}`
           }
         >
@@ -40,39 +41,39 @@ function NavButtons({ orientation }: { orientation: "row" | "col" }) {
             orientation === "row" ? (
               <>
                 {isActive && (
-                  <motion.span
+                  <m.span
                     layoutId="bottomnav-dot"
                     className="absolute top-0.5 h-1 w-1 rounded-full bg-primary"
                     transition={{ type: "spring", stiffness: 480, damping: 32 }}
                   />
                 )}
-                <motion.span
+                <m.span
                   className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full"
                   animate={{ y: isActive ? -3 : 0 }}
                   transition={{ type: "spring", stiffness: 500, damping: 24 }}
                   whileTap={{ scale: 0.8 }}
                 >
                   {isActive && (
-                    <motion.span
+                    <m.span
                       layoutId="bottomnav-active"
                       className="absolute inset-0 -z-10 rounded-full bg-primary/12"
                       transition={{ type: "spring", stiffness: 420, damping: 34 }}
                     />
                   )}
                   <item.icon size={20} strokeWidth={isActive ? 2.3 : 1.8} />
-                </motion.span>
-                <motion.span
+                </m.span>
+                <m.span
                   className="relative z-10"
                   animate={{ opacity: isActive ? 1 : 0.85 }}
                   transition={{ duration: 0.15 }}
                 >
                   {t(item.labelKey)}
-                </motion.span>
+                </m.span>
               </>
             ) : (
               <>
                 {isActive && (
-                  <motion.span
+                  <m.span
                     layoutId="sidebar-active"
                     className="absolute inset-0 rounded-md bg-primary/10"
                     transition={{ type: "spring", stiffness: 420, damping: 34 }}
@@ -94,6 +95,7 @@ function NavButtons({ orientation }: { orientation: "row" | "col" }) {
 export function AppShell() {
   const location = useLocation();
   const { t } = useTranslation();
+  const { canChangeScheme } = useTheme();
 
   // React Router's plain <Routes> tree doesn't reset scroll on navigation
   // (that's only built into its data-router APIs), so without this,
@@ -122,7 +124,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-l border-border bg-surface p-4 md:flex">
+      <aside className="safe-area-pt sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-e border-border bg-surface p-4 md:flex">
         <div className="mb-5 flex items-center justify-between px-1">
           <span className="bg-gradient-to-l from-primary to-accent bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
             {t("nav.panelTitle")}
@@ -130,10 +132,12 @@ export function AppShell() {
         </div>
         <NavButtons orientation="col" />
         <div className="mt-auto flex flex-col gap-3 px-1 pt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">{t("nav.appearance")}</span>
-            <ThemeToggle />
-          </div>
+          {canChangeScheme && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">{t("nav.appearance")}</span>
+              <ThemeToggle />
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted">🌐 {t("nav.language", "Language")}</span>
             <LanguageToggle />

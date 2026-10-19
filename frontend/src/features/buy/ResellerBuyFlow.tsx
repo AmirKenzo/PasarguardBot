@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { CheckCircle2, Server, Shuffle, Wallet, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -39,9 +39,6 @@ const STEPS: Step[] = ["panel", "plan", "confirm"];
 const USERNAME_RE = /^[A-Za-z0-9][A-Za-z0-9_]{1,30}[A-Za-z0-9]$/;
 /** Wait this long after the last keystroke before asking the server about the username. */
 const PREVIEW_DEBOUNCE_MS = 450;
-
-// Kept for older imports; the helper now lives with the shared plan guide.
-export { resellerPlanPrice };
 
 const PREPAID_MODES = ["fixed", "unlimited"];
 
@@ -312,22 +309,22 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
 
         <AnimatePresence mode="wait">
           {step === "panel" && (
-            <motion.section key="panel" {...STEP_MOTION} className="grid gap-3 md:grid-cols-2">
+            <m.section key="panel" {...STEP_MOTION} className="grid gap-3 md:grid-cols-2">
               {panels.map((item) => (
                 <ChoiceCard
                   key={item.code}
                   icon={Server}
                   tone="primary"
                   title={item.name}
-                  description={t("reseller.buy.plansCount", { count: formatNumber(item.plans.length) })}
+                  description={t("reseller.buy.plansCount", { count: item.plans.length })}
                   onSelect={() => choosePanel(item)}
                 />
               ))}
-            </motion.section>
+            </m.section>
           )}
 
           {step === "plan" && panel && (
-            <motion.section key="plan" {...STEP_MOTION} className="space-y-4">
+            <m.section key="plan" {...STEP_MOTION} className="space-y-4">
               {panels.length > 1 && (
                 <div className="flex flex-wrap gap-2">
                   <SelectionChip label={panel.name} onChange={() => setStep("panel")} />
@@ -400,11 +397,11 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   </Button>
                 </StickyActionBar>
               )}
-            </motion.section>
+            </m.section>
           )}
 
           {step === "confirm" && panel && plan && (
-            <motion.section key="confirm" {...STEP_MOTION} className="space-y-4">
+            <m.section key="confirm" {...STEP_MOTION} className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {panels.length > 1 && <SelectionChip label={panel.name} onChange={() => setStep("panel")} />}
                 <SelectionChip label={planTitle(t, plan)} onChange={() => setStep("plan")} />
@@ -467,7 +464,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   label={t("reseller.buy.duration")}
                   value={
                     plan.duration_days > 0
-                      ? t("renewFlow.days", { count: formatNumber(plan.duration_days) })
+                      ? t("renewFlow.days", { count: plan.duration_days })
                       : t("reseller.noExpiry")
                   }
                 />
@@ -490,7 +487,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                       <p className="text-xs font-semibold text-success">
                         {t("reseller.buy.discountApplied", { percent: formatNumber(preview?.discount_percent ?? 0) })}
                       </p>
-                      <p className="truncate font-mono text-[13px] text-text" dir="ltr" style={{ textAlign: "start" }}>
+                      <p className="truncate font-mono text-xs-plus text-text" dir="ltr" style={{ textAlign: "start" }}>
                         {discount}
                       </p>
                     </div>
@@ -498,7 +495,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                       type="button"
                       onClick={removeDiscount}
                       aria-label={t("reseller.buy.removeDiscount")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-surface-2 text-muted hover:text-text"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xs bg-surface-2 text-muted hover:text-text"
                     >
                       <X size={15} />
                     </button>
@@ -552,7 +549,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                     </>
                   )}
                   <div
-                    className={`flex items-center justify-between gap-3 rounded-md border px-3.5 py-3 text-[13px] ${
+                    className={`flex items-center justify-between gap-3 rounded-md border px-3.5 py-3 text-xs-plus ${
                       preview.balance_after >= 0 ? "border-success/30 bg-success/5" : "border-danger/30 bg-danger/5"
                     }`}
                   >
@@ -602,11 +599,11 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   {t("reseller.buy.confirm")}
                 </Button>
               </StickyActionBar>
-            </motion.section>
+            </m.section>
           )}
 
           {step === "success" && result && (
-            <motion.section
+            <m.section
               key="success"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -640,7 +637,7 @@ export default function ResellerBuyFlow({ onExit }: { onExit: () => void }) {
                   {t("reseller.buy.done")}
                 </Button>
               </div>
-            </motion.section>
+            </m.section>
           )}
         </AnimatePresence>
       </div>

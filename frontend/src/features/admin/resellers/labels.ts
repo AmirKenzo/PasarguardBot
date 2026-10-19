@@ -35,10 +35,10 @@ export const eventLabels = (t: TFunction): Record<string, string> => ({
   ...Object.fromEntries(ADMIN_EVENT_KEYS.map((key) => [key, t(`panel.resellerHub.events.${key}`)])),
 });
 
-/** Full plan type names, e.g. «مصرفی (بر اساس حجم مصرف)»; the same wording as the bot and the web app. */
+/** Full plan type names, e.g. "Usage-based (by data used)"; the same wording as the bot and the web app. */
 export const pricingLabels = (t: TFunction): Record<string, string> =>
   Object.fromEntries(ALL_PLAN_MODES.map((mode) => [mode, t(`panel.resellerHub.modes.${mode}`)]));
 
-/** Short plan type names («ثابت», «نامحدود», «مصرفی», «ساعتی») for badges and tight spots. */
+/** Short plan type names ("Fixed", "Unlimited", "Usage", "Hourly") for badges and tight spots. */
 export const pricingShortLabels = (t: TFunction): Record<string, string> =>
   Object.fromEntries(ALL_PLAN_MODES.map((mode) => [mode, t(`panel.resellerHub.modesShort.${mode}`)]));

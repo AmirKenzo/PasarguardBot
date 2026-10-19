@@ -5,6 +5,7 @@ from pathlib import Path
 
 import uvicorn
 
+from app.db.crud.secrets import ensure_secrets
 from app.jobs.scheduler import scheduler
 from app.telegram import run_telethon
 from config import ENABLE_FASTAPI, FAST_API_PORT, SSL_CERTFILE, SSL_KEYFILE
@@ -56,8 +57,6 @@ async def main():
     signal.signal(signal.SIGINT, _signal_handler)
     if sys.platform != "win32":
         signal.signal(signal.SIGTERM, _signal_handler)
-
-    from app.db.crud.secrets import ensure_secrets
 
     await ensure_secrets()
     logger.info("%s Secrets loaded from database", LogTag.BOOT)

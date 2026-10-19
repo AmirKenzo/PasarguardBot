@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Filter, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, ErrorState, Modal, Pagination, Skeleton } from "../../components/ui";
-import { formatNumber, formatUnixDate } from "../../lib/format";
+import { formatUnixDate } from "../../lib/format";
 import { panelAuditApi } from "../../api/panel";
 import type { PanelAuditRow } from "../../types/panel";
 import { usePanelQuery } from "../../queries/usePanelApi";
@@ -77,7 +78,8 @@ export default function AdminAuditPage() {
   const [detailRow, setDetailRow] = useState<PanelAuditRow | null>(null);
 
   const query = usePanelQuery(["audit", action, page], (auth) =>
-    panelAuditApi.listAudit({ ...auth, action, page, limit: 10 })
+    panelAuditApi.listAudit({ ...auth, action, page, limit: 10 }),
+    { placeholderData: keepPreviousData }
   );
 
   const actionOptions = [
@@ -96,7 +98,7 @@ export default function AdminAuditPage() {
     <>
       <PageHeader
         title={t("panel.common.auditLog")}
-        subtitle={query.data ? t("panel.audit.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined}
+        subtitle={query.data ? t("panel.audit.countLabel", { count: query.data.meta.total }) : undefined}
       />
 
       <SectionCard title={t("panel.audit.subtitle")}>
@@ -141,7 +143,10 @@ export default function AdminAuditPage() {
             ))}
           </div>
         ) : rows.length ? (
-          <div className="mt-2 divide-y divide-border/60">
+          <div
+            className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={query.isPlaceholderData || undefined}
+          >
             {rows.map((row) => (
               <button
                 key={row.id}
@@ -155,12 +160,12 @@ export default function AdminAuditPage() {
                       {actionLabels(t)[row.action] || row.action}
                     </Badge>
                   </div>
-                  <div className="mt-1 text-[11px] text-muted">
+                  <div className="mt-1 text-2xs text-muted">
                     <code className="ltr-field">{row.actor_username || row.actor_id || "—"}</code>
                     {row.target_type ? ` · ${[row.target_type, row.target_id].filter(Boolean).join(" ")}` : ""}
                   </div>
                 </div>
-                <div className="text-[11px] text-muted">{row.created_at ? formatUnixDate(row.created_at) : "—"}</div>
+                <div className="text-2xs text-muted">{row.created_at ? formatUnixDate(row.created_at) : "—"}</div>
               </button>
             ))}
           </div>

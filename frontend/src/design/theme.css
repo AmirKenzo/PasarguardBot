@@ -52,8 +52,13 @@
 }
 
 :root {
-  --radius-sm: 10px;
+  --radius-xs: 10px;
+  --radius-sm: 12px;
   --radius-md: 16px;
   --radius-lg: 24px;
+  --radius-xl: 28px;
+  --radius-2xl: 32px;
+  --radius-3xl: 40px;
+  --radius-4xl: 48px;
   --radius-full: 999px;
 }

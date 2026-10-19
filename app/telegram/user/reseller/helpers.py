@@ -6,6 +6,7 @@ import random
 from datetime import UTC, datetime
 
 import pytz
+from telethon import events
 from telethon.tl import functions, types
 
 from app import Kenzo
@@ -44,6 +45,7 @@ from app.services.reseller.purchase import (
 )
 from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
 from app.services.telegram.rich_message import USAGE_HISTORY_PER_PAGE, prepare_rich_markdown
+from app.telegram.keyboards import reseller as rs_buttons
 from app.telegram.keyboards.home import bhome_buttons
 from app.telegram.shared.keyboards.panel_buttons import build_panel_display_button
 from app.telegram.shared.reseller_plan_guides import (
@@ -63,6 +65,7 @@ from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
 from app.utils.formatting.dates import timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -104,8 +107,6 @@ async def check_user_balance(user_id: int, required_amount: int):
 
 
 async def show_reseller_panel_picker(event) -> None:
-    from telethon import events
-
     user_id = event.sender_id
     panel_codes = await ResellerPlanManager().get_panels_with_plans(enabled_only=True)
     if not panel_codes:
@@ -117,7 +118,7 @@ async def show_reseller_panel_picker(event) -> None:
     buttons = await build_reseller_panel_list_buttons(panel_codes)
     text = await get_reseller_text(
         "reseller_buy_panel_picker",
-        "**🏢 خرید نمایندگی**\n\nپنل مورد نظر را انتخاب کنید:",
+        DEFAULT_BOT_TEXTS["reseller_buy_panel_picker"],
         user_id,
     )
     await reseller_flow_edit(event, text, buttons=buttons)
@@ -125,8 +126,6 @@ async def show_reseller_panel_picker(event) -> None:
 
 
 async def build_reseller_panel_list_buttons(panel_codes: list) -> list:
-    from app.telegram.keyboards import reseller as rs_buttons
-
     buttons = []
     for code in panel_codes:
         panel = await PanelsManager().get_panel_by_code(code=code)
@@ -138,7 +137,6 @@ async def build_reseller_panel_list_buttons(panel_codes: list) -> list:
 
 async def reseller_flow_edit(event, text: str, *, buttons=None):
     """Edit the active reseller purchase/renew bot message (works for callbacks and text replies)."""
-    from telethon import events
 
     user_id = event.sender_id
     if isinstance(event, events.CallbackQuery.Event):
@@ -487,6 +485,7 @@ async def build_reseller_account_detail_text(account, *, show_password: bool = F
 
 
 async def show_account_credentials(event, account) -> None:
+    # Local import: avoids a circular import with app.telegram.user.reseller.keyboards.
     from app.telegram.user.reseller.keyboards import build_my_reseller_account_buttons
 
     if is_admin_locked(account):
@@ -502,18 +501,12 @@ async def show_account_credentials(event, account) -> None:
 
 
 async def show_account_detail(event, account) -> None:
+    # Local import: avoids a circular import with app.telegram.user.reseller.keyboards.
     from app.telegram.user.reseller.keyboards import build_my_reseller_account_buttons
 
     text = await build_reseller_account_detail_text(account, show_password=False)
     buttons = await build_my_reseller_account_buttons(account)
     await event.edit(text, buttons=buttons)
-
-
-async def build_usage_history_text(
-    account, page: int = 0, per_page: int = USAGE_HISTORY_PER_PAGE
-) -> tuple[str, bool, bool]:
-    markdown, has_prev, has_next = await _build_usage_history_rich_markdown(account, page=page, per_page=per_page)
-    return markdown, has_prev, has_next
 
 
 def _format_billing_datetime(ts: int) -> str:
@@ -611,6 +604,7 @@ async def _build_usage_history_rich_markdown(
 
 
 async def show_usage_history(event, account, page: int = 0) -> None:
+    # Local import: avoids a circular import with app.telegram.user.reseller.keyboards.
     from app.telegram.user.reseller.keyboards import build_usage_history_buttons
 
     markdown, has_prev, has_next = await _build_usage_history_rich_markdown(account, page=page)

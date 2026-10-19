@@ -56,7 +56,7 @@ export function EventList({
                   <button
                     type="button"
                     onClick={() => onOpenAccount?.(event.account_code as number)}
-                    className="ltr-field rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted hover:text-primary"
+                    className="ltr-field rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-muted hover:text-primary"
                   >
                     #{event.account_code}
                   </button>

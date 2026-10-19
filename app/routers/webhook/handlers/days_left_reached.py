@@ -14,6 +14,7 @@ from app.models.router_models import WebhookEvent
 from app.routers.webhook.helpers import find_service_by_username
 from app.services.panels.settings import panel_webhook_notifications_enabled
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -75,14 +76,7 @@ async def handle_days_left_reached(event: WebhookEvent) -> None:
 
     message_template = await get_bot_text(
         key="webhook_notification_expiration_warning",
-        default=(
-            "<b>#اطلاع_رسانی</b>\n\n"
-            "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
-            "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
-            "<b>⌛️ سرویس شما تا {time_remaining} دیگر منقضی می‌شود.</b>\n"
-            "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
-            "<b>#notification_{service_code}</b>"
-        ),
+        default=DEFAULT_BOT_TEXTS["webhook_notification_expiration_warning"],
         lang="fa",
     )
 

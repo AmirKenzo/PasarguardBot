@@ -17,6 +17,7 @@ from app.services.billing.renewal import require_panel_userid
 from app.services.panels.settings import panel_webhook_notifications_enabled
 from app.telegram.shared.utils.logging import send_log_message
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -73,14 +74,7 @@ async def handle_user_limited(event: WebhookEvent) -> None:
 
         message_template = await get_bot_text(
             key="webhook_notification_data_exhausted",
-            default=(
-                "<b>#اطلاع_رسانی</b>\n\n"
-                "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
-                "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
-                "<b>📅 سرویس شما به دلیل اتمام حجم غیرفعال شده است.</b>\n"
-                "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
-                "<b>#notification_{service_code}</b>"
-            ),
+            default=DEFAULT_BOT_TEXTS["webhook_notification_data_exhausted"],
             lang="fa",
         )
         message = message_template.replace("{service_code}", str(service.code)).replace(

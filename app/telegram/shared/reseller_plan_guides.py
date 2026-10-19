@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.db.crud.settings import SettingsManager
+from app.services.billing.reseller_pricing import calculate_purchase_price
 from app.services.reseller.addons import ADDON_MAX_QUANTITY
 from app.services.reseller.plan_rules import (
     ADDON_DAYS,
@@ -25,6 +27,7 @@ from app.services.reseller.plan_rules import (
     plan_features,
     rule_for,
 )
+from app.utils.formatting.dates import timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
 
 MODE_NAMES: dict[str, str] = {
@@ -85,7 +88,6 @@ def admin_mode_short_name(mode: str | None) -> str:
 
 def setup_fee(plan) -> int:
     """Upfront charge of a usage/hourly plan; only old plans still carry one (new ones are 0)."""
-    from app.services.billing.reseller_pricing import calculate_purchase_price
 
     if plan is None or plan.pricing_mode not in (USAGE, HOURLY):
         return 0
@@ -108,8 +110,6 @@ class GuideContext:
 
 
 async def load_guide_context() -> GuideContext:
-    from app.db.crud.settings import SettingsManager
-
     settings = await SettingsManager().get_settings()
     if not settings:
         return GuideContext()
@@ -694,8 +694,6 @@ def format_active_minutes(minutes: int | None) -> str:
 
 
 def _expiry_text(stamp: int | None) -> str:
-    from app.utils.formatting.dates import timestamp_to_persian_expiry
-
     return timestamp_to_persian_expiry(int(stamp)) if stamp else "بدون انقضا"
 
 

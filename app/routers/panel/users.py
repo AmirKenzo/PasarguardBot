@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import APIRouter, Request
 
-from app.models.panel.common import ActionResponse, page_meta
+from app.models.panel.common import ActionResponse, PanelRequest, page_meta
 from app.models.panel.users import (
     PanelTransferAdminRow,
     PanelTransferAdminsRequest,
@@ -32,6 +32,7 @@ from app.models.panel.users import (
     PanelUserServiceRow,
     PanelUsersRequest,
     PanelUsersResponse,
+    PanelUsersStatsResponse,
     PanelUserTransactionRow,
     UserState,
 )
@@ -56,33 +57,47 @@ def _user_state(user) -> UserState:
 
 
 def _user_row(user, services: int = 0) -> PanelUserRow:
+    joined_at = int(user.time_s) if user.time_s else None
     return PanelUserRow(
         id=int(user.id),
         status=user.status,
         state=_user_state(user),
         number=user.number,
         balance=int(user.amount or 0),
-        joined_at=int(user.time_s) if user.time_s else None,
+        joined_at=joined_at,
         services=services,
+        is_new=joined_at is not None and joined_at >= queries.new_user_cutoff(),
     )
 
 
 @router.post("/panel/users", response_model=PanelUsersResponse)
 async def list_users(payload: PanelUsersRequest, request: Request) -> PanelUsersResponse:
     async def handle(_: PanelActor) -> PanelUsersResponse:
-        rows, total = await queries.list_users(
-            q=payload.q.strip(),
-            state=payload.state,
-            page=payload.page,
-            per_page=payload.limit,
-            sort=payload.sort,
+        (rows, total), new_count = await asyncio.gather(
+            queries.list_users(
+                q=payload.q.strip(),
+                state=payload.state,
+                page=payload.page,
+                per_page=payload.limit,
+                sort=payload.sort,
+            ),
+            queries.count_new_users(),
         )
         return PanelUsersResponse(
             users=[_user_row(user) for user in rows],
             meta=page_meta(total, payload.page, payload.limit),
+            new_count=new_count,
         )
 
     return await guard.run(payload, request, PanelUsersResponse, handle)
+
+
+@router.post("/panel/users/stats", response_model=PanelUsersStatsResponse)
+async def users_stats(payload: PanelRequest, request: Request) -> PanelUsersStatsResponse:
+    async def handle(_: PanelActor) -> PanelUsersStatsResponse:
+        return PanelUsersStatsResponse(**await queries.users_stats())
+
+    return await guard.run(payload, request, PanelUsersStatsResponse, handle)
 
 
 @router.post("/panel/users/detail", response_model=PanelUserDetailResponse)

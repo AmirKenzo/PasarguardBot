@@ -1,20 +1,6 @@
 /** Mirrors app/models/panel/plans.py */
 import type { PagedRequest, PanelAuthRequest, PanelEnvelope, PageMeta } from "./common";
 
-export const PLAN_TYPES = ["volume", "fair_usage"] as const;
-export const RESET_STRATEGIES = ["no_reset", "day", "week", "month", "year"] as const;
-export const BUTTON_STYLE_VALUES = ["", "primary", "success", "danger"] as const;
-export const PLAN_SORT_VALUES = [
-  "newest",
-  "oldest",
-  "price_asc",
-  "price_desc",
-  "volume_asc",
-  "volume_desc",
-  "duration_asc",
-  "duration_desc",
-] as const;
-
 export interface PanelPlanRow {
   id: number;
   panel_code: number;
@@ -27,7 +13,7 @@ export interface PanelPlanRow {
   ip_limit: number;
   display_button_text?: string | null;
   button_style?: string | null;
-  button_icon?: number | null;
+  button_icon?: string | null;
 }
 
 export interface PanelPlansRequest extends PagedRequest {

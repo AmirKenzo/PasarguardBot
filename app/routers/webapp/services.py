@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from pasarguard import PasarguardAPI, ProxySettings, UserModify
 
 from app.db.crud.panels import PanelsManager
+from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD, get_user_service_panel_counts, get_user_services_paginated
 from app.db.crud.settings import SettingsManager
 from app.logger import LogType, get_logger
@@ -30,6 +31,7 @@ from app.models.webapp import (
     WebAppServicesResponse,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.services.billing.renewal import require_panel_userid
 from app.services.panels.config_links import (
     config_link_display_name,
@@ -271,8 +273,6 @@ async def _get_service_buttons(service: Any, panel: Any, user_id: int) -> dict[s
     is_fair_usage = False
     if service.package_size and panel:
         try:
-            from app.db.crud.plans import PlanManager
-
             plan = await PlanManager().get_plan_by_volume_for_display(
                 gb=float(service.package_size) / (1024**3),
                 panel_code=int(panel.code),
@@ -462,8 +462,8 @@ async def get_webapp_services(request: WebAppServicesRequest) -> WebAppServicesR
         return WebAppServicesResponse(**payload)
     except ValueError as e:
         return WebAppServicesResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppServicesResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppServicesResponse(ok=False, error=internal_error("get_webapp_services"))
 
 
 @router.post("/webapp/services/detail", response_model=WebAppServiceDetailResponse)
@@ -496,8 +496,8 @@ async def get_webapp_service_detail(request: WebAppServiceDetailRequest) -> WebA
         )
     except ValueError as e:
         return WebAppServiceDetailResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppServiceDetailResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppServiceDetailResponse(ok=False, error=internal_error("get_webapp_service_detail"))
 
 
 @router.post("/webapp/services/config-links", response_model=WebAppConfigLinksResponse)
@@ -563,8 +563,8 @@ async def get_webapp_service_clients(request: WebAppClientsRequest) -> WebAppCli
         return WebAppClientsResponse(ok=True, clients=clients)
     except ValueError as e:
         return WebAppClientsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppClientsResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppClientsResponse(ok=False, error=internal_error("get_webapp_service_clients"))
 
 
 @router.post("/webapp/change_link", response_model=WebAppChangeResponse)
@@ -582,8 +582,8 @@ async def change_user_link(request: WebAppChangeLinkRequest) -> WebAppChangeResp
 
     except ValueError as e:
         return WebAppChangeResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppChangeResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppChangeResponse(ok=False, error=internal_error("change_user_link"))
 
 
 @router.post("/webapp/change_sub", response_model=WebAppChangeResponse)
@@ -601,5 +601,5 @@ async def change_user_subscription(request: WebAppChangeSubscriptionRequest) -> 
 
     except ValueError as e:
         return WebAppChangeResponse(ok=False, error=str(e))
-    except Exception as e:
-        return WebAppChangeResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppChangeResponse(ok=False, error=internal_error("change_user_subscription"))

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
-from bisect import bisect_right
+from itertools import pairwise
 from typing import Any
 
 from sqlalchemy import BigInteger, String, case, cast, func, literal, or_, select, union_all
@@ -30,15 +31,12 @@ INACTIVE_STATUSES = ("ban", "BlockedBot", "DeleteAccount")
 # Status the bot writes when a deposit is approved.
 APPROVED_STATUS = "approved"
 DAY = 86400
+NEW_USER_WINDOW = DAY
 
 
 def _page_bounds(page: int, per_page: int) -> tuple[int, int]:
     page = max(1, int(page or 1))
     return (page - 1) * per_page, per_page
-
-
-def pages_for(total: int, per_page: int) -> int:
-    return max(1, -(-int(total or 0) // per_page))
 
 
 # --------------------------------------------------------------------------- #
@@ -134,20 +132,45 @@ async def sidebar_badges() -> dict[str, int]:
     return {"transactions": pending} if pending else {}
 
 
+async def _window_totals(timestamp: Any, value: Any | None, boundaries: list[int], *filters: Any) -> list[int]:
+    """SUM(value) (or COUNT when ``value`` is None) per ``[boundaries[i], boundaries[i+1])`` window, aggregated in SQL.
+
+    Buckets exactly like ``bisect_right(boundaries, ts) - 1``. Evenly spaced boundaries (Tehran days have
+    no DST) are grouped by each row's window start; uneven ones fall back to one conditional sum per window.
+    """
+    if len(boundaries) < 2:
+        return []
+    first = boundaries[0]
+    step = boundaries[1] - first
+    conditions = (timestamp >= first, timestamp < boundaries[-1], *filters)
+    totals = [0] * (len(boundaries) - 1)
+    async with Session() as session:
+        if step > 0 and all(hi - lo == step for lo, hi in pairwise(boundaries)):
+            window_start = (timestamp - (timestamp - first) % step).label("window_start")
+            total = func.count() if value is None else func.sum(value)
+            rows = await session.execute(select(window_start, total).where(*conditions).group_by(window_start))
+            for start, amount in rows.all():
+                totals[(int(start) - first) // step] += int(amount or 0)
+            return totals
+        weight = literal(1) if value is None else value
+        row = (
+            await session.execute(
+                select(
+                    *(
+                        func.coalesce(func.sum(case(((timestamp >= lo) & (timestamp < hi), weight), else_=0)), 0)
+                        for lo, hi in pairwise(boundaries)
+                    )
+                ).where(*conditions)
+            )
+        ).one()
+    return [int(amount or 0) for amount in row]
+
+
 async def daily_series(days: int = 14) -> list[dict[str, Any]]:
     """Per-day (Tehran calendar) revenue from every gateway and signup counts for the dashboard chart."""
     boundaries = payment_stats.tehran_day_boundaries(days)
     revenue = await payment_stats.bucket_revenue(boundaries)
-    async with Session() as session:
-        user_rows = (
-            await session.execute(select(User.time_s).where(User.time_s >= boundaries[0], User.time_s < boundaries[-1]))
-        ).all()
-
-    signups = [0] * days
-    for (time_s,) in user_rows:
-        if time_s:
-            signups[bisect_right(boundaries, int(time_s)) - 1] += 1
-
+    signups = await _window_totals(User.time_s, None, boundaries)
     return [{"ts": boundaries[index], "revenue": revenue[index], "signups": signups[index]} for index in range(days)]
 
 
@@ -166,7 +189,9 @@ async def list_users(*, q: str = "", state: str = "", page: int = 1, per_page: i
     if q:
         like = f"%{q}%"
         filters.append(or_(cast(User.id, String).like(like), User.number.like(like)))
-    if state == "active":
+    if state == "new":
+        filters.append(User.time_s >= new_user_cutoff())
+    elif state == "active":
         filters.append(or_(User.status.is_(None), User.status.notin_(INACTIVE_STATUSES)))
     elif state in USER_STATE_TO_STATUS:
         filters.append(User.status == USER_STATE_TO_STATUS[state])
@@ -181,6 +206,65 @@ async def list_users(*, q: str = "", state: str = "", page: int = 1, per_page: i
         total = int((await session.execute(counter)).scalar() or 0)
         rows = (await session.execute(base.order_by(order, User.id.desc()).limit(limit).offset(offset))).scalars().all()
     return list(rows), total
+
+
+def new_user_cutoff() -> int:
+    return int(time.time()) - NEW_USER_WINDOW
+
+
+async def count_new_users() -> int:
+    async with Session() as session:
+        result = await session.execute(select(func.count()).select_from(User).where(User.time_s >= new_user_cutoff()))
+        return int(result.scalar() or 0)
+
+
+NEW_USER_DAILY_BUCKETS = 7
+
+
+async def _user_join_counts(now: int) -> tuple[int, int, list[int]]:
+    starts = [now - (NEW_USER_DAILY_BUCKETS - index) * DAY for index in range(NEW_USER_DAILY_BUCKETS)]
+    buckets = [
+        func.sum(
+            case(
+                (User.time_s >= start, 1)
+                if index == NEW_USER_DAILY_BUCKETS - 1
+                else ((User.time_s >= start) & (User.time_s < start + DAY), 1),
+                else_=0,
+            )
+        )
+        for index, start in enumerate(starts)
+    ]
+    active = func.sum(case((or_(User.status.is_(None), User.status.notin_(INACTIVE_STATUSES)), 1), else_=0))
+    async with Session() as session:
+        row = (await session.execute(select(func.count(), active, *buckets).select_from(User))).one()
+    total, active_count, *daily = row
+    return int(total or 0), int(active_count or 0), [int(value or 0) for value in daily]
+
+
+async def _count_new_buyers(cutoff: int) -> int:
+    paid = select(Service.id).where(Service.id == User.id, or_(Service.is_test.is_(None), Service.is_test.is_(False)))
+    async with Session() as session:
+        result = await session.execute(
+            select(func.count()).select_from(User).where(User.time_s >= cutoff, paid.exists())
+        )
+        return int(result.scalar() or 0)
+
+
+async def users_stats() -> dict[str, Any]:
+    now = int(time.time())
+    (total, active, daily), buyers = await asyncio.gather(
+        _user_join_counts(now),
+        _count_new_buyers(now - NEW_USER_WINDOW),
+    )
+    return {
+        "new_24h": daily[-1],
+        "new_prev_24h": daily[-2],
+        "new_7d": sum(daily),
+        "new_daily": daily,
+        "new_buyers_24h": buyers,
+        "active": active,
+        "total": total,
+    }
 
 
 async def get_user(user_id: int) -> User | None:
@@ -448,23 +532,6 @@ async def get_transaction(tx_id: int) -> Transaction | None:
         return (await session.execute(select(Transaction).where(Transaction.id == tx_id))).scalars().first()
 
 
-async def list_crypto_payments(*, status: str = "", page: int = 1, per_page: int = 25):
-    offset, limit = _page_bounds(page, per_page)
-    async with Session() as session:
-        base = select(CryptoPayments)
-        counter = select(func.count()).select_from(CryptoPayments)
-        if status:
-            base = base.where(CryptoPayments.status == status)
-            counter = counter.where(CryptoPayments.status == status)
-        total = int((await session.execute(counter)).scalar() or 0)
-        rows = (
-            (await session.execute(base.order_by(CryptoPayments.createtime.desc()).limit(limit).offset(offset)))
-            .scalars()
-            .all()
-        )
-    return list(rows), total
-
-
 # --------------------------------------------------------------------------- #
 #  Panels / plans                                                               #
 # --------------------------------------------------------------------------- #
@@ -651,18 +718,12 @@ async def user_balances(user_ids: list[int]) -> dict[int, int]:
 
 async def reseller_billed_buckets(boundaries: list[int]) -> list[int]:
     """Pay-as-you-go charges per ``[boundaries[i], boundaries[i+1])`` window."""
-    totals = [0] * (len(boundaries) - 1)
-    async with Session() as session:
-        rows = await session.execute(
-            select(ResellerBillingSnapshot.snapshot_at, ResellerBillingSnapshot.billed_amount).where(
-                ResellerBillingSnapshot.snapshot_at >= boundaries[0],
-                ResellerBillingSnapshot.snapshot_at < boundaries[-1],
-                ResellerBillingSnapshot.billed_amount > 0,
-            )
-        )
-        for snapshot_at, amount in rows.all():
-            totals[bisect_right(boundaries, int(snapshot_at)) - 1] += int(amount or 0)
-    return totals
+    return await _window_totals(
+        ResellerBillingSnapshot.snapshot_at,
+        ResellerBillingSnapshot.billed_amount,
+        boundaries,
+        ResellerBillingSnapshot.billed_amount > 0,
+    )
 
 
 async def reseller_events_between(since: int, until: int, kinds: tuple[str, ...]) -> list[ResellerEvent]:

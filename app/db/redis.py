@@ -6,6 +6,8 @@ import asyncio
 import time
 from typing import Any
 
+from redis.asyncio import Redis
+
 from app.logger import get_logger
 from config import (
     REDIS_HEALTH_CHECK_INTERVAL,
@@ -36,8 +38,6 @@ async def get_redis():
         if _last_failure_ts and (time.monotonic() - _last_failure_ts) < retry_after:
             return None
         try:
-            from redis.asyncio import Redis
-
             connect_timeout = float(REDIS_SOCKET_CONNECT_TIMEOUT or 2.0)
             kwargs: dict[str, Any] = {
                 "decode_responses": True,
@@ -73,15 +73,3 @@ async def close_redis() -> None:
     finally:
         redis_client = None
         _last_failure_ts = 0.0
-
-
-class RedisManager:
-    """Thin wrapper around module-level Redis helpers."""
-
-    @staticmethod
-    async def get_client():
-        return await get_redis()
-
-    @staticmethod
-    async def close() -> None:
-        await close_redis()

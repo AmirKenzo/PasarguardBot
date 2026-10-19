@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 
 export interface TabItem {
@@ -15,7 +15,7 @@ export interface TabsProps {
 
 export function Tabs({ items, value, onChange }: TabsProps) {
   return (
-    <div className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto scroll-smooth rounded-xl bg-surface-2 p-1 md:mx-0">
+    <div className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto scroll-smooth rounded-sm bg-surface-2 p-1 md:mx-0">
       {items.map((item) => {
         const active = item.value === value;
         const Icon = item.icon;
@@ -28,7 +28,7 @@ export function Tabs({ items, value, onChange }: TabsProps) {
             }`}
           >
             {active && (
-              <motion.span
+              <m.span
                 layoutId="tabs-pill"
                 className="absolute inset-0 rounded-lg bg-primary/15 ring-1 ring-primary/25"
                 transition={{ type: "spring", stiffness: 400, damping: 32 }}

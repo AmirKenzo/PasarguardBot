@@ -101,12 +101,6 @@ def _ok_cache_key(user_id: int, generation: str) -> str:
     return f"{_CHANNEL_GATE_OK_PREFIX}:{generation}:{user_id}"
 
 
-async def invalidate_channel_membership_cache(user_id: int) -> None:
-    """Drop a single user's positive membership cache for the current generation."""
-    generation = await _channel_gate_generation()
-    await delete_app_cache(_ok_cache_key(user_id, generation))
-
-
 async def get_not_joined_channels(user_id: int, *, bypass_cache: bool = False) -> list:
     generation = await _channel_gate_generation()
     ok_key = _ok_cache_key(user_id, generation)

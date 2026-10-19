@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { ArrowLeft, ChevronLeft, Gift, ShoppingBag, Signal, UserPlus, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -61,7 +61,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader title={t("dashboard.title")} subtitle={`${t("dashboard.greeting")} ${user.first_name || user.username || t("common.user", "User")}`} />
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -101,7 +101,7 @@ export default function DashboardPage() {
             className="flex items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-medium transition-colors hover:bg-white/25"
           >
             {t("dashboard.increase")}
-            <ChevronLeft size={14} />
+            <ChevronLeft size={14} className="ltr:rotate-180" />
           </Link>
         </div>
 
@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <UserPlus size={12} />
           {user.invite ?? 0} {t("dashboard.successfulInvites")}
         </div>
-      </motion.div>
+      </m.div>
 
       <div className="mb-6 grid grid-cols-3 gap-2.5">
         {quickActions.map((action) => (
@@ -127,7 +127,7 @@ export default function DashboardPage() {
           <h2 className="font-semibold text-text">{t("dashboard.recentActivity")}</h2>
           <Link to="/balance/transactions" className="flex items-center gap-1 text-xs text-primary">
             {t("dashboard.allTransactions")}
-            <ArrowLeft size={14} />
+            <ArrowLeft size={14} className="ltr:rotate-180" />
           </Link>
         </div>
         {txLoading ? (
@@ -146,7 +146,7 @@ export default function DashboardPage() {
                   <p className="truncate text-sm text-text">{transactionTypeLabel(tx.type_key, tx.currency)}</p>
                   <p className="text-xs text-muted">{formatUnixDate(tx.created_at)}</p>
                 </div>
-                <div className="text-left">
+                <div className="text-end">
                   <p className="text-sm text-text">{formatToman(tx.amount)}</p>
                   <Badge tone={txStatusTone(tx.status)}>{txStatusLabel(tx.status, t)}</Badge>
                 </div>

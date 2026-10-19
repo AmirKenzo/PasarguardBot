@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowDownWideNarrow,
@@ -101,17 +102,14 @@ export default function AdminPlansPage() {
   const panelOptions = panels.map((panel) => ({ value: String(panel.code), label: panel.name || `#${panel.code}` }));
 
   const query = usePanelQuery(["plans", panelFilter, sort, page], (auth) =>
-    panelPlansApi.listPlans({ ...auth, panel: panelFilter, sort, page, limit: PAGE_SIZE })
+    panelPlansApi.listPlans({ ...auth, panel: panelFilter, sort, page, limit: PAGE_SIZE }),
+    { placeholderData: keepPreviousData }
   );
   const save = usePanelAction(panelPlansApi.savePlan, { invalidate: [["plans"]] });
   const remove = usePanelAction(panelPlansApi.deletePlan, { invalidate: [["plans"]] });
 
   const rows = query.data?.plans || [];
   const totalPages = query.data?.meta.total_pages || 1;
-
-  useEffect(() => {
-    setPage(1);
-  }, [panelFilter, sort]);
 
   function openEdit(row: PanelPlanRow) {
     setDraft({
@@ -165,6 +163,7 @@ export default function AdminPlansPage() {
                     active={panelFilter === ""}
                     onClick={() => {
                       setPanelFilter("");
+                      setPage(1);
                       close();
                     }}
                   />
@@ -176,6 +175,7 @@ export default function AdminPlansPage() {
                       active={opt.value === panelFilter}
                       onClick={() => {
                         setPanelFilter(opt.value);
+                        setPage(1);
                         close();
                       }}
                     />
@@ -196,6 +196,7 @@ export default function AdminPlansPage() {
                       active={opt.value === sort}
                       onClick={() => {
                         setSort(opt.value);
+                        setPage(1);
                         close();
                       }}
                     />
@@ -216,7 +217,10 @@ export default function AdminPlansPage() {
             </div>
           ) : rows.length ? (
             <>
-              <div className="mt-2 divide-y divide-border/60">
+              <div
+                className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+                aria-busy={query.isPlaceholderData || undefined}
+              >
                 {rows.map((row) => {
                   const orphaned = !row.panel;
                   const hasCustomButton = Boolean(row.display_button_text || row.button_style);
@@ -230,7 +234,7 @@ export default function AdminPlansPage() {
                             · {t("panel.plans.durationDays", { count: row.duration })}
                           </span>
                         </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-2xs text-muted">
                           {orphaned ? (
                             <Badge tone="danger">{t("panel.plans.orphanPanel")}</Badge>
                           ) : (
@@ -246,7 +250,7 @@ export default function AdminPlansPage() {
                           {row.ip_limit > 0 && <Badge tone="muted">IP {row.ip_limit}</Badge>}
                           {hasCustomButton && (
                             <span
-                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-3xs font-medium ${
                                 STYLE_PREVIEW_CLASSES[row.button_style || ""]
                               }`}
                             >
@@ -413,6 +417,9 @@ export default function AdminPlansPage() {
               )}
             </div>
 
+            {(!draft.panel_code || !draft.duration) && (
+              <p className="text-xs text-muted">{t("panel.plans.saveRequiredHint")}</p>
+            )}
             <div className="flex justify-end gap-2 border-t border-border pt-3">
               <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
                 {t("panel.common.dismiss")}

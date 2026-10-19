@@ -7,10 +7,27 @@ export interface AuthPayload {
   init_data?: string | null;
 }
 
+export type ApiErrorKind = "network" | "http" | "rejected";
+
+export interface ApiErrorInit {
+  kind?: ApiErrorKind;
+  status?: number;
+  code?: string | null;
+}
+
+export const SESSION_INVALID_CODE = "session_invalid";
+
 export class ApiError extends Error {
-  constructor(message: string) {
+  readonly kind?: ApiErrorKind;
+  readonly status?: number;
+  readonly code?: string | null;
+
+  constructor(message: string, init: ApiErrorInit = {}) {
     super(message);
     this.name = "ApiError";
+    this.kind = init.kind;
+    this.status = init.status;
+    this.code = init.code;
   }
 }
 
@@ -26,22 +43,58 @@ function handleTokenRenewal(res: Response): void {
   if (renewed) onTokenRenewed?.(renewed);
 }
 
-async function parseJson(res: Response): Promise<unknown> {
-  const text = await res.text();
+export async function parseJson(res: Response): Promise<unknown> {
+  let text: string;
+  try {
+    text = await res.text();
+  } catch {
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network", status: res.status });
+  }
   if (!text) return {};
   try {
     return JSON.parse(text);
   } catch {
-    throw new ApiError(i18n.t("apiErrors.invalidResponse"));
+    throw new ApiError(i18n.t("apiErrors.invalidResponse"), { kind: "http", status: res.status });
   }
 }
 
-/** Every response envelope from the backend carries `ok` + optional `error`. */
-function unwrap<T extends { ok: boolean; error?: string | null }>(payload: T): T {
+/** Error codes the backend sends instead of a message; each maps to a translated text. */
+const ERROR_CODE_KEYS: Record<string, string> = {
+  internal_error: "apiErrors.internalError",
+};
+
+/** Turn a backend `error` (a message or a known code) into text for the user. */
+export function apiErrorMessage(error: string | null | undefined, fallbackKey = "apiErrors.unknownError"): string {
+  if (!error) return i18n.t(fallbackKey);
+  const key = ERROR_CODE_KEYS[error];
+  return key ? i18n.t(key) : error;
+}
+
+export function unwrap<T extends { ok: boolean; error?: string | null; error_code?: string | null }>(
+  payload: T,
+  res: Response,
+  fallbackKey?: string
+): T {
   if (!payload.ok) {
-    throw new ApiError(payload.error || i18n.t("apiErrors.unknownError"));
+    const kind: ApiErrorKind = res.ok && typeof payload.ok === "boolean" ? "rejected" : "http";
+    throw new ApiError(apiErrorMessage(payload.error, fallbackKey), {
+      kind,
+      status: res.status,
+      code: "error_code" in payload ? (payload.error_code ?? null) : undefined,
+    });
   }
   return payload;
+}
+
+export function isLegacySessionMessage(message: string): boolean {
+  return message.includes("منقضی") || message.includes("توکن");
+}
+
+export function isAuthRejection(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false;
+  if (err.status === 401 || err.status === 403) return true;
+  if (err.code !== undefined) return err.code === SESSION_INVALID_CODE;
+  return err.kind === "rejected" && isLegacySessionMessage(err.message);
 }
 
 /** Put credentials in headers so they never land in URLs/query logs. */
@@ -90,11 +143,11 @@ export async function apiPost<TRes extends { ok: boolean; error?: string | null 
       body: JSON.stringify(safeBody),
     });
   } catch {
-    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network" });
   }
   handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
-  return unwrap(payload);
+  return unwrap(payload, res);
 }
 
 export async function apiGet<TRes extends { ok: boolean; error?: string | null }>(
@@ -122,11 +175,11 @@ export async function apiGet<TRes extends { ok: boolean; error?: string | null }
       headers: { ...authHeaders(resolvedAuth) },
     });
   } catch {
-    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network" });
   }
   handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
-  return unwrap(payload);
+  return unwrap(payload, res);
 }
 
 export async function apiPostForm<TRes extends { ok: boolean; error?: string | null }>(
@@ -151,9 +204,9 @@ export async function apiPostForm<TRes extends { ok: boolean; error?: string | n
       body: formData,
     });
   } catch {
-    throw new ApiError(i18n.t("apiErrors.connectionFailed"));
+    throw new ApiError(i18n.t("apiErrors.connectionFailed"), { kind: "network" });
   }
   handleTokenRenewal(res);
   const payload = (await parseJson(res)) as TRes;
-  return unwrap(payload);
+  return unwrap(payload, res);
 }

@@ -1065,6 +1065,7 @@ show_install_info() {
 draw_banner() {
     safe_clear
     echo -e "${C_CYAN}${C_BOLD}PasarguardBot${C_RESET} ${C_DIM}— manager $(format_version "$SCRIPT_VERSION")${C_RESET}"
+    echo -e "${C_GREEN}This bot is free. If you paid for it, you were scammed — report it: https://t.me/CodeByAK${C_RESET}"
     echo
     show_install_info || true
 }

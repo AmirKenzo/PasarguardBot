@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import contextlib
 
-from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI
 from telethon import Button, events
 from telethon.tl.custom import Message
 
@@ -35,7 +33,10 @@ from app.telegram.shared.guards.channel_gate import ensure_channel_membership, e
 from app.telegram.shared.keyboards.panel_buttons import build_panel_display_button
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.shared.utils.username import (
+    UsernameLookupError,
+    is_username_free,
     is_valid_username,
+    username_check_failed_text,
 )
 from app.telegram.state import clear_user, get_data, get_data_many, get_step, set_data, set_data_many, set_step
 from app.telegram.user.shop.callbacks import (
@@ -61,6 +62,7 @@ from app.telegram.user.shop.helpers import (
 from app.utils.formatting.conversions import convert_storage
 from app.utils.formatting.traffic import format_ip_limit
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -150,7 +152,7 @@ async def custom_buy_input_handler(event: Message):
         await set_step(user_id, "custom_buy_enter_days")
         days_prompt = await _format_bot_text(
             key="custom_buy_enter_days_message",
-            default=("✅ حجم `{gb}` گیگ ثبت شد.\n\n⏰ تعداد روز را وارد کنید (بین `{min_days}` تا `{max_days}`):"),
+            default=(DEFAULT_BOT_TEXTS["custom_buy_enter_days_message"]),
             lang=await _user_lang(user_id),
             gb=format_gb_value(value),
             min_days=settings["min_days"],
@@ -183,11 +185,7 @@ async def custom_buy_input_handler(event: Message):
         await set_step(user_id, "enter_username")
         username_message = await get_bot_text(
             key="enter_username_message",
-            default=(
-                "🔸 یک نام برای کانفیگ وارد کنید:\n"
-                "^qc^نام کاربری باید بین ۳ تا ۳۲ کاراکتر و فقط شامل حروف انگلیسی، اعداد و زیرخط باشد.\n"
-                "نمونه:\nAmir_Kenzo123\nNeda\nNeda123\nNeda_123^qc^"
-            ),
+            default=DEFAULT_BOT_TEXTS["enter_username_message"],
             lang=await _user_lang(user_id),
         )
         await _edit(
@@ -219,16 +217,16 @@ async def buy_username_message_handler(event: Message):
         )
         raise events.StopPropagation
     try:
-        await PasarguardAPI(panel.base_url).get_user_by_username(username=username, token=panel.cookie)
+        username_free = await is_username_free(panel, username)
+    except UsernameLookupError:
+        await event.respond(await username_check_failed_text(), buttons=retry_buttons)
+        raise events.StopPropagation from None
+    if not username_free:
         await event.respond(
             "❌ نام کاربری توسط شخص دیگری ساخته شده\n\n^q^لطفا نام کاربری دیگری ارسال کنید یا اینکه روی دکمه زیر کلیک کنید تا اسم رندوم ساخته شود^q^",
             buttons=retry_buttons,
         )
         raise events.StopPropagation
-    except HTTPStatusError as e:
-        if e.response.status_code != 404:
-            await event.respond("خطا در ارتباط با پنل", buttons=retry_buttons)
-            raise events.StopPropagation from None
 
     await _confirm_buy_username(event, username, edit=False)
     raise events.StopPropagation
@@ -267,18 +265,7 @@ async def buy_discount_code_handler(event: Message):
     )
     confirm_text_template = await get_bot_text(
         key="config_purchase_discount_confirm",
-        default=(
-            "**ساخت کانفیگ اختصاصی V2Ray با مشخصات زیر را تأیید می‌کنید؟**\n\n"
-            "**▪️ حجم سرویس :** {volume}\n"
-            "**⏰ مدت زمان :** {duration} روز\n"
-            "**▫️نام کانفیگ :** `{config_name}`\n"
-            "**▫️نوع کانفیگ :** {config_type}\n"
-            "**▫️ لوکیشن های موجودسرویس :** \n**^qc^{locations}^qc^**\n"
-            "**🔌 محدودیت کاربر :** {user_limit}\n"
-            "**💸 مبلغ قبل:** `{original_price}` **مبلغ جدید:** `{new_price}`\n"
-            "❗️ نکته؛\n"
-            "(پس از خرید؛ امکان افزایش حجم وجود دارد و همچنین مقدار باقیمانده حجم و روز از بخش سرویس‌های من قابل مشاهده است)"
-        ),
+        default=DEFAULT_BOT_TEXTS["config_purchase_discount_confirm"],
         lang="fa",
     )
     confirm_text = (
@@ -333,14 +320,6 @@ async def buy_service_filter(event: Message) -> bool:
         return True
     menu_text = await get_button_text("bt.menu_buy_service", "🛍 خرید سرویس")
     return msg in {menu_text, "🛍 خرید سرویس"}
-
-
-async def account_discount_message_filter(event: Message) -> bool:
-    if event.is_channel or not event.is_private:
-        return False
-    if not (event.message.message or event.message.text or ""):
-        return False
-    return await get_step(event.sender_id) == "WhatingForAccountCodeTakhfif"
 
 
 def register(client):

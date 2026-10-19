@@ -101,7 +101,7 @@ export default function AdminKeyboardPage() {
       {tab === "emoji" && <EmojiTab data={query.data} />}
 
       {dirty && (
-        <div className="sticky bottom-3 z-20 mt-4 flex items-center justify-between gap-2 rounded-xl border border-warning/40 bg-surface/95 px-3 py-2 shadow-lg backdrop-blur sm:px-4">
+        <div className="sticky bottom-3 z-20 mt-4 flex items-center justify-between gap-2 rounded-sm border border-warning/40 bg-surface/95 px-3 py-2 shadow-lg backdrop-blur sm:px-4">
           <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-warning sm:text-sm">
             <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-warning" />
             <span className="truncate">{t("panel.keyboard.unsavedLayout")}</span>

@@ -6,6 +6,7 @@ from telethon.extensions import html as html_ext
 from app import Kenzo
 from app.db.crud.bot_texts import BotTextCRUD
 from app.telegram.shared.reseller_plan_guides import GUIDE_PLACEHOLDERS
+from app.utils.text.default_texts import default_bot_text
 
 
 def render_stored_text_html(value: str | None) -> str:
@@ -104,6 +105,7 @@ TEXT_KEYS_CONFIG = {
             "title": "نوتیف نام تکراری کانفیگ",
             "placeholders": {"username": "نام کانفیگ تکراری"},
         },
+        {"key": "buy_username_check_failed", "title": "خطای بررسی نام کانفیگ در پنل", "placeholders": {}},
         {
             "key": "config_purchase_confirm",
             "title": "پیام تأیید خرید کانفیگ",
@@ -489,11 +491,6 @@ def create_text_keys_buttons(section: str, page: int = 1, per_page: int = 10, se
     return buttons
 
 
-def create_bot_texts_admin_buttons():
-    """Legacy function - redirects to new section-based UI"""
-    return create_text_sections_buttons(page=1)
-
-
 def create_language_select_buttons(key: str, sections_page: int = 1, section_key: str | None = None):
     back_button_data = (
         f"text_section:{section_key}:1:{sections_page}" if section_key else f"text_sections_page:{sections_page}"
@@ -550,6 +547,14 @@ async def build_edit_text_view(
         preview = (
             f"📝 متن فعلی ({'فارسی' if lang_code == 'fa' else 'انگلیسی'}):\n"
             f"<blockquote expandable>{render_stored_text_html(current_val)}</blockquote>"
+            f"{banner_info}"
+            f"{placeholder_info}\n\n"
+            f"<b>لطفاً متن جدید برای «{pretty}» را ارسال کنید یا یکی از گزینه‌های زیر را انتخاب کنید.</b>"
+        )
+    elif default_val := default_bot_text(key, lang_code):
+        preview = (
+            f"📝 متن پیش‌فرض ({'فارسی' if lang_code == 'fa' else 'انگلیسی'}) — هنوز شخصی‌سازی نشده:\n"
+            f"<blockquote expandable>{render_stored_text_html(default_val)}</blockquote>"
             f"{banner_info}"
             f"{placeholder_info}\n\n"
             f"<b>لطفاً متن جدید برای «{pretty}» را ارسال کنید یا یکی از گزینه‌های زیر را انتخاب کنید.</b>"

@@ -9,38 +9,15 @@ from __future__ import annotations
 from pasarguard import AdminModify, RoleLimits
 
 from app.db.crud.panels import PanelsManager
-from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.reseller_billing_snapshots import ResellerBillingSnapshotCRUD
 from app.logger import get_logger
 from app.services.panels.admins import (
-    activate_reseller_admin,
     get_reseller_admin,
     modify_reseller_admin,
     purge_reseller_admin,
-    suspend_reseller_admin,
 )
 
 log = get_logger(__name__)
-
-
-async def sync_reseller_status(account, new_status: str) -> tuple[bool, str | None]:
-    """Enable/disable the panel admin to match ``new_status``. Returns (ok, error)."""
-    if new_status == account.status:
-        return True, None
-    panel = await PanelsManager().get_panel_by_code(code=account.panel_code)
-    if not panel:
-        return False, "پنل این نمایندگی پیدا نشد."
-    try:
-        if new_status == "active":
-            await activate_reseller_admin(panel, account.panel_admin_id)
-        else:
-            await suspend_reseller_admin(panel, account.panel_admin_id)
-    except Exception as exc:
-        log.error("web status sync failed code=%s status=%s: %s", account.code, new_status, exc)
-        return False, "اعمال وضعیت روی پنل ناموفق بود."
-    if new_status == "active":
-        await ResellerAccountCRUD().reset_billing_clock(account.code)
-    return True, None
 
 
 async def sync_reseller_max_users(account, max_users: int) -> tuple[bool, str | None]:

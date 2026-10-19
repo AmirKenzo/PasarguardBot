@@ -1,3 +1,48 @@
+"Commons Clause" License Condition v1.0
+
+The Software is provided to you by the Licensor under the License, as defined
+below, subject to the following condition.
+
+Without limiting other conditions in the License, the grant of rights under the
+License will not include, and the License does not grant to you, the right to
+Sell the Software.
+
+For purposes of the foregoing, "Sell" means practicing any or all of the rights
+granted to you under the License to provide to third parties, for a fee or other
+consideration (including without limitation fees for hosting or consulting/
+support services related to the Software), a product or service whose value
+derives, entirely or substantially, from the functionality of the Software. Any
+license notice or attribution required by the License must also include this
+Commons Clause License Condition notice.
+
+Clarifications by the Licensor:
+
+  * Running the Software to operate your own VPN sales business (selling VPN
+    subscriptions to your own customers) is permitted. The value your customers
+    pay for is the VPN service, not the Software.
+  * Selling, reselling or renting the Software itself, modified or not, or
+    selling installation, setup or hosting of the Software as a product, is not
+    permitted without prior written permission from the Licensor.
+  * This condition is part of the terms under which the Licensor offers the
+    Software. It is not a "further restriction" that may be removed under
+    Section 7 of the GNU Affero General Public License.
+
+Trademark notice: the name "PasarguardBot" and its logo are not licensed under
+the License. Per Section 7(e) of the License, no rights are granted to use them
+to identify a modified version or to promote a product or service without prior
+written permission from the Licensor.
+
+Software: PasarguardBot
+License: GNU Affero General Public License v3.0
+Licensor: Amir Kenzo (https://github.com/AmirKenzo)
+Official sources: https://github.com/AmirKenzo/PasarguardBot and
+                  https://t.me/CodeByAK
+
+The official release of this Software is free of charge. If you paid for it,
+please report the seller at https://t.me/CodeByAK
+
+-------------------------------------------------------------------------------
+
 GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 

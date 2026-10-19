@@ -56,7 +56,7 @@ export function UsageChartPanel({ code, embedded = false }: UsageChartPanelProps
           <select
             value={selectedNode}
             onChange={(e) => setSelectedNode(e.target.value)}
-            className="h-11 w-full appearance-none rounded-md border border-border bg-surface px-3.5 pr-9 text-sm text-text outline-none transition-colors focus:border-primary"
+            className="h-11 w-full appearance-none rounded-md border border-border bg-surface px-3.5 pe-9 text-sm text-text outline-none transition-colors focus:border-primary"
           >
             <option value="all">{t("usageChart.allLocations")}</option>
             {nodes.map((n) => (
@@ -67,7 +67,7 @@ export function UsageChartPanel({ code, embedded = false }: UsageChartPanelProps
           </select>
           <ChevronDown
             size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+            className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted"
           />
         </div>
       )}
@@ -92,7 +92,7 @@ export function UsageChartPanel({ code, embedded = false }: UsageChartPanelProps
             <p className="text-base font-bold text-text">
               {t("usageChart.totalPeriodUsage")}: {formatBytes(periodTotalBytes, 1)}
             </p>
-            <p className="mt-1 text-[11px] text-muted">{t("usageChart.chartHint")}</p>
+            <p className="mt-1 text-2xs text-muted">{t("usageChart.chartHint")}</p>
           </Card>
         </>
       )}

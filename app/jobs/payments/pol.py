@@ -16,7 +16,14 @@ from app.db.crud.wallets import WalletCRUD
 from app.logger import get_logger
 
 from .base import BasePaymentProcessor
-from .crypto_common import amount_matches, confirm_payment, expire_payment, is_expired
+from .crypto_common import (
+    amount_matches,
+    confirm_payment,
+    expire_payment,
+    expire_unmatched,
+    match_transfers,
+    tx_time_in_window,
+)
 from .tx_id import chain_tx_id
 
 logger = get_logger(__name__)
@@ -91,6 +98,14 @@ async def _fetch_pol_transfers(client, api_key: str, address_wallet: str) -> lis
         return []
 
 
+async def _amount_matches(payment, item: dict) -> bool:
+    try:
+        amount_pol = float(item.get("value") or 0)
+    except TypeError, ValueError:
+        return False
+    return amount_pol > 0 and amount_matches(payment.amount, amount_pol)
+
+
 class POLProcessor(BasePaymentProcessor):
     def __init__(self):
         super().__init__("pol")
@@ -101,54 +116,52 @@ class POLProcessor(BasePaymentProcessor):
             return
         settings = await SettingsManager().get_settings()
 
-        valid = []
-        for payment in pending:
-            if is_expired(payment):
-                await expire_payment(payment, unit="POL", price_line=_price_line(settings))
-            else:
-                valid.append(payment)
-        if not valid:
-            return
+        matched = await self._match_payments(pending, settings)
+        await expire_unmatched(
+            pending,
+            matched,
+            lambda payment: expire_payment(payment, unit="POL", price_line=_price_line(settings)),
+        )
 
+    async def _match_payments(self, valid: list, settings) -> set[int]:
+        matched: set[int] = set()
         wallet = await WalletCRUD().get_wallet_by_type(NETWORK)
         if not wallet:
             logger.debug("POL wallet not configured — skipping")
-            return
+            return matched
         api_key = (wallet.api_key or "").strip()
         if not api_key:
             logger.warning("POL Alchemy API key missing — skipping")
-            return
+            return matched
 
         address_wallet = wallet.address
         async with httpx.AsyncClient(timeout=30.0) as client:
             transfers = await _fetch_pol_transfers(client, api_key, address_wallet)
-        consumed: set[str] = set()
-        for payment in valid:
+        consumed = await CryptoPaymentsCRUD().get_used_tx_hashes(chain_tx_id(item) for item in transfers)
+
+        def candidates(payment):
             for item in transfers:
-                ts = _parse_transfer_timestamp(item)
-                if ts and ts < int(payment.createtime):
+                if not tx_time_in_window(payment, _parse_transfer_timestamp(item), allow_unknown=True):
                     continue
                 if (item.get("to") or "").lower() != address_wallet.lower():
                     continue
-                txid = chain_tx_id(item)
-                if txid and txid in consumed:
-                    continue
-                try:
-                    amount_pol = float(item.get("value") or 0)
-                except TypeError, ValueError:
-                    continue
-                if amount_pol <= 0 or not amount_matches(payment.amount, amount_pol):
-                    continue
-                if txid:
-                    consumed.add(txid)
-                try:
-                    await confirm_payment(
-                        payment,
-                        settings,
-                        _tx_details(item, address_wallet),
-                        unit="POL",
-                        price_line=_price_line(settings),
-                    )
-                except Exception as e:
-                    logger.error("Error processing POL %s: %s", payment.order_id, e)
-                break
+                yield item
+
+        return await match_transfers(
+            valid,
+            candidates,
+            consumed,
+            tx_id=chain_tx_id,
+            accepts=_amount_matches,
+            confirm=lambda payment, item, txid: confirm_payment(
+                payment,
+                settings,
+                _tx_details(item, address_wallet),
+                unit="POL",
+                price_line=_price_line(settings),
+                tx_hash=txid,
+            ),
+            name="POL",
+            error_message="Error processing POL %s: %s",
+            log=logger,
+        )

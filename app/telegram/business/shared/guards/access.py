@@ -9,6 +9,7 @@ from pathlib import Path
 from telethon.tl import functions, types
 
 import config
+from app import Kenzo
 from app.logger import get_logger
 from config import ADMIN_ID
 
@@ -147,10 +148,6 @@ def register_connection(connection_id: str, user_id: int) -> None:
     logger.info("Registered business connection user_id=%s connection_id=%s", user_id, connection_id)
 
 
-def is_connection_allowed(connection_id: str) -> bool:
-    return _connection_exists(connection_id)
-
-
 def get_connection_user_id(connection_id: str) -> int | None:
     for user_id, record in _load_connections().items():
         if record.connection_id == connection_id:
@@ -178,8 +175,6 @@ def _extract_bot_connection(result: object) -> types.BotBusinessConnection | Non
 
 
 async def resolve_connection(connection_id: str) -> BusinessConnectionRecord | None:
-    from app import Kenzo
-
     try:
         result = await Kenzo(functions.account.GetBotBusinessConnectionRequest(connection_id=connection_id))
     except Exception as exc:

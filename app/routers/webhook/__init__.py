@@ -109,10 +109,9 @@ async def handle_webhook(request: Request) -> WebhookResponse:
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.debug(f"\n❌ ERROR: Failed to process webhook: {e}")
-        logger.debug(f"Failed to process webhook: {e}", exc_info=True)
-        return WebhookResponse(ok=False, message=f"Error processing webhook: {e!s}")
+    except Exception:
+        logger.exception("Failed to process webhook")
+        return WebhookResponse(ok=False, message="Error processing webhook")
 
 
 logger.debug("Webhook router loaded successfully")

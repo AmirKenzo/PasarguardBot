@@ -42,12 +42,12 @@ function ResourceGauge({
   const value = Math.max(0, Math.min(100, percent || 0));
   return (
     <Card className="flex flex-col items-center gap-2 p-3 text-center sm:gap-3 sm:p-5">
-      <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted sm:text-xs">
+      <div className="flex items-center gap-1.5 text-2xs font-medium text-muted sm:text-xs">
         <Icon size={14} strokeWidth={2} />
         {label}
       </div>
       <ProgressRing percent={Math.round(value)} tone={ringTone(value)} size={84} strokeWidth={7} />
-      {hint && <p className="text-[10px] leading-tight text-muted sm:text-xs">{hint}</p>}
+      {hint && <p className="text-3xs leading-tight text-muted sm:text-xs">{hint}</p>}
     </Card>
   );
 }
@@ -55,6 +55,7 @@ function ResourceGauge({
 export default function AdminToolsPage() {
   const { t } = useTranslation();
   const [bulk, setBulk] = useState({ panel: "all", volume: "", days: "", confirm: false });
+  const bulkReady = bulk.confirm && Boolean(bulk.volume.trim() || bulk.days.trim());
 
   const query = usePanelQuery(["tools"], (auth) => panelToolsApi.getTools(auth), { refetchInterval: 30_000 });
   const backupToChannel = usePanelAction(panelToolsApi.backupToLogChannel);
@@ -131,7 +132,7 @@ export default function AdminToolsPage() {
                     <IconBadge icon={Timer} tone="muted" size="sm" />
                     <span className="truncate text-sm text-text">{humanizeJobId(job.id)}</span>
                   </div>
-                  <div className="flex shrink-0 items-center gap-4 text-[11px]">
+                  <div className="flex shrink-0 items-center gap-4 text-2xs">
                     <div className="text-end">
                       <p className="text-muted">{t("panel.tools.lastRun")}</p>
                       <p className="ltr-field text-text">{formatJobTime(job.last_run)}</p>
@@ -218,7 +219,7 @@ export default function AdminToolsPage() {
           <ConfirmButton
             size="sm"
             variant="danger"
-            disabled={!bulk.confirm || (!bulk.volume.trim() && !bulk.days.trim())}
+            disabled={!bulkReady}
             loading={bulkIncrease.isPending}
             message={t("panel.tools.bulkConfirm")}
             confirmLabel={t("panel.tools.start")}
@@ -237,6 +238,7 @@ export default function AdminToolsPage() {
             {t("panel.common.startBulkIncrease")}
           </ConfirmButton>
         </div>
+        {!bulkReady && <p className="mt-2 text-xs text-muted">{t("panel.tools.bulkRequiredHint")}</p>}
         <p className="mt-2 text-xs text-muted">
           {t("panel.tools.runsInBackground")}
         </p>

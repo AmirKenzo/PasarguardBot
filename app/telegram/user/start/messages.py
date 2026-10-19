@@ -8,6 +8,7 @@ from telethon import events
 from telethon.tl.custom import Message
 
 from app import Kenzo
+from app.db.crud.referral import ReferralManager
 from app.db.crud.user import UserCRUD, add_user, clear_reactivatable_status
 from app.logger import LogType, get_logger
 from app.services.billing.referral import parse_referral_start_param
@@ -80,8 +81,6 @@ async def start_command_handler(event: Message):
 
             success, _message = await UserCRUD().update_ref(event.sender_id, referrer_id)
             if success:
-                from app.db.crud.referral import ReferralManager
-
                 referral_manager = ReferralManager()
                 settings = await referral_manager.get_referral_settings()
                 bonus = describe_referral_bonus(settings) if settings else ""

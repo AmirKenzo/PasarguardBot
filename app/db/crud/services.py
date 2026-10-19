@@ -1,6 +1,6 @@
 import time
 
-from sqlalchemy import String, and_, case, cast, delete, distinct, func, or_
+from sqlalchemy import String, and_, case, cast, delete, distinct, func, or_, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
@@ -11,6 +11,8 @@ from app.logger import get_logger
 from app.utils.formatting.conversions import as_int
 
 logger = get_logger(__name__)
+
+BULK_UPDATE_CHUNK_SIZE = 1000
 
 
 class ServiceCRUD:
@@ -163,6 +165,30 @@ class ServiceCRUD:
         except SQLAlchemyError as e:
             logger.error(f"DB Error bulk updating services: {e}")
             return 0, 0
+
+    async def update_services_bulk(self, codes: list, **values) -> int:
+        """Apply the same column values to many services in one transaction.
+
+        Codes are de-duplicated and written with one UPDATE per chunk of
+        `BULK_UPDATE_CHUNK_SIZE`, all committed together. Unknown column names are
+        ignored (same as `update_service`). Returns the updated row count, 0 on error.
+        """
+        fields = {key: value for key, value in values.items() if hasattr(Service, key)}
+        service_codes = sorted({c for c in (as_int(code) for code in codes) if c is not None})
+        if not fields or not service_codes:
+            return 0
+        try:
+            async with Session() as session:
+                updated = 0
+                for start in range(0, len(service_codes), BULK_UPDATE_CHUNK_SIZE):
+                    chunk = service_codes[start : start + BULK_UPDATE_CHUNK_SIZE]
+                    result = await session.execute(update(Service).where(Service.code.in_(chunk)).values(**fields))
+                    updated += int(result.rowcount or 0)
+                await session.commit()
+                return updated
+        except SQLAlchemyError as e:
+            logger.error(f"DB Error bulk updating services by code: {e}")
+            return 0
 
     async def update_panel_userids_by_username(
         self, panel_code: int, panel_userids_by_username: dict[str, int]
@@ -698,17 +724,6 @@ class ServiceCRUD:
             return []
 
 
-async def get_user_services(user_id):
-
-    try:
-        user_id = int(user_id)
-        async with Session() as session:
-            result = await session.execute(select(Service).filter_by(id=user_id))
-            return result.scalars().all()
-    except (SQLAlchemyError, ValueError) as e:
-        return f"Error in fetching user services: {e}"
-
-
 def _inline_service_search_filter(q: str, *, contains: bool = False):
     """Match service code/username for autocomplete or the user's explicit search.
 
@@ -808,20 +823,3 @@ async def get_user_service_panel_counts(user_id: int) -> list[tuple[int, int]]:
     except SQLAlchemyError as e:
         logger.error(f"Error grouping services by panel: {e}")
         return []
-
-
-async def search_services_paginated(
-    *,
-    page: int = 1,
-    limit: int = 10,
-    search: str | None = None,
-    owner_user_id: int | None = None,
-) -> tuple[list, int]:
-    """Admin/global inline search. Optional owner_user_id scopes to one user."""
-    filters: list = []
-    if owner_user_id is not None:
-        filters.append(Service.id == owner_user_id)
-    search_filter = _inline_service_search_filter(search) if search else None
-    if search_filter is not None:
-        filters.append(search_filter)
-    return await _paginate_services(filters=filters, page=page, limit=limit)

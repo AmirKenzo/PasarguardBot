@@ -6,20 +6,14 @@ from telethon import Button, events
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
 from app.db.crud.bot_texts import BotTextCRUD
-from app.db.crud.help_buttons import HelpButtonCRUD
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
 from app.services.telegram.rich_message import edit_native_rich_message
-from app.telegram.admin.settings import keyboards, states, texts
+from app.telegram.admin.settings import states, texts
 from app.telegram.keyboards.customization import (
     create_keyboard_button_config_view,
     create_keyboard_buttons_admin_buttons,
-)
-from app.telegram.keyboards.help import (
-    create_help_button_submenu,
-    create_help_buttons_config_ui,
-    create_help_reorder_ui,
 )
 from app.telegram.keyboards.home import stored_miniapp_mode
 from app.telegram.keyboards.registry import KEYBOARD_BUTTON_TITLES, STYLE_LABELS
@@ -44,7 +38,7 @@ from app.telegram.keyboards.texts import (
     render_stored_text_html,
 )
 from app.telegram.shared.utils.miniapp import miniapp_ready
-from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
+from app.telegram.state import get_data, get_step, set_data, set_step
 from app.telegram.user.start.helpers import toggle_start_reaction
 from config import ADMIN_ID
 
@@ -150,62 +144,6 @@ def settings_admin_callback_filter(event: events.CallbackQuery.Event) -> bool:
 async def callback_settings_admin(event: events.CallbackQuery.Event):
     data = event.data.decode("utf-8")
 
-    if data == "help_settings_admin":
-        await event.edit(texts.HELP_SETTINGS_MENU_TEXT, buttons=keyboards.help_settings_menu_buttons())
-
-    if data == "back_to_help_settings":
-        await event.edit(texts.HELP_SETTINGS_MENU_TEXT, buttons=keyboards.help_settings_menu_buttons())
-
-    if data == "help_settings_reorder_buttons":
-        text, rows = await create_help_reorder_ui(back_data="back_to_help_settings")
-        try:
-            await event.edit(text, buttons=rows)
-        except MessageNotModifiedError:
-            await event.answer()
-        return
-
-    if data.startswith("help_btn_reorder_set:"):
-        try:
-            btn_id = int(data.split(":")[1])
-            help_crud = HelpButtonCRUD()
-            btn = await help_crud.get_by_id(btn_id)
-            if not btn:
-                await event.answer("❌ دکمه یافت نشد", alert=True)
-                return
-            label = (btn.button_text or "").strip() or ("اپ" if getattr(btn, "callback_key", None) else "لینک")
-            await set_data(event.sender_id, "help_btn_reorder_id", str(btn_id))
-            await set_data(event.sender_id, "help_btn_reorder_msg_id", str(event.message_id))
-            await set_data(event.sender_id, "help_btn_reorder_chat_id", str(event.chat_id))
-            await set_step(event.sender_id, "help_btn_reorder_position")
-            prompt = (
-                f"📐 **شماره دکمه:** «{label}»\n\n"
-                f"**هر عدد دلخواه** را بفرستید (همون عدد به عنوان button_number ذخیره می‌شه)، مثلاً ۱، ۱۷، ۱۰۰۰."
-            )
-            await event.edit(prompt, buttons=[[Button.inline("❌ انصراف", data="help_btn_reorder_cancel")]])
-            await event.answer()
-        except ValueError, IndexError:
-            await event.answer("❌ درخواست نامعتبر", alert=True)
-        return
-
-    if data == "help_btn_reorder_cancel":
-        for key in ("help_btn_reorder_id", "help_btn_reorder_msg_id", "help_btn_reorder_chat_id"):
-            await delete_data(event.sender_id, key)
-        await set_step(event.sender_id, "home")
-        text, rows = await create_help_reorder_ui(back_data="back_to_help_settings")
-        try:
-            await event.edit(text, buttons=rows)
-        except MessageNotModifiedError:
-            await event.answer()
-        return
-
-    if data == "help_settings_buttons_ui":
-        buttons = await create_help_buttons_config_ui(back_data="back_to_help_settings")
-        await event.edit(
-            "✏️ **دکمه‌های لینک (۱ تا ۸)**\n\n"
-            "روی هر مورد کلیک → تنظیم متن، لینک، رنگ و آیکون. خالی = در راهنما نشان داده نمی‌شود.",
-            buttons=buttons,
-        )
-        return
     if data.startswith("edit_keyboard:"):
         parts = data.split(":")
         # format: edit_keyboard:button_key:page
@@ -728,145 +666,6 @@ async def callback_settings_admin(event: events.CallbackQuery.Event):
             else:
                 await event.answer("❌ ابتدا باید متن را ایجاد کنید.", alert=True)
             return
-    # Help button configuration handlers (must be before settings block)
-    elif data == "help_btn_add":
-        help_crud = HelpButtonCRUD()
-        all_btns = await help_crud.get_all_buttons()
-        max_num = max((b.button_number for b in all_btns), default=0)
-        new_num = max_num + 1
-        await set_data(event.sender_id, "help_btn_num", str(new_num))
-        await set_step(event.sender_id, "help_btn_set_text")
-        await event.edit(
-            f"📝 **دکمه جدید ({new_num})**\n\nمتن دکمه را ارسال کنید:",
-            buttons=[[Button.inline("🔙 انصراف", data="back_to_help_config")]],
-        )
-        await event.answer()
-        return
-
-    if data.startswith("help_btn_config:"):
-        button_num = int(data.split(":")[1])
-        help_crud = HelpButtonCRUD()
-        btn = await help_crud.get_button(button_num)
-
-        if btn and btn.button_text and btn.button_url:
-            submenu = create_help_button_submenu(button_num)
-            await event.edit(
-                f"📝 **دکمه {button_num}**\n{btn.button_text}\n\nانتخاب کنید:",
-                buttons=submenu,
-            )
-        else:
-            await set_data(event.sender_id, "help_btn_num", str(button_num))
-            await set_step(event.sender_id, "help_btn_set_text")
-            await event.edit(
-                f"📝 **تنظیم دکمه {button_num}**\n\nمتن دکمه را ارسال کنید:",
-                buttons=[[Button.inline("🔙 بازگشت", data="back_to_help_config")]],
-            )
-        return
-
-    if data.startswith("help_btn_color:"):
-        parts = data.split(":")
-        button_num = int(parts[1])
-        style_val = parts[2]
-        help_crud = HelpButtonCRUD()
-        if style_val == "none":
-            await help_crud.set_button(button_num, button_style="")
-            await event.answer("رنگ دکمه حذف شد.")
-        else:
-            await help_crud.set_button(button_num, button_style=style_val)
-            await event.answer(f"رنگ تغییر کرد به {STYLE_LABELS.get(style_val, style_val)}.")
-        return
-
-    if data.startswith("help_btn_icon:"):
-        button_num = int(data.split(":")[1])
-        await set_data(event.sender_id, "help_btn_num", str(button_num))
-        await set_step(event.sender_id, "help_btn_set_icon")
-        await event.edit(
-            "📎 آیدی سند ایموجی پریمیوم را بفرستید یا /skip برای حذف:",
-            buttons=[[Button.inline("🔙 بازگشت", data="back_to_help_config")]],
-        )
-        return
-
-    if data.startswith("help_btn_icon_clear:"):
-        button_num = int(data.split(":")[1])
-        help_crud = HelpButtonCRUD()
-        await help_crud.set_button(button_num, clear_icon=True)
-        btn = await help_crud.get_button(button_num)
-        await event.answer("آیکون دکمه حذف شد.")
-        with contextlib.suppress(MessageNotModifiedError):
-            await event.edit(
-                f"📝 **دکمه {button_num}**\n{btn.button_text if btn else ''}\n\nانتخاب کنید:",
-                buttons=create_help_button_submenu(button_num),
-            )
-        return
-
-    if data.startswith("help_btn_edit_text:"):
-        button_num = int(data.split(":")[1])
-        await set_data(event.sender_id, "help_btn_num", str(button_num))
-        await set_step(event.sender_id, "help_btn_edit_text")
-        await event.edit(
-            f"✏️ متن جدید برای دکمه {button_num} را ارسال کنید:",
-            buttons=[[Button.inline("🔙 بازگشت", data="back_to_help_config")]],
-        )
-        return
-
-    if data.startswith("help_btn_edit_link:"):
-        button_num = int(data.split(":")[1])
-        await set_data(event.sender_id, "help_btn_num", str(button_num))
-        await set_step(event.sender_id, "help_btn_edit_link")
-        await event.edit(
-            f"🔗 لینک جدید برای دکمه {button_num} را ارسال کنید:",
-            buttons=[[Button.inline("🔙 بازگشت", data="back_to_help_config")]],
-        )
-        return
-
-    if data.startswith("help_btn_delete:"):
-        button_num = int(data.split(":")[1])
-        help_crud = HelpButtonCRUD()
-        success = await help_crud.delete_button(button_num)
-
-        if success:
-            buttons = await create_help_buttons_config_ui(back_data="back_to_help_settings")
-            await event.edit("✅ دکمه حذف شد.", buttons=buttons)
-        else:
-            await event.answer("❌ خطا در حذف", alert=True)
-        return
-
-    if data.startswith("help_btn_style:"):
-        style_val = data.split(":")[1]
-        button_num_data = await get_data(event.sender_id, "help_btn_num")
-        button_text_data = await get_data(event.sender_id, "help_btn_text")
-        button_url_data = await get_data(event.sender_id, "help_btn_url")
-
-        if not all([button_num_data, button_text_data, button_url_data]):
-            await event.answer("❌ خطا: اطلاعات دکمه یافت نشد.", alert=True)
-            return
-
-        button_num = int(button_num_data)
-        help_crud = HelpButtonCRUD()
-
-        if style_val != "skip":
-            await help_crud.set_button(button_num, button_style=style_val)
-
-        await delete_data(event.sender_id, "help_btn_num")
-        await delete_data(event.sender_id, "help_btn_text")
-        await delete_data(event.sender_id, "help_btn_url")
-        await set_step(event.sender_id, "home")
-        buttons = await create_help_buttons_config_ui(back_data="back_to_help_settings")
-        await event.edit(f"✅ دکمه {button_num} تنظیم شد.", buttons=buttons)
-        return
-
-    if data == "back_to_help_config":
-        await delete_data(event.sender_id, "help_btn_num")
-        await delete_data(event.sender_id, "help_btn_text")
-        await delete_data(event.sender_id, "help_btn_url")
-        await set_step(event.sender_id, "home")
-
-        buttons = await create_help_buttons_config_ui(back_data="back_to_help_settings")
-        await event.edit(
-            "✏️ **دکمه‌های لینک**\n\nروی هر مورد کلیک → متن، لینک، رنگ، آیکون.",
-            buttons=buttons,
-        )
-        return
     raise events.StopPropagation
 
 

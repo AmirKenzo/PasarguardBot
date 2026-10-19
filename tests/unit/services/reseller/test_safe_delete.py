@@ -60,3 +60,15 @@ async def test_deleted_panel_lets_the_row_go(env):
     env["panel"] = None
     deleted_users, safe_to_drop = await panel_sync.purge_reseller_from_panel(ACCOUNT)
     assert (deleted_users, safe_to_drop) == (0, True)
+
+
+@pytest.mark.parametrize(
+    ("typed", "expected"),
+    [("res", True), ("  RES ", True), ("", False), (None, False), ("re", False), ("res2", False)],
+)
+def test_delete_confirmation_requires_the_username(typed, expected):
+    assert accounts.delete_confirmation_matches(ACCOUNT, typed) is expected
+
+
+def test_delete_confirmation_refuses_an_account_without_username():
+    assert not accounts.delete_confirmation_matches(SimpleNamespace(username=None), "")

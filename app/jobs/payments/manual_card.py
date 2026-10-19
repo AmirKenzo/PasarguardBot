@@ -4,18 +4,21 @@ Manual Card Payment Processor — rule-based auto confirm (auto_approve_at on tr
 
 from datetime import datetime
 
-from telethon import Button
+from telethon import Button, errors
 
 from app import Kenzo
 from app.db.crud.manual_auto_approve_rules import build_manual_card_log_caption, is_webapp_receipt_log
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD
+from app.logger import get_logger
 from app.services.billing.direct_pay_fulfillment import try_fulfill_after_manual_credit
 from app.telegram.admin.settings_payment.texts import TX_APPROVED_USER_MESSAGE
 from app.utils.text.bot_texts import get_bot_text
 
 from .base import BasePaymentProcessor
+
+logger = get_logger(__name__)
 
 
 class ManualCardProcessor(BasePaymentProcessor):
@@ -83,5 +86,7 @@ class ManualCardProcessor(BasePaymentProcessor):
                         log_text,
                         buttons=[[Button.inline(text="🌟 تراکنش به صورت خودکار تایید شد", data="no_action")]],
                     )
+            except errors.UserIsBlockedError:
+                logger.warning("Manual tx_id=%s credited but user %s blocked the bot", tx.id, tx.user_id)
             except Exception:
-                pass
+                logger.exception("Post-credit notification failed for manual tx_id=%s user=%s", tx.id, tx.user_id)

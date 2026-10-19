@@ -24,7 +24,7 @@ export function StickyActionBar({ caption, amount, children }: StickyActionBarPr
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           {hasSummary && (
             <div className="min-w-0 flex-1">
-              {caption != null && <p className="truncate text-[11px] text-muted">{caption}</p>}
+              {caption != null && <p className="truncate text-2xs text-muted">{caption}</p>}
               {amount != null && <p className="truncate text-base font-extrabold text-text">{amount}</p>}
             </div>
           )}

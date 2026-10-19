@@ -46,22 +46,13 @@ def glass_url_button(label: str, *, url: str):
 
 KEYBOARD_CONFIG_STEPS = {
     "keyboard_btn_set_icon",
-    "help_btn_set_icon",
-    "help_download_app_config_set_icon",
 }
 
 
 def is_keyboard_config_step(step: str | None) -> bool:
     if not step:
         return False
-    return (
-        step.startswith("edit_keyboard:")
-        or step.startswith("help_btn_")
-        or step.startswith("help_download_app_config_")
-        or step.startswith("help_download_app_target_")
-        or step.startswith("help_dl_tgt_")
-        or step in KEYBOARD_CONFIG_STEPS
-    )
+    return step.startswith("edit_keyboard:") or step in KEYBOARD_CONFIG_STEPS
 
 
 def is_wizard_step(step: str | None) -> bool:

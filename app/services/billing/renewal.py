@@ -74,10 +74,6 @@ def require_panel_userid(service: Any) -> int:
     return int(panel_userid)
 
 
-async def fetch_panel_user(api: PasarguardAPI, panel: Any, service: Any) -> Any:
-    return await api.get_user_by_id(user_id=require_panel_userid(service), token=panel.cookie)
-
-
 def _renewal_reset_strategy(plan: Any) -> UserDataLimitResetStrategy:
     reset_strategy = UserDataLimitResetStrategy.NO_RESET
     if (

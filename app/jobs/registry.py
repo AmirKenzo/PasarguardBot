@@ -2,7 +2,26 @@
 
 from datetime import datetime, timedelta
 
+from app.jobs.backup import bootstrap_backup_job, register_backup_job_placeholder
+from app.jobs.panels.cleanup import get_cookies
+from app.jobs.payments.transactions import (
+    auto_confirm_job,
+    expire_auto_card_invoices,
+    expire_star_transactions,
+    ir_gateways_checking,
+    pol_checking,
+    ton_checking,
+    tonpays_checking,
+    trx_checking,
+    usdt_checking,
+    usdt_networks_checking,
+)
+from app.jobs.prices import get_prices_and_update
+from app.jobs.reseller.billing import run_reseller_billing
+from app.jobs.reseller.low_balance_warning import run_reseller_low_balance_warning
 from app.jobs.scheduler import scheduler
+from app.jobs.services.expiration import handle_service_expiration
+from app.jobs.services.low_volume import check_low_volume
 from app.logger import LogTag, get_logger
 
 logger = get_logger(__name__)
@@ -17,26 +36,6 @@ def register_all_jobs() -> None:
     global _JOBS_REGISTERED
     if _JOBS_REGISTERED:
         return
-
-    from app.jobs.backup import bootstrap_backup_job, register_backup_job_placeholder
-    from app.jobs.panels.cleanup import get_cookies
-    from app.jobs.payments.transactions import (
-        auto_confirm_job,
-        expire_auto_card_invoices,
-        expire_star_transactions,
-        ir_gateways_checking,
-        pol_checking,
-        ton_checking,
-        tonpays_checking,
-        trx_checking,
-        usdt_checking,
-        usdt_networks_checking,
-    )
-    from app.jobs.prices import get_prices_and_update
-    from app.jobs.reseller.billing import run_reseller_billing
-    from app.jobs.reseller.low_balance_warning import run_reseller_low_balance_warning
-    from app.jobs.services.expiration import handle_service_expiration
-    from app.jobs.services.low_volume import check_low_volume
 
     now = datetime.now()
     job_defs = [

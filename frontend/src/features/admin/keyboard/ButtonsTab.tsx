@@ -64,7 +64,7 @@ export function ButtonsTab({ data, focusKey, onFocusHandled }: ButtonsTabProps) 
     .filter((group) => group.buttons.length > 0);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-3 sm:p-4">
+    <div className="rounded-sm border border-border bg-surface p-3 sm:p-4">
       <div className="mb-3">
         <Input
           placeholder={t("panel.keyboard.searchButtons")}
@@ -147,7 +147,7 @@ function ButtonRow({
         />
         <div className="hidden min-w-0 flex-1 sm:block">
           <p className="truncate text-xs text-muted">{button.title}</p>
-          <code className="ltr-field block truncate text-[11px] text-muted/70">{button.key}</code>
+          <code className="ltr-field block truncate text-2xs text-muted/70">{button.key}</code>
         </div>
         <div className="ms-auto flex shrink-0 items-center gap-1.5">
           {button.blocked ? <AlertTriangle size={14} className="text-warning" /> : null}
@@ -188,7 +188,7 @@ function ButtonEditor({
       )}
 
       <div className="flex flex-col items-center gap-1.5 rounded-lg border border-dashed border-border p-4">
-        <span className="text-[11px] text-muted">{t("panel.keyboard.livePreview")}</span>
+        <span className="text-2xs text-muted">{t("panel.keyboard.livePreview")}</span>
         <ButtonChip
           label={previewLabel}
           style={renderedStyle(button, draft.style)}
@@ -240,7 +240,7 @@ function ButtonEditor({
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <code className="ltr-field rounded bg-surface px-2 py-1 text-[11px] text-muted">{button.key}</code>
+          <code className="ltr-field rounded bg-surface px-2 py-1 text-2xs text-muted">{button.key}</code>
           {button.in_home && <Badge tone="primary">{t("panel.keyboard.mainMenu")}</Badge>}
           {button.icon != null && (
             <Badge tone="success">

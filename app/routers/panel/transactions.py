@@ -8,6 +8,7 @@ import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import Response, StreamingResponse
 
+from app import Kenzo
 from app.models.panel.common import ActionResponse, page_meta
 from app.models.panel.services import (
     PanelReceiptLinkRequest,
@@ -138,8 +139,6 @@ async def stream_receipt(token: str) -> Response:
     tx = await queries.get_transaction(tx_id)
     if tx is None or not tx.message_id or not tx.message_chat_id:
         return Response(content="رسید پیدا نشد.", status_code=404, headers=_NO_STORE_HEADERS)
-
-    from app import Kenzo
 
     message = await Kenzo.get_messages(int(tx.message_chat_id), ids=int(tx.message_id))
     if message is None or not message.media:

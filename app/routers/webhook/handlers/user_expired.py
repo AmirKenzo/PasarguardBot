@@ -21,6 +21,7 @@ from app.services.panels.settings import (
 )
 from app.telegram.shared.utils.logging import send_log_message
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 logger = get_logger(__name__)
 
@@ -76,28 +77,13 @@ async def handle_user_expired(event: WebhookEvent) -> None:
     if panel_expired_auto_delete_enabled(panel):
         message_template = await get_bot_text(
             key="webhook_notification_expired",
-            default=(
-                "<b>#اطلاع_رسانی</b>\n\n"
-                "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
-                "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
-                "<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n"
-                "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n"
-                "<b>⚠️ نکته: اگر در {grace_days} روز آینده تمدید نکنید، سرویس شما حذف خواهد شد.</b>\n\n"
-                "<b>#notification_{service_code}</b>"
-            ),
+            default=DEFAULT_BOT_TEXTS["webhook_notification_expired"],
             lang="fa",
         )
     else:
         message_template = await get_bot_text(
             key="webhook_notification_expired_no_delete",
-            default=(
-                "<b>#اطلاع_رسانی</b>\n\n"
-                "<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n"
-                "<b>🔷 اسم کانفیگ: {config_name}</b>\n"
-                "<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n"
-                "<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n"
-                "<b>#notification_{service_code}</b>"
-            ),
+            default=DEFAULT_BOT_TEXTS["webhook_notification_expired_no_delete"],
             lang="fa",
         )
     message = (

@@ -2,8 +2,6 @@
 import type { PanelAuthRequest, PanelEnvelope } from "./common";
 
 /** "none" clears the built-in default colour; an empty value keeps it. */
-export const STYLE_OPTIONS = ["", "primary", "success", "danger", "none"] as const;
-
 export interface PanelKeyboardButton {
   key: string;
   section: string;
@@ -13,8 +11,8 @@ export interface PanelKeyboardButton {
   style?: string | null;
   /** Colour the bot uses while `style` is unset (null). */
   default_style?: string | null;
-  default_icon?: number | null;
-  icon?: number | null;
+  default_icon?: string | null;
+  icon?: string | null;
   hidden: boolean;
   in_home: boolean;
   /** Empty when the button can render; otherwise why the bot holds it back. */

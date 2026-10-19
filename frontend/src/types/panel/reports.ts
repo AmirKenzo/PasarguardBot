@@ -1,8 +1,6 @@
 /** Mirrors app/models/panel/reports.py */
 import type { PagedRequest, PageMeta, PanelAuthRequest, PanelEnvelope } from "./common";
 
-export const REPORT_PERIODS = ["today", "3d", "week", "month", "quarter", "year", "all"] as const;
-
 export interface PanelRankRow {
   rank: number;
   user_id?: number | null;

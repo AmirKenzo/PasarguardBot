@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { loadLanguage } from "../i18n";
 
 interface LanguageContextType {
   language: string;
@@ -14,13 +15,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState(i18n.language || "fa");
   const direction = language === "fa" ? "rtl" : "ltr";
 
-  const setLanguage = async (lang: string) => {
-    await i18n.changeLanguage(lang);
-    setLanguageState(lang);
-    localStorage.setItem("language", lang);
-    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
-    document.documentElement.lang = lang;
-  };
+  const setLanguage = useCallback(
+    async (lang: string) => {
+      const target = await loadLanguage(lang);
+      await i18n.changeLanguage(target);
+      setLanguageState(target);
+      localStorage.setItem("language", target);
+      document.documentElement.dir = target === "fa" ? "rtl" : "ltr";
+      document.documentElement.lang = target;
+    },
+    [i18n]
+  );
 
   useEffect(() => {
     const currentLang = i18n.language || "fa";
@@ -29,11 +34,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = currentLang;
   }, [i18n.language, i18n]);
 
-  return (
-    <LanguageContext.Provider value={{ language, setLanguage, direction }}>
-      {children}
-    </LanguageContext.Provider>
+  const value = useMemo<LanguageContextType>(
+    () => ({ language, setLanguage, direction }),
+    [language, setLanguage, direction]
   );
+
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
 export function useLanguage() {

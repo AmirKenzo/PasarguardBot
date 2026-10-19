@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { IR_GATEWAYS, irGatewayName } from "../../lib/irGateways";
 import {
   Banknote,
@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Badge, IconBadge, Input, Modal, Pagination, Skeleton } from "../../components/ui";
+import { Badge, ErrorState, IconBadge, Input, Modal, Pagination, Skeleton } from "../../components/ui";
 import { useToast } from "../../components/ui/Toast";
 import { formatToman, formatUnixDate } from "../../lib/format";
 import { panelTransactionsApi } from "../../api/panel";
@@ -189,7 +189,7 @@ export default function AdminTransactionsPage() {
         page,
         limit: 15,
       }),
-    { refetchInterval: autoRefreshMs || false }
+    { refetchInterval: autoRefreshMs || false, placeholderData: keepPreviousData }
   );
 
   const invalidate = [["transactions"], ["me"], ["dashboard"]];
@@ -261,25 +261,25 @@ export default function AdminTransactionsPage() {
         <div className="space-y-2 rounded-lg border border-border bg-surface p-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-28">
-              <User size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ltr:left-2.5 rtl:right-2.5" />
+              <User size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted start-2.5" />
               <Input
                 dense
                 ltr
                 placeholder={t("panel.transactions.filterUserId")}
                 aria-label={t("panel.transactions.filterUserId")}
-                className="ltr:pl-7 rtl:pr-7"
+                className="ps-7"
                 value={searchInputs.userId}
                 onChange={(e) => setSearchInputs((s) => ({ ...s, userId: e.target.value }))}
               />
             </div>
             <div className="relative w-32">
-              <Banknote size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ltr:left-2.5 rtl:right-2.5" />
+              <Banknote size={13} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted start-2.5" />
               <Input
                 dense
                 ltr
                 placeholder={t("panel.transactions.filterAmount")}
                 aria-label={t("panel.transactions.filterAmount")}
-                className="ltr:pl-7 rtl:pr-7"
+                className="ps-7"
                 value={searchInputs.amount}
                 onChange={(e) => setSearchInputs((s) => ({ ...s, amount: e.target.value }))}
               />
@@ -366,7 +366,9 @@ export default function AdminTransactionsPage() {
         </div>
 
         {query.isError ? (
-          <p className="py-6 text-center text-sm text-danger">{query.error.message}</p>
+          <div className="mt-4">
+            <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
+          </div>
         ) : query.isLoading ? (
           <div className="mt-4 space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -374,7 +376,10 @@ export default function AdminTransactionsPage() {
             ))}
           </div>
         ) : rows.length ? (
-          <div className="mt-2 divide-y divide-border/60">
+          <div
+            className={`mt-2 divide-y divide-border/60 transition-opacity ${query.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={query.isPlaceholderData || undefined}
+          >
             {rows.map((row) => {
               const Icon = METHOD_ICONS[row.method] ?? CreditCard;
               const isManualPending = row.source === "tx" && row.method === "manual_card" && row.status === "pending";
@@ -487,7 +492,7 @@ export default function AdminTransactionsPage() {
               <button
                 onClick={toggleReceiptFullscreen}
                 title={t(receiptFullscreen ? "panel.transactions.exitFullscreen" : "panel.transactions.fullscreen")}
-                className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+                className="absolute end-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
               >
                 {receiptFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
               </button>

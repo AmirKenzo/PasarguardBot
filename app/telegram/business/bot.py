@@ -14,6 +14,8 @@ from app.telegram.shared.utils.api import sleep_flood_wait
 
 logger = get_logger(__name__)
 
+MODULE_REQUIRED = True
+
 
 def _extract_reply_message_id(updates) -> int | None:
     if updates is None:

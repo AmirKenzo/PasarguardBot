@@ -4,32 +4,11 @@ from app.utils.formatting.conversions import as_int
 
 SETTINGS_PANEL_MENU_MESSAGES = frozenset({"📝 متن‌های ربات", "⌨️ مدیریت دکمه‌های کیبورد"})
 
-SETTINGS_ADMIN_STEPS = frozenset(
-    {
-        "help_btn_reorder_position",
-        "keyboard_btn_set_icon",
-        "help_btn_set_icon",
-        "help_btn_edit_text",
-        "help_btn_edit_link",
-        "help_btn_set_text",
-        "help_btn_set_url",
-    }
-)
+SETTINGS_ADMIN_STEPS = frozenset({"keyboard_btn_set_icon"})
 
-SETTINGS_CALLBACK_EXACT = frozenset(
-    {
-        "help_settings_admin",
-        "back_to_help_settings",
-        "help_settings_reorder_buttons",
-        "help_btn_reorder_cancel",
-        "help_settings_buttons_ui",
-        "help_btn_add",
-        "back_to_help_config",
-    }
-)
+SETTINGS_CALLBACK_EXACT: frozenset[str] = frozenset()
 
 SETTINGS_CALLBACK_PREFIXES = (
-    "help_btn_reorder_set:",
     "edit_keyboard:",
     "keyboard_btn_edit_text:",
     "keyboard_btn_color:",
@@ -45,14 +24,6 @@ SETTINGS_CALLBACK_PREFIXES = (
     "cancel_save_text:",
     "edit_banner_url:",
     "set_banner_position:",
-    "help_btn_config:",
-    "help_btn_color:",
-    "help_btn_icon:",
-    "help_btn_icon_clear:",
-    "help_btn_edit_text:",
-    "help_btn_edit_link:",
-    "help_btn_delete:",
-    "help_btn_style:",
 )
 
 SETTINGS_MENU_PATTERN = rb"^settings_menu(?::[a-z_]+)?$"

@@ -48,6 +48,7 @@ from app.telegram.keyboards.admin import (
     build_admin_reseller_account_buttons,
     build_admin_reseller_chpwd_confirm_buttons,
     build_admin_reseller_delete_confirm_buttons,
+    build_admin_reseller_delete_final_buttons,
     build_admin_reseller_list_buttons,
     build_admin_reseller_usage_cap_buttons,
     create_inline_manageuser,
@@ -55,7 +56,7 @@ from app.telegram.keyboards.admin import (
 from app.telegram.keyboards.services import create_inline_service_buttons
 from app.telegram.shared.reseller_plan_guides import admin_mode_name, format_field_value, max_users_label
 from app.telegram.shared.utils.logging import send_log_message
-from app.telegram.shared.utils.username import generate_unique_username
+from app.telegram.shared.utils.username import UsernameLookupError, generate_unique_username
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from app.telegram.state.lock import acquire_user_lock, release_user_lock
 from app.telegram.user.reseller.helpers import (
@@ -67,6 +68,7 @@ from app.telegram.user.services.helpers import build_service_info_message_text, 
 from app.utils.formatting.dates import Time_Date, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 from config import ADMIN_ID
 
 logger = get_logger(__name__)
@@ -216,6 +218,20 @@ async def handle_admin_reseller_callbacks(event: events.CallbackQuery.Event, dat
         return True
 
     if data.startswith("AdminReseller_delete_confirm:"):
+        account = await _admin_get_user_reseller(user_id, account_code)
+        if not account:
+            await event.answer("نمایندگی یافت نشد.", alert=True)
+            return True
+        await event.edit(
+            f"**🚨 تأیید نهایی حذف `{account.username}`**\n\n"
+            "با زدن دکمه زیر، ادمین پنل و **همه یوزرهایش** همین الان حذف می‌شوند "
+            "و هیچ راهی برای برگرداندنشان نیست.",
+            buttons=build_admin_reseller_delete_final_buttons(user_id, account_code),
+            parse_mode="markdown",
+        )
+        return True
+
+    if data.startswith("AdminReseller_delete_final:"):
         account = await _admin_get_user_reseller(user_id, account_code)
         if not account:
             await event.answer("نمایندگی یافت نشد.", alert=True)
@@ -918,7 +934,7 @@ async def handle_manage_user_service_callbacks(event: events.CallbackQuery.Event
         parts = data.split(":")
         username_message = await get_bot_text(
             key="enter_username_message",
-            default="🔸 یک نام برای کانفیگ وارد کنید:\n^qc^نام کاربری باید بین ۳ تا ۳۲ کاراکتر و فقط شامل حروف انگلیسی، اعداد و زیرخط باشد.\nنمونه:\nAmir_Kenzo123\nNeda\nNeda123\nNeda_123^qc^",
+            default=DEFAULT_BOT_TEXTS["enter_username_message"],
             lang="fa",
         )
         await event.edit(
@@ -931,7 +947,11 @@ async def handle_manage_user_service_callbacks(event: events.CallbackQuery.Event
     elif data == "admin_random_username":
         panel_code = await get_data(event.sender_id, "AdminPanel")
         panel = await PanelsManager().get_panel_by_code(code=panel_code)
-        username = await generate_unique_username(panel)
+        try:
+            username = await generate_unique_username(panel)
+        except UsernameLookupError:
+            await event.answer("❌ بررسی نام کانفیگ در پنل ممکن نشد؛ دوباره تلاش کنید.", alert=True)
+            return
         await delete_message(event, offset=-1)
         await finalize_admin_config(event, username)
 
@@ -1058,8 +1078,8 @@ async def callback_manage_user_admin(event: events.CallbackQuery.Event):
             await event.answer("Session expired or already applied.", alert=True)
             return
         try:
-            payload = json.loads(raw)
-        except json.JSONDecodeError:
+            payload = raw if isinstance(raw, dict) else json.loads(raw)
+        except TypeError, json.JSONDecodeError:
             await event.answer("Invalid stored data.", alert=True)
             await delete_data(event.sender_id, "AdminBulkDeleteData")
             return

@@ -29,6 +29,8 @@ import { useAuth } from "../../context/AuthContext";
 import { useInstallPwa } from "../../hooks/useInstallPwa";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
 import { formatExpiry, formatToman, formatUnixDate } from "../../lib/format";
+import { useTheme } from "../../design/ThemeProvider";
+import { ThemePicker } from "./ThemePicker";
 
 type Tone = "primary" | "success" | "warning" | "danger" | "muted" | "accent";
 
@@ -42,6 +44,7 @@ export default function ProfilePage() {
   const [keyModalStep, setKeyModalStep] = useState<"confirm" | "reveal" | null>(null);
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const { config: themeConfig } = useTheme();
 
   async function handleLogout() {
     try {
@@ -218,6 +221,13 @@ export default function ProfilePage() {
             <ProfileLink to="/help" icon={HelpCircle} label={t("profile.help")} />
           </Card>
 
+          {themeConfig.user_pick && (
+            <div className="space-y-1.5">
+              <h2 className="px-1 text-xs font-medium text-muted">{t("profile.theme.title")}</h2>
+              <ThemePicker />
+            </div>
+          )}
+
           {apiKeyLoginMode !== "none" && (
             <Card className="p-4">
               <div className="flex items-center gap-2.5">
@@ -365,7 +375,7 @@ function ProfileLink({ to, icon: Icon, label }: { to: string; icon: LucideIcon; 
     >
       <IconBadge icon={Icon} tone="primary" size="sm" />
       <span className="flex-1">{label}</span>
-      <ChevronLeft size={16} className="text-muted" />
+      <ChevronLeft size={16} className="text-muted ltr:rotate-180" />
     </Link>
   );
 }

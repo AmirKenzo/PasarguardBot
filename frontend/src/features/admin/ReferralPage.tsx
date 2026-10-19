@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, Button, ErrorState, Input, Pagination, Skeleton } from "../../components/ui";
 import { formatNumber, formatToman, formatUnixDate } from "../../lib/format";
@@ -33,7 +34,8 @@ export default function AdminReferralPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
 
   const query = usePanelQuery(["referral", page], (auth) =>
-    panelReferralApi.getReferral({ ...auth, page, limit: 25 })
+    panelReferralApi.getReferral({ ...auth, page, limit: 25 }),
+    { placeholderData: keepPreviousData }
   );
   const save = usePanelAction(panelReferralApi.saveReferral, { invalidate: [["referral"]] });
 
@@ -77,7 +79,7 @@ export default function AdminReferralPage() {
         <div>
           {formatToman(row.reward_amount)}
           {row.reward_percent != null && row.base_amount != null && (
-            <p className="text-[11px] text-muted">
+            <p className="text-2xs text-muted">
               {t("panel.referral.rewardOfPurchase", { percent: row.reward_percent, amount: formatToman(row.base_amount) })}
             </p>
           )}
@@ -92,7 +94,7 @@ export default function AdminReferralPage() {
         <div>
           {formatToman(row.bonus_amount)}
           {row.bonus_percent != null && row.base_amount != null && (
-            <p className="text-[11px] text-muted">
+            <p className="text-2xs text-muted">
               {t("panel.referral.rewardOfPurchase", { percent: row.bonus_percent, amount: formatToman(row.base_amount) })}
             </p>
           )}
@@ -258,6 +260,7 @@ export default function AdminReferralPage() {
           rows={query.data?.rewards || []}
           rowKey={(row) => row.id}
           loading={query.isLoading}
+          stale={query.isPlaceholderData}
           emptyTitle={t("panel.referral.empty")}
         />
         <div className="mt-4">
@@ -345,7 +348,8 @@ function PayoutsSection() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("pending");
   const query = usePanelQuery(["referral-payouts", status, page], (auth) =>
-    panelReferralApi.getReferralPayouts({ ...auth, status, page, limit: 25 })
+    panelReferralApi.getReferralPayouts({ ...auth, status, page, limit: 25 }),
+    { placeholderData: keepPreviousData }
   );
   const settle = usePanelAction(panelReferralApi.settleReferralPayout, {
     invalidate: [["referral-payouts"], ["referral"]],
@@ -364,7 +368,7 @@ function PayoutsSection() {
         ) : (
           <div>
             <code className="ltr-field text-xs">{row.card_number}</code>
-            <p className="text-[11px] text-muted">{row.card_holder}</p>
+            <p className="text-2xs text-muted">{row.card_holder}</p>
           </div>
         ),
     },
@@ -420,13 +424,18 @@ function PayoutsSection() {
           }}
         />
       </div>
-      <DataTable
-        columns={columns}
-        rows={query.data?.payouts || []}
-        rowKey={(row) => row.id}
-        loading={query.isLoading}
-        emptyTitle={t("panel.referral.noPayouts")}
-      />
+      {query.isError ? (
+        <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={query.data?.payouts || []}
+          rowKey={(row) => row.id}
+          loading={query.isLoading}
+          stale={query.isPlaceholderData}
+          emptyTitle={t("panel.referral.noPayouts")}
+        />
+      )}
       <div className="mt-4">
         <Pagination page={page} totalPages={query.data?.meta.total_pages || 1} onChange={setPage} />
       </div>

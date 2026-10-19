@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Copy, Eye, EyeOff, ExternalLink, KeyRound, Pause, Play, RefreshCw, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, Input, Skeleton } from "../../../components/ui";
+import { Badge, Button, ErrorState, Input, Skeleton } from "../../../components/ui";
 import { useToast } from "../../../components/ui/Toast";
 import { panelResellersApi } from "../../../api/panel";
 import {
@@ -26,7 +26,7 @@ type Navigate = (tab: string, extra?: Record<string, string>) => void;
 
 const DAY = 86400;
 
-/** One line of what the account's plan type means for it right now, e.g. «ثابت · تمدید با همین پلن · ۱۸ روز تا انقضا، سپس ۷ روز مهلت». */
+/** One line of what the account's plan type means for it right now, e.g. "Fixed · renewed with this plan · 18d to expiry, then 7d grace". */
 function ruleSummary(t: TFunction, account: PanelResellerRow, data: PanelResellerDetailResponse): string {
   const key = "panel.resellerHub.detail.summary";
   const rule = ruleFor(account.pricing_mode);
@@ -39,15 +39,15 @@ function ruleSummary(t: TFunction, account: PanelResellerRow, data: PanelReselle
     if (account.status === "expired" || left <= 0) {
       parts.push(
         data.grace_days_left !== null && data.grace_days_left !== undefined
-          ? t(`${key}.expiredGrace`, { count: formatNumber(data.grace_days_left) })
+          ? t(`${key}.expiredGrace`, { count: data.grace_days_left })
           : t(`${key}.expired`)
       );
     } else {
-      const days = formatNumber(Math.max(1, Math.ceil(left / DAY)));
+      const days = Math.max(1, Math.ceil(left / DAY));
       parts.push(
         data.grace_days
-          ? t(`${key}.expiresGrace`, { days, grace: formatNumber(data.grace_days) })
-          : t(`${key}.expires`, { days })
+          ? t(`${key}.expiresGrace`, { days: formatNumber(days), grace: formatNumber(data.grace_days) })
+          : t(`${key}.expires`, { count: days })
       );
     }
   } else if (!rule.renewable) {
@@ -56,7 +56,7 @@ function ruleSummary(t: TFunction, account: PanelResellerRow, data: PanelReselle
   return parts.join(" · ");
 }
 
-/** «۵۰ پلن + ۱۰ اضافه» when the reseller bought slots, otherwise the plain limit (∞ for none). */
+/** "50 plans + 10 extra" when the reseller bought slots, otherwise the plain limit (∞ for none). */
 function userLimitLabel(t: TFunction, account: PanelResellerRow): string {
   const limit = account.max_users || 0;
   if (!limit) return "∞";
@@ -101,8 +101,10 @@ export default function AccountDetailModal({
         </div>
       ) : detail.data && account ? (
         <AccountBody key={account.code} data={detail.data} onClose={onClose} onNavigate={onNavigate} />
+      ) : detail.isError ? (
+        <ErrorState message={detail.error.message} onRetry={() => void detail.refetch()} />
       ) : (
-        <p className="py-6 text-center text-sm text-muted">{detail.error?.message || t("panel.resellers.notFound")}</p>
+        <p className="py-6 text-center text-sm text-muted">{t("panel.resellers.notFound")}</p>
       )}
     </FormModal>
   );
@@ -208,7 +210,7 @@ function AccountBody({
       </p>
 
       {/* Live panel data */}
-      <section className="rounded-xl bg-surface-2/60 p-3.5">
+      <section className="rounded-sm bg-surface-2/60 p-3.5">
         {live ? (
           <div className="space-y-3">
             <div>
@@ -246,7 +248,7 @@ function AccountBody({
         )}
         {data.grace_days_left !== null && data.grace_days_left !== undefined && (
           <p className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-xs text-danger">
-            {t("panel.resellerHub.detail.graceLeft", { count: formatNumber(data.grace_days_left) })}
+            {t("panel.resellerHub.detail.graceLeft", { count: data.grace_days_left })}
           </p>
         )}
       </section>
@@ -302,7 +304,7 @@ function AccountBody({
 
       {/* Wallet (pay-as-you-go) */}
       {isPayg && (
-        <section className="grid grid-cols-2 gap-3 rounded-xl border border-border p-3.5 sm:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 rounded-sm border border-border p-3.5 sm:grid-cols-4">
           <Detail label={t("panel.resellerHub.detail.balance")} value={formatToman(data.balance || 0)} />
           <Detail
             label={t("panel.resellerHub.detail.rate")}
@@ -369,7 +371,7 @@ function AccountBody({
                     <p className="truncate text-sm text-text">{ownPlan.name || `${t("panel.resellerHub.plans.plan")} #${ownPlan.id}`}</p>
                     <p className="mt-0.5 text-xs text-muted">
                       {formatToman(ownPlan.rate)}
-                      {ownPlan.duration > 0 && ` · ${t("panel.plans.durationDays", { count: formatNumber(ownPlan.duration) })}`}
+                      {ownPlan.duration > 0 && ` · ${t("panel.plans.durationDays", { count: ownPlan.duration })}`}
                       {ownPlan.data_limit_gb > 0 && ` · ${formatNumber(ownPlan.data_limit_gb)} GB`}
                     </p>
                     {!ownPlan.enable && (
@@ -385,7 +387,7 @@ function AccountBody({
                         : "panel.resellerHub.detail.renewConfirmDays",
                       {
                         amount: formatToman(ownPlan.rate),
-                        days: formatNumber(ownPlan.duration),
+                        count: ownPlan.duration,
                         gb: formatNumber(ownPlan.data_limit_gb),
                       }
                     )}
@@ -415,7 +417,7 @@ function AccountBody({
                   variant="secondary"
                   loading={extend.isPending}
                   disabled={!Number(extendDays)}
-                  message={t("panel.resellerHub.detail.extendConfirm", { count: formatNumber(Number(extendDays) || 0) })}
+                  message={t("panel.resellerHub.detail.extendConfirm", { count: Number(extendDays) || 0 })}
                   onConfirm={() =>
                     extend.mutate({ code: account.code, days: Number(extendDays) }, { onSuccess: () => setExtendDays("") })
                   }
@@ -538,7 +540,7 @@ function AccountBody({
                         label: [
                           plan.name || `#${plan.id}`,
                           plan.max_users > 0
-                            ? t("panel.resellerHub.plans.users", { count: formatNumber(plan.max_users) })
+                            ? t("panel.resellerHub.plans.users", { count: plan.max_users })
                             : null,
                           plan.enable ? null : t("panel.common.inactive"),
                         ]
@@ -618,7 +620,7 @@ function AccountBody({
 
       {/* Danger zone */}
       {actions.has("delete") && (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 p-3.5">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-danger/30 bg-danger/5 p-3.5">
           <div>
             <p className="text-sm font-medium text-danger">{t("panel.resellerHub.detail.deleteTitle")}</p>
             <p className="mt-0.5 text-xs text-muted">{t("panel.resellerHub.detail.deleteHint")}</p>
@@ -628,7 +630,11 @@ function AccountBody({
             variant="danger"
             loading={remove.isPending}
             message={t("panel.resellerHub.detail.deleteConfirm", { name: account.username })}
-            onConfirm={() => remove.mutate({ code: account.code }, { onSuccess: onClose })}
+            requireText={account.username ?? ""}
+            requireTextLabel={t("panel.resellerHub.detail.deleteTypeLabel", { name: account.username })}
+            onConfirm={() =>
+              remove.mutate({ code: account.code, confirm_username: account.username ?? "" }, { onSuccess: onClose })
+            }
           >
             <Trash2 size={14} />
             {t("common.delete")}
@@ -655,7 +661,7 @@ function CopyRow({ label, value, onCopy }: { label: string; value: string; onCop
 
 function ActionBox({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border p-3">
+    <div className="rounded-sm border border-border p-3">
       <p className="text-sm font-medium text-text">{title}</p>
       {hint && <p className="mb-2 mt-0.5 text-xs text-muted">{hint}</p>}
       {children}

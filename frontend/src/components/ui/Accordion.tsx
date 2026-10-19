@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
 export interface AccordionItemProps {
@@ -15,16 +15,16 @@ export function AccordionItem({ title, children, defaultOpen = false }: Accordio
     <div className="border-b border-border py-1 last:border-b-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 py-3 text-right"
+        className="flex w-full items-center justify-between gap-3 py-3 text-start"
       >
         <span className="text-sm font-medium text-text">{title}</span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} className="text-muted">
+        <m.span animate={{ rotate: open ? 180 : 0 }} className="text-muted">
           <ChevronDown size={18} />
-        </motion.span>
+        </m.span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div
+          <m.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -32,7 +32,7 @@ export function AccordionItem({ title, children, defaultOpen = false }: Accordio
             className="overflow-hidden"
           >
             <div className="pb-3 text-sm leading-6 text-muted">{children}</div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

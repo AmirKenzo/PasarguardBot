@@ -147,13 +147,13 @@ export default function AdminUserDetailPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-text">
                       {service.username || "—"}
-                      <code className="ltr-field text-[11px] font-normal text-muted">#{service.code}</code>
+                      <code className="ltr-field text-2xs font-normal text-muted">#{service.code}</code>
                     </div>
-                    <div className="text-[11px] text-muted">
+                    <div className="text-2xs text-muted">
                       {service.panel || "—"} · {service.package_size ? formatBytes(service.package_size, 1) : t("common.unlimited")}
                     </div>
                   </div>
-                  <div className="text-[11px] text-muted">{expiry.remaining}</div>
+                  <div className="text-2xs text-muted">{expiry.remaining}</div>
                   {!service.enable ? (
                     <Badge tone="warning">{t("panel.common.inactive")}</Badge>
                   ) : service.is_test ? (
@@ -178,9 +178,9 @@ export default function AdminUserDetailPage() {
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-semibold text-text">
                     {formatToman(tx.amount)}
-                    <code className="ltr-field ms-1.5 text-[11px] font-normal text-muted">#{tx.id}</code>
+                    <code className="ltr-field ms-1.5 text-2xs font-normal text-muted">#{tx.id}</code>
                   </div>
-                  <div className="text-[11px] text-muted">{tx.created_at ? formatUnixDate(tx.created_at) : "—"}</div>
+                  <div className="text-2xs text-muted">{tx.created_at ? formatUnixDate(tx.created_at) : "—"}</div>
                 </div>
                 <Badge tone={TX_TONE[tx.status || ""] || "muted"}>{tx.status || "—"}</Badge>
               </div>

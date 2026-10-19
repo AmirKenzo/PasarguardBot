@@ -24,10 +24,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           id={inputId}
           className={`${dense ? "h-9 px-3 text-sm" : "h-10 px-3 text-sm"} w-full rounded-md border bg-surface text-text placeholder:text-muted outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary focus:ring-4 ${
             error ? "border-danger focus:ring-danger/10" : "border-border focus:ring-primary/10"
-          } ${suffix ? "pl-10" : ""} ${ltr ? "ltr-field" : ""} ${className}`}
+          } ${suffix ? "pe-10" : ""} ${ltr ? "ltr-field" : ""} ${className}`}
           {...rest}
         />
-        {suffix && <span className="absolute left-3 text-muted">{suffix}</span>}
+        {suffix && <span className="absolute end-3 text-muted">{suffix}</span>}
       </span>
       {error && <span className="mt-1 block text-xs text-danger">{error}</span>}
     </label>

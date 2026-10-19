@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, Card, Input, SkeletonCard } from "../../components/ui";
@@ -107,7 +107,7 @@ export default function RenewFlow() {
 
       <AnimatePresence mode="wait">
         {step === "duration" && hasDurationStep && (
-          <motion.div key="duration" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-3">
+          <m.div key="duration" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-3">
             <p className="text-sm text-muted">{t("renewFlow.selectDuration")}</p>
             <div className="flex flex-wrap gap-2">
               {durationOptions.map((duration) => (
@@ -125,11 +125,11 @@ export default function RenewFlow() {
                 </Button>
               ))}
             </div>
-          </motion.div>
+          </m.div>
         )}
 
         {step === "plan" && (
-          <motion.div key="plan" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-3">
+          <m.div key="plan" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-3">
             {hasDurationStep && (
               <Button type="button" variant="ghost" size="sm" onClick={() => setStep("duration")}>
                 {t("buy.back")}
@@ -145,7 +145,7 @@ export default function RenewFlow() {
                     setSelectedPlan(plan);
                     setStep("confirm");
                   }}
-                  className="w-full rounded-lg border border-border bg-surface p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
+                  className="w-full rounded-lg border border-border bg-surface p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-text">
@@ -158,11 +158,11 @@ export default function RenewFlow() {
                 </button>
               ))}
             </div>
-          </motion.div>
+          </m.div>
         )}
 
         {step === "confirm" && selectedPlan && (
-          <motion.div key="confirm" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-4">
+          <m.div key="confirm" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-4">
             <Button type="button" variant="ghost" size="sm" onClick={() => setStep("plan")}>
               {t("buy.back")}
             </Button>
@@ -186,11 +186,11 @@ export default function RenewFlow() {
             <Button type="button" fullWidth loading={confirmRenew.isPending} onClick={handleConfirm}>
               {t("renewFlow.confirmAndRenew")}
             </Button>
-          </motion.div>
+          </m.div>
         )}
 
         {step === "success" && (
-          <motion.div key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
+          <m.div key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
             <Card className="space-y-2 border-success/30 bg-success/5 p-4">
               <p className="font-semibold text-success">{confirmRenew.data?.message ?? t("renewFlow.renewSuccess")}</p>
               {confirmRenew.data?.new_volume_bytes != null && (
@@ -212,7 +212,7 @@ export default function RenewFlow() {
             <Button type="button" fullWidth onClick={() => navigate(backTo)}>
               {t("renewFlow.backToService")}
             </Button>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

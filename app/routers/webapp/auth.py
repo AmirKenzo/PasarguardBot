@@ -27,11 +27,13 @@ from app.models.webapp import (
     WebAppInfoResponse,
     WebAppUserData,
 )
+from app.routers.webapp.errors import SESSION_INVALID, internal_error
 from app.routers.webapp.state import (
     clear_otp_failures,
     get_header_auth,
     is_api_key_login_blocked,
     is_otp_locked,
+    mark_session_rejected,
     mark_session_verified,
     otp_key,
     otp_sessions,
@@ -259,17 +261,21 @@ async def authenticate_user(
     if session_token:
         prune_auth_state()
         if session_token in revoked_tokens:
+            mark_session_rejected()
             raise ValueError("نشست منقضی شده است")
         ok, err, payload = await parse_session_token_async(session_token)
         if not ok or not payload:
+            mark_session_rejected()
             raise ValueError(err or "توکن نامعتبر است")
         uid = int(payload["uid"])
         if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
+            mark_session_rejected()
             raise ValueError("نشست منقضی شده است. دوباره وارد شوید")
         await _ensure_not_banned(uid)
         mark_session_verified(session_token)
         return uid
 
+    mark_session_rejected()
     raise ValueError("اطلاعات ناقص است")
 
 
@@ -298,8 +304,10 @@ async def get_webapp_info(request: Request) -> WebAppInfoResponse:
         payload = await build_user_payload_no_services(user_id, telegram_user=telegram_user)
         return WebAppInfoResponse(**payload)
 
-    except Exception as e:
+    except ValueError as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppInfoResponse(ok=False, error=internal_error("get_webapp_info"))
 
 
 _OTP_THROTTLED_ERROR = "تعداد درخواست‌ها زیاد است. چند دقیقه بعد دوباره تلاش کنید"
@@ -329,8 +337,10 @@ async def start_phone_login(req: PhoneLoginStartRequest, request: Request) -> We
 
         await _send_telegram_code(int(user.id), code)
         return WebAppChangeResponse(ok=True)
-    except Exception as e:
+    except ValueError as e:
         return WebAppChangeResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppChangeResponse(ok=False, error=internal_error("start_phone_login"))
 
 
 @router.post("/webapp/otp/verify", response_model=WebAppInfoResponse)
@@ -372,8 +382,10 @@ async def verify_phone_login(req: PhoneLoginVerifyRequest) -> WebAppInfoResponse
         await _send_login_notification(int(user.id), "شماره تلفن و کد تایید", user_record=user)
 
         return WebAppInfoResponse(**payload)
-    except Exception as e:
+    except ValueError as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppInfoResponse(ok=False, error=internal_error("verify_phone_login"))
 
 
 @router.post("/webapp/auth/api-key", response_model=WebAppInfoResponse)
@@ -407,8 +419,10 @@ async def login_with_api_key(req: ApiKeyLoginRequest, request: Request) -> WebAp
         await _send_login_notification(int(user.id), "کلید API", user_record=user)
 
         return WebAppInfoResponse(**payload)
-    except Exception as e:
+    except ValueError as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppInfoResponse(ok=False, error=internal_error("login_with_api_key"))
 
 
 @router.post("/webapp/profile/api-key/generate", response_model=ApiKeyGenerateResponse)
@@ -444,8 +458,10 @@ async def generate_profile_api_key(req: ApiKeyGenerateRequest) -> ApiKeyGenerate
         )
         await UserCRUD().bump_session_version(user_id)
         return ApiKeyGenerateResponse(ok=True, api_key=raw_key, created_at=created_at)
-    except Exception as e:
+    except ValueError as e:
         return ApiKeyGenerateResponse(ok=False, error=str(e))
+    except Exception:
+        return ApiKeyGenerateResponse(ok=False, error=internal_error("generate_profile_api_key"))
 
 
 @router.get("/webapp/info/session", response_model=WebAppInfoResponse)
@@ -460,16 +476,16 @@ async def get_webapp_info_session(
     """
     token, _ = _merge_request_auth(session_token=session_token)
     if not token:
-        return WebAppInfoResponse(ok=False, error="توکن احراز هویت ارسال نشده است")
+        return WebAppInfoResponse(ok=False, error="توکن احراز هویت ارسال نشده است", error_code=SESSION_INVALID)
     prune_auth_state()
     if token in revoked_tokens:
-        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است")
+        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است", error_code=SESSION_INVALID)
     ok, err, payload = await parse_session_token_async(token)
     if not ok or not payload:
-        return WebAppInfoResponse(ok=False, error=err or "توکن نامعتبر است")
+        return WebAppInfoResponse(ok=False, error=err or "توکن نامعتبر است", error_code=SESSION_INVALID)
     uid = int(payload["uid"])  # type: ignore
     if int(payload.get("ver", 0)) != await UserCRUD().get_session_version(uid):
-        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است. دوباره وارد شوید")
+        return WebAppInfoResponse(ok=False, error="نشست منقضی شده است. دوباره وارد شوید", error_code=SESSION_INVALID)
     if await is_user_banned(uid):
         return WebAppInfoResponse(ok=False, error=_BANNED_ERROR)
     mark_session_verified(token)
@@ -477,8 +493,10 @@ async def get_webapp_info_session(
         payload = await build_user_payload_no_services(int(uid))
         payload["session_token"] = token
         return WebAppInfoResponse(**payload)
-    except Exception as e:
+    except ValueError as e:
         return WebAppInfoResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppInfoResponse(ok=False, error=internal_error("get_webapp_info_session"))
 
 
 @router.post("/webapp/logout", response_model=WebAppChangeResponse)
@@ -500,5 +518,7 @@ async def logout(req: LogoutRequest) -> WebAppChangeResponse:
         if int(payload.get("ver", 0)) == await UserCRUD().get_session_version(uid):
             await UserCRUD().bump_session_version(uid)
         return WebAppChangeResponse(ok=True)
-    except Exception as e:
+    except ValueError as e:
         return WebAppChangeResponse(ok=False, error=str(e))
+    except Exception:
+        return WebAppChangeResponse(ok=False, error=internal_error("logout"))

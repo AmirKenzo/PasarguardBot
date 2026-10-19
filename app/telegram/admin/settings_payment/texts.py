@@ -1,5 +1,7 @@
 """Text templates for admin settings_payment."""
 
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
+
 GATEWAY_SETTINGS_TRIGGER = "💳 تنظیمات درگاه"
 
 CARD_HOLDER_NOT_SET = "تنظیم نشده"
@@ -74,14 +76,7 @@ TX_REJECTED_ADMIN_HEADER = "❌ تراکنش رد شد."
 TX_APPROVED_ADMIN_BUTTON = "🌟 تراکنش توسط ادمین تایید شده"
 TX_REJECTED_ADMIN_BUTTON = "⛔️ تراکنش توسط ادمین رد شد ⛔️"
 
-TX_APPROVED_USER_MESSAGE = (
-    "✅ تراکنش کارت به کارت (دستی) شما تایید شد\n\n"
-    "👤 شناسه شما: `{user_id}`\n"
-    "💰 مبلغ `{amount}` تومان به حساب شما اضافه شد.\n"
-    "{bonus_line}"
-    "👜 موجودی شما به کیف پولتون در بات اضافه شده\n"
-    "💳 اکنون می‌توانید از ربات خرید کنید."
-)
+TX_APPROVED_USER_MESSAGE = DEFAULT_BOT_TEXTS["manual_card_approved_message"]
 
 TX_REJECT_USER_MESSAGE = (
     "#اطلاعیه\n"
@@ -90,19 +85,11 @@ TX_REJECT_USER_MESSAGE = (
     "⚠️ لطفا مراحلی که رفته بودید را یکبار چک کنید سپس دوباره از ابتدا سعی کنید تا بررسی شود."
 )
 
-TX_REJECTED_USER_MESSAGE = f"{TX_REJECT_USER_MESSAGE}\nمبلغ: `{{amount}}` تومان"
+TX_REJECTED_USER_MESSAGE = DEFAULT_BOT_TEXTS["manual_card_rejected_message"]
 
-TX_RECEIPT_FIX_USER_MESSAGE = (
-    "#اطلاعیه\n"
-    "♻️ رسید شما برای بررسی دوباره نیاز به اصلاح مبلغ دارد.\n\n"
-    "لطفا مبلغ را به تومان دوباره وارد کنید و سپس رسید را مجددا ارسال کنید.\n"
-)
+TX_RECEIPT_FIX_USER_MESSAGE = DEFAULT_BOT_TEXTS["manual_card_receipt_fix_message"]
 
-TX_CARD_MISMATCH_USER_MESSAGE = (
-    "#اطلاعیه\n"
-    "💳 شماره کارت واریزی شما با شماره کارت فعلی ربات تطابق ندارد.\n\n"
-    "لطفا در دفعات بعد حتما به شماره کارت جدید واریز انجام دهید؛ در غیر این صورت تراکنش شما تایید نخواهد شد.\n"
-)
+TX_CARD_MISMATCH_USER_MESSAGE = DEFAULT_BOT_TEXTS["manual_card_card_mismatch_message"]
 
 
 def manual_card_visibility_mode(settings) -> str:

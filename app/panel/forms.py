@@ -35,15 +35,3 @@ def parse_style(raw: str) -> str | None:
     if style not in {value for value, _ in BUTTON_STYLES}:
         return None
     return style or None
-
-
-def parse_int(raw, default: int = 0, *, minimum: int | None = None, maximum: int | None = None) -> int:
-    try:
-        value = int(float(str(raw).replace(",", "").strip()))
-    except TypeError, ValueError:
-        value = default
-    if minimum is not None:
-        value = max(minimum, value)
-    if maximum is not None:
-        value = min(maximum, value)
-    return value

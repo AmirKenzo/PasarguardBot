@@ -7,7 +7,7 @@ import { panelTextsApi } from "../../api/panel";
 import type { PanelTextEntry, PanelTextSection } from "../../types/panel";
 import { usePanelAction, usePanelQuery } from "../../queries/usePanelApi";
 import { ChoiceDialog } from "./texts/ChoiceDialog";
-import { canSaveText, TextEditor } from "./texts/TextEditor";
+import { baselineText, canSaveText, TextEditor } from "./texts/TextEditor";
 
 const ALL = "all";
 const UNLISTED_SECTION = "unlisted";
@@ -41,7 +41,7 @@ export default function AdminTextsPage() {
   const sections = useMemo(() => query.data?.sections ?? [], [query.data]);
   const allEntries = useMemo(() => sections.flatMap((item) => item.entries), [sections]);
   const selected = allEntries.find((entry) => entry.key === selectedKey) ?? null;
-  const dirty = selected !== null && draft !== (selected.value || "");
+  const dirty = selected !== null && draft !== baselineText(selected);
 
   useEffect(() => {
     if (!dirty) return;
@@ -65,14 +65,14 @@ export default function AdminTextsPage() {
           if (filter === "set" && !entry.stored) return false;
           if (filter === "unset" && entry.stored) return false;
           if (!needle) return true;
-          return [entry.key, entry.title, entry.value].some((value) => (value || "").toLowerCase().includes(needle));
+          return [entry.key, entry.title, entry.value, entry.default_value].some((value) => (value || "").toLowerCase().includes(needle));
         }),
       }))
       .filter((item) => item.entries.length > 0);
   }, [sections, section, filter, search]);
 
   const saveDraft = (onDone?: () => void) => {
-    if (!selected || !canSaveText(draft, selected.value || "")) return;
+    if (!selected || !canSaveText(draft, baselineText(selected), !selected.stored)) return;
     // Banner fields are left out on purpose so whatever is stored stays untouched.
     save.mutate(
       { key: selected.key, value: draft, lang: selected.lang || DEFAULT_TEXT_LANGUAGE },
@@ -82,7 +82,7 @@ export default function AdminTextsPage() {
 
   function open(entry: PanelTextEntry | null) {
     setSelectedKey(entry?.key ?? null);
-    setDraft(entry?.value || "");
+    setDraft(entry ? baselineText(entry) : "");
     if (entry && window.matchMedia("(max-width: 1023px)").matches) window.scrollTo({ top: 0 });
   }
 
@@ -128,9 +128,9 @@ export default function AdminTextsPage() {
       </div>
 
       <div
-        className={`items-center gap-3.5 rounded-2xl border border-border bg-surface px-4 py-3 ${editing ? "hidden lg:flex" : "flex"}`}
+        className={`items-center gap-3.5 rounded-md border border-border bg-surface px-4 py-3 ${editing ? "hidden lg:flex" : "flex"}`}
       >
-        <div className="min-w-0 flex-1 text-[13px] text-text">
+        <div className="min-w-0 flex-1 text-xs-plus text-text">
           <p>
             {t("panel.texts.statsSet", { count: setCount })} · {t("panel.texts.statsUnset", { count: total - setCount })}
           </p>
@@ -146,20 +146,20 @@ export default function AdminTextsPage() {
       >
         <nav
           aria-label={t("panel.texts.sections")}
-          className={`sticky top-4 hidden rounded-2xl border border-border bg-surface p-1.5 min-[1400px]:block`}
+          className={`sticky top-4 hidden rounded-md border border-border bg-surface p-1.5 min-[1400px]:block`}
         >
           {sectionItems.map((item) => (
             <button
               key={item.key}
               type="button"
               onClick={() => setSection(item.key)}
-              className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-start text-[13px] transition-colors ${
+              className={`flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-start text-xs-plus transition-colors ${
                 section === item.key ? "bg-primary/12 font-semibold text-primary" : "text-muted hover:bg-surface-2 hover:text-text"
               }`}
             >
               <span className="shrink-0">{item.icon || <FolderOpen size={15} />}</span>
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              <span className="ltr-field shrink-0 text-[11px] tabular-nums opacity-75">
+              <span className="ltr-field shrink-0 text-2xs tabular-nums opacity-75">
                 {item.counts[0]}/{item.counts[1]}
               </span>
             </button>
@@ -168,7 +168,7 @@ export default function AdminTextsPage() {
 
         <div className={`min-w-0 flex-col gap-2.5 ${editing ? "hidden lg:flex" : "flex"}`}>
           <div className="relative">
-            <Search size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted" />
+            <Search size={16} className="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="search"
               value={search}
@@ -176,14 +176,14 @@ export default function AdminTextsPage() {
               placeholder={t("panel.texts.searchPlaceholder")}
               aria-label={t("panel.common.search")}
               autoComplete="off"
-              className="h-11 w-full rounded-xl border border-border bg-surface pe-10 ps-10 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-primary/10"
+              className="h-11 w-full rounded-sm border border-border bg-surface pe-10 ps-10 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-primary/10"
             />
             {search && (
               <button
                 type="button"
                 aria-label={t("panel.texts.clearSearch")}
                 onClick={() => setSearch("")}
-                className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-surface-2 text-muted"
+                className="absolute end-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-surface-2 text-muted"
               >
                 <XIcon size={14} />
               </button>
@@ -204,14 +204,14 @@ export default function AdminTextsPage() {
               >
                 {item.icon ? `${item.icon} ` : ""}
                 {item.label}
-                <span className="ltr-field text-[11px] tabular-nums opacity-75">
+                <span className="ltr-field text-2xs tabular-nums opacity-75">
                   {item.counts[0]}/{item.counts[1]}
                 </span>
               </button>
             ))}
           </div>
 
-          <div className="flex gap-1 rounded-xl bg-surface-2 p-1">
+          <div className="flex gap-1 rounded-sm bg-surface-2 p-1">
             {filters.map((item) => (
               <button
                 key={item.value}
@@ -223,15 +223,15 @@ export default function AdminTextsPage() {
               >
                 {item.dot && <span className={`h-[7px] w-[7px] rounded-full ${item.dot}`} />}
                 {item.label}
-                <span className="text-[11px] tabular-nums opacity-70">{item.count}</span>
+                <span className="text-2xs tabular-nums opacity-70">{item.count}</span>
               </button>
             ))}
           </div>
           <p className="-mt-1 px-1 text-[11.5px] leading-relaxed text-muted">{t("panel.texts.filterHint")}</p>
 
           {visibleSections.length === 0 ? (
-            <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-border bg-surface px-5 py-10 text-center text-muted">
-              <span className="mb-1.5 flex h-12 w-12 items-center justify-center rounded-xl bg-surface-2">
+            <div className="flex flex-col items-center gap-1.5 rounded-md border border-dashed border-border bg-surface px-5 py-10 text-center text-muted">
+              <span className="mb-1.5 flex h-12 w-12 items-center justify-center rounded-sm bg-surface-2">
                 <SearchX size={22} />
               </span>
               <b className="text-sm text-text">{t("panel.texts.noResults")}</b>
@@ -249,7 +249,7 @@ export default function AdminTextsPage() {
                       {item.icon} {sectionName(item)}
                     </p>
                   )}
-                  <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+                  <div className="overflow-hidden rounded-md border border-border bg-surface">
                     {item.entries.map((entry) => (
                       <TextRow
                         key={entry.key}
@@ -280,8 +280,8 @@ export default function AdminTextsPage() {
               onRequestReset={() => setDialog({ kind: "reset" })}
             />
           ) : (
-            <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-border bg-surface px-5 py-16 text-center text-muted">
-              <span className="mb-1.5 flex h-12 w-12 items-center justify-center rounded-xl bg-surface-2">
+            <div className="flex flex-col items-center gap-1.5 rounded-md border border-dashed border-border bg-surface px-5 py-16 text-center text-muted">
+              <span className="mb-1.5 flex h-12 w-12 items-center justify-center rounded-sm bg-surface-2">
                 <MousePointerClick size={22} />
               </span>
               <b className="text-sm text-text">{t("panel.texts.selectTitle")}</b>
@@ -307,7 +307,7 @@ export default function AdminTextsPage() {
               if (dialog?.kind !== "unsaved") return;
               const next = dialog.next;
               // An empty or oversized draft cannot be saved, so continuing would drop it: keep the user here.
-              if (!selected || !canSaveText(draft, selected.value || "")) {
+              if (!selected || !canSaveText(draft, baselineText(selected), !selected.stored)) {
                 setDialog(null);
                 return;
               }
@@ -348,7 +348,7 @@ export default function AdminTextsPage() {
                 { key: selected.key, lang: selected.lang || "" },
                 {
                   onSuccess: () => {
-                    setDraft("");
+                    setDraft(selected.default_value || "");
                     setDialog(null);
                   },
                 }
@@ -384,9 +384,9 @@ function TextRow({ entry, active, onClick }: { entry: PanelTextEntry; active: bo
         </span>
       </span>
       {variables > 0 && (
-        <span className="ltr-field shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted">{`{${variables}}`}</span>
+        <span className="ltr-field shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-3xs text-muted">{`{${variables}}`}</span>
       )}
-      <ChevronLeft size={16} className="shrink-0 text-muted" />
+      <ChevronLeft size={16} className="shrink-0 text-muted ltr:rotate-180" />
     </button>
   );
 }

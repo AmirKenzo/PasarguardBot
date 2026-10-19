@@ -9,7 +9,7 @@ RUN --mount=type=cache,id=pasarguardbot-bun,target=/root/.bun/install/cache \
 COPY frontend/ ./
 RUN bun run build
 
-FROM python:3.14-slim-bookworm
+FROM python:3.15-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

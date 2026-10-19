@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { authApi, setTokenRenewedHandler } from "../api/webapp";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ApiError, authApi, isAuthRejection, isLegacySessionMessage, setTokenRenewedHandler } from "../api/webapp";
 import type { ApiKeyLoginMode, UserProfile } from "../types/webapp";
 import { getStoredInitData } from "../telegramInit";
 
@@ -27,8 +27,9 @@ function readInitData(): string | null {
   return (typeof window !== "undefined" && window.Telegram?.WebApp?.initData) || null;
 }
 
-function isSessionExpiredError(message: string): boolean {
-  return message.includes("منقضی") || message.includes("توکن");
+function shouldDropSession(err: unknown): boolean {
+  if (err instanceof ApiError) return isAuthRejection(err);
+  return err instanceof Error && isLegacySessionMessage(err.message);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -81,13 +82,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return null;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      if (sessionToken && isSessionExpiredError(message)) {
-        clearSession();
+      if (!shouldDropSession(err)) {
+        return null;
+      }
+      if (initData) {
+        setUser(null);
       } else if (sessionToken) {
         clearSession();
-      } else {
-        setUser(null);
       }
       return null;
     }
@@ -150,25 +151,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setTokenRenewedHandler(null);
   }, [setToken]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        sessionToken,
-        initData,
-        isTelegram,
-        isAuthenticated,
-        user,
-        setToken,
-        setUser,
-        refreshUser,
-        clearSession,
-        loading,
-        apiKeyLoginMode,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextType>(
+    () => ({
+      sessionToken,
+      initData,
+      isTelegram,
+      isAuthenticated,
+      user,
+      setToken,
+      setUser,
+      refreshUser,
+      clearSession,
+      loading,
+      apiKeyLoginMode,
+    }),
+    [
+      sessionToken,
+      initData,
+      isTelegram,
+      isAuthenticated,
+      user,
+      setToken,
+      refreshUser,
+      clearSession,
+      loading,
+      apiKeyLoginMode,
+    ]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

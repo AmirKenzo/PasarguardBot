@@ -266,9 +266,10 @@ async def message_handler_settings_payment(event: Message):
         await set_step(event.sender_id, "maar_add_delay")
         await event.respond(texts.MAAR_ADD_DELAY_PROMPT)
     elif await get_step(event.sender_id) == "maar_add_delay" and msg.isdigit():
+        max_raw = await get_data(event.sender_id, "maar_max")
         await _maar_crud.create(
             min_successful_tx=int(await get_data(event.sender_id, "maar_min")),
-            max_successful_tx=await get_data(event.sender_id, "maar_max"),
+            max_successful_tx=int(max_raw) if max_raw not in (None, "") else None,
             auto_approve_delay_minutes=int(msg),
         )
         await clear_user(event.sender_id)

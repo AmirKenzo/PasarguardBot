@@ -33,6 +33,12 @@ DEFAULT_CORE_SETTINGS: dict[str, Any] = {
     "pwa_short_name": "PasarguardBot",
     "pwa_description": "",
     "pwa_icon_updated_at": 0,
+    "webapp_theme_mode": "telegram",
+    "webapp_theme_active": "default",
+    "webapp_theme_snapshot": None,
+    "webapp_theme_user_scheme": True,
+    "webapp_theme_user_pick": False,
+    "webapp_theme_version": 0,
     **DEFAULT_HOME_MENU_SETTINGS,
 }
 
@@ -84,6 +90,7 @@ DEFAULT_PURCHASE_SETTINGS: dict[str, Any] = {
     "test_mode": False,
     "test_panel_id": 0,
     "test_phone_verify": True,
+    "admin_unlimited_trial": False,
     "direct_pay_purchase_mode": False,
     "direct_pay_renew_mode": False,
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, Button, ErrorState, Input, Pagination } from "../../components/ui";
@@ -37,7 +38,8 @@ export default function AdminDiscountsPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
 
   const query = usePanelQuery(["discounts", page], (auth) =>
-    panelDiscountsApi.listDiscounts({ ...auth, page, limit: 25 })
+    panelDiscountsApi.listDiscounts({ ...auth, page, limit: 25 }),
+    { placeholderData: keepPreviousData }
   );
   const save = usePanelAction(panelDiscountsApi.saveDiscount, { invalidate: [["discounts"]] });
   const remove = usePanelAction(panelDiscountsApi.deleteDiscount, { invalidate: [["discounts"]] });
@@ -119,7 +121,7 @@ export default function AdminDiscountsPage() {
     <>
       <PageHeader
         title={t("panel.discounts.heading")}
-        subtitle={query.data ? t("panel.discounts.countLabel", { count: formatNumber(query.data.meta.total) }) : undefined}
+        subtitle={query.data ? t("panel.discounts.countLabel", { count: query.data.meta.total }) : undefined}
         action={
           <Button size="sm" onClick={() => setDraft({ ...EMPTY_DRAFT })}>
             <Plus size={16} />
@@ -137,6 +139,7 @@ export default function AdminDiscountsPage() {
             rows={query.data?.discounts || []}
             rowKey={(row) => row.id}
             loading={query.isLoading}
+            stale={query.isPlaceholderData}
             emptyTitle={t("panel.discounts.empty")}
           />
           <div className="mt-4">

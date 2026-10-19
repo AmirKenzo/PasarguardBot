@@ -135,7 +135,3 @@ def check_antispam(
         user_last_event_id[user_id] = event_id
 
     return AntispamResult(action="allow")
-
-
-def random_spam_message(block_seconds: int = SPAM_BLOCK_SECONDS) -> str:
-    return random.choice(ANTI_SPAM_TEXT).format(seconds_block=block_seconds)

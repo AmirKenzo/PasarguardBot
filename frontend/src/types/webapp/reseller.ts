@@ -124,6 +124,10 @@ export interface WebAppResellerCodeRequest extends WebAppAuthRequest {
   code: number;
 }
 
+export interface WebAppResellerDeleteRequest extends WebAppResellerCodeRequest {
+  confirm_username: string;
+}
+
 export interface ResellerRenewPlanItem {
   id: number;
   name?: string | null;

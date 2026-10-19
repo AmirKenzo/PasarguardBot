@@ -46,9 +46,5 @@ def format_number(num):
     return str(num)
 
 
-def plan_list_header(total_plans: int) -> str:
-    return f"📋 لیست پلن ها ({total_plans})"
-
-
 def ip_limit_text(ip_limit: int) -> str:
     return "♾️ نامحدود" if ip_limit == 0 else f"👥 {ip_limit} کاربر"

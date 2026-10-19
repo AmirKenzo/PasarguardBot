@@ -13,6 +13,7 @@ from app.telegram.user.reseller import states
 from app.telegram.user.reseller.helpers import get_reseller_text, show_reseller_panel_picker
 from app.telegram.user.reseller.keyboards import build_my_resellers_list_buttons
 from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 
 
 async def _send_my_resellers_list(event: Message) -> None:
@@ -27,7 +28,7 @@ async def _send_my_resellers_list(event: Message) -> None:
             buttons.append([home_back_button()])
         text = await get_reseller_text(
             "reseller_my_list_empty",
-            "**📋 نمایندگی‌های من**\n\nشما هنوز نمایندگی فعالی ندارید.",
+            DEFAULT_BOT_TEXTS["reseller_my_list_empty"],
             event.sender_id,
         )
         if is_callback:
@@ -41,7 +42,7 @@ async def _send_my_resellers_list(event: Message) -> None:
 
     text = await get_reseller_text(
         "reseller_my_list_intro",
-        f"**📋 نمایندگی‌های من** ({len(accounts)} مورد)\n\nیک نمایندگی را انتخاب کنید:",
+        DEFAULT_BOT_TEXTS["reseller_my_list_intro"],
         event.sender_id,
         count=str(len(accounts)),
     )

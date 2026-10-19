@@ -35,6 +35,7 @@ from app.telegram.keyboards.buy import (
     ms_sub_links_prev_button,
 )
 from app.telegram.keyboards.home import home_back_button
+from app.telegram.shared.keyboards.plan_buttons import build_plan_inline_button
 from app.telegram.shared.utils.usage_chart import (
     build_day_detail_buttons,
     build_day_detail_message,
@@ -57,6 +58,7 @@ from app.telegram.user.services.states import (
 from app.utils.formatting.dates import Time_Date, relative_time, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_ip_limit, format_size, format_usage_progress_bar
 from app.utils.text.bot_texts import get_bot_text
+from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 from config import ADMIN_ID, BOT_TAG
 
 logger = get_logger(__name__)
@@ -101,7 +103,9 @@ async def display_user_services(user_id, current_page, edit_message=False, origi
     )
 
     if not total_services:
-        no_services_text = await get_bot_text(key="no_services_message", default="شما هیچ سرویسی ندارید.", lang="fa")
+        no_services_text = await get_bot_text(
+            key="no_services_message", default=DEFAULT_BOT_TEXTS["no_services_message"], lang="fa"
+        )
         buy_button = [await buy_empty_list_button()]
         await Kenzo.send_message(entity=user_id, message=no_services_text, buttons=buy_button)
         return
@@ -138,7 +142,9 @@ async def display_user_services(user_id, current_page, edit_message=False, origi
     if current_page < num_pages:
         navigation_buttons.append(Button.inline("<- صفحه بعدی", data=f"NextService:{current_page}"))
 
-    my_services_intro = await get_bot_text(key="my_services_intro", default="🔑 لیست سرویس‌های شما:", lang="fa")
+    my_services_intro = await get_bot_text(
+        key="my_services_intro", default=DEFAULT_BOT_TEXTS["my_services_intro"], lang="fa"
+    )
     message_text = (
         f"{my_services_intro}\n"
         f"**💡 تعداد اشتراک‌های شما :** {total_services}\n"
@@ -356,29 +362,7 @@ async def build_service_info_message_text(serv_msg, info_panel, user: UserRespon
 
     service_info_template = await get_bot_text(
         key="service_info_message",
-        default=(
-            "🎛 **وضعیت سرویس:** {status}\n\n"
-            "**🔐 محدودیت کاربر و دستگاه :** {ip_limit}\n"
-            "**🌍 پلان :** {plan_name}\n"
-            "#⃣ **کد سرویس(در ربات):** `{service_code}`\n"
-            "**🔷 اسم کانفیگ:** `{config_name}`\n"
-            "**📥حجم مصرفی:** {used_volume}\n"
-            "**📊 حجم کل مصرفی:** {lifetime_used_traffic}\n"
-            "{usage_progress}\n"
-            "**🎲 حجم باقی مانده:** {remaining_volume}\n"
-            "**🗳 حجم سرویس :** {total_volume}\n"
-            "{reset_info}"
-            "**📅 فعال تا تاریخ :** {expiry_date}\n"
-            "{last_connection}"
-            "{edit_at}"
-            "**🚀 لینک آیپی‌ثابت سابسکریپشن جهت دسترسی یکجا به تمامی لوکیشن‌ها**\n\n"
-            "{BOT_TAG} (Subscription) :\n"
-            "`{subscription_url}`"
-            "{tunnel_subscription_url}"
-            "\n▫️ یکی از گزینه های زیر را انتخاب کنید.\n\n"
-            "❌ جهت قطع دسترسی دیگران تغییر ساب بزنید.\n\n"
-            "🚥 برای دیدن آموزش ها از منوی ربات روی دکمه (🚦راهنما یا /help) بزنید."
-        ),
+        default=DEFAULT_BOT_TEXTS["service_info_message"],
         lang="fa",
     )
 
@@ -422,7 +406,6 @@ def group_durations(durations):
 
 async def generate_volume_buttons_tamdid(config_code, duration_group=None, sender_id: int | None = None):
     """English docstring for generate_volume_buttons_tamdid."""
-    from app.telegram.shared.keyboards.plan_buttons import build_plan_inline_button
 
     try:
         _sts, result = await ServiceCRUD().get_service(config_code)

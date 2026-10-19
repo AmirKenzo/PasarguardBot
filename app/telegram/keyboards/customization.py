@@ -63,11 +63,6 @@ async def create_keyboard_button_config_view(
     return keyboard_button_config_text(button_key, button_obj), create_keyboard_button_config_submenu(button_key, page)
 
 
-def generate_location_buttons(code):
-    locations = [["🇺🇸 USA", "🇬🇧 UK"], ["🇨🇦 Canada", "🇦🇺 Australia"]]
-    return [[Button.inline(loc, f"loc_{code}_{loc}") for loc in row] for row in locations]
-
-
 async def create_keyboard_buttons_admin_buttons(page: int = 1):
     """
     Create text management buttons keyboard buttons with professional layout
@@ -273,6 +268,7 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
                 ],
                 [
                     await _keyboard_admin_button(keyboard_crud, "in.rs.delete_confirm", 5),
+                    await _keyboard_admin_button(keyboard_crud, "in.rs.delete_final", 5),
                 ],
                 [
                     await _keyboard_admin_button(keyboard_crud, "in.rs.chpwd_confirm", 5),

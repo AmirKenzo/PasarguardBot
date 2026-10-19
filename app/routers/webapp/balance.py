@@ -11,8 +11,7 @@ from app import Kenzo
 from app.db.crud.auto_card import CRUDAutoCard
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.cryptopayments import (
-    CryptoPaymentsCRUD,
-    add_order_crypto_payment,
+    add_order_with_unique_amount,
     allocate_order_id,
     count_pending_orders,
 )
@@ -43,25 +42,20 @@ from app.models.webapp import (
     IrGatewayMethod,
 )
 from app.routers.webapp.auth import authenticate_user
+from app.routers.webapp.errors import internal_error
 from app.services.payments.ir_gateways import config as ir_gateway_config
 from app.services.payments.tonpays_config import (
     deposit_limits as tonpays_limits,
     gateway_mode as tonpays_mode,
     is_ready as tonpays_ready,
 )
-from app.services.pricing.crypto_amounts import (
-    calculate_pol_amount_with_tax,
-    calculate_ton_amount_with_tax,
-    calculate_trx_amount_with_tax,
-    calculate_usdt_amount_with_tax,
-)
+from app.services.pricing.crypto_amounts import crypto_amount_picker
 from app.services.send_queue import enqueue
 from app.telegram.state import set_step
 from app.telegram.user.balance import states
 from app.telegram.user.balance.keyboards import transaction_review_buttons
-from app.telegram.user.balance.texts import DUPLICATE_RECEIPT_LOG_HEADER
-from app.telegram.user.payment import create_star_invoice_link
-from app.telegram.user.payment.helpers import STAR_USD_PRICE
+from app.telegram.user.balance.texts import DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE, DUPLICATE_RECEIPT_LOG_HEADER
+from app.telegram.user.payment import STAR_USD_PRICE, create_star_invoice_link
 from app.utils.formatting.dates import Time_Date
 
 logger = get_logger(__name__)
@@ -164,8 +158,8 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
         )
     except ValueError as e:
         return BalanceMethodsResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalanceMethodsResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceMethodsResponse(ok=False, error=internal_error("get_balance_methods"))
 
 
 @router.post("/webapp/balance/phone/request", response_model=BalancePhoneRequestResponse)
@@ -185,8 +179,8 @@ async def request_phone_verification(request: BalancePhoneRequestRequest) -> Bal
         return BalancePhoneRequestResponse(ok=True)
     except ValueError as e:
         return BalancePhoneRequestResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalancePhoneRequestResponse(ok=False, error=str(e))
+    except Exception:
+        return BalancePhoneRequestResponse(ok=False, error=internal_error("request_phone_verification"))
 
 
 @router.post("/webapp/balance/deposit/manual", response_model=BalanceDepositManualResponse)
@@ -227,8 +221,8 @@ async def deposit_manual(request: BalanceDepositManualRequest) -> BalanceDeposit
         )
     except ValueError as e:
         return BalanceDepositManualResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalanceDepositManualResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceDepositManualResponse(ok=False, error=internal_error("deposit_manual"))
 
 
 @router.post("/webapp/balance/deposit/auto-card", response_model=BalanceDepositAutoResponse)
@@ -391,6 +385,9 @@ async def deposit_manual_receipt(
             return BalanceDepositManualReceiptResponse(ok=False, error="حجم تصویر حداکثر ۱۰ مگابایت باشد")
 
         phash = await asyncio.to_thread(compute_receipt_phash, content)
+        duplicate_check_failed = phash is None
+        if duplicate_check_failed:
+            logger.warning("webapp receipt from user=%s accepted without duplicate check", user_id)
         if phash and await ReceiptHashCRUD().try_insert(phash, int(user_id)) is None:
             await _log_duplicate_receipt(user_id, amount, content, file.filename)
             return BalanceDepositManualReceiptResponse(
@@ -402,7 +399,7 @@ async def deposit_manual_receipt(
         if phash:
             await ReceiptHashCRUD().update_transaction_id(phash, tx.id)
         rule_crud = ManualAutoApproveRuleCRUD()
-        matched_rule = await rule_crud.schedule_for_transaction(tx)
+        matched_rule = await rule_crud.schedule_for_transaction(tx, manual_only=duplicate_check_failed)
         tx = await TransactionCRUD().get(tx.id) or tx
 
         user_record = await UserCRUD().read_user(user_id)
@@ -423,6 +420,8 @@ async def deposit_manual_receipt(
             user_info += f"\n💰 **موجودی:** `{int(getattr(user_record, 'amount', 0) or 0):,}` تومان"
         user_info += f"\n🛡️ **مبلغ واریزی:** `{amount:,}` تومان"
         user_info += f"\n{auto_status}"
+        if duplicate_check_failed:
+            user_info += f"\n{DUPLICATE_CHECK_UNAVAILABLE_LOG_LINE}"
         user_info += f"\n📊 **دستی:** تایید `{manual_approved}` | رد `{manual_rejected}`"
         log_message = f"💳 #کارت_به_کارت {WEBAPP_RECEIPT_TAG}\n{user_info}"
         buttons = transaction_review_buttons(tx.id)
@@ -451,8 +450,8 @@ async def deposit_manual_receipt(
         )
     except ValueError as e:
         return BalanceDepositManualReceiptResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalanceDepositManualReceiptResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceDepositManualReceiptResponse(ok=False, error=internal_error("deposit_manual_receipt"))
 
 
 @router.post("/webapp/balance/deposit/crypto", response_model=BalanceDepositCryptoResponse)
@@ -487,53 +486,24 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
         order_id = await allocate_order_id()
         if order_id is None:
             return BalanceDepositCryptoResponse(ok=False, error="ساخت فاکتور انجام نشد. لطفاً دوباره تلاش کنید.")
-        reserved = {str(p.amount) for p in await CryptoPaymentsCRUD().get_pending_by_arz(currency)}
-        if currency == "trx":
-            wallet = await WalletCRUD().get_wallet_by_type("TRX")
-            amount_crypto = await calculate_trx_amount_with_tax(
-                int(settings.arz_trx or 0), amount, reserved_amounts=reserved
-            )
-        elif currency == "usdt":
-            wallet = await WalletCRUD().get_wallet_by_type("USDT")
-            amount_crypto = await calculate_usdt_amount_with_tax(
-                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
-            )
-        elif currency == "usdt-ton":
-            wallet = await WalletCRUD().get_wallet_by_type("USDT-TON")
-            amount_crypto = await calculate_usdt_amount_with_tax(
-                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
-            )
-        elif currency == "usdt-bep20":
-            wallet = await WalletCRUD().get_wallet_by_type("USDT-BEP20")
-            amount_crypto = await calculate_usdt_amount_with_tax(
-                int(settings.arz_usd or 0), amount, reserved_amounts=reserved
-            )
-        elif currency == "pol":
-            wallet = await WalletCRUD().get_wallet_by_type("POL")
-            amount_crypto = await calculate_pol_amount_with_tax(
-                int(settings.arz_pol or 0), amount, reserved_amounts=reserved
-            )
-        else:
-            wallet = await WalletCRUD().get_wallet_by_type("TON")
-            amount_crypto = await calculate_ton_amount_with_tax(
-                int(settings.arz_ton or 0), amount, reserved_amounts=reserved
-            )
+        wallet = await WalletCRUD().get_wallet_by_type(currency.upper())
         if not wallet:
             return BalanceDepositCryptoResponse(
                 ok=False,
                 error=f"کیف پول {currency.upper()} در سیستم ثبت نشده است.",
             )
-        saved = await add_order_crypto_payment(
+        saved = await add_order_with_unique_amount(
             order_id=order_id,
             user_id=user_id,
             arz=currency,
-            amount=str(amount_crypto),
             amount_irt=amount,
             createtime=Time_Date()["stamp"],
+            pick_amount=crypto_amount_picker(currency, settings, amount),
             msg_id=None,
         )
         if not saved.get("success"):
             return BalanceDepositCryptoResponse(ok=False, error="ساخت فاکتور انجام نشد. لطفاً دوباره تلاش کنید.")
+        amount_crypto = saved["record"]["amount"]
 
         await enqueue(
             message=(
@@ -556,8 +526,8 @@ async def deposit_crypto(request: BalanceDepositCryptoRequest) -> BalanceDeposit
         )
     except ValueError as e:
         return BalanceDepositCryptoResponse(ok=False, error=str(e))
-    except Exception as e:
-        return BalanceDepositCryptoResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceDepositCryptoResponse(ok=False, error=internal_error("deposit_crypto"))
 
 
 @router.post("/webapp/balance/deposit/stars", response_model=BalanceDepositStarsResponse)
@@ -598,6 +568,5 @@ async def deposit_stars(request: BalanceDepositStarsRequest) -> BalanceDepositSt
         )
     except ValueError as e:
         return BalanceDepositStarsResponse(ok=False, error=str(e))
-    except Exception as e:
-        logger.exception("Stars deposit failed")
-        return BalanceDepositStarsResponse(ok=False, error=str(e))
+    except Exception:
+        return BalanceDepositStarsResponse(ok=False, error=internal_error("deposit_stars"))
