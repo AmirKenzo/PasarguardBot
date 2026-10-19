@@ -55,7 +55,7 @@ async def message_handler_settings_payment(event: Message):
         await SettingsManager().update_setting(settings.id, cart_num=msg)
         await event.respond(
             texts.AUTO_CARD_NUMBER_SAVED_TEMPLATE.format(card_number=msg),
-            buttons=keyboards.back_to_settings_card_button(),
+            buttons=keyboards.back_to_auto_card_row(),
         )
         await set_step(user_id=event.sender_id, step="SettingsCardToCard")
     elif await get_step(event.sender_id) == "chng_auto_card_name" and msg:
@@ -65,7 +65,7 @@ async def message_handler_settings_payment(event: Message):
         await SettingsManager().update_setting(settings.id, cart_name=msg)
         await event.respond(
             texts.AUTO_CARD_NAME_SAVED_TEMPLATE.format(card_name=msg),
-            buttons=keyboards.back_to_settings_card_button(),
+            buttons=keyboards.back_to_auto_card_row(),
         )
         await set_step(user_id=event.sender_id, step="SettingsCardToCard")
     elif await get_step(event.sender_id) == "add_card_number" and msg:
@@ -119,7 +119,7 @@ async def message_handler_settings_payment(event: Message):
         )
         await clear_user(event.sender_id)
         await set_step(event.sender_id, "SettingsCardToCard")
-        await event.respond(texts.AUTO_LIMITS_SAVED, buttons=keyboards.back_to_settings_card_row())
+        await event.respond(texts.AUTO_LIMITS_SAVED, buttons=keyboards.back_to_auto_card_row())
 
     elif await get_step(event.sender_id) == "set_auto_max":
         await event.respond(texts.NUMERIC_ONLY)

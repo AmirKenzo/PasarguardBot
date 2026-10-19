@@ -132,6 +132,21 @@ def is_manual_card_visible(settings, user) -> bool:
     return True
 
 
+def auto_card_visibility_mode(settings) -> str:
+    mode = getattr(settings, "auto_card_visibility", None) if settings else None
+    if mode == MANUAL_CARD_VISIBILITY_ALL:
+        return MANUAL_CARD_VISIBILITY_ALL
+    return MANUAL_CARD_VISIBILITY_SAFE_MODE
+
+
+def is_auto_card_visible(settings, user) -> bool:
+    if not settings or not settings.auto_cart:
+        return False
+    if auto_card_visibility_mode(settings) == MANUAL_CARD_VISIBILITY_SAFE_MODE:
+        return user is not None and bool(getattr(user, "safe", False))
+    return True
+
+
 def gateway_settings_message(manual_info: str, random_mode_status: str, settings) -> str:
     pay_mode_hint = ""
     if settings and not settings.pay_mode:
@@ -145,20 +160,8 @@ def gateway_settings_message(manual_info: str, random_mode_status: str, settings
         f"🔘 **دکمه کارت دستی در ربات**: {pay_mode_status(settings)}\n"
         f"🎲 **حالت نمایش شماره کارت**: {random_mode_status}\n"
         f"👥 **نمایش دکمه کارت به کارت برای**: {manual_card_visibility_status(settings)}"
-        f"{pay_mode_hint}\n"
-        f"{auto_card_info(settings)}\n\n"
+        f"{pay_mode_hint}\n\n"
         "برای تغییر هر گزینه، روی دکمه مربوطه بزنید."
-    )
-
-
-def auto_card_info(settings) -> str:
-    cart_name = getattr(settings, "cart_name", None) if settings else None
-    cart_num = getattr(settings, "cart_num", None) if settings else None
-    return (
-        "----------------------------\n"
-        "💳 **شماره کارت ست شده برای کارت به کارت خودکار**:\n"
-        f"👤 **نام دارنده کارت**: `{cart_name or CARD_HOLDER_NOT_SET}`\n"
-        f"📄 **شماره کارت**:\n `{cart_num or CARD_HOLDER_NOT_SET}`"
     )
 
 
@@ -176,8 +179,7 @@ def gateway_settings_back_message(active, random_mode_status: str, settings) -> 
         f"🔘 **دکمه کارت دستی در ربات**: {pay_mode_status(settings)}\n"
         f"🎲 **حالت نمایش شماره کارت**: {random_mode_status}\n"
         f"👥 **نمایش دکمه کارت به کارت برای**: {manual_card_visibility_status(settings)}"
-        f"{pay_mode_hint}\n"
-        f"{auto_card_info(settings)}\n\n"
+        f"{pay_mode_hint}\n\n"
         "برای تغییر هر گزینه، روی دکمه مربوطه بزنید."
     )
 
@@ -220,4 +222,105 @@ def maar_rule_detail(rule_id: int, rule) -> str:
     return (
         f"قانون #{rule_id}\nحداقل: {rule.min_successful_tx}\nحداکثر: {max_value}\nزمان: {maar_delay(rule)}\n"
         f"وضعیت: {'فعال' if rule.is_active else 'غیرفعال'}"
+    )
+
+
+SMS_WEBHOOK_URL_MISSING = (
+    "⚠️ `WEBAPP_URL` در فایل `.env` تنظیم نشده؛ آدرس را دستی بسازید:\n`https://<دامنه-ربات>/api/sms`"
+)
+SMS_WEBHOOK_KEY_MISSING = "⚠️ کلید ساخته نشده؛ «ساخت کلید جدید» را بزنید."
+SMS_WEBHOOK_ROTATE_CONFIRM = (
+    "🔄 **ساخت کلید جدید وبهوک پیامک**\n\n"
+    "با این کار کلید فعلی **همین الان باطل می‌شود** و تا کلید جدید را در اپ گوشی وارد نکنید، "
+    "هیچ واریزی خودکار تایید نمی‌شود.\n\n"
+    "فقط وقتی این کار را بکنید که کلید لو رفته یا می‌خواهید گوشی قبلی را قطع کنید. ادامه می‌دهید؟"
+)
+SMS_WEBHOOK_ROTATED_NOTE = "✅ کلید جدید ساخته شد و کلید قبلی باطل شد. همین الان آن را در اپ گوشی جایگزین کنید."
+SMS_WEBHOOK_ROTATE_FAILED = "❌ ساخت کلید جدید ناموفق بود؛ کلید قبلی هنوز فعال است."
+
+
+def _sms_url_line(url: str | None) -> str:
+    return f"`{url}`" if url else SMS_WEBHOOK_URL_MISSING
+
+
+def _sms_key_line(key: str) -> str:
+    return f"`{key}`" if key else SMS_WEBHOOK_KEY_MISSING
+
+
+def sms_webhook_message(url: str | None, key_display: str, note: str | None = None) -> str:
+    head = f"{note}\n\n" if note else ""
+    return (
+        f"{head}"
+        "📲 **وبهوک پیامک (کارت‌به‌کارت خودکار)**\n\n"
+        "یک اپ روی گوشیِ دارای سیم‌کارت حساب، پیامک واریز بانک را به این آدرس می‌فرستد "
+        "و ربات فاکتور هم‌مبلغ را خودکار تایید می‌کند.\n\n"
+        f"🌐 **آدرس وبهوک**:\n{_sms_url_line(url)}\n\n"
+        f"🔑 **کلید API**:\n{_sms_key_line(key_display)}\n\n"
+        "📱 اپ‌های پشتیبانی‌شده: **ForApp** (پیشنهادی) و **SmsForwarder**؛ "
+        "راهنمای هرکدام را از دکمه‌های زیر ببینید.\n\n"
+        "⚠️ کلید را به کسی ندهید؛ هرکس آن را داشته باشد می‌تواند واریز جعلی ثبت کند. "
+        "اگر لو رفت، «ساخت کلید جدید» را بزنید."
+    )
+
+
+def sms_webhook_forapp_guide(url: str | None, key: str) -> str:
+    return (
+        "📘 **راهنمای ForApp**\n\n"
+        "1️⃣ ForApp را از `github.com/erfjab/forapp/releases` روی گوشیِ دارای سیم‌کارت حساب نصب کنید "
+        "و دسترسی پیامک و «بدون محدودیت باتری» را بدهید.\n\n"
+        "2️⃣ در بخش **بانک‌ها** شماره‌ی فرستنده‌ی پیامک بانکتان را اضافه کنید "
+        "(فقط پیامک همین شماره‌ها فرستاده می‌شود).\n\n"
+        "3️⃣ یک **مقصد** از نوع وبهوک بسازید:\n"
+        f"• آدرس: {_sms_url_line(url)}\n"
+        "• روش: `POST` و نوع بدنه: `JSON`\n"
+        "• قالب بدنه و هدرها: **پیش‌فرض را دست نزنید**\n"
+        f"• کلید API: {_sms_key_line(key)}\n\n"
+        "4️⃣ «ارسال آزمایشی» را بزنید؛ باید موفق شود. پیام آزمایشی هیچ فاکتوری را تایید نمی‌کند.\n\n"
+        "5️⃣ پیشنهاد: گزینه‌ی «فقط واریزها» را روشن کنید.\n\n"
+        "💡 اگر کلید اشتباه باشد، ForApp خطای `401` نشان می‌دهد. "
+        "اگر بانکتان در ربات قالب نداشته باشد، مبلغی که ForApp تشخیص داده استفاده می‌شود."
+    )
+
+
+def sms_webhook_smsforwarder_guide(url: str | None, key: str) -> str:
+    return (
+        "📘 **راهنمای SmsForwarder**\n\n"
+        "1️⃣ در بخش **ارسال‌کننده‌ها (Sender)** یکی از نوع **Webhook** بسازید:\n"
+        f"• آدرس: {_sms_url_line(url)}\n"
+        "• روش: `POST`\n"
+        f"• هدر: `X-API-Key` با مقدار {_sms_key_line(key)}\n"
+        "• هدر: `Content-Type` با مقدار `application/json`\n"
+        "• قالب پارامترها (webParams):\n"
+        '`{"text":"[org_content]","from":"[from]","timestamp":"[timestamp]"}`\n\n'
+        "2️⃣ در بخش **قوانین (Rule)** یک قانون پیامک بسازید که شماره‌ی فرستنده‌ی بانک را "
+        "به همین ارسال‌کننده وصل کند.\n\n"
+        "3️⃣ با یک واریز کوچک تست کنید و نتیجه را در لاگ اپ ببینید.\n\n"
+        "💡 SmsForwarder مبلغ را جدا نمی‌فرستد؛ پس فقط بانک‌هایی کار می‌کنند که قالبشان در ربات تعریف شده. "
+        "پیامک واریزی که خوانده نشود با هشتگ `#sms_unparsed` در کانال لاگ می‌آید."
+    )
+
+
+def mask_secret(value: str | None) -> str:
+    key = (value or "").strip()
+    if len(key) <= 8:
+        return "***" if key else ""
+    return f"{key[:4]}…{key[-4:]}"
+
+
+def auto_card_menu_message(settings, webhook_url: str | None) -> str:
+    status = "✅ روشن" if settings.auto_cart else "❌ خاموش"
+    audience = (
+        "فقط کاربران دارای سیف‌مود"
+        if auto_card_visibility_mode(settings) == MANUAL_CARD_VISIBILITY_SAFE_MODE
+        else "همه کاربران"
+    )
+    return (
+        "🤖 **کارت به کارت خودکار**\n\n"
+        f"🔘 **وضعیت**: {status}\n"
+        f"👥 **نمایش دکمه برای**: {audience}\n\n"
+        f"👤 **نام دارنده کارت**: `{settings.cart_name or CARD_HOLDER_NOT_SET}`\n"
+        f"📄 **شماره کارت**: `{settings.cart_num or CARD_HOLDER_NOT_SET}`\n\n"
+        f"💰 **محدودیت مبلغ**: `{int(settings.auto_deposit_min or 0):,}` تا "
+        f"`{int(settings.auto_deposit_max or 0):,}` تومان\n\n"
+        f"📲 **وبهوک پیامک**: {_sms_url_line(webhook_url)}"
     )

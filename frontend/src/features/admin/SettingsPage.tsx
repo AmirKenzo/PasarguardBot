@@ -54,6 +54,7 @@ const labels = (t: TFunction): Record<string, string> => ({
   arz_mode: t("panel.common.cryptoPayment"),
   cart_sta: t("panel.settings.starsPaymentEnabled"),
   auto_cart: t("panel.settings.autoCart"),
+  auto_card_visibility: t("panel.settings.showAutoCard"),
   cart_num: t("panel.settings.cartNum"),
   cart_name: t("panel.settings.cartName"),
   auto_deposit_min: t("panel.settings.autoDepositMin"),

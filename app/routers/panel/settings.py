@@ -58,6 +58,10 @@ SELECT_FIELD_OPTIONS: dict[str, list[tuple[str, str]]] = {
         (MANUAL_CARD_VISIBILITY_ALL, "همه کاربران"),
         (MANUAL_CARD_VISIBILITY_SAFE_MODE, "فقط سیف‌مود"),
     ],
+    "auto_card_visibility": [
+        (MANUAL_CARD_VISIBILITY_SAFE_MODE, "فقط سیف‌مود"),
+        (MANUAL_CARD_VISIBILITY_ALL, "همه کاربران"),
+    ],
     "start_reaction_emoji": [("", "خاموش"), *((emoji, emoji) for emoji in START_REACTION_EMOJIS)],
     "start_effect_id": [("0", "خاموش"), *((effect_id, emoji) for effect_id, emoji in START_MESSAGE_EFFECTS)],
     "api_key_login_mode": [

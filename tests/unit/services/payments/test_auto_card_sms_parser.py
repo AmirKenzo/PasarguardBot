@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+
+from app.services.payments import auto_card_sms_parser
 from app.services.payments.auto_card_sms_parser import build_sms_envelope, extract_deposit_rial
 
 
@@ -91,3 +94,66 @@ def test_tobank_form_envelope() -> None:
     assert envelope is not None
     assert "واریز" in envelope.text
     assert envelope.timestamp == "1786221023133"
+
+
+def test_forapp_json_envelope() -> None:
+    envelope = build_sms_envelope(
+        json_body={
+            "id": "abc",
+            "test": False,
+            "sender": "+989000000000",
+            "body": "deposit text",
+            "amount": 1000123,
+            "unit": "rial",
+            "is_deposit": True,
+        }
+    )
+    assert envelope is not None
+    assert envelope.text == "deposit text"
+    assert envelope.sender == "+989000000000"
+    assert envelope.message_id == "abc"
+    assert envelope.is_test is False
+    assert envelope.is_deposit is True
+    assert envelope.amount_rial == 1_000_123
+
+
+def test_forapp_form_envelope_strings() -> None:
+    envelope = build_sms_envelope(
+        form_body={"body": "deposit text", "amount": "250000", "unit": "toman", "test": "true", "is_deposit": "false"}
+    )
+    assert envelope is not None
+    assert envelope.amount_rial == 2_500_000
+    assert envelope.is_test is True
+    assert envelope.is_deposit is False
+
+
+def test_envelope_without_forwarder_fields_keeps_defaults() -> None:
+    envelope = build_sms_envelope(json_body={"content": "hello", "from": "Bank"})
+    assert envelope is not None
+    assert envelope.amount_rial is None
+    assert envelope.is_deposit is None
+    assert envelope.is_test is False
+    assert envelope.message_id is None
+
+
+def test_envelope_ignores_null_or_unknown_unit_amount() -> None:
+    null_amount = build_sms_envelope(json_body={"body": "x", "amount": None})
+    usd_amount = build_sms_envelope(json_body={"body": "x", "amount": 5000, "unit": "usd"})
+    assert null_amount is not None and null_amount.amount_rial is None
+    assert usd_amount is not None and usd_amount.amount_rial is None
+
+
+@pytest.mark.parametrize(
+    ("webapp_url", "expected"),
+    [
+        ("https://bot.example/api/webapp", "https://bot.example/api/sms"),
+        ("https://bot.example/api/webapp/", "https://bot.example/api/sms"),
+        ("https://bot.example:8443/panel/api/webapp", "https://bot.example:8443/panel/api/sms"),
+        ("https://bot.example/app", "https://bot.example/api/sms"),
+        ("", None),
+        ("not a url", None),
+    ],
+)
+def test_sms_webhook_url(monkeypatch: pytest.MonkeyPatch, webapp_url: str, expected: str | None) -> None:
+    monkeypatch.setattr(auto_card_sms_parser.config, "WEBAPP_URL", webapp_url, raising=False)
+    assert auto_card_sms_parser.sms_webhook_url() == expected

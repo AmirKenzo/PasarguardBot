@@ -12,7 +12,7 @@ from app.services.billing.direct_pay_flow import (
     is_direct_pay_active,
     start_direct_pay_topup,
 )
-from app.telegram.admin.settings_payment.texts import is_manual_card_visible
+from app.telegram.admin.settings_payment.texts import is_auto_card_visible, is_manual_card_visible
 from app.telegram.keyboards.balance import (
     balance_flow_cancel_rows,
     create_inline_crypto_payment_buttons,
@@ -50,7 +50,7 @@ async def auto_card_to_card_callback(event: events.CallbackQuery.Event):
         raise events.StopPropagation
 
     user = await UserManager().get_user_by_id(event.sender_id)
-    if user.safe == 0:
+    if not is_auto_card_visible(settings, user):
         await event.answer(message=texts.AUTO_CARD_SAFE_DISABLED_ALERT, alert=True)
         raise events.StopPropagation
     if not user.number:

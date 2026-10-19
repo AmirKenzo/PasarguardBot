@@ -51,6 +51,7 @@ from app.services.payments.tonpays_config import (
 )
 from app.services.pricing.crypto_amounts import crypto_amount_picker
 from app.services.send_queue import enqueue
+from app.telegram.admin.settings_payment.texts import is_auto_card_visible
 from app.telegram.state import set_step
 from app.telegram.user.balance import states
 from app.telegram.user.balance.keyboards import transaction_review_buttons
@@ -95,7 +96,6 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
         if not settings:
             return BalanceMethodsResponse(ok=False, error="تنظیمات یافت نشد")
         user = await UserCRUD().read_user(user_id)
-        safe = bool(getattr(user, "safe", False))
         phone_verify_required = _phone_verify_required(settings, user)
         card_number = None
         card_name = None
@@ -115,7 +115,7 @@ async def get_balance_methods(request: BalanceMethodsRequest) -> BalanceMethodsR
             pay_mode=bool(settings.pay_mode),
             arz_mode=bool(settings.arz_mode),
             cart_sta=bool(getattr(settings, "cart_sta", False)),
-            auto_cart=bool(getattr(settings, "auto_cart", False) and safe),
+            auto_cart=is_auto_card_visible(settings, user),
             manual_deposit_min=int(settings.manual_deposit_min or 0),
             manual_deposit_max=int(settings.manual_deposit_max or 0),
             auto_deposit_min=int(getattr(settings, "auto_deposit_min", 0) or 0),
@@ -235,8 +235,7 @@ async def deposit_auto_card(request: BalanceDepositAutoRequest) -> BalanceDeposi
         )
         settings = await SettingsManager().get_settings()
         user = await UserCRUD().read_user(user_id)
-        safe = bool(getattr(user, "safe", False))
-        if not settings or not settings.auto_cart or not safe:
+        if not is_auto_card_visible(settings, user):
             return BalanceDepositAutoResponse(ok=False, error="کارت به کارت خودکار برای شما فعال نیست")
 
         amount = request.amount

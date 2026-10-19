@@ -19,14 +19,10 @@ def btn_cardtocard_settings(settings=None):
         [Button.inline(text="📋 انتخاب کارت فعال", data="select_active_card")],
         [Button.inline(text=visibility_text, data="toggle_manual_card_visibility")],
         [Button.inline(text=random_mode_text, data="toggle_manual_card_random_mode")],
-        [Button.inline(text="⭐ تغییر نام دارنده کارت (خودکار)", data="chng_auto_card_name")],
-        [Button.inline(text="⭐ تغییرشماره کارت (خودکار)", data="chng_auto_card_number")],
         [Button.inline(text=auto_text, data="toggle_manual_auto_confirm")],
         [Button.inline(text="📋 قوانین تایید خودکار", data="maar_rules_menu")],
-        [
-            Button.inline(text="💰 محدودیت کارت دستی", data="set_manual_limits"),
-            Button.inline(text="💰 محدودیت کارت خودکار", data="set_auto_limits"),
-        ],
+        [Button.inline(text="💰 محدودیت کارت دستی", data="set_manual_limits")],
+        [Button.inline(text="🤖 کارت به کارت خودکار", data="auto_card_menu")],
         [Button.inline(text="💰 محدودیت واریز ارزی", data="set_crypto_limits")],
         [Button.inline(text="🏷 حداقل شارژ نمایندگی", data="set_reseller_min_wallet")],
         [Button.inline(text="🎁 تنظیمات بونوس", data="bonus_settings_menu")],
@@ -156,3 +152,55 @@ def crypto_limit_back_button():
 
 def gateway_settings_buttons(settings):
     return btn_cardtocard_settings(settings)
+
+
+def sms_webhook_buttons(key_shown: bool = False):
+    toggle = (
+        Button.inline("🙈 پنهان کردن کلید", data="sms_webhook_menu")
+        if key_shown
+        else Button.inline("👁 نمایش کامل کلید", data="sms_webhook_show_key")
+    )
+    return [
+        [toggle],
+        [Button.inline("🔄 ساخت کلید جدید", data="sms_webhook_rotate")],
+        [
+            Button.inline("📘 راهنمای ForApp", data="sms_webhook_guide_forapp"),
+            Button.inline("📘 راهنمای SmsForwarder", data="sms_webhook_guide_smsf"),
+        ],
+        [Button.inline("🔙 بازگشت", data="auto_card_menu")],
+    ]
+
+
+def sms_webhook_rotate_confirm_buttons():
+    return [
+        [Button.inline("✅ بله، کلید جدید بساز", data="sms_webhook_rotate_confirm")],
+        [Button.inline("❌ انصراف", data="sms_webhook_menu")],
+    ]
+
+
+def sms_webhook_back_row():
+    return [[Button.inline("🔙 بازگشت", data="sms_webhook_menu")]]
+
+
+def auto_card_menu_buttons(settings):
+    status = "✅ کارت خودکار روشن" if settings.auto_cart else "❌ کارت خودکار خاموش"
+    audience = (
+        texts.MANUAL_CARD_VISIBILITY_ALL_LABEL
+        if texts.auto_card_visibility_mode(settings) == texts.MANUAL_CARD_VISIBILITY_SAFE_MODE
+        else texts.MANUAL_CARD_VISIBILITY_SAFE_MODE_LABEL
+    )
+    return [
+        [Button.inline(status, data="toggle_auto_card")],
+        [Button.inline(audience, data="toggle_auto_card_visibility")],
+        [
+            Button.inline("⭐ نام دارنده کارت", data="chng_auto_card_name"),
+            Button.inline("⭐ شماره کارت", data="chng_auto_card_number"),
+        ],
+        [Button.inline("💰 محدودیت مبلغ", data="set_auto_limits")],
+        [Button.inline("📲 وبهوک پیامک (ForApp / SmsForwarder)", data="sms_webhook_menu")],
+        [Button.inline("🔙 بازگشت", data="BackTOSettingsCardToCard")],
+    ]
+
+
+def back_to_auto_card_row():
+    return [[Button.inline("🔙 بازگشت", data="auto_card_menu")]]

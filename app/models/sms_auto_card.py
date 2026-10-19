@@ -61,3 +61,7 @@ class SmsWebhookEnvelope(BaseModel):
     sender: str | None = None
     timestamp: str | None = None
     key: str | None = None
+    message_id: str | None = Field(default=None, description="Stable per-SMS id, used to drop repeated deliveries")
+    is_test: bool = False
+    is_deposit: bool | None = None
+    amount_rial: int | None = Field(default=None, gt=0, description="Amount parsed on the phone, in RIAL")

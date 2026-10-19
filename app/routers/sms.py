@@ -4,6 +4,7 @@ SMS router for handling card-to-card payment notifications.
 
 import asyncio
 import hmac
+import html
 import json
 import re
 import time
@@ -13,17 +14,23 @@ from urllib.parse import parse_qs
 from fastapi import APIRouter, HTTPException, Request
 from telethon import Button
 
-import config
 from app import Kenzo
 from app.db.crud.auto_card import CRUDAutoCard
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD
+from app.db.redis import get_redis
 from app.logger import LogType, get_logger
 from app.services.billing.payment_bonus import calculate_payment_bonus
-from app.services.payments.auto_card_sms_parser import build_sms_envelope, extract_deposit_rial
+from app.services.payments.auto_card_sms_parser import (
+    build_sms_envelope,
+    extract_deposit_rial,
+    normalize_sms_text,
+)
 from app.services.send_queue import enqueue
+from app.telegram.state.keys import build_sms_delivery_key
 from app.utils.formatting.dates import Time_Date
+from app.utils.security.secrets_cache import get_sms_webhook_secret
 
 logger = get_logger(__name__)
 sms_router = APIRouter()
@@ -31,6 +38,10 @@ sms_router = APIRouter()
 _SMS_SECRET_MIN_LENGTH = 16
 _FAST_CONFIRM_SECONDS = 30
 _SLOW_CONFIRM_SECONDS = 600
+_DELIVERY_TTL_SECONDS = 7 * 24 * 3600
+_MESSAGE_ID_MAX_LENGTH = 128
+_UNPARSED_LOG_MAX_CHARS = 1000
+_DEPOSIT_HINTS = ("واریز", "انتقال به حساب شما", "دریافت وجه", "بستانکار")
 
 
 def _extract_api_key(request: Request, body_key: str | None) -> str | None:
@@ -48,10 +59,10 @@ def _extract_api_key(request: Request, body_key: str | None) -> str | None:
 
 
 def _is_valid_api_key(api_key: str | None) -> bool:
-    """Check the supplied key against SMS_WEBHOOK_SECRET; fail closed when it is unset or weak."""
-    secret = (config.SMS_WEBHOOK_SECRET or "").strip()
+    """Check the supplied key against the stored SMS webhook secret; fail closed when it is unset or weak."""
+    secret = get_sms_webhook_secret().strip()
     if len(secret) < _SMS_SECRET_MIN_LENGTH:
-        logger.warning("SMS webhook rejected: SMS_WEBHOOK_SECRET is not configured or too short")
+        logger.warning("SMS webhook rejected: sms_webhook_secret is not loaded or too short")
         return False
     if not api_key:
         return False
@@ -59,20 +70,26 @@ def _is_valid_api_key(api_key: str | None) -> bool:
 
 
 # SMS Service Functions
-async def process_payment_sms(sms_text: str) -> None:
-    """Process SMS text for card-to-card payment."""
+async def process_payment_sms(
+    sms_text: str,
+    *,
+    fallback_amount_rial: int | None = None,
+    is_deposit: bool | None = None,
+) -> None:
+    """Process SMS text for card-to-card payment; the forwarder's amount is used only when no bank rule matches."""
 
     parsed = extract_deposit_rial(sms_text)
-    if not parsed:
+    if parsed:
+        amount = parsed.amount_rial
+        logger.info("SMS deposit parsed bank_id=%s amount_rial=%s", parsed.bank_id, amount)
+    elif fallback_amount_rial and is_deposit is not False:
+        amount = fallback_amount_rial
+        logger.info("SMS deposit from forwarder amount (no bank rule matched) amount_rial=%s", amount)
+    else:
         logger.info("SMS ignored: no deposit amount matched")
+        if is_deposit is not False:
+            await _log_unparsed_sms(sms_text, is_deposit)
         return
-
-    amount = parsed.amount_rial
-    logger.info(
-        "SMS deposit parsed bank_id=%s amount_rial=%s",
-        parsed.bank_id,
-        amount,
-    )
 
     auto_card_crud = CRUDAutoCard()
     payment_record = await auto_card_crud.claim_by_amount(amount)
@@ -82,6 +99,53 @@ async def process_payment_sms(sms_text: str) -> None:
         return
 
     await _process_payment(payment_record, amount)
+
+
+async def _log_unparsed_sms(sms_text: str, is_deposit: bool | None) -> None:
+    text = normalize_sms_text(sms_text)
+    if is_deposit is not True and not any(hint in text for hint in _DEPOSIT_HINTS):
+        return
+    snippet = text if len(text) <= _UNPARSED_LOG_MAX_CHARS else text[:_UNPARSED_LOG_MAX_CHARS] + "…"
+    message = (
+        "⚠️ پیامک واریز خوانده نشد\n"
+        "مبلغ این پیامک تشخیص داده نشد و هیچ فاکتوری تایید نشد. "
+        "احتمالاً قالب پیامک این بانک هنوز در ربات تعریف نشده است.\n\n"
+        f"<blockquote>{html.escape(snippet)}</blockquote>\n\n"
+        "#auto_card #sms_unparsed"
+    )
+    try:
+        await enqueue(message=message, log_type=LogType.AUTO_CARD, parse_mode="html")
+    except Exception as exc:
+        logger.error("Queueing unparsed SMS log failed: %s", exc)
+
+
+def _delivery_id(request: Request, body_id: str | None) -> str | None:
+    raw = body_id or request.headers.get("idempotency-key")
+    if not raw:
+        return None
+    cleaned = re.sub(r"[^A-Za-z0-9_.:-]", "", raw.strip())[:_MESSAGE_ID_MAX_LENGTH]
+    return cleaned or None
+
+
+async def _claim_delivery(message_id: str) -> bool:
+    redis = await get_redis()
+    if redis is None:
+        return True
+    try:
+        return bool(await redis.set(build_sms_delivery_key(message_id), "1", nx=True, ex=_DELIVERY_TTL_SECONDS))
+    except Exception as exc:
+        logger.warning("SMS delivery marker unavailable: %s", exc)
+        return True
+
+
+async def _release_delivery(message_id: str) -> None:
+    redis = await get_redis()
+    if redis is None:
+        return
+    try:
+        await redis.delete(build_sms_delivery_key(message_id))
+    except Exception as exc:
+        logger.warning("Releasing SMS delivery marker failed: %s", exc)
 
 
 async def _process_payment(payment_record: Any, amount: int) -> None:
@@ -308,14 +372,29 @@ async def receive_sms_webhook(request: Request) -> dict:
     api_key = _extract_api_key(request, envelope.key)
     if not _is_valid_api_key(api_key):
         logger.warning("Invalid SMS webhook key")
-        return {"Telegram": "@AmirKenzoo"}
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    if envelope.is_test:
+        logger.info("SMS webhook test message received; nothing processed")
+        return {"status": "ignored", "reason": "test"}
+
+    message_id = _delivery_id(request, envelope.message_id)
+    if message_id and not await _claim_delivery(message_id):
+        logger.info("SMS webhook duplicate delivery ignored id=%s", message_id)
+        return {"status": "ignored", "reason": "duplicate"}
 
     try:
-        await process_payment_sms(envelope.text)
+        await process_payment_sms(
+            envelope.text,
+            fallback_amount_rial=envelope.amount_rial,
+            is_deposit=envelope.is_deposit,
+        )
         logger.info("SMS payment processed successfully")
         return {"status": "success"}
     except Exception as e:
         logger.error(f"Failed to process SMS payment: {e}")
+        if message_id:
+            await _release_delivery(message_id)
         raise HTTPException(status_code=500, detail="Failed to process SMS payment") from None
 
 

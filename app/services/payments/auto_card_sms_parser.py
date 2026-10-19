@@ -5,9 +5,11 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 from typing import Any
+from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
+import config
 from app.models.sms_auto_card import AmountUnit, BankSmsRule, ParsedDeposit, SmsWebhookEnvelope
 from app.services.payments.auto_card_sms_rules import sorted_bank_rules
 
@@ -100,7 +102,7 @@ def build_sms_envelope(
     if json_body:
         data.update({str(k): v for k, v in json_body.items()})
 
-    text = _first_str(data, ("text", "content", "msg", "message"))
+    text = _first_str(data, ("text", "content", "msg", "message", "body"))
     if not text:
         return None
 
@@ -110,9 +112,42 @@ def build_sms_envelope(
             sender=_first_str(data, ("from", "sender")),
             timestamp=_first_str(data, ("timestamp", "time", "ts")),
             key=_first_str(data, ("key", "secret", "api_key")),
+            message_id=_first_str(data, ("id",)),
+            is_test=_to_bool(data.get("test")) is True,
+            is_deposit=_to_bool(data.get("is_deposit")),
+            amount_rial=_forwarded_amount_rial(data),
         )
     except ValidationError:
         return None
+
+
+def _to_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in ("true", "1", "yes"):
+            return True
+        if lowered in ("false", "0", "no"):
+            return False
+    return None
+
+
+def _forwarded_amount_rial(data: dict[str, Any]) -> int | None:
+    raw = data.get("amount")
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, float):
+        raw = int(raw)
+    amount = parse_amount_digits(str(raw))
+    if amount is None:
+        return None
+    unit = str(data.get("unit") or AmountUnit.RIAL.value).strip().lower()
+    if unit == AmountUnit.TOMAN.value:
+        return _to_rial(amount, AmountUnit.TOMAN)
+    if unit != AmountUnit.RIAL.value:
+        return None
+    return amount
 
 
 def _first_str(data: dict[str, Any], keys: tuple[str, ...]) -> str | None:
@@ -129,3 +164,13 @@ def _first_str(data: dict[str, Any], keys: tuple[str, ...]) -> str | None:
 def clear_parser_cache() -> None:
     """Clear compiled regex cache (useful in tests after monkeypatching rules)."""
     _compiled_rules.cache_clear()
+
+
+def sms_webhook_url() -> str | None:
+    webapp = (config.WEBAPP_URL or "").strip().rstrip("/")
+    parsed = urlparse(webapp)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return None
+    if webapp.endswith("/webapp"):
+        return f"{webapp[: -len('/webapp')]}/sms"
+    return f"{parsed.scheme}://{parsed.netloc}/api/sms"

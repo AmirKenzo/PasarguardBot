@@ -38,6 +38,11 @@ def build_direct_pay_user_key(user_id: int) -> str:
     return f"{get_redis_namespace()}:direct_pay:user:{user_id}"
 
 
+def build_sms_delivery_key(message_id: str) -> str:
+    """NX marker so a forwarder's retried delivery of one SMS is processed only once."""
+    return f"{get_redis_namespace()}:sms:delivery:{message_id}"
+
+
 def build_direct_pay_claim_key(user_id: int) -> str:
     """NX lock key so only one worker may fulfill a user's direct-pay record."""
     return f"{get_redis_namespace()}:direct_pay:user:{user_id}:claim"

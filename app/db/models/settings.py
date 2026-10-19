@@ -47,6 +47,7 @@ DEFAULT_PAYMENT_SETTINGS: dict[str, Any] = {
     "pay_phone_verify": True,
     "arz_mode": False,
     "auto_cart": False,
+    "auto_card_visibility": None,
     "cart_sta": False,
     "manual_card_visibility": None,
     "cart_num": None,

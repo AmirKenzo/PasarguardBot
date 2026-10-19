@@ -5,7 +5,8 @@ from typing import Final
 
 SECRET_CRYPTO_KEY = "crypto_key"
 SECRET_WEBHOOK = "webhook_secret"
-SECRET_NAMES: tuple[str, ...] = (SECRET_CRYPTO_KEY, SECRET_WEBHOOK)
+SECRET_SMS_WEBHOOK = "sms_webhook_secret"
+SECRET_NAMES: tuple[str, ...] = (SECRET_CRYPTO_KEY, SECRET_WEBHOOK, SECRET_SMS_WEBHOOK)
 
 _cache: dict[str, str] = {}
 _RANDOM_BYTES: Final[int] = 32
@@ -27,3 +28,7 @@ def get_webhook_secret() -> str:
     if not value:
         raise RuntimeError("webhook_secret is not loaded; call ensure_secrets() at boot")
     return value
+
+
+def get_sms_webhook_secret() -> str:
+    return _cache.get(SECRET_SMS_WEBHOOK, "")

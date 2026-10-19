@@ -907,6 +907,7 @@
       "startEffectId": "Start message effect",
       "readOnlyHint": "Updated automatically — not editable here",
       "autoCart": "Auto bank card button",
+      "showAutoCard": "Show auto card",
       "cartNum": "Destination card number (auto card)",
       "cartName": "Card holder name (auto card)",
       "autoDepositMin": "Minimum auto-card top-up (toman)",
