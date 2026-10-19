@@ -1,5 +1,6 @@
 import secrets
 
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
@@ -85,6 +86,11 @@ class CRUDAutoCard:
                 )
             )
             return result.scalars().all()
+
+    async def count_pending(self) -> int:
+        async with GetDB() as db:
+            result = await db.execute(select(func.count()).select_from(AutoCard).where(AutoCard.status.is_(False)))
+            return int(result.scalar() or 0)
 
     async def get_all(self):
         async with GetDB() as db:

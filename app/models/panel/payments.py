@@ -116,6 +116,37 @@ class PanelTonPaysTestRequest(PanelRequest):
     api_key: str = Field("", max_length=256)
 
 
+class PanelAutoCardStats(BaseModel):
+    pending_invoices: int = 0
+    approved_today: int = 0
+    amount_today: int = 0
+
+
+class PanelAutoCardResponse(PanelResponse):
+    enabled: bool = False
+    visibility: str = "safe_mode"
+    card_number: str = ""
+    card_name: str = ""
+    deposit_min: int = 0
+    deposit_max: int = 0
+    bonus_enabled: bool = False
+    bonus_percent: int = 0
+    webhook_url: str | None = None
+    api_key: str = ""
+    stats: PanelAutoCardStats = Field(default_factory=PanelAutoCardStats)
+
+
+class PanelAutoCardSaveRequest(PanelRequest):
+    enabled: bool | None = None
+    visibility: str | None = Field(None, pattern="^(all|safe_mode)$")
+    card_number: str | None = Field(None, max_length=64)
+    card_name: str | None = Field(None, max_length=128)
+    deposit_min: int | None = Field(None, ge=0)
+    deposit_max: int | None = Field(None, ge=0)
+    bonus_enabled: bool | None = None
+    bonus_percent: int | None = Field(None, ge=0, le=100)
+
+
 class PanelIrGatewayStats(BaseModel):
     paid_today: int = 0
     amount_today: int = 0

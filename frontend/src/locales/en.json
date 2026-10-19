@@ -969,7 +969,9 @@
       "phoneSet": "User phone set",
       "phoneClear": "User phone cleared",
       "detailTitle": "Event #{{id}}",
-      "noDetail": "No extra detail recorded for this event."
+      "noDetail": "No extra detail recorded for this event.",
+      "autoCardSettingsUpdate": "Auto card settings saved",
+      "smsWebhookRotate": "SMS webhook key regenerated"
     },
     "keyboard": {
       "emojiId": "Emoji ID",
@@ -1205,6 +1207,7 @@
       "walletDeleteConfirm": "Delete the {{type}} wallet?",
       "tabCrypto": "Crypto wallets",
       "tabManual": "Manual card transfer",
+      "tabAutoCard": "Auto card",
       "tabTonPays": "TonPays",
       "tabIrGateways": "Iranian gateways",
       "walletRequiredHint": "Choose a wallet type and enter a valid address.",
@@ -1730,6 +1733,64 @@
         "noRows": "Nothing to show",
         "downloadCsv": "Download CSV report",
         "newTransfer": "New transfer"
+      }
+    },
+    "autoCard": {
+      "title": "Automatic card transfer (SMS)",
+      "subtitle": "Each invoice gets a unique rial amount; when the deposit SMS for that amount arrives, the payment is approved instantly.",
+      "enabled": "Enabled",
+      "statusActive": "Active",
+      "statusIncomplete": "Incomplete setup",
+      "statusOff": "Off",
+      "pending": "Pending invoices",
+      "approvedToday": "Approved today",
+      "amountToday": "Approved amount today",
+      "card": "Card and visibility",
+      "cardHint": "Use only the card whose bank SMS messages are forwarded to the SMS app.",
+      "cardNumber": "Card number",
+      "cardName": "Card holder name",
+      "visibility": "Show the button to",
+      "visibilitySafe": "Safe mode only",
+      "visibilityAll": "All users",
+      "visibilityHint": "“Safe mode only” shows the automatic card button only to users marked as safe.",
+      "rules": "Limits and bonus",
+      "rulesHint": "Minimum and maximum amount per invoice (toman) and the top-up bonus.",
+      "minAmount": "Minimum amount",
+      "maxAmount": "Maximum amount",
+      "bonus": "Top-up bonus",
+      "bonusHint": "A percentage of the amount credited on top once the payment is approved.",
+      "rangeError": "The maximum must be greater than the minimum.",
+      "save": "Save settings",
+      "webhook": "SMS webhook",
+      "webhookHint": "An SMS app on the phone holding the account's SIM forwards deposit SMS to this address.",
+      "webhookUrl": "Webhook URL",
+      "noWebhook": "WEBAPP_URL is not set in .env; build the address by hand: https://your-bot-domain/api/sms",
+      "apiKey": "API key",
+      "noKey": "No key yet; press “Generate new key”.",
+      "showKey": "Show key",
+      "hideKey": "Hide key",
+      "rotate": "Generate new key",
+      "rotateConfirm": "The current key stops working right away, and no deposit is approved automatically until the new key is entered in the phone app.",
+      "rotateConfirmButton": "Generate",
+      "keyHint": "Keep the key private; anyone holding it can post fake deposits. If it leaks, generate a new one.",
+      "guideTitle": "Connecting the app",
+      "guideTemplate": "Parameter template (webParams)",
+      "guide": {
+        "forapp": {
+          "step1": "Install ForApp from github.com/erfjab/forapp/releases on the phone with the account's SIM, and allow SMS access and unrestricted battery.",
+          "step2": "Under Banks, add your bank's SMS sender number; only SMS from these numbers are forwarded.",
+          "step3": "Create a webhook destination: copy the URL and API key; keep POST with a JSON body and leave the default template as is.",
+          "step4": "Press “Test send”; it should succeed. A test message never approves an invoice.",
+          "step5": "Recommended: turn on “Deposits only”.",
+          "note": "With a wrong key ForApp shows a 401 error. If your bank's SMS format has no rule in the bot, the amount ForApp detected is used."
+        },
+        "smsforwarder": {
+          "step1": "Under Senders, create a Webhook sender with the webhook URL and the POST method.",
+          "step2": "Add two headers: X-API-Key with the API key, and Content-Type with application/json.",
+          "step3": "Put the parameter template below in webParams.",
+          "step4": "Under Rules, create an SMS rule linking the bank's number to this sender, then test with a small deposit.",
+          "note": "SmsForwarder does not send the amount separately, so only banks with a rule in the bot work. Deposit SMS that cannot be read show up in the log channel tagged #sms_unparsed."
+        }
       }
     },
     "tonpays": {

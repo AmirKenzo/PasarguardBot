@@ -74,6 +74,40 @@ export interface PanelTonPaysStats {
   failed_today: number;
 }
 
+export type PanelAutoCardVisibility = "all" | "safe_mode";
+
+export interface PanelAutoCardStats {
+  pending_invoices: number;
+  approved_today: number;
+  amount_today: number;
+}
+
+export interface PanelAutoCardResponse extends PanelEnvelope {
+  enabled: boolean;
+  visibility: PanelAutoCardVisibility;
+  card_number: string;
+  card_name: string;
+  deposit_min: number;
+  deposit_max: number;
+  bonus_enabled: boolean;
+  bonus_percent: number;
+  /** Null when WEBAPP_URL has no public host. */
+  webhook_url: string | null;
+  api_key: string;
+  stats: PanelAutoCardStats;
+}
+
+export interface PanelAutoCardSaveRequest extends PanelAuthRequest {
+  enabled?: boolean;
+  visibility?: PanelAutoCardVisibility;
+  card_number?: string;
+  card_name?: string;
+  deposit_min?: number;
+  deposit_max?: number;
+  bonus_enabled?: boolean;
+  bonus_percent?: number;
+}
+
 export interface PanelTonPaysResponse extends PanelEnvelope {
   enabled: boolean;
   mode: PanelTonPaysMode;
