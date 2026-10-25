@@ -63,7 +63,8 @@ def is_wizard_step(step: str | None) -> bool:
         return True
     if step.startswith(("mb_", "md_")):
         return True
-    return step in {"sendSupport", "support"}
+    # ``support`` (writing the message) and its service picker / status screens.
+    return step in {"sendSupport", "support"} or step.startswith("support_")
 
 
 def extract_custom_emoji_document_id(message) -> int | None:
