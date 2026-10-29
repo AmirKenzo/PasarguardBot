@@ -75,16 +75,24 @@ async def _with_auth_retry(panel, operation):
         raise
 
 
-async def fetch_panel_roles(panel) -> list[dict[str, Any]]:
+async def fetch_panel_roles(panel) -> tuple[list[dict[str, Any]], str | None]:
+    """Return the panel roles, or an empty list and the reason they could not be read."""
+
     async def _fetch(api: PasarguardAPI, token: str):
         resp = await api.get_roles_simple(token=token)
         return [{"id": r.id, "name": r.name, "is_owner": bool(getattr(r, "is_owner", False))} for r in resp.roles]
 
     try:
-        return await _with_auth_retry(panel, _fetch)
+        roles = await _with_auth_retry(panel, _fetch)
     except HTTPStatusError as e:
-        log.error("Failed to fetch panel roles panel=%s status=%s", panel.code, e.response.status_code)
-        return []
+        status = e.response.status_code
+        log.error("Failed to fetch panel roles panel=%s status=%s", panel.code, status)
+        if status == 403:
+            return [], "ادمین متصل به این پنل Owner نیست و به نقش‌ها دسترسی ندارد؛ آن را در پنل Owner کنید."
+        return [], "نقش‌ها از پنل دریافت نشد؛ اتصال پنل را بررسی کنید."
+    if not roles:
+        return [], "هیچ نقشی در پنل تعریف نشده است."
+    return roles, None
 
 
 async def find_admin_by_username(panel, username: str):

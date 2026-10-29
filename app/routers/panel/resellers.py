@@ -661,23 +661,21 @@ async def list_reseller_plans(payload: PanelRequest, request: Request) -> PanelR
     return await guard.run(payload, request, PanelResellerPlansResponse, handle)
 
 
-async def _panel_roles(panel_code: int) -> list[dict] | None:
-    """Assignable roles of the panel (Owner left out); None when the panel is unknown."""
+async def _panel_roles(panel_code: int) -> tuple[list[dict], str | None]:
+    """Assignable roles of the panel (Owner left out), or the reason there are none."""
     panel = await queries.get_panel(panel_code)
     if panel is None:
-        return None
-    roles = await fetch_panel_roles(panel)
-    return [role for role in roles if not role.get("is_owner")] or roles
+        return [], "پنلی با این کد پیدا نشد."
+    roles, error = await fetch_panel_roles(panel)
+    return [role for role in roles if not role.get("is_owner")] or roles, error
 
 
 @router.post("/panel/reseller-plans/roles", response_model=PanelResellerRolesResponse)
 async def list_panel_roles(payload: PanelResellerRolesRequest, request: Request) -> PanelResellerRolesResponse:
     async def handle(_: PanelActor) -> PanelResellerRolesResponse:
-        roles = await _panel_roles(payload.panel_code)
-        if roles is None:
-            return PanelResellerRolesResponse(ok=False, error="پنلی با این کد پیدا نشد.")
-        if not roles:
-            return PanelResellerRolesResponse(ok=False, error="نقش‌ها از پنل دریافت نشد؛ اتصال پنل را بررسی کنید.")
+        roles, error = await _panel_roles(payload.panel_code)
+        if error:
+            return PanelResellerRolesResponse(ok=False, error=error)
         return PanelResellerRolesResponse(
             roles=[PanelResellerRole(id=int(role["id"]), name=str(role["name"])) for role in roles]
         )
@@ -763,14 +761,14 @@ async def save_reseller_plan(payload: PanelResellerPlanSaveRequest, request: Req
             and payload.panel_code == int(existing.panel_code)
         )
         role_name = existing.role_name if unchanged_role else None
-        roles = await _panel_roles(payload.panel_code)
+        roles, roles_error = await _panel_roles(payload.panel_code)
         if roles:
             role = next((item for item in roles if int(item["id"]) == payload.role_id), None)
             if role is None:
                 return ActionResponse(ok=False, error="نقش انتخاب‌شده در پنل پیدا نشد.")
             role_name = str(role["name"])
         elif not unchanged_role:
-            return ActionResponse(ok=False, error="نقش‌ها از پنل دریافت نشد؛ اتصال پنل را بررسی کنید.")
+            return ActionResponse(ok=False, error=roles_error)
 
         values = {
             **plan_values,

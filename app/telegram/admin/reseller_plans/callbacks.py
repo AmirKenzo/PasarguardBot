@@ -339,9 +339,9 @@ async def reseller_plan_callbacks(event: events.CallbackQuery.Event):
         if not panel:
             await event.answer("پنل یافت نشد.", alert=True)
             return
-        roles = await fetch_panel_roles(panel)
+        roles, roles_error = await fetch_panel_roles(panel)
         if not roles:
-            await event.answer("نقشی از پنل دریافت نشد. دسترسی credential را بررسی کنید.", alert=True)
+            await event.answer(roles_error, alert=True)
             return
         await set_data(user_id, "reseller_plan_panel", str(panel_code))
         page_size = 15
@@ -374,9 +374,9 @@ async def reseller_plan_callbacks(event: events.CallbackQuery.Event):
         if not panel:
             await event.answer("پنل یافت نشد.", alert=True)
             return
-        roles = await fetch_panel_roles(panel)
+        roles, roles_error = await fetch_panel_roles(panel)
         if not roles:
-            await event.answer("نقشی از پنل دریافت نشد. دسترسی credential را بررسی کنید.", alert=True)
+            await event.answer(roles_error, alert=True)
             return
         page_size = 15
         filtered = [r for r in roles if not r.get("is_owner")] or list(roles)
@@ -414,7 +414,7 @@ async def reseller_plan_callbacks(event: events.CallbackQuery.Event):
             role_name = str(role_id)
             panel = await PanelsManager().get_panel_by_code(code=panel_code)
             if panel:
-                roles = await fetch_panel_roles(panel)
+                roles, _ = await fetch_panel_roles(panel)
                 role_name = next((str(r["name"]) for r in roles if int(r["id"]) == role_id), role_name)
         await set_data(user_id, states.ROLE_ID_KEY, str(role_id))
         await set_data(user_id, states.ROLE_NAME_KEY, role_name)

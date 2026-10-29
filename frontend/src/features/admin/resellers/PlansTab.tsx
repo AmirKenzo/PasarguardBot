@@ -368,6 +368,12 @@ export default function PlansTab() {
                 disabled={locked}
                 onChange={(event) => setDraft({ ...draft, panel_code: Number(event.target.value), role_id: 0 })}
               />
+              {roles.isError && (
+                <p className="mt-2 flex items-start gap-2 rounded-md bg-danger/10 px-3 py-2 text-xs leading-6 text-danger">
+                  <AlertTriangle size={14} className="mt-1 shrink-0" />
+                  {roles.error.message}
+                </p>
+              )}
             </div>
 
             <div className="col-span-full space-y-2">
@@ -487,8 +493,8 @@ export default function PlansTab() {
                   setTouched((prev) => new Set(prev).add("role_id"));
                 }}
               />
-              <p className={`mt-1 text-xs ${roles.isError || errorFor("role_id") ? "text-danger" : "text-muted"}`}>
-                {roles.isError ? roles.error.message : errorFor("role_id") || t("panel.resellerHub.plans.roleHint")}
+              <p className={`mt-1 text-xs ${errorFor("role_id") ? "text-danger" : "text-muted"}`}>
+                {errorFor("role_id") || t("panel.resellerHub.plans.roleHint")}
               </p>
             </div>
 
