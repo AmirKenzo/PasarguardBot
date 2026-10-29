@@ -61,14 +61,18 @@ async def _write_max_users(panel, account, limit: int) -> None:
 async def set_data_limit_by_admin(
     account, *, set_gb: float | None = None, add_gb: float | None = None, actor_id: int | None = None
 ) -> tuple[bool, str]:
-    """Set the volume to ``set_gb`` or add ``add_gb`` to it, for free."""
-    if rule_for(account.pricing_mode).volume == "none":
+    """Set the volume to ``set_gb`` or add ``add_gb`` to it, for free.
+
+    ``set_gb=0`` makes the volume unlimited on plan types whose volume is optional.
+    """
+    rule = rule_for(account.pricing_mode)
+    if rule.volume == "none":
         return False, "حجم این نوع پلن همیشه نامحدود است."
     before = int(account.data_limit or 0)
     if set_gb is not None:
-        if set_gb <= 0:
+        if set_gb < 0 or (set_gb == 0 and rule.volume != "optional"):
             return False, "حجم باید بیشتر از صفر باشد."
-        after = int(gigabytes_to_bytes(set_gb))
+        after = int(gigabytes_to_bytes(set_gb)) if set_gb > 0 else 0
     elif add_gb is not None:
         if add_gb <= 0:
             return False, "حجم باید بیشتر از صفر باشد."
@@ -92,11 +96,14 @@ async def set_data_limit_by_admin(
         account=account,
         actor_id=actor_id,
         actor_role=ADMIN_ROLE,
-        extra_lines=[f"📉 <b>قبل:</b> {format_size(before)}", f"📈 <b>بعد:</b> {format_size(after)}"],
+        extra_lines=[
+            f"📉 <b>قبل:</b> {format_size(before) if before else 'نامحدود'}",
+            f"📈 <b>بعد:</b> {format_size(after) if after else 'نامحدود'}",
+        ],
         event=EVENT_DATA_LIMIT,
         data={"before": before, "after": after},
     )
-    return True, f"حجم نمایندگی {format_size(after)} شد."
+    return True, f"حجم نمایندگی {format_size(after) if after else 'نامحدود'} شد."
 
 
 async def change_plan_by_admin(account, *, plan_id: int, actor_id: int | None = None) -> tuple[bool, str]:

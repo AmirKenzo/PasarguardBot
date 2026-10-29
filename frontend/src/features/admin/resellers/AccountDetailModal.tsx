@@ -186,6 +186,7 @@ function AccountBody({
   const currentLimit = account.data_limit || 0;
   const volumeValue = Number(volumeGb.replace(/[^\d.]/g, "")) || 0;
   const volumeAfter = volumeMode === "add" ? currentLimit + volumeValue * GB : volumeValue * GB;
+  const setUnlimited = isPayg && volumeMode === "set";
   const targetPlan = changePlans.find((plan) => String(plan.id) === changePlanId);
 
   return (
@@ -221,6 +222,11 @@ function AccountBody({
                   {live.data_limit ? ` / ${formatBytes(live.data_limit)}` : ` · ${t("panel.resellerHub.unlimited")}`}
                 </span>
               </div>
+              {account.usage_cap_bytes ? (
+                <p className="mb-1 text-end text-[11px] font-bold text-warning">
+                  {t("panel.resellerHub.detail.capLine", { value: formatBytes(account.usage_cap_bytes) })}
+                </p>
+              ) : null}
               {usedPercent !== null && (
                 <div className="h-2 overflow-hidden rounded-full bg-border/60">
                   <div
@@ -501,16 +507,17 @@ function AccountBody({
                     label={t("panel.resellerHub.detail.volumeGb")}
                     inputMode="decimal"
                     value={volumeGb}
+                    placeholder={setUnlimited ? t("panel.resellerHub.detail.volumeZeroUnlimited") : undefined}
                     onChange={(event) => setVolumeGb(event.target.value.replace(/[^\d.]/g, ""))}
                   />
                   <ConfirmButton
                     size="md"
                     variant="secondary"
                     loading={volume.isPending}
-                    disabled={volumeValue <= 0}
+                    disabled={setUnlimited ? !volumeGb.trim() : volumeValue <= 0}
                     message={t("panel.resellerHub.detail.volumeConfirm", {
                       before: currentLimit ? formatBytes(currentLimit) : t("panel.resellerHub.unlimited"),
-                      after: formatBytes(volumeAfter),
+                      after: volumeAfter ? formatBytes(volumeAfter) : t("panel.resellerHub.unlimited"),
                     })}
                     onConfirm={() =>
                       volume.mutate(

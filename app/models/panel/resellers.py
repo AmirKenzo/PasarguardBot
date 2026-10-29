@@ -221,7 +221,7 @@ class PanelResellerDataLimitRequest(PanelRequest):
     """Set the volume to ``set_gb`` or add ``add_gb`` to it; exactly one of them."""
 
     code: int
-    set_gb: float | None = Field(None, gt=0, le=1_000_000)
+    set_gb: float | None = Field(None, ge=0, le=1_000_000, description="0 makes the volume unlimited (PAYG plans)")
     add_gb: float | None = Field(None, gt=0, le=1_000_000)
 
 
