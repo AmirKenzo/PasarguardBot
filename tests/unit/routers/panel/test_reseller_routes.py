@@ -131,7 +131,7 @@ async def _save(monkeypatch, request: PanelResellerPlanSaveRequest, *, linked: i
         saved.append(values)
 
     async def roles(panel_code):
-        return [{"id": 1, "name": "seller"}, {"id": 2, "name": "vip"}]
+        return [{"id": 1, "name": "seller"}, {"id": 2, "name": "vip"}], None
 
     monkeypatch.setattr(resellers.queries, "panel_names", panel_names)
     monkeypatch.setattr(resellers.queries, "get_reseller_plan", get_plan)
