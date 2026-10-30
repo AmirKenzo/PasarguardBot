@@ -1,7 +1,7 @@
 """add auto card table
 
 Revision ID: a3f7c2e9d4b6
-Revises: e2c6a9f4b8d1
+Revises: 9b4d2e7a1c63
 Create Date: 2026-10-10 00:00:00.000000
 
 """
@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "a3f7c2e9d4b6"
-down_revision: str | None = "e2c6a9f4b8d1"
+down_revision: str | None = "9b4d2e7a1c63"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
