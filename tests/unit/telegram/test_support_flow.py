@@ -6,6 +6,7 @@ import contextlib
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
 from telethon.events import StopPropagation
 
 from app.services.support import (
@@ -464,10 +465,65 @@ def _store(monkeypatch):
     async def _step(user_id, step):
         values["step"] = step
 
+    async def _delete(user_id, key):
+        values.pop(key, None)
+
+    monkeypatch.setattr(user_support, "delete_data", _delete)
     monkeypatch.setattr(user_support, "set_data", _set)
     monkeypatch.setattr(user_support, "get_data", _get)
     monkeypatch.setattr(user_support, "set_step", _step)
     return values
+
+
+@pytest.mark.parametrize(("delivered", "owner_id"), [(1, 555), (1, 999), (0, 555)])
+async def test_support_delivery_revalidates_ownership_and_clears_only_after_success(monkeypatch, delivered, owner_id):
+    values = _store(monkeypatch)
+    values.update(
+        {user_support.TARGET_KEY: "1234", user_support.ORIGIN_KEY: user_support.ORIGIN_SERVICE, "step": "support"}
+    )
+    tickets = []
+    replies = []
+
+    async def _send(ticket):
+        tickets.append(ticket)
+        return delivered
+
+    async def _home(*args):
+        return []
+
+    monkeypatch.setattr(user_support, "ServiceCRUD", lambda: _crud(_service(user_id=owner_id)))
+    monkeypatch.setattr(user_support, "send_ticket_to_admins", _send)
+    monkeypatch.setattr(user_support, "bhome_buttons", _home)
+
+    class _Event:
+        sender_id = 555
+        message = SimpleNamespace(text="سلام، سرویسم وصل نمی‌شود")
+
+        async def get_sender(self):
+            return SimpleNamespace(first_name="Ali", last_name="K", username="ali")
+
+        async def reply(self, text, **kwargs):
+            replies.append(text)
+
+    if delivered:
+        with pytest.raises(StopPropagation):
+            await user_support.support_message.__wrapped__(_Event())
+    else:
+        await user_support.support_message.__wrapped__(_Event())
+
+    assert len(tickets) == 1
+    assert tickets[0].user_id == 555
+    assert tickets[0].target == ("1234" if owner_id == 555 else "general")
+    assert tickets[0].text == "سلام، سرویسم وصل نمی‌شود"
+    assert tickets[0].sender_name == "Ali K"
+    if delivered:
+        assert values == {"step": "home"}
+        assert "با موفقیت" in replies[0]
+    else:
+        assert values["step"] == "support"
+        assert values[user_support.TARGET_KEY] == "1234"
+        assert values[user_support.ORIGIN_KEY] == user_support.ORIGIN_SERVICE
+        assert "ناموفق" in replies[0]
 
 
 def _snapshot_for(service, *, now=None):

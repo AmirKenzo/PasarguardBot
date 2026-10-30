@@ -23,13 +23,14 @@ from app.telegram.shared.support_ticket import (
     build_admin_service_detail_rich,
     build_admin_services_list,
     build_ticket_view,
+    load_service_card,
     mint_list_context,
     mint_token,
     recall_list_context,
     recall_ticket,
     remember_list_context,
     remember_ticket,
-    ticket_from_message_text,
+    ticket_from_message,
 )
 from app.telegram.state import delete_data, get_data, get_step, set_data, set_step
 from config import ADMIN_ID
@@ -102,7 +103,7 @@ async def _refresh_ticket(event: events.CallbackQueryEvent | events.CallbackQuer
             message = await event.get_message()
         except Exception:
             message = None
-        ticket = ticket_from_message_text(getattr(message, "message", "") or "", user_id, target)
+        ticket = ticket_from_message(message, user_id, target)
         logger.info("support refresh: cache miss uid=%s target=%s recovered=%s", user_id, target, ticket is not None)
 
     if ticket is None or not ticket.text:
@@ -124,14 +125,6 @@ async def _refresh_ticket(event: events.CallbackQueryEvent | events.CallbackQuer
         return
     await remember_ticket(ticket)
     await event.answer("🔄 اطلاعات به‌روزرسانی شد.")
-
-
-async def _safe_rich_detail(context_token: str, context: ServicesListContext, code: int):
-    try:
-        return await build_admin_service_detail_rich(context_token, context, code)
-    except Exception as exc:
-        logger.warning("support detail: rich build failed for %s: %s", context.user_id, exc)
-        return None
 
 
 async def _safe_list(context_token: str, context: ServicesListContext):
@@ -161,9 +154,10 @@ async def _edit_services_list(
         return
     try:
         await event.edit(text, buttons=buttons, parse_mode="html", link_preview=False)
+    except MessageNotModifiedError:
+        return
     except Exception as exc:
-        # Includes rich -> plain edits: keep the list reachable even if the edit is
-        # rejected, by sending it as a new message.
+        # Rich-to-plain edits may be rejected, so keep the list reachable.
         logger.warning("support list: edit failed for %s: %s", context.user_id, exc)
         try:
             await event.respond(text, buttons=buttons, parse_mode="html", link_preview=False)
@@ -174,17 +168,21 @@ async def _edit_services_list(
 async def _edit_service_detail(
     event: events.CallbackQuery.Event, context_token: str, context: ServicesListContext, code: int
 ) -> None:
-    blocks = await _safe_rich_detail(context_token, context, code)
-    if blocks is not None:
-        try:
-            await edit_native_rich_message(event, blocks)
-            return
-        except Exception as exc:
-            logger.warning("support detail: rich edit failed (%s); using inline keyboard", exc)
+    card = await load_service_card(context.user_id, str(code))
+    try:
+        blocks = build_admin_service_detail_rich(context_token, code, card)
+        await edit_native_rich_message(event, blocks)
+        return
+    except MessageNotModifiedError:
+        return
+    except Exception as exc:
+        logger.warning("support detail: rich edit failed (%s); using inline keyboard", exc)
 
-    text, buttons = await build_admin_service_detail(context_token, context, code)
+    text, buttons = build_admin_service_detail(context_token, code, card)
     try:
         await event.edit(text, buttons=buttons, parse_mode="html", link_preview=False)
+    except MessageNotModifiedError:
+        return
     except Exception as exc:
         logger.warning("support detail: edit failed for %s: %s", context.user_id, exc)
 

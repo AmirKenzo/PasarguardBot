@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
 from httpx import HTTPStatusError, Request, Response
 
 from app.services.support import (
@@ -239,12 +240,15 @@ def test_card_warns_when_expiry_is_close_without_inventing_a_colour():
     assert state_style(card.state) == "success"
 
 
-def test_card_without_stored_expiry_is_unknown():
-    card = build_service_card(_service(expiration_time=None), None, now=NOW)
+@pytest.mark.parametrize("expiration_time", [None, 0])
+def test_card_without_expiry_is_active(expiration_time):
+    card = build_service_card(_service(expiration_time=expiration_time), None, now=NOW)
 
-    assert card.state == STATE_UNKNOWN
+    assert card.state == STATE_ACTIVE
+    assert card.expire_at is None
+    assert card.expiring_soon is False
     assert card.panel_name == "پنل نامشخص"
-    assert card_state_text(card) == "⚪️ نامشخص"
+    assert card_state_text(card) == "🟢 فعال"
 
 
 def test_ownership_is_strict():
@@ -290,6 +294,21 @@ def test_snapshot_of_unlimited_plan_has_no_remaining_count():
     assert snapshot.unlimited is True
     assert snapshot.remaining_bytes is None
     assert snapshot.low_volume is False
+
+
+@pytest.mark.parametrize("expire", [None, 0])
+def test_live_unlimited_expiry_overrides_stale_stored_expiry(expire):
+    snapshot = build_service_snapshot(
+        _service(expiration_time=int(NOW.timestamp()) - DAY),
+        _panel(),
+        _panel_user(expire=expire),
+        now=NOW,
+    )
+
+    assert snapshot.panel_available is True
+    assert snapshot.state == STATE_ACTIVE
+    assert snapshot.expire_at is None
+    assert snapshot.expiring_soon is False
 
 
 def test_snapshot_without_panel_user_keeps_the_stored_expiry():
@@ -445,13 +464,99 @@ async def test_test_service_cannot_be_renewed(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
+async def test_picker_batches_services_per_panel_and_preserves_order(monkeypatch):
+    calls = []
+
+    class _Api:
+        def __init__(self, base_url, *, timeout):
+            self.base_url = base_url
+
+        async def get_users(self, *, ids, token, limit):
+            calls.append((self.base_url, ids, token, limit))
+            return SimpleNamespace(
+                users=[
+                    _panel_user(id=100, status="disabled"),
+                    _panel_user(id=99, status="limited", used_traffic=30 * GB),
+                    _panel_user(id=999, status="expired"),
+                ],
+                total=3,
+            )
+
+    monkeypatch.setattr(snapshot_module, "PasarguardAPI", _Api)
+    services = [_service(), _service(code=2222, panel_userid=100), _service(code=3333)]
+
+    states = await load_service_states(services, panels_by_code={7: _panel()}, now=NOW)
+
+    assert calls == [("https://panel.example.com", [99, 100], "token", 2)]
+    assert [state.code for state in states] == [1234, 2222, 3333]
+    assert [state.state for state in states] == [STATE_LIMITED, STATE_DISABLED, STATE_LIMITED]
+    assert all(state.panel_available for state in states)
+
+
+@pytest.mark.parametrize("second_panel_down", [False, True])
+async def test_picker_keeps_panel_ids_separate_and_isolates_failures(monkeypatch, second_panel_down):
+    calls = []
+
+    class _Api:
+        def __init__(self, base_url, *, timeout):
+            self.base_url = base_url
+
+        async def get_users(self, *, ids, token, limit):
+            calls.append((self.base_url, ids, token, limit))
+            if second_panel_down and self.base_url == "https://second.example.com":
+                raise RuntimeError("panel down")
+            status = "limited" if self.base_url == "https://panel.example.com" else "disabled"
+            return SimpleNamespace(users=[_panel_user(id=99, status=status)], total=1)
+
+    monkeypatch.setattr(snapshot_module, "PasarguardAPI", _Api)
+    services = [_service(), _service(code=2222, in_panel=8)]
+    panels = {7: _panel(), 8: _panel(code=8, base_url="https://second.example.com", cookie="second-token")}
+
+    states = await load_service_states(services, panels_by_code=panels, now=NOW)
+
+    assert sorted(calls) == [
+        ("https://panel.example.com", [99], "token", 1),
+        ("https://second.example.com", [99], "second-token", 1),
+    ]
+    assert states[0].state == STATE_LIMITED
+    assert states[0].panel_available is True
+    assert states[1].state == (STATE_ACTIVE if second_panel_down else STATE_DISABLED)
+    assert states[1].panel_available is not second_panel_down
+
+
+async def test_picker_missing_users_and_panel_ids_keep_database_cards(monkeypatch):
+    calls = []
+
+    class _Api:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def get_users(self, *, ids, token, limit):
+            calls.append(ids)
+            return SimpleNamespace(users=[], total=0)
+
+    monkeypatch.setattr(snapshot_module, "PasarguardAPI", _Api)
+    services = [
+        _service(expiration_time=None),
+        _service(code=2222, panel_userid=None, expiration_time=0),
+        _service(code=3333, in_panel=404),
+    ]
+
+    states = await load_service_states(services, panels_by_code={7: _panel()}, now=NOW)
+
+    assert calls == [[99]]
+    assert [state.code for state in states] == [1234, 2222, 3333]
+    assert all(state.state == STATE_ACTIVE and not state.panel_available for state in states)
+    assert await load_service_states([], panels_by_code={}) == []
+
+
 async def test_picker_row_uses_the_live_panel_state(monkeypatch):
     class _Api:
         def __init__(self, *args, **kwargs) -> None:
             pass
 
-        async def get_user_by_id(self, **kwargs):
-            return _panel_user(status="limited", used_traffic=30 * GB)
+        async def get_users(self, *, ids, token, limit):
+            return SimpleNamespace(users=[_panel_user(id=99, status="limited", used_traffic=30 * GB)], total=1)
 
     monkeypatch.setattr(snapshot_module, "PasarguardAPI", _Api)
 
@@ -468,7 +573,7 @@ async def test_picker_row_falls_back_to_the_stored_state(monkeypatch):
         def __init__(self, *args, **kwargs) -> None:
             pass
 
-        async def get_user_by_id(self, **kwargs):
+        async def get_users(self, *, ids, token, limit):
             raise RuntimeError("panel down")
 
     monkeypatch.setattr(snapshot_module, "PasarguardAPI", _Api)
@@ -487,9 +592,9 @@ async def test_picker_row_without_panel_user_id_is_not_fetched(monkeypatch):
         def __init__(self, *args, **kwargs) -> None:
             pass
 
-        async def get_user_by_id(self, **kwargs):
-            calls.append(kwargs)
-            return _panel_user()
+        async def get_users(self, *, ids, token, limit):
+            calls.append(ids)
+            return SimpleNamespace(users=[_panel_user(id=99)], total=1)
 
     monkeypatch.setattr(snapshot_module, "PasarguardAPI", _Api)
 

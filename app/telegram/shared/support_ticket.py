@@ -1,19 +1,4 @@
-"""Admin-facing support ticket: a line-per-fact card, its buttons and a small cache.
-
-The ticket is an HTML message with one fact per line and a leading rail symbol, so
-the service details are separated instead of reading as one paragraph. Rows use a
-single status emoji (or a 🟡 line) and nothing else.
-
-The same module builds the admin's "other services" screens: a list with one
-status-coloured button per service, an all/active filter and a detail view with a
-back button. The list keeps its state (user, filter, page) under a short context
-token in Redis so every callback stays inside Telegram's 64-byte data limit.
-
-The cached ticket payload exists for the "refresh" button: callback data carries
-the sender, the target and a short token, and the token points at the customer
-text. It is best-effort — when the cache is gone the refresh still answers with
-fresh service data in a new message, it just cannot rewrite the original text.
-"""
+"""Admin support tickets, service cards, navigation and short-lived callback context."""
 
 from __future__ import annotations
 
@@ -22,11 +7,13 @@ import json
 import math
 import secrets
 from dataclasses import asdict, dataclass, replace
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
+import jdatetime
 from telethon import Button
 from telethon.tl import types
+from telethon.tl.custom import Message
 
 from app import Kenzo
 from app.db.crud.panels import PanelsManager
@@ -55,7 +42,7 @@ from app.services.support import (
 from app.services.telegram.rich_message import rt as _rt
 from app.telegram.keyboards.common import build_telegram_button_style, styled_callback_button
 from app.telegram.state.store import get_app_cache, set_app_cache
-from app.utils.formatting.dates import Time_Date, relative_time, timestamp_to_persian_expiry
+from app.utils.formatting.dates import IRAN_TZ, Time_Date, relative_time, timestamp_to_persian_expiry
 from app.utils.formatting.traffic import format_size
 from config import ADMIN_ID
 
@@ -73,7 +60,6 @@ LIST_CACHE_PREFIX = "support:adminlist"
 LIST_TTL_SECONDS = 24 * 3600
 
 TICKET_HEADING = "🏷 <b>تیکت پشتیبانی</b>"
-REFRESH_HEADING = "🔄 <b>به‌روزرسانی تیکت</b>"
 RAIL = "│"
 SERVICES_PER_PAGE = 5
 # Above this many services the list trusts the stored status instead of
@@ -210,14 +196,6 @@ def _esc(value: Any) -> str:
     return html.escape(str(value if value is not None else ""))
 
 
-def _expiry_moment(snapshot: ServiceSnapshot) -> datetime | None:
-    if snapshot.expire_at is not None:
-        return snapshot.expire_at
-    if snapshot.expiration_time:
-        return datetime.fromtimestamp(snapshot.expiration_time, tz=UTC)
-    return None
-
-
 def _volume_text(snapshot: ServiceSnapshot) -> str:
     if snapshot.unlimited:
         return "♾️ نامحدود"
@@ -233,8 +211,8 @@ def _warning_text(snapshot: ServiceSnapshot) -> str:
     return f"🟡 {' · '.join(warnings)}" if warnings else ""
 
 
-async def _single_service_card(ticket: SupportTicket) -> ServiceCard:
-    code = target_service_code(ticket.target)
+async def load_service_card(user_id: int, target: str) -> ServiceCard:
+    code = target_service_code(target)
     if code is None:
         return ServiceCard(title="سرویس مرتبط", rows=(("وضعیت", "❌ نامشخص"),))
 
@@ -243,8 +221,8 @@ async def _single_service_card(ticket: SupportTicket) -> ServiceCard:
         return ServiceCard(title="سرویس مرتبط", rows=(("وضعیت", f"❌ سرویس با کد {code} پیدا نشد"),))
 
     # Only the ticket owner's own service may appear, even if a callback is forged.
-    if not service_belongs_to(service, ticket.user_id):
-        logger.warning("support ticket: service %s does not belong to user %s", code, ticket.user_id)
+    if not service_belongs_to(service, user_id):
+        logger.warning("support ticket: service %s does not belong to user %s", code, user_id)
         return ServiceCard(title="سرویس مرتبط", rows=(("وضعیت", "❌ این سرویس به این کاربر تعلق ندارد"),))
 
     try:
@@ -273,7 +251,7 @@ async def _single_service_card(ticket: SupportTicket) -> ServiceCard:
             rows.append(("حجم", _volume_text(snapshot)))
         if snapshot.used_bytes is not None:
             rows.append(("مصرف", format_size(snapshot.used_bytes)))
-        expiry = _expiry_moment(snapshot)
+        expiry = snapshot.expire_at
         if expiry is not None:
             rows.append(("انقضا", timestamp_to_persian_expiry(expiry)))
         if snapshot.online_at is not None:
@@ -281,7 +259,7 @@ async def _single_service_card(ticket: SupportTicket) -> ServiceCard:
     else:
         rows.append(("وضعیت", "⚪️ نامشخص"))
         rows.append(("اطلاعات پنل", panel_error_text(snapshot.panel_error)))
-        expiry = _expiry_moment(snapshot)
+        expiry = snapshot.expire_at
         if expiry is not None:
             rows.append(("انقضا", f"{timestamp_to_persian_expiry(expiry)} (ثبت‌شده)"))
     warning = _warning_text(snapshot)
@@ -317,7 +295,7 @@ async def _service_card(ticket: SupportTicket) -> ServiceCard | None:
         return None
     if ticket.target == TARGET_ALL:
         return await _all_services_card(ticket.user_id)
-    return await _single_service_card(ticket)
+    return await load_service_card(ticket.user_id, ticket.target)
 
 
 # --------------------------------------------------------------------------- #
@@ -334,15 +312,13 @@ def _card_lines(card: ServiceCard) -> list[str]:
     return lines
 
 
-async def build_ticket_view(
-    ticket: SupportTicket,
-    *,
-    include_text: bool = True,
-    heading: str = TICKET_HEADING,
-) -> tuple[str, list[list]]:
+async def build_ticket_view(ticket: SupportTicket) -> tuple[str, list[list]]:
     """HTML body and buttons for one ticket. Never raises for a panel problem."""
-    lines = [heading, ""]
-    sender = f"<b>{_esc(ticket.sender_name)}</b> · <code>{int(ticket.user_id)}</code>"
+    lines = [TICKET_HEADING, ""]
+    sender = (
+        f'<a href="tg://user?id={int(ticket.user_id)}"><b>{_esc(ticket.sender_name)}</b></a>'
+        f" · <code>{int(ticket.user_id)}</code>"
+    )
     if ticket.sender_username:
         sender += f" · @{_esc(ticket.sender_username)}"
     lines.append(sender)
@@ -359,11 +335,7 @@ async def build_ticket_view(
     if card is not None:
         lines.extend(["", *_card_lines(card)])
 
-    lines.append("")
-    if include_text:
-        lines.extend(["<b>متن مشتری</b>", f"<blockquote expandable>{_esc(ticket.text)}</blockquote>"])
-    else:
-        lines.append("<i>⚠️ متن اصلی این پیام در دسترس نیست.</i>")
+    lines.extend(["", "<b>متن مشتری</b>", f"<blockquote expandable>{_esc(ticket.text)}</blockquote>"])
     return "\n".join(lines), ticket_buttons(ticket)
 
 
@@ -513,12 +485,6 @@ async def _load_services_page(
     )
 
 
-def _list_sender(context: ServicesListContext) -> str:
-    if context.sender_name:
-        return f"{context.sender_name} · {int(context.user_id)}"
-    return str(int(context.user_id))
-
-
 def _list_filter_label(context: ServicesListContext) -> str:
     return "همه" if context.filter == FILTER_ALL else "فقط فعال"
 
@@ -564,10 +530,6 @@ def _rich_row(*buttons: types.PageButton) -> types.PageBlockButtonRow:
     return types.PageBlockButtonRow(buttons=list(buttons))
 
 
-def _rich_lines(*lines: str) -> types.PageBlockParagraph:
-    return types.PageBlockParagraph(_plain("\n".join(line for line in lines if line)))
-
-
 def _rich_table(title: str, rows: tuple[tuple[str, Any], ...]) -> types.PageBlockTable:
     return types.PageBlockTable(
         title=_rt(title),
@@ -585,14 +547,8 @@ def _rich_table(title: str, rows: tuple[tuple[str, Any], ...]) -> types.PageBloc
     )
 
 
-async def build_admin_service_detail_rich(
-    context_token: str,
-    context: ServicesListContext,
-    code: int,
-) -> list:
+def build_admin_service_detail_rich(context_token: str, code: int, card: ServiceCard) -> list:
     """Rich detail card for one service with the back button inside the message."""
-    ticket = SupportTicket(user_id=context.user_id, target=str(code), text="")
-    card = await _single_service_card(ticket)
     return [
         types.PageBlockParagraph(types.TextBold(_plain("🔎 مشخصات سرویس"))),
         _rich_table(f"سرویس {code}", card.rows),
@@ -601,41 +557,33 @@ async def build_admin_service_detail_rich(
     ]
 
 
-def ticket_from_message_text(plain: str, user_id: int, target: str) -> SupportTicket | None:
-    """Rebuild a ticket from the bot's own message when the cache entry is gone.
-
-    The ticket format is ours: heading, sender line, card, then the marker
-    ``متن مشتری`` followed by the customer text. Used by the refresh button so it
-    can update the original message instead of sending a new one.
-    """
-    text = (plain or "").strip()
-    if not text:
+def ticket_from_message(message: Message | None, user_id: int, target: str) -> SupportTicket | None:
+    """Recover a ticket from its formatting entities without interpreting customer data."""
+    if message is None:
         return None
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if len(lines) < 3:
+    quotes = message.get_entities_text(types.MessageEntityBlockquote)
+    names = message.get_entities_text(types.MessageEntityBold)
+    if len(quotes) != 1 or not quotes[0][1] or len(names) < 2:
         return None
 
-    sender_name = "کاربر"
-    sender_username = None
-    sender_parts = [part.strip() for part in lines[1].split(" · ")]
-    if sender_parts and sender_parts[0]:
-        sender_name = sender_parts[0]
-    if len(sender_parts) > 2 and sender_parts[2].startswith("@"):
-        sender_username = sender_parts[2][1:]
-
-    marker = "متن مشتری"
-    marker_at = text.find(marker)
-    if marker_at < 0:
-        return None
-    customer_text = text[marker_at + len(marker) :].strip()
-    if not customer_text:
-        return None
+    sender_name = names[1][1]
+    sender_tail = (message.message or "").partition(f"{sender_name} · {int(user_id)}")[2].split("\n", 1)[0]
+    sender_username = sender_tail.removeprefix(" · @") if sender_tail.startswith(" · @") else None
+    codes = message.get_entities_text(types.MessageEntityCode)
+    created_at = 0
+    if len(codes) > 1:
+        try:
+            local_time = jdatetime.datetime.strptime(codes[1][1], "%Y/%m/%d %H:%M:%S").togregorian()
+            created_at = int(IRAN_TZ.localize(local_time).timestamp())
+        except ValueError:
+            return None
     return SupportTicket(
         user_id=int(user_id),
         target=str(target),
-        text=customer_text,
+        text=quotes[0][1],
         sender_name=sender_name,
         sender_username=sender_username,
+        created_at=created_at,
         token=mint_token(),
     )
 
@@ -696,14 +644,8 @@ async def build_admin_services_list(
     return "\n".join(lines), rows
 
 
-async def build_admin_service_detail(
-    context_token: str,
-    context: ServicesListContext,
-    code: int,
-) -> tuple[str, list[list]]:
+def build_admin_service_detail(context_token: str, code: int, card: ServiceCard) -> tuple[str, list[list]]:
     """HTML fallback for the detail card, with a back button below it."""
-    ticket = SupportTicket(user_id=context.user_id, target=str(code), text="")
-    card = await _single_service_card(ticket)
     lines = ["🔎 <b>مشخصات سرویس</b>", ""]
     lines.extend(_card_lines(replace(card, title=f"سرویس {code}")))
     buttons = [[styled_callback_button("🔙 بازگشت به لیست", f"supb:{context_token}")]]

@@ -262,7 +262,7 @@ def classify_state(
         return STATE_LIMITED
     if status == "on_hold":
         return STATE_ON_HOLD
-    if status in ("active", "on_hold"):
+    if status == "active":
         return STATE_ACTIVE
     return STATE_UNKNOWN
 
@@ -325,8 +325,8 @@ def build_service_card(service: Any, panel: Any | None = None, *, now: datetime 
     """Database-only snapshot: enough for a picker row, with no panel call."""
     now = _now(now)
     expiration_time = _as_int(getattr(service, "expiration_time", None))
-    if expiration_time is None:
-        state = STATE_UNKNOWN
+    if not expiration_time:
+        state = STATE_ACTIVE
     else:
         state = STATE_EXPIRED if expiration_time <= int(now.timestamp()) else STATE_ACTIVE
     expire_at = datetime.fromtimestamp(expiration_time, tz=UTC) if expiration_time else None
@@ -376,7 +376,7 @@ def build_service_snapshot(
     if panel_user is None:
         return base
 
-    expire_at = coerce_datetime(getattr(panel_user, "expire", None))
+    expire_at = coerce_datetime(getattr(panel_user, "expire", None) or None)
     data_limit = _as_int(getattr(panel_user, "data_limit", None))
     used = _as_int(getattr(panel_user, "used_traffic", None))
     remaining = _remaining_bytes(data_limit, used)
@@ -399,7 +399,7 @@ def build_service_snapshot(
         panel_available=True,
         panel_error=None,
         expiration_time=expiration_time,
-        expire_at=expire_at or base.expire_at,
+        expire_at=expire_at,
         data_limit_bytes=data_limit,
         used_bytes=used,
         remaining_bytes=remaining,
@@ -499,12 +499,7 @@ async def load_service_states(
     now: datetime | None = None,
     api_timeout: float = 3.0,
 ) -> list[ServiceSnapshot]:
-    """States for one page of services, in the given order.
-
-    Each panel is read concurrently so a picker row can show "volume exhausted" or
-    "disabled" before the user opens it. A slow or down panel never blocks the
-    list: that row falls back to its database card.
-    """
+    """Read live states once per panel, preserving service order and database fallbacks."""
     now = _now(now)
     if panels_by_code is None:
         panels_by_code = {panel.code: panel for panel in await PanelsManager().get_all_panels()}
@@ -512,23 +507,29 @@ async def load_service_states(
         build_service_card(service, panels_by_code.get(_as_int(getattr(service, "in_panel", None))), now=now)
         for service in services
     ]
+    by_panel: dict[int, list[tuple[int, int]]] = {}
+    for index, service in enumerate(services):
+        panel_code = _as_int(getattr(service, "in_panel", None))
+        user_id = _as_int(getattr(service, "panel_userid", None))
+        if panel_code in panels_by_code and user_id is not None:
+            by_panel.setdefault(panel_code, []).append((index, user_id))
 
-    async def _state(service: Any, card: ServiceSnapshot) -> ServiceSnapshot:
-        panel = panels_by_code.get(_as_int(getattr(service, "in_panel", None)))
-        if panel is None or _as_int(getattr(service, "panel_userid", None)) is None:
-            return card
+    async def _states(panel_code: int, entries: list[tuple[int, int]]) -> None:
+        panel = panels_by_code[panel_code]
+        ids = list(dict.fromkeys(user_id for _, user_id in entries))
         try:
-            panel_user = await PasarguardAPI(panel.base_url, timeout=api_timeout).get_user_by_id(
-                user_id=require_panel_userid(service),
+            response = await PasarguardAPI(panel.base_url, timeout=api_timeout).get_users(
                 token=panel.cookie,
+                ids=ids,
+                limit=len(ids),
             )
         except Exception as exc:
-            logger.debug(
-                "support picker: live state unavailable for service %s: %s",
-                getattr(service, "code", "?"),
-                exc,
-            )
-            return card
-        return build_service_snapshot(service, panel, panel_user, now=now)
+            logger.debug("support picker: live states unavailable for panel %s: %s", panel_code, exc)
+            return
+        users = {user.id: user for user in response.users}
+        for index, user_id in entries:
+            if (panel_user := users.get(user_id)) is not None:
+                cards[index] = build_service_snapshot(services[index], panel, panel_user, now=now)
 
-    return list(await asyncio.gather(*(_state(service, card) for service, card in zip(services, cards, strict=True))))
+    await asyncio.gather(*(_states(panel_code, entries) for panel_code, entries in by_panel.items()))
+    return cards

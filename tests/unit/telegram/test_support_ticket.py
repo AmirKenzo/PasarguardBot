@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
+from telethon.errors.rpcerrorlist import MessageNotModifiedError
+from telethon.extensions import html
 from telethon.tl import types
+from telethon.tl.custom import Message
 
 from app.services.support import (
     PANEL_ERROR_UNREACHABLE,
@@ -163,6 +167,32 @@ async def test_service_ticket_is_a_line_per_fact_card(monkeypatch):
     assert _buttons(buttons)[0] == "📨 پاسخ به کاربر"
 
 
+async def test_ticket_sender_links_to_the_profile_and_escapes_the_name():
+    text, _ = await ticket_module.build_ticket_view(_ticket(target="general", sender_name="Ali <Admin>"))
+
+    assert '<a href="tg://user?id=555"><b>Ali &lt;Admin&gt;</b></a>' in text
+
+
+async def test_live_unlimited_expiry_does_not_render_a_stale_database_date(monkeypatch):
+    service = _service(days_left=-1)
+
+    async def _snapshot(*args, **kwargs):
+        return build_service_snapshot(
+            service,
+            _panel(),
+            SimpleNamespace(status="active", expire=None, data_limit=0, used_traffic=0),
+            now=NOW,
+        )
+
+    monkeypatch.setattr(ticket_module, "ServiceCRUD", lambda: _crud(service))
+    monkeypatch.setattr(ticket_module, "load_service_snapshot", _snapshot)
+
+    text, _ = await ticket_module.build_ticket_view(_ticket())
+
+    assert "🟢 فعال" in text
+    assert "انقضا" not in text
+
+
 async def test_ticket_never_shows_another_users_service(monkeypatch):
     foreign = _service(user_id=999)
     monkeypatch.setattr(ticket_module, "ServiceCRUD", lambda: _crud(foreign))
@@ -248,23 +278,6 @@ async def test_all_services_ticket_survives_an_overview_failure(monkeypatch):
     text, _ = await ticket_module.build_ticket_view(_ticket(target="all"))
 
     assert "در دسترس نیست" in text
-
-
-async def test_refresh_fallback_hides_the_text(monkeypatch):
-    service = _service()
-
-    async def _snapshot(*args, **kwargs):
-        return build_service_snapshot(service, _panel(), None, now=NOW)
-
-    monkeypatch.setattr(ticket_module, "ServiceCRUD", lambda: _crud(service))
-    monkeypatch.setattr(ticket_module, "load_service_snapshot", _snapshot)
-
-    text, _ = await ticket_module.build_ticket_view(
-        _ticket(text=""), include_text=False, heading=ticket_module.REFRESH_HEADING
-    )
-
-    assert "متن اصلی این پیام در دسترس نیست" in text
-    assert "به‌روزرسانی تیکت" in text
 
 
 async def test_buttons_keep_the_ticket_token():
@@ -449,9 +462,8 @@ async def test_admin_detail_shows_the_service_and_a_back_button(monkeypatch):
     monkeypatch.setattr(ticket_module, "ServiceCRUD", lambda: _crud(service))
     monkeypatch.setattr(ticket_module, "load_service_snapshot", _snapshot)
 
-    text, rows = await ticket_module.build_admin_service_detail(
-        "ctx", ServicesListContext(user_id=555, target="1", filter=FILTER_ALL, page=1), 1234
-    )
+    card = await ticket_module.load_service_card(555, "1234")
+    text, rows = ticket_module.build_admin_service_detail("ctx", 1234, card)
 
     assert "مشخصات سرویس" in text
     assert "ali_1234" in text
@@ -465,7 +477,8 @@ async def test_admin_detail_rejects_a_foreign_service(monkeypatch):
     foreign = _service(1234, user_id=999)
     monkeypatch.setattr(ticket_module, "ServiceCRUD", lambda: _crud(foreign))
 
-    text, _ = await ticket_module.build_admin_service_detail("ctx", ServicesListContext(user_id=555, target="1"), 1234)
+    card = await ticket_module.load_service_card(555, "1234")
+    text, _ = ticket_module.build_admin_service_detail("ctx", 1234, card)
 
     assert "تعلق ندارد" in text
 
@@ -504,9 +517,8 @@ async def test_rich_detail_has_table_and_back_button_inside(monkeypatch):
     monkeypatch.setattr(ticket_module, "ServiceCRUD", lambda: _crud(service))
     monkeypatch.setattr(ticket_module, "load_service_snapshot", _snapshot)
 
-    blocks = await ticket_module.build_admin_service_detail_rich(
-        "ctx", ServicesListContext(user_id=555, target="1"), 1234
-    )
+    card = await ticket_module.load_service_card(555, "1234")
+    blocks = ticket_module.build_admin_service_detail_rich("ctx", 1234, card)
 
     table = next(block for block in blocks if isinstance(block, types.PageBlockTable))
     labels = [_cell_text(row.cells[0]) for row in table.rows]
@@ -516,6 +528,27 @@ async def test_rich_detail_has_table_and_back_button_inside(monkeypatch):
     back_row = next(row for row in _button_rows(blocks) if _row_labels(row) == ["🔙 بازگشت به لیست"])
     assert _row_data(back_row) == ["supb:ctx"]
     assert not any(isinstance(block, types.PageBlockKicker) for block in blocks)
+
+
+async def test_unchanged_services_list_does_not_send_a_duplicate(monkeypatch):
+    from app.telegram.admin import support as admin_support
+
+    async def _list(*args):
+        return "unchanged list", []
+
+    monkeypatch.setattr(admin_support, "_safe_list", _list)
+    responses = []
+
+    class _Event:
+        async def edit(self, *args, **kwargs):
+            raise MessageNotModifiedError(request=None)
+
+        async def respond(self, *args, **kwargs):
+            responses.append(args)
+
+    await admin_support._edit_services_list(_Event(), "ctx", ServicesListContext(user_id=555))
+
+    assert responses == []
 
 
 async def test_send_services_list_stays_an_inline_keyboard(monkeypatch):
@@ -546,47 +579,73 @@ async def test_send_services_list_stays_an_inline_keyboard(monkeypatch):
 async def test_detail_uses_the_rich_card_when_supported(monkeypatch):
     from app.telegram.admin import support as admin_support
 
-    async def _blocks(*args, **kwargs):
-        return [types.PageBlockParagraph(types.TextPlain(text="rich"))]
-
-    async def _html(*args, **kwargs):
-        raise AssertionError("HTML fallback must not be used")
+    async def _card(*args):
+        return ticket_module.ServiceCard("سرویس مرتبط", (("نام کانفیگ", "ali_1234"),))
 
     edited = []
 
     async def _rich_edit(event, blocks):
         edited.append(blocks)
 
-    monkeypatch.setattr(admin_support, "_safe_rich_detail", _blocks)
-    monkeypatch.setattr(admin_support, "build_admin_service_detail", _html)
+    monkeypatch.setattr(admin_support, "load_service_card", _card)
     monkeypatch.setattr(admin_support, "edit_native_rich_message", _rich_edit)
 
     class _Event:
-        sender_id = 1
-
         async def edit(self, *args, **kwargs):
             raise AssertionError("plain edit must not be used")
 
     await admin_support._edit_service_detail(_Event(), "ctx", ServicesListContext(user_id=555), 1234)
 
     assert len(edited) == 1
+    table = next(block for block in edited[0] if isinstance(block, types.PageBlockTable))
+    assert _cell_text(table.rows[0].cells[1]) == "ali_1234"
 
 
-async def test_detail_falls_back_to_the_inline_keyboard(monkeypatch):
+async def test_rejected_rich_detail_reuses_the_snapshot_for_html(monkeypatch):
     from app.telegram.admin import support as admin_support
 
-    async def _no_blocks(*args, **kwargs):
-        return None
+    lookups = []
+    service = _service()
 
-    async def _html(*args, **kwargs):
-        return "html detail", [[types.KeyboardInlineButton("back", types.InlineButtonTypeCallback(b"supb:ctx"))]]
+    async def _snapshot(*args, **kwargs):
+        lookups.append(args)
+        return _live_snapshot(1234, "active")
 
-    monkeypatch.setattr(admin_support, "_safe_rich_detail", _no_blocks)
-    monkeypatch.setattr(admin_support, "build_admin_service_detail", _html)
+    async def _reject_rich(event, blocks):
+        raise RuntimeError("RICH_MESSAGE_BLOCK_UNSUPPORTED")
+
+    monkeypatch.setattr(ticket_module, "ServiceCRUD", lambda: _crud(service))
+    monkeypatch.setattr(ticket_module, "load_service_snapshot", _snapshot)
+    monkeypatch.setattr(admin_support, "edit_native_rich_message", _reject_rich)
 
     class _Event:
-        sender_id = 1
+        def __init__(self):
+            self.edited = None
 
+        async def edit(self, text, **kwargs):
+            self.edited = (text, kwargs)
+
+    event = _Event()
+    await admin_support._edit_service_detail(event, "ctx", ServicesListContext(user_id=555), 1234)
+
+    assert len(lookups) == 1
+    assert "ali_1234" in event.edited[0]
+    assert _data(event.edited[1]["buttons"]) == ["supb:ctx"]
+
+
+async def test_detail_falls_back_when_rich_construction_fails(monkeypatch):
+    from app.telegram.admin import support as admin_support
+
+    async def _card(*args):
+        return ticket_module.ServiceCard("سرویس مرتبط", (("نام کانفیگ", "ali_1234"),))
+
+    def _broken_rich(*args):
+        raise RuntimeError("rich blocks unavailable")
+
+    monkeypatch.setattr(admin_support, "load_service_card", _card)
+    monkeypatch.setattr(admin_support, "build_admin_service_detail_rich", _broken_rich)
+
+    class _Event:
         def __init__(self):
             self.edited = None
 
@@ -597,7 +656,8 @@ async def test_detail_falls_back_to_the_inline_keyboard(monkeypatch):
     await admin_support._edit_service_detail(event, "ctx", ServicesListContext(user_id=555), 1234)
 
     assert event.edited is not None
-    assert event.edited[0] == "html detail"
+    assert "ali_1234" in event.edited[0]
+    assert _data(event.edited[1]) == ["supb:ctx"]
 
 
 # --------------------------------------------------------------------------- #
@@ -605,22 +665,54 @@ async def test_detail_falls_back_to_the_inline_keyboard(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-PLAIN_TICKET = """🏷 تیکت پشتیبانی
+HTML_TICKET = """🏷 <b>تیکت پشتیبانی</b>
 
-Ali K · 555 · @ali
-1405/08/23 17:34
+<b>Ali K</b> · <code>555</code> · @ali
+<code>1405/03/11 15:30:00</code>
 
-سرویس مرتبط
-│ نام کانفیگ · Ali_1
-│ کد سرویس · 1234
+<b>سرویس مرتبط</b>
+│ <b>نام کانفیگ</b> · Ali_1
+│ <b>کد سرویس</b> · 1234
 
-متن مشتری
-سلام، سرویسم قطع شده.
-از دیروز وصل نمی‌شه."""
+<b>متن مشتری</b>
+<blockquote expandable>سلام، سرویسم قطع شده.
+از دیروز وصل نمی‌شه.</blockquote>"""
 
 
-def test_ticket_from_message_text_recovers_sender_and_message():
-    ticket = ticket_module.ticket_from_message_text(PLAIN_TICKET, 555, "1234")
+def _message(markup: str, *, date: datetime = NOW) -> Message:
+    plain, entities = html.parse(markup)
+    return Message(id=1, peer_id=types.PeerUser(1), date=date, message=plain, entities=entities)
+
+
+@pytest.mark.parametrize("created_at", [int(NOW.timestamp()), 0])
+async def test_expired_cache_recovery_preserves_the_original_ticket_time(created_at):
+    text, _ = await ticket_module.build_ticket_view(_ticket(target="general", created_at=created_at))
+
+    ticket = ticket_module.ticket_from_message(_message(text, date=NOW + timedelta(seconds=8)), 555, "general")
+
+    assert ticket is not None
+    assert ticket.created_at == created_at
+
+
+@pytest.mark.parametrize("sender_name", ["متن مشتری", "🧑 متن مشتری <Admin>", "Ali · K\nمتن مشتری"])
+async def test_expired_cache_recovery_uses_the_customer_quote(sender_name):
+    customer_text = "🛠 سلام\nمتن مشتری\nمشکل هنوز هست."
+    text, _ = await ticket_module.build_ticket_view(
+        _ticket(target="general", sender_name=sender_name, text=customer_text)
+    )
+    message = _message(text)
+
+    ticket = ticket_module.ticket_from_message(message, 555, "general")
+
+    assert ticket is not None
+    assert ticket.text == customer_text
+    assert ticket.sender_name == sender_name
+    assert ticket.sender_username == "ali"
+    assert ticket.created_at == int(NOW.timestamp())
+
+
+def test_ticket_from_message_recovers_sender_and_message():
+    ticket = ticket_module.ticket_from_message(_message(HTML_TICKET), 555, "1234")
 
     assert ticket is not None
     assert ticket.user_id == 555
@@ -631,8 +723,11 @@ def test_ticket_from_message_text_recovers_sender_and_message():
     assert ticket.token
 
 
-def test_ticket_from_message_text_ignores_other_messages():
-    assert ticket_module.ticket_from_message_text("سلام", 555, "1234") is None
+def test_ticket_recovery_rejects_missing_or_malformed_content():
+    assert ticket_module.ticket_from_message(_message("سلام"), 555, "1234") is None
+    assert ticket_module.ticket_from_message(None, 555, "1234") is None
+    malformed = _message(HTML_TICKET.replace("1405/03/11 15:30:00", "invalid timestamp"))
+    assert ticket_module.ticket_from_message(malformed, 555, "1234") is None
 
 
 async def test_refresh_edits_the_original_message_without_cache(monkeypatch):
@@ -653,9 +748,6 @@ async def test_refresh_edits_the_original_message_without_cache(monkeypatch):
     monkeypatch.setattr(admin_support, "build_ticket_view", _view)
     monkeypatch.setattr(admin_support, "remember_ticket", _remember)
 
-    class _Message:
-        message = PLAIN_TICKET
-
     class _Event:
         def __init__(self):
             self.edited = None
@@ -663,7 +755,7 @@ async def test_refresh_edits_the_original_message_without_cache(monkeypatch):
             self.answers = []
 
         async def get_message(self):
-            return _Message()
+            return _message(HTML_TICKET)
 
         async def edit(self, text=None, buttons=None, **kwargs):
             self.edited = (text, buttons)
