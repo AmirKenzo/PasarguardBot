@@ -56,6 +56,8 @@ GITHUB_TOKEN = config("GITHUB_TOKEN", default="")
 
 API_DOCS_ENABLED = config("API_DOCS_ENABLED", cast=bool, default=False)
 
+# Shared key for the /api/sms auto card-to-card webhook; empty or short (<16 chars) rejects every SMS
+
 # Enable or disable FastAPI based on port configuration
 ENABLE_FASTAPI = FAST_API_PORT is not None
 

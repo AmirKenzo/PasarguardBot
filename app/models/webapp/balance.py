@@ -28,13 +28,19 @@ class BalanceMethodsResponse(BaseModel):
     pay_mode: bool = False
     arz_mode: bool = False
     cart_sta: bool = False
+    auto_cart: bool = False
     manual_deposit_min: int = 0
     manual_deposit_max: int = 0
+    auto_deposit_min: int = 0
+    auto_deposit_max: int = 0
     crypto_deposit_min: int = 0
     crypto_deposit_max: int = 0
     card_number: str | None = None
     card_name: str | None = None
+    auto_card_number: str | None = None
+    auto_card_name: str | None = None
     manual_bonus_percent: int = 0
+    auto_bonus_percent: int = 0
     crypto_bonus_percent: int = 0
     stars_bonus_percent: int = 0
     arz_usd: int = 0
@@ -82,6 +88,45 @@ class BalanceDepositManualResponse(BaseModel):
 class BalanceDepositManualReceiptResponse(BaseModel):
     ok: bool
     message: str | None = None
+    error: str | None = None
+
+
+class BalanceDepositAutoRequest(BaseModel):
+    """Auto card-to-card deposit: amount in toman."""
+
+    amount: int = Field(..., ge=1)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceDepositAutoResponse(BaseModel):
+    ok: bool
+    message: str | None = None
+    order_id: int | None = None
+    amount_irt: int | None = None
+    amount_rial: int | None = None
+    card_number: str | None = None
+    card_name: str | None = None
+    expires_at: int | None = None
+    created_at: int | None = None
+    error: str | None = None
+
+
+class BalanceAutoCardStatusRequest(BaseModel):
+    """Poll one auto-card invoice's status. amount_irt/created_at echo the create response
+    since the invoice row is deleted on success — they're what a matching approved
+    transaction is searched against."""
+
+    order_id: int = Field(..., ge=1)
+    amount_irt: int = Field(..., ge=1)
+    created_at: int = Field(..., ge=1)
+    session_token: str | None = None
+    init_data: str | None = None
+
+
+class BalanceAutoCardStatusResponse(BaseModel):
+    ok: bool
+    status: str | None = Field(None, description="pending, paid, or expired")
     error: str | None = None
 
 

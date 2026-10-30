@@ -43,6 +43,7 @@ KEYBOARD_BUTTON_TITLES = {
     "in.balance.stars": "پرداخت با استارز",
     "in.balance.tonpays": "پرداخت با TonPays",
     "in.balance.manual": "کارت به کارت (دستی)",
+    "in.balance.auto": "کارت به کارت خودکار",
     "in.balance.disabled": "شارژ غیرفعال",
     "in.balance.referral": "دعوت دوستان",
     "in.balance.trx": "پرداخت TRX",

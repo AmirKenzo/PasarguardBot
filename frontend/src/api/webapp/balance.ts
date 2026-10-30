@@ -1,4 +1,8 @@
 import type {
+  BalanceAutoCardStatusRequest,
+  BalanceAutoCardStatusResponse,
+  BalanceDepositAutoRequest,
+  BalanceDepositAutoResponse,
   BalanceDepositCryptoRequest,
   BalanceDepositCryptoResponse,
   BalanceDepositManualReceiptResponse,
@@ -25,6 +29,14 @@ export function requestPhoneVerification(auth: AuthPayload) {
 
 export function depositManual(body: BalanceDepositManualRequest) {
   return apiPost<BalanceDepositManualResponse>("/balance/deposit/manual", body);
+}
+
+export function depositAutoCard(body: BalanceDepositAutoRequest) {
+  return apiPost<BalanceDepositAutoResponse>("/balance/deposit/auto-card", body);
+}
+
+export function getAutoCardStatus(body: BalanceAutoCardStatusRequest) {
+  return apiPost<BalanceAutoCardStatusResponse>("/balance/deposit/auto-card/status", body);
 }
 
 export function depositCrypto(body: BalanceDepositCryptoRequest) {

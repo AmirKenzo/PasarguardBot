@@ -11,6 +11,7 @@ from app.db.crud.manual_auto_approve_rules import (
     build_manual_card_log_caption,
     is_webapp_receipt_log,
 )
+from app.db.crud.secrets import SecretsCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.user import UserCRUD, get_Money
@@ -18,8 +19,10 @@ from app.services.billing.direct_pay_fulfillment import (
     cancel_after_manual_reject,
     try_fulfill_after_manual_credit,
 )
+from app.services.payments.auto_card_sms_parser import sms_webhook_url
 from app.telegram.admin.settings_payment import keyboards, texts
 from app.telegram.state import set_data, set_step
+from app.utils.security.secrets_cache import SECRET_SMS_WEBHOOK, get_sms_webhook_secret
 from app.utils.text.bot_texts import get_bot_text
 from config import ADMIN_ID
 
@@ -36,13 +39,27 @@ _SETTINGS_PAYMENT_EXACT_CALLBACKS = frozenset(
         "maar_rules_menu",
         "maar_add",
         "set_manual_limits",
+        "set_auto_limits",
         "set_crypto_limits",
         "set_reseller_min_wallet",
         "bonus_settings_menu",
         "toggle_manual_bonus",
+        "toggle_auto_bonus",
         "toggle_crypto_bonus",
         "toggle_stars_bonus",
         "set_manual_bonus_percent",
+        "set_auto_bonus_percent",
+        "chng_auto_card_number",
+        "auto_card_menu",
+        "toggle_auto_card",
+        "toggle_auto_card_visibility",
+        "sms_webhook_menu",
+        "sms_webhook_show_key",
+        "sms_webhook_rotate",
+        "sms_webhook_rotate_confirm",
+        "sms_webhook_guide_forapp",
+        "sms_webhook_guide_smsf",
+        "chng_auto_card_name",
         "set_crypto_bonus_percent",
         "set_stars_bonus_percent",
     }
@@ -72,6 +89,22 @@ async def _refresh_gateway_settings_view(event, settings=None) -> None:
     await event.edit(
         texts.gateway_settings_back_message(active, random_mode_status, settings),
         buttons=keyboards.gateway_settings_buttons(settings),
+    )
+
+
+async def _show_sms_webhook_menu(event, *, show_key: bool = False, note: str | None = None) -> None:
+    key = get_sms_webhook_secret()
+    await event.edit(
+        texts.sms_webhook_message(sms_webhook_url(), key if show_key else texts.mask_secret(key), note),
+        buttons=keyboards.sms_webhook_buttons(key_shown=show_key and bool(key)),
+    )
+
+
+async def _show_auto_card_menu(event) -> None:
+    settings = await SettingsManager().get_settings()
+    await event.edit(
+        texts.auto_card_menu_message(settings, sms_webhook_url()),
+        buttons=keyboards.auto_card_menu_buttons(settings),
     )
 
 
@@ -160,6 +193,69 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         await ManualCardManager().delete_card(card_id)
         await event.edit(texts.CARD_DELETED, buttons=keyboards.back_to_settings_card_row())
 
+    elif data == "auto_card_menu":
+        await set_step(event.sender_id, "SettingsCardToCard")
+        await _show_auto_card_menu(event)
+
+    elif data == "toggle_auto_card":
+        settings = await SettingsManager().get_settings()
+        await SettingsManager().update_setting(settings.id, auto_cart=not settings.auto_cart)
+        await _show_auto_card_menu(event)
+
+    elif data == "toggle_auto_card_visibility":
+        settings = await SettingsManager().get_settings()
+        safe_only = texts.auto_card_visibility_mode(settings) == texts.MANUAL_CARD_VISIBILITY_SAFE_MODE
+        await SettingsManager().update_setting(
+            settings.id,
+            auto_card_visibility=texts.MANUAL_CARD_VISIBILITY_ALL
+            if safe_only
+            else texts.MANUAL_CARD_VISIBILITY_SAFE_MODE,
+        )
+        await _show_auto_card_menu(event)
+
+    elif data in ("sms_webhook_menu", "sms_webhook_show_key"):
+        await _show_sms_webhook_menu(event, show_key=data == "sms_webhook_show_key")
+
+    elif data == "sms_webhook_rotate":
+        await event.edit(texts.SMS_WEBHOOK_ROTATE_CONFIRM, buttons=keyboards.sms_webhook_rotate_confirm_buttons())
+
+    elif data == "sms_webhook_rotate_confirm":
+        try:
+            await SecretsCRUD().rotate(SECRET_SMS_WEBHOOK)
+        except Exception:
+            await event.answer(texts.SMS_WEBHOOK_ROTATE_FAILED, alert=True)
+            await _show_sms_webhook_menu(event)
+            return
+        await _show_sms_webhook_menu(event, show_key=True, note=texts.SMS_WEBHOOK_ROTATED_NOTE)
+
+    elif data == "sms_webhook_guide_forapp":
+        await event.edit(
+            texts.sms_webhook_forapp_guide(sms_webhook_url(), get_sms_webhook_secret()),
+            buttons=keyboards.sms_webhook_back_row(),
+            link_preview=False,
+        )
+
+    elif data == "sms_webhook_guide_smsf":
+        await event.edit(
+            texts.sms_webhook_smsforwarder_guide(sms_webhook_url(), get_sms_webhook_secret()),
+            buttons=keyboards.sms_webhook_back_row(),
+            link_preview=False,
+        )
+
+    elif data == "chng_auto_card_number":
+        await event.edit(
+            texts.AUTO_CARD_NUMBER_CHANGE_PROMPT,
+            buttons=keyboards.back_to_auto_card_row(),
+        )
+        await set_step(user_id=event.sender_id, step="chng_auto_card_number")
+
+    elif data == "chng_auto_card_name":
+        await event.edit(
+            texts.AUTO_CARD_NAME_CHANGE_PROMPT,
+            buttons=keyboards.back_to_auto_card_row(),
+        )
+        await set_step(user_id=event.sender_id, step="chng_auto_card_name")
+
     elif data == "toggle_manual_auto_confirm":
         settings = await SettingsManager().get_settings()
         new_status = not settings.manual_auto_confirm
@@ -223,6 +319,10 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         await set_step(event.sender_id, "set_manual_min")
         await event.edit(texts.MANUAL_MIN_PROMPT, buttons=keyboards.back_to_settings_card_row())
 
+    elif data == "set_auto_limits":
+        await set_step(event.sender_id, "set_auto_min")
+        await event.edit(texts.AUTO_MIN_PROMPT, buttons=keyboards.back_to_auto_card_row())
+
     elif data == "set_crypto_limits":
         await set_step(event.sender_id, "set_crypto_min")
         await event.edit(texts.CRYPTO_MIN_PROMPT, buttons=keyboards.back_to_settings_card_row())
@@ -250,6 +350,14 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
         bonus_text, buttons = await keyboards.get_bonus_settings_menu(settings)
         await event.edit(bonus_text, buttons=buttons)
 
+    elif data == "toggle_auto_bonus":
+        settings = await SettingsManager().get_settings()
+        new_status = not settings.auto_bonus_enabled
+        await SettingsManager().update_setting(settings.id, auto_bonus_enabled=new_status)
+        settings = await SettingsManager().get_settings()
+        bonus_text, buttons = await keyboards.get_bonus_settings_menu(settings)
+        await event.edit(bonus_text, buttons=buttons)
+
     elif data == "toggle_crypto_bonus":
         settings = await SettingsManager().get_settings()
         new_status = not settings.crypto_bonus_enabled
@@ -269,6 +377,10 @@ async def callback_settings_payment(event: events.CallbackQuery.Event):
     elif data == "set_manual_bonus_percent":
         await set_step(event.sender_id, "set_manual_bonus_percent")
         await event.edit(texts.MANUAL_BONUS_PERCENT_PROMPT, buttons=keyboards.back_to_bonus_menu_button())
+
+    elif data == "set_auto_bonus_percent":
+        await set_step(event.sender_id, "set_auto_bonus_percent")
+        await event.edit(texts.AUTO_BONUS_PERCENT_PROMPT, buttons=keyboards.back_to_bonus_menu_button())
 
     elif data == "set_crypto_bonus_percent":
         await set_step(event.sender_id, "set_crypto_bonus_percent")

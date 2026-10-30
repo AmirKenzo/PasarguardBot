@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronLeft, CreditCard, DollarSign, Gem, History, Star } from "lucide-react";
+import { ChevronLeft, CreditCard, DollarSign, Gem, History, Star, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Card, EmptyState, IconBadge } from "../../components/ui";
@@ -76,6 +76,14 @@ export default function BalanceHubPage() {
               description={`${t("balanceHub.manualCardDesc")}${bonusText(methods.manual_bonus_percent, t)}`}
             />
           )}
+          {methods.auto_cart && (
+            <MethodLink
+              to="/balance/auto-card"
+              icon={Zap}
+              title={t("balanceHub.autoCard")}
+              description={`${t("balanceHub.autoCardDesc")}${bonusText(methods.auto_bonus_percent, t)}`}
+            />
+          )}
           {methods.arz_mode && (
             <MethodLink
               to="/balance/crypto"
@@ -92,7 +100,7 @@ export default function BalanceHubPage() {
 
 function hasAnyMethod(methods: NonNullable<ReturnType<typeof useBalanceMethodsQuery>["data"]>) {
   return (
-    methods.pay_mode || methods.arz_mode || methods.cart_sta || methods.tonpays_enabled ||
+    methods.pay_mode || methods.arz_mode || methods.cart_sta || methods.auto_cart || methods.tonpays_enabled ||
     methods.ir_gateways.length > 0
   );
 }

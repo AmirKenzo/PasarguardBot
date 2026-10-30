@@ -55,6 +55,26 @@ class SecretsCRUD:
 
         return loaded
 
+    async def rotate(self, name: str) -> str:
+        if name not in SECRET_NAMES:
+            raise ValueError(f"Unknown secret: {name}")
+        value = generate_secret_value()
+        try:
+            async with Session() as session:
+                result = await session.execute(select(Secret).where(Secret.name == name))
+                row = result.scalars().first()
+                if row is None:
+                    session.add(Secret(name=name, value=value))
+                else:
+                    row.value = value
+                await session.commit()
+        except SQLAlchemyError as e:
+            log.error("Error rotating secret %s", name, exc_info=e)
+            raise
+        _cache[name] = value
+        log.warning("Secret rotated: %s", name)
+        return value
+
 
 async def ensure_secrets() -> dict[str, str]:
     return await SecretsCRUD().ensure_secrets()

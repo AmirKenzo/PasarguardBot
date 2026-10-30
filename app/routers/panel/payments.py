@@ -1,4 +1,4 @@
-"""Crypto wallets, manual cards and card-to-card auto-approve rules."""
+"""Crypto wallets, manual cards, card-to-card auto-approve rules and the auto card-to-card method."""
 
 from __future__ import annotations
 
@@ -7,16 +7,22 @@ import time
 
 from fastapi import APIRouter, Request
 
+from app.db.crud.auto_card import CRUDAutoCard
 from app.db.crud.cards import ManualCardManager
 from app.db.crud.ir_gateway_payments import ir_gateway_stats_since
 from app.db.crud.manual_auto_approve_rules import ManualAutoApproveRuleCRUD
+from app.db.crud.secrets import SecretsCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.tonpays_invoices import tonpays_stats_since
+from app.db.crud.transactions import TransactionCRUD
 from app.db.crud.wallets import WalletCRUD
 from app.models.panel.common import ActionResponse, PanelRequest
 from app.models.panel.payments import (
     WALLET_TYPES,
     PanelAutoApproveRuleRow,
+    PanelAutoCardResponse,
+    PanelAutoCardSaveRequest,
+    PanelAutoCardStats,
     PanelCardActionRequest,
     PanelCardCreateRequest,
     PanelCardRow,
@@ -41,6 +47,7 @@ from app.panel import audit
 from app.routers.panel import guard
 from app.routers.panel.auth import PanelActor
 from app.services.billing import payment_stats
+from app.services.payments.auto_card_sms_parser import sms_webhook_url
 from app.services.payments.ir_gateways import config as ir_gateway_config
 from app.services.payments.ir_gateways.providers import GATEWAYS
 from app.services.payments.ir_gateways.service import test_connection as ir_gateway_test_connection
@@ -53,6 +60,8 @@ from app.services.payments.tonpays_config import (
     is_ready,
     mask_key,
 )
+from app.telegram.admin.settings_payment.texts import auto_card_visibility_mode
+from app.utils.security.secrets_cache import SECRET_SMS_WEBHOOK, get_sms_webhook_secret
 
 router = APIRouter()
 
@@ -231,6 +240,78 @@ async def rule_delete(payload: PanelRuleDeleteRequest, request: Request) -> Acti
 
 def _start_of_today() -> int:
     return int(payment_stats.tehran_day_start().timestamp())
+
+
+@router.post("/panel/payments/auto-card", response_model=PanelAutoCardResponse)
+async def auto_card_overview(payload: PanelRequest, request: Request) -> PanelAutoCardResponse:
+    async def handle(_: PanelActor) -> PanelAutoCardResponse:
+        settings = await SettingsManager().get_settings()
+        if settings is None:
+            return PanelAutoCardResponse(ok=False, error="تنظیمات ربات هنوز ساخته نشده است.")
+        pending, breakdown = await asyncio.gather(
+            CRUDAutoCard().count_pending(),
+            TransactionCRUD().get_breakdown(_start_of_today()),
+        )
+        return PanelAutoCardResponse(
+            enabled=bool(settings.auto_cart),
+            visibility=auto_card_visibility_mode(settings),
+            card_number=str(settings.cart_num or ""),
+            card_name=str(settings.cart_name or ""),
+            deposit_min=int(settings.auto_deposit_min or 0),
+            deposit_max=int(settings.auto_deposit_max or 0),
+            bonus_enabled=bool(settings.auto_bonus_enabled),
+            bonus_percent=int(settings.auto_bonus_percent or 0),
+            webhook_url=sms_webhook_url(),
+            api_key=get_sms_webhook_secret(),
+            stats=PanelAutoCardStats(
+                pending_invoices=pending,
+                approved_today=breakdown["auto_approved_count"],
+                amount_today=breakdown["auto_approved_sum"],
+            ),
+        )
+
+    return await guard.run(payload, request, PanelAutoCardResponse, handle)
+
+
+@router.post("/panel/payments/auto-card/save", response_model=ActionResponse)
+async def auto_card_save(payload: PanelAutoCardSaveRequest, request: Request) -> ActionResponse:
+    async def handle(actor: PanelActor) -> ActionResponse:
+        manager = SettingsManager()
+        settings = await manager.get_settings()
+        if settings is None:
+            return ActionResponse(ok=False, error="تنظیمات ربات هنوز ساخته نشده است.")
+        new_min = payload.deposit_min if payload.deposit_min is not None else int(settings.auto_deposit_min or 0)
+        new_max = payload.deposit_max if payload.deposit_max is not None else int(settings.auto_deposit_max or 0)
+        if new_max < new_min:
+            return ActionResponse(ok=False, error="حداکثر مبلغ باید بیشتر از حداقل باشد.")
+        updates: dict = {"auto_deposit_min": new_min, "auto_deposit_max": new_max}
+        if payload.enabled is not None:
+            updates["auto_cart"] = payload.enabled
+        if payload.visibility is not None:
+            updates["auto_card_visibility"] = payload.visibility
+        if payload.card_number is not None:
+            updates["cart_num"] = payload.card_number.strip() or None
+        if payload.card_name is not None:
+            updates["cart_name"] = payload.card_name.strip() or None
+        if payload.bonus_enabled is not None:
+            updates["auto_bonus_enabled"] = payload.bonus_enabled
+        if payload.bonus_percent is not None:
+            updates["auto_bonus_percent"] = payload.bonus_percent
+        await manager.update_setting(settings.id, **updates)
+        await _log(actor, "auto_card_settings_update", target_type="settings", target_id="auto_card", detail=updates)
+        return ActionResponse(message="تنظیمات کارت به کارت خودکار ذخیره شد.")
+
+    return await guard.run(payload, request, ActionResponse, handle)
+
+
+@router.post("/panel/payments/auto-card/rotate-key", response_model=ActionResponse)
+async def auto_card_rotate_key(payload: PanelRequest, request: Request) -> ActionResponse:
+    async def handle(actor: PanelActor) -> ActionResponse:
+        await SecretsCRUD().rotate(SECRET_SMS_WEBHOOK)
+        await _log(actor, "sms_webhook_rotate", target_type="secret", target_id=SECRET_SMS_WEBHOOK)
+        return ActionResponse(message="کلید جدید ساخته شد؛ کلید قبلی دیگر کار نمی‌کند.")
+
+    return await guard.run(payload, request, ActionResponse, handle)
 
 
 @router.post("/panel/payments/tonpays", response_model=PanelTonPaysResponse)

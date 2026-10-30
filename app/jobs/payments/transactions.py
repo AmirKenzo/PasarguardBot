@@ -5,6 +5,7 @@ Payment job orchestration — coordinates payment processors on a schedule.
 import time
 
 from app.jobs.payments import (
+    AutoCardExpiryProcessor,
     IrGatewaysProcessor,
     ManualCardProcessor,
     POLProcessor,
@@ -24,6 +25,7 @@ trx_processor = TRXProcessor()
 usdt_processor = USDTProcessor()
 ton_processor = TONProcessor()
 stars_expiry_processor = StarsExpiryProcessor()
+auto_card_expiry_processor = AutoCardExpiryProcessor()
 usdt_networks_processor = USDTNetworksProcessor()
 pol_processor = POLProcessor()
 tonpays_processor = TonPaysProcessor()
@@ -92,6 +94,14 @@ async def ir_gateways_checking():
     await ir_gateways_processor.check_payments()
     elapsed = time.time() - start_time
     logger.debug(f"{LogTag.JOB} ir_gateways_checking completed: {elapsed:.2f}s")
+
+
+async def expire_auto_card_invoices() -> None:
+    start_time = time.time()
+    logger.debug("%s expire_auto_card_invoices started", LogTag.JOB)
+    await auto_card_expiry_processor.check_payments()
+    elapsed = time.time() - start_time
+    logger.debug(f"{LogTag.JOB} expire_auto_card_invoices completed: {elapsed:.2f}s")
 
 
 async def expire_star_transactions() -> None:
