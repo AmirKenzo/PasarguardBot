@@ -489,7 +489,7 @@ function formatRemaining(expire: number | null, now: number, t: Translate): stri
 function volumeText(user: BotResellerUserItem): string {
   if (!user.live) return "—";
   if (!user.limit_bytes) return `${formatBytes(user.used_bytes, 1)} / ∞`;
-  return `${formatNumber(Math.round((user.used_bytes / GB) * 10) / 10)} / ${formatBytes(user.limit_bytes)}`;
+  return `${formatBytes(user.used_bytes, 1)} / ${formatBytes(user.limit_bytes)}`;
 }
 
 function isOnline(user: BotResellerUserItem, now: number): boolean {
