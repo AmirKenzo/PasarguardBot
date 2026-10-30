@@ -11,9 +11,11 @@ from app.services.panels.settings import (
     panel_has_time_plans,
     panel_has_volume_plans,
 )
+from app.services.support import state_style
 
 from .common import (
     _get_keyboard_button_config,
+    build_telegram_button_style,
     styled_callback_button,
     styled_copy_button,
     styled_webview_button,
@@ -208,4 +210,20 @@ async def create_inline_service_buttons(services, panel=None, settings=None, adm
     if admin or (settings.info_mode and panel_button_enabled(get_panel, "btn_info")):
         rows.append(KeyboardInlineButtonRow([web]))
 
-    return ReplyInlineMarkup(rows + active_button_rows + back_buttons)
+    # Support starts from the service page with that service already selected. Its
+    # colour mirrors the service state, so an expired service is red before opening.
+    support_rows = []
+    if not admin:
+        support_rows.append(
+            KeyboardInlineButtonRow(
+                [
+                    styled_callback_button(
+                        "🛠 گزارش مشکل",
+                        f"sup:report:{services.code}",
+                        build_telegram_button_style(state_style(str(status or "").strip().lower()), None),
+                    )
+                ]
+            )
+        )
+
+    return ReplyInlineMarkup(rows + support_rows + active_button_rows + back_buttons)
