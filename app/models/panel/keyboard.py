@@ -14,6 +14,7 @@ SECTION_PREFIXES: tuple[tuple[str, str], ...] = (
     ("in.balance.", "balance"),
     ("in.buy.", "buy"),
     ("in.rs.", "reseller"),
+    ("in.brs.", "bot_reseller"),
 )
 OTHER_SECTION = "other"
 

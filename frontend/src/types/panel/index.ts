@@ -19,3 +19,4 @@ export * from "./reports";
 export * from "./tools";
 export * from "./themePacks";
 export * from "./webappThemes";
+export * from "./botResellers";

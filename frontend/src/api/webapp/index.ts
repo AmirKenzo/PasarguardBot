@@ -8,3 +8,4 @@ export * as balanceApi from "./balance";
 export * as transactionsApi from "./transactions";
 export * as upgradeApi from "./upgrade";
 export * as resellerApi from "./reseller";
+export * as botResellerApi from "./botReseller";

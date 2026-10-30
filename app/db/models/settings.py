@@ -115,6 +115,7 @@ DEFAULT_RESELLER_SETTINGS: dict[str, Any] = {
     "reseller_grace_days": 7,
     "reseller_low_balance_hours": 6,
     "reseller_usage_debt": True,
+    "bot_reseller_sale_mode": True,
 }
 
 SETTINGS_SECTION_DEFAULTS: dict[str, dict[str, Any]] = {

@@ -24,6 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from app.logger import get_logger
 from app.routers.webapp.auth import router as auth_router
 from app.routers.webapp.balance import router as balance_router
+from app.routers.webapp.bot_reseller import router as bot_reseller_router
 from app.routers.webapp.buy import router as buy_router
 from app.routers.webapp.ir_gateways import router as ir_gateways_router
 from app.routers.webapp.pwa import router as pwa_router
@@ -53,6 +54,7 @@ webapp_router.include_router(ir_gateways_router)
 webapp_router.include_router(transactions_router)
 webapp_router.include_router(upgrade_router)
 webapp_router.include_router(reseller_router)
+webapp_router.include_router(bot_reseller_router)
 webapp_router.include_router(pwa_router)
 
 

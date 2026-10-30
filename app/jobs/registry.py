@@ -18,6 +18,7 @@ from app.jobs.payments.transactions import (
 )
 from app.jobs.prices import get_prices_and_update
 from app.jobs.reseller.billing import run_reseller_billing
+from app.jobs.reseller.bot_billing import run_bot_reseller_billing
 from app.jobs.reseller.low_balance_warning import run_reseller_low_balance_warning
 from app.jobs.scheduler import scheduler
 from app.jobs.services.expiration import handle_service_expiration
@@ -54,6 +55,7 @@ def register_all_jobs() -> None:
         (expire_star_transactions, "interval", {"seconds": 60}, "expire_star_transactions"),
         (expire_auto_card_invoices, "interval", {"minutes": 1}, "expire_auto_card_invoices"),
         (run_reseller_billing, "interval", {"seconds": 60}, "reseller_billing"),
+        (run_bot_reseller_billing, "interval", {"seconds": 60}, "bot_reseller_billing"),
         (run_reseller_low_balance_warning, "interval", {"minutes": 5}, "reseller_low_balance_warning"),
     ]
 

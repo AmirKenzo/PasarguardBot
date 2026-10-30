@@ -42,6 +42,7 @@ from app.services.reseller.purchase import (
     ERR_USERNAME_EXISTS,
     min_wallet_error,
     purchase_reseller_account,
+    reseller_sale_open,
 )
 from app.services.reseller.usage_cap import USAGE_CAPPED_STATUS
 from app.services.telegram.rich_message import USAGE_HISTORY_PER_PAGE, prepare_rich_markdown
@@ -107,15 +108,20 @@ async def check_user_balance(user_id: int, required_amount: int):
 
 
 async def show_reseller_panel_picker(event) -> None:
+    from app.telegram.user.reseller.bot_reseller import entry_rows
+
     user_id = event.sender_id
-    panel_codes = await ResellerPlanManager().get_panels_with_plans(enabled_only=True)
-    if not panel_codes:
+    panel_codes = (
+        await ResellerPlanManager().get_panels_with_plans(enabled_only=True) if await reseller_sale_open() else []
+    )
+    bot_rows = await entry_rows()
+    if not panel_codes and not bot_rows:
         if isinstance(event, events.CallbackQuery.Event):
             await event.answer("پلن نمایندگی فعالی وجود ندارد.", alert=True)
         else:
             await event.respond("پلن نمایندگی فعالی وجود ندارد.")
         return
-    buttons = await build_reseller_panel_list_buttons(panel_codes)
+    buttons = [*bot_rows, *await build_reseller_panel_list_buttons(panel_codes)]
     text = await get_reseller_text(
         "reseller_buy_panel_picker",
         DEFAULT_BOT_TEXTS["reseller_buy_panel_picker"],

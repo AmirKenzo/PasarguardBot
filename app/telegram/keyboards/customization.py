@@ -278,6 +278,32 @@ async def create_keyboard_buttons_admin_buttons(page: int = 1):
 
         navigation = []
         navigation.append(Button.inline("⬅️ صفحه قبلی", data="keyboard_page:4"))
+        navigation.append(Button.inline("➡️ صفحه بعدی", data="keyboard_page:6"))
+        if navigation:
+            buttons.append(navigation)
+
+    elif page == 6:
+        buttons.extend(
+            [
+                [Button.inline("🤖 ━━━━ دکمه‌های نمایندگی ربات ━━━━", data="no_action")],
+                [await _keyboard_admin_button(keyboard_crud, "in.rs.buy_start", 6)],
+                [
+                    await _keyboard_admin_button(keyboard_crud, "in.brs.entry", 6),
+                    await _keyboard_admin_button(keyboard_crud, "in.brs.my_entry", 6),
+                ],
+                [
+                    await _keyboard_admin_button(keyboard_crud, "in.brs.request", 6),
+                    await _keyboard_admin_button(keyboard_crud, "in.brs.open_panel", 6),
+                ],
+                [
+                    await _keyboard_admin_button(keyboard_crud, "in.brs.back", 6),
+                    await _keyboard_admin_button(keyboard_crud, "in.brs.back_list", 6),
+                ],
+            ]
+        )
+
+        navigation = []
+        navigation.append(Button.inline("⬅️ صفحه قبلی", data="keyboard_page:5"))
         if navigation:
             buttons.append(navigation)
 

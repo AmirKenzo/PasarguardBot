@@ -60,7 +60,19 @@
     "webhook_notification_expiration_warning": "<b>#notification</b>\n\n<b>#⃣ Service code (in bot): {service_code}</b>\n<b>🔷 Config name: {config_name}</b>\n<b>⌛️ Your service expires in {time_remaining}.</b>\n<b>👈🏻 You can renew your service under (My services).</b>\n\n<b>#notification_{service_code}</b>",
     "webhook_notification_expired": "<b>#notification</b>\n\n<b>#⃣ Service code (in bot): {service_code}</b>\n<b>🔷 Config name: {config_name}</b>\n<b>📅 Your service was disabled because it expired.</b>\n<b>👈🏻 You can renew your service under (My services).</b>\n<b>⚠️ Note: if you don't renew within the next {grace_days} days, your service will be deleted.</b>\n\n<b>#notification_{service_code}</b>",
     "webhook_notification_expired_no_delete": "<b>#notification</b>\n\n<b>#⃣ Service code (in bot): {service_code}</b>\n<b>🔷 Config name: {config_name}</b>\n<b>📅 Your service was disabled because it expired.</b>\n<b>👈🏻 You can renew your service under (My services).</b>\n\n<b>#notification_{service_code}</b>",
-    "webhook_notification_low_data": "<b>#Low_Data</b>\n🔔 Remaining traffic on your service: <b>{remaining_volume}</b>\nTo avoid interruption, please renew or upgrade your plan.\n\n🔢 <b>Service code:</b> <code>{service_code}</code>\n👤 <b>Config name:</b> <code>{config_name}</code>"
+    "webhook_notification_low_data": "<b>#Low_Data</b>\n🔔 Remaining traffic on your service: <b>{remaining_volume}</b>\nTo avoid interruption, please renew or upgrade your plan.\n\n🔢 <b>Service code:</b> <code>{service_code}</code>\n👤 <b>Config name:</b> <code>{config_name}</code>",
+    "bot_reseller_intro": "**🤖 Bot reseller**\n\nNo panel login: you create users in the web app and each GB your users use is charged to your wallet automatically.\n\nChoose a service:",
+    "bot_reseller_no_services": "Bot reseller isn't available right now.",
+    "bot_reseller_service_detail": "**📦 {service}**\n\n💰 Price: `{price}` per GB used\n👥 Max users: {max_users}\n📦 Volume per user (GB): {max_gb}\n⏳ Time per user (days): {max_days}\n💳 Charged automatically every minute from your wallet\n\n⚠️ When your balance reaches zero, all your users are switched off at once and come back after a top-up.\n{description}",
+    "bot_reseller_request_sent": "✅ Your request for **{service}** was sent. You'll hear back after the admin reviews it.",
+    "bot_reseller_approved": "🎉 **Bot reseller \"{service}\" is active**\n\n💰 Price: `{price}` per GB\nOpen the reseller panel below to create users.",
+    "bot_reseller_rejected": "❌ Your request for \"{service}\" was declined.\n\n📌 Reason: {reason}",
+    "bot_reseller_revoked": "⚠️ The \"{service}\" service was removed from your reseller account and its users were deleted.",
+    "bot_reseller_frozen": "⛔️ **Your wallet is empty**\n\n💳 Balance: `{balance}`\n👥 {count} users were switched off.\n\nThey come back automatically within a minute of a top-up.",
+    "bot_reseller_unfrozen": "✅ Wallet topped up; {count} users are back on.",
+    "bot_reseller_suspended": "⛔️ Your bot reseller account was suspended by the admin and {count} users were switched off.",
+    "bot_reseller_low_balance": "⚠️ **Reseller balance is low**\n\n💳 Balance: `{balance}`\nAt the current usage it runs out in about {hours} hours and all your users will be switched off.",
+    "bot_reseller_home": "**🤖 Bot reseller** {status}\n\n💳 Wallet balance: `{balance}`\n📦 Services: {services}\n👥 Users: {users}\n📊 Last 24h: {today}"
   },
   "buttons": {
     "bt.menu_my_services": "🔑 My services",
@@ -139,7 +151,14 @@
     "in.rs.delete": "🗑 Delete reseller panel",
     "in.rs.buy_random_username": "🎲 Random name",
     "in.rs.delete_confirm": "✅ Yes, delete it completely",
-    "in.rs.chpwd_confirm": "✅ Yes, change the password"
+    "in.rs.chpwd_confirm": "✅ Yes, change the password",
+    "in.brs.entry": "🤖 Bot reseller",
+    "in.brs.my_entry": "🤖 Bot reseller",
+    "in.brs.request": "📨 Send request",
+    "in.brs.open_panel": "🚀 Open reseller panel",
+    "in.brs.back": "🔙 Back",
+    "in.brs.back_list": "🔙 Back",
+    "in.rs.buy_start": "🏢 Buy a reseller panel"
   },
   "button_templates": {
     "gateway_payment": "{emoji} Pay online ({title})"

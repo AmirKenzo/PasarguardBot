@@ -8,3 +8,4 @@ export * from "./balance";
 export * from "./transactions";
 export * from "./upgrade";
 export * from "./reseller";
+export * from "./botReseller";

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, m } from "framer-motion";
 import { CalendarClock, ChevronRight, Database, Plus, Search, Satellite, Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,7 @@ import { Badge } from "../../components/ui/Badge";
 import { useTelegram } from "../../hooks/useTelegram";
 import { daysUntil, isExpiringSoon, statusLabel, statusTone } from "../../lib/serviceHelpers";
 import { formatBytes, formatNumber } from "../../lib/format";
+import { useBotResellerState } from "../../queries/useBotReseller";
 import { useResellerAccounts } from "../../queries/useReseller";
 import ResellerAccountsList from "./ResellerAccountsList";
 import { useServicesQuery } from "../../queries/useServices";
@@ -315,21 +316,26 @@ export default function ServicesListPage() {
   const { t } = useTranslation();
   const { haptic } = useTelegram();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const resellers = useResellerAccounts();
+  const botReseller = useBotResellerState();
   const resellerCount = resellers.data?.accounts.length ?? 0;
+  const hasBotReseller = Boolean(botReseller.data?.is_reseller);
   const tab: ServicesTab = searchParams.get("tab") === "reseller" && resellerCount > 0 ? "reseller" : "vpn";
 
   const chips =
-    resellerCount > 0 ? (
-      <ChipTabs<ServicesTab>
+    resellerCount > 0 || hasBotReseller ? (
+      <ChipTabs<ServicesTab | "bot">
         options={[
           { value: "vpn", label: t("services.vpnTab") },
-          { value: "reseller", label: t("services.resellerTab"), count: resellerCount },
+          ...(resellerCount > 0 ? [{ value: "reseller" as const, label: t("services.resellerTab"), count: resellerCount }] : []),
+          ...(hasBotReseller ? [{ value: "bot" as const, label: t("services.botResellerTab") }] : []),
         ]}
         value={tab}
         onChange={(value) => {
           haptic.select();
-          setSearchParams(value === "reseller" ? { tab: "reseller" } : {}, { replace: true });
+          if (value === "bot") navigate("/bot-reseller");
+          else setSearchParams(value === "reseller" ? { tab: "reseller" } : {}, { replace: true });
         }}
       />
     ) : null;

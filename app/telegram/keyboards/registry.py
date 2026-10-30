@@ -82,6 +82,13 @@ KEYBOARD_BUTTON_TITLES = {
     "in.rs.delete_confirm": "تأیید حذف نمایندگی",
     "in.rs.delete_final": "تأیید نهایی حذف نمایندگی",
     "in.rs.chpwd_confirm": "تأیید تغییر رمز",
+    "in.brs.entry": "نمایندگی ربات (خرید نمایندگی)",
+    "in.brs.my_entry": "نمایندگی ربات (نمایندگی‌های من)",
+    "in.brs.request": "ارسال درخواست نمایندگی ربات",
+    "in.brs.open_panel": "ورود به پنل نمایندگی ربات (وب‌اپ)",
+    "in.brs.back": "بازگشت (نمایندگی ربات)",
+    "in.brs.back_list": "بازگشت به نمایندگی‌های من (نمایندگی ربات)",
+    "in.rs.buy_start": "خرید پنل نمایندگی (نمایندگی‌های من)",
 }
 
 
@@ -103,6 +110,8 @@ KEYBOARD_BUTTON_DEFAULT_STYLES = {
     "bt.menu_buy_service": ("success", 5373052667671093676),
     "in.buy.custom": ("primary", None),
     "in.rs.delete_final": ("danger", None),
+    "in.brs.back": ("primary", None),
+    "in.brs.back_list": ("primary", None),
 }
 
 STYLE_LABELS = {

@@ -21,3 +21,4 @@ export * as panelAuditApi from "./audit";
 export * as panelToolsApi from "./tools";
 export * as panelThemePacksApi from "./themePacks";
 export * as panelWebappThemesApi from "./webappThemes";
+export * as panelBotResellersApi from "./botResellers";

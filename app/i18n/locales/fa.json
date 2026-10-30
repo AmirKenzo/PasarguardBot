@@ -60,7 +60,19 @@
     "webhook_notification_expiration_warning": "<b>#اطلاع_رسانی</b>\n\n<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n<b>🔷 اسم کانفیگ: {config_name}</b>\n<b>⌛️ سرویس شما تا {time_remaining} دیگر منقضی می‌شود.</b>\n<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n<b>#notification_{service_code}</b>",
     "webhook_notification_expired": "<b>#اطلاع_رسانی</b>\n\n<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n<b>🔷 اسم کانفیگ: {config_name}</b>\n<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n<b>⚠️ نکته: اگر در {grace_days} روز آینده تمدید نکنید، سرویس شما حذف خواهد شد.</b>\n\n<b>#notification_{service_code}</b>",
     "webhook_notification_expired_no_delete": "<b>#اطلاع_رسانی</b>\n\n<b>#⃣ کد سرویس(در ربات): {service_code}</b>\n<b>🔷 اسم کانفیگ: {config_name}</b>\n<b>📅 سرویس شما به دلیل انقضا غیرفعال شده است.</b>\n<b>👈🏻 شما می‌توانید سرویس خود را در بخش (سرویس های من) تمدید کنید.</b>\n\n<b>#notification_{service_code}</b>",
-    "webhook_notification_low_data": "<b>#Low_Data</b>\n🔔 حجم باقی‌مانده‌ی سرویس شما: <b>{remaining_volume}</b>\nبرای جلوگیری از قطع سرویس، لطفاً پلن خود را تمدید یا ارتقا دهید.\n\n🔢 <b>کدسرویس:</b> <code>{service_code}</code>\n👤 <b>اسم کانفیگ:</b> <code>{config_name}</code>"
+    "webhook_notification_low_data": "<b>#Low_Data</b>\n🔔 حجم باقی‌مانده‌ی سرویس شما: <b>{remaining_volume}</b>\nبرای جلوگیری از قطع سرویس، لطفاً پلن خود را تمدید یا ارتقا دهید.\n\n🔢 <b>کدسرویس:</b> <code>{service_code}</code>\n👤 <b>اسم کانفیگ:</b> <code>{config_name}</code>",
+    "bot_reseller_intro": "**🤖 نمایندگی ربات**\n\nپنل پاسارگارد نمی‌گیری؛ یوزرها رو از وب‌اپ می‌سازی و برای هر گیگ مصرف یوزرهات خودکار از کیف پولت کم می‌شه.\n\nیه سرویس انتخاب کن:",
+    "bot_reseller_no_services": "فعلاً نمایندگی ربات در دسترس نیست.",
+    "bot_reseller_service_detail": "**📦 سرویس {service}**\n\n💰 قیمت: `{price}` تومان هر گیگ مصرف\n👥 حداکثر یوزر: {max_users}\n📦 حجم هر یوزر (گیگ): {max_gb}\n⏳ زمان هر یوزر (روز): {max_days}\n💳 کسر: خودکار و دقیقه‌ای از کیف پول\n\n⚠️ اگه موجودی صفر بشه، همه یوزرهات فوری قطع می‌شن و با شارژ دوباره وصل می‌شن.\n{description}",
+    "bot_reseller_request_sent": "✅ درخواستت برای سرویس **{service}** ثبت شد. بعد از بررسی ادمین خبرت می‌کنیم.",
+    "bot_reseller_approved": "🎉 **نمایندگی «{service}» فعال شد**\n\n💰 قیمت: `{price}` تومان هر گیگ\nاز دکمه زیر وارد پنل نمایندگی شو و یوزر بساز.",
+    "bot_reseller_rejected": "❌ درخواست نمایندگی «{service}» رد شد.\n\n📌 دلیل: {reason}",
+    "bot_reseller_revoked": "⚠️ سرویس «{service}» از نمایندگی شما برداشته شد و یوزرهای آن حذف شدند.",
+    "bot_reseller_frozen": "⛔️ **موجودی کیف پولت تموم شد**\n\n💳 موجودی: `{balance}` تومان\n👥 {count} یوزرت قطع شدن.\n\nبا شارژ کیف پول حداکثر تا ۱ دقیقه بعد خودکار وصل می‌شن.",
+    "bot_reseller_unfrozen": "✅ کیف پول شارژ شد و {count} یوزرت دوباره وصل شدن.",
+    "bot_reseller_suspended": "⛔️ نمایندگی ربات شما توسط ادمین تعلیق شد و {count} یوزر غیرفعال شدند.",
+    "bot_reseller_low_balance": "⚠️ **موجودی نمایندگی کمه**\n\n💳 موجودی: `{balance}` تومان\nبا مصرف فعلی حدوداً {hours} ساعت دیگه تموم می‌شه و همه یوزرهات قطع می‌شن.",
+    "bot_reseller_home": "**🤖 نمایندگی ربات** {status}\n\n💳 موجودی کیف پول: `{balance}` تومان\n📦 سرویس‌ها: {services}\n👥 یوزرها: {users}\n📊 مصرف ۲۴ ساعت: {today}"
   },
   "buttons": {
     "bt.menu_my_services": "🔑 سرویس های من",
@@ -139,7 +151,14 @@
     "in.rs.delete": "🗑 حذف نمایندگی",
     "in.rs.buy_random_username": "🎲 نام تصادفی",
     "in.rs.delete_confirm": "✅ بله، کامل حذف شود",
-    "in.rs.chpwd_confirm": "✅ بله، رمز عوض شود"
+    "in.rs.chpwd_confirm": "✅ بله، رمز عوض شود",
+    "in.brs.entry": "🤖 نمایندگی ربات",
+    "in.brs.my_entry": "🤖 نمایندگی ربات",
+    "in.brs.request": "📨 ارسال درخواست",
+    "in.brs.open_panel": "🚀 ورود به پنل نمایندگی",
+    "in.brs.back": "🔙 بازگشت",
+    "in.brs.back_list": "🔙 بازگشت",
+    "in.rs.buy_start": "🏢 خرید پنل نمایندگی"
   },
   "button_templates": {
     "gateway_payment": "{emoji} پرداخت آنلاین ({title})"

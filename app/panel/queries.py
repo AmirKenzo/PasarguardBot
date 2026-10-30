@@ -10,6 +10,8 @@ from typing import Any
 from sqlalchemy import BigInteger, String, case, cast, func, literal, or_, select, union_all
 
 from app.db.base import AsyncSessionLocal as Session
+from app.db.crud.bot_reseller import BotResellerCRUD
+from app.db.models.bot_reseller import GRANT_PENDING
 from app.db.models.cryptopayments import CryptoPayments
 from app.db.models.discount_codes import DiscountCode
 from app.db.models.ir_gateway_payment import IrGatewayPayment
@@ -129,7 +131,11 @@ async def sidebar_badges() -> dict[str, int]:
             ).scalar()
             or 0
         )
-    return {"transactions": pending} if pending else {}
+    badges = {"transactions": pending} if pending else {}
+    requests = await BotResellerCRUD().count_grants(GRANT_PENDING)
+    if requests:
+        badges["bot_resellers"] = requests
+    return badges
 
 
 async def _window_totals(timestamp: Any, value: Any | None, boundaries: list[int], *filters: Any) -> list[int]:

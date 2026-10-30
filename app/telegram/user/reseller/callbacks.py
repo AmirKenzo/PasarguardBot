@@ -50,7 +50,7 @@ from app.services.reseller.accounts import (
 )
 from app.services.reseller.addons import ADDON_LOCK, ADDON_MAX_QUANTITY, buy_addon, quote_addon
 from app.services.reseller.plan_rules import ADDON_DAYS, ADDON_USERS, ADDON_VOLUME, addon_price
-from app.services.reseller.purchase import reseller_sale_open
+from app.services.reseller.purchase import buy_reseller_open, reseller_sale_open
 from app.services.reseller.usage_cap import parse_usage_cap_gb, set_reseller_usage_cap, usage_cap_menu_text
 from app.telegram.keyboards import reseller as rs_buttons
 from app.telegram.keyboards.home import bhome_buttons
@@ -72,6 +72,7 @@ from app.telegram.shared.reseller_plan_guides import (
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import clear_user, delete_data, delete_data_many, get_data, get_step, set_data, set_step
 from app.telegram.state.lock import acquire_user_lock, release_user_lock
+from app.telegram.user.reseller.bot_reseller import my_rows as bot_reseller_my_rows
 from app.telegram.user.reseller.helpers import (
     _complete_reseller_purchase,
     _user_lang,
@@ -409,8 +410,9 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
         return
     data = event.data.decode("utf-8")
 
+    picker = data in ("ResellerBuy_start", "ResellerBuy_back_panels", "ResellerBuy_cancel")
     if (
-        not await _reseller_sale_enabled()
+        not (await buy_reseller_open() if picker else await _reseller_sale_enabled())
         and not data.startswith("ResellerMy")
         and not data.startswith("ResellerAccount_")
     ):
@@ -532,16 +534,15 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
 
     if data == "ResellerMy_list" or data == "ResellerMy_open":
         accounts = await ResellerAccountCRUD().get_accounts_by_user(user_id)
-        if not accounts:
+        bot_rows = await bot_reseller_my_rows(user_id)
+        if not accounts and not bot_rows:
             await event.edit(
                 await get_reseller_text(
                     "reseller_my_list_empty",
                     DEFAULT_BOT_TEXTS["reseller_my_list_empty"],
                     user_id,
                 ),
-                buttons=[[Button.inline("🏢 خرید پنل نمایندگی", data="ResellerBuy_start")]]
-                if await _reseller_sale_enabled()
-                else None,
+                buttons=[[await rs_buttons.rs_buy_start_button()]] if await buy_reseller_open() else None,
             )
             return
         await event.edit(
@@ -549,9 +550,9 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
                 "reseller_my_list_intro",
                 DEFAULT_BOT_TEXTS["reseller_my_list_intro"],
                 user_id,
-                count=str(len(accounts)),
+                count=str(len(accounts) + len(bot_rows)),
             ),
-            buttons=await build_my_resellers_list_buttons(accounts),
+            buttons=[*bot_rows, *await build_my_resellers_list_buttons(accounts)],
         )
         return
 
@@ -801,9 +802,7 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
             else:
                 await event.edit(
                     "**📋 نمایندگی‌های من**\n\nشما نمایندگی فعالی ندارید.",
-                    buttons=[[Button.inline("🏢 خرید پنل نمایندگی", data="ResellerBuy_start")]]
-                    if await _reseller_sale_enabled()
-                    else None,
+                    buttons=[[await rs_buttons.rs_buy_start_button()]] if await buy_reseller_open() else None,
                 )
         return
 

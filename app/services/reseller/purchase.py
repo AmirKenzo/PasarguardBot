@@ -94,6 +94,22 @@ async def reseller_sale_open(settings=None) -> bool:
     return bool(settings and settings.sale_mode and settings.reseller_sale_mode)
 
 
+async def bot_reseller_sale_open(settings=None) -> bool:
+    """Bot reseller requests need the global sale switch, their own switch and a service on sale."""
+    from app.db.crud.bot_reseller import BotResellerCRUD
+
+    settings = settings if settings is not None else await SettingsManager().get_settings()
+    if not settings or not settings.sale_mode or not getattr(settings, "bot_reseller_sale_mode", True):
+        return False
+    return await BotResellerCRUD().has_sale_services()
+
+
+async def buy_reseller_open(settings=None) -> bool:
+    """The buy-reseller menu opens when either kind of reseller is on sale."""
+    settings = settings if settings is not None else await SettingsManager().get_settings()
+    return await reseller_sale_open(settings) or await bot_reseller_sale_open(settings)
+
+
 async def apply_reseller_discount(
     user_id: int, base_price: int, code: str | None
 ) -> tuple[PriceQuote | None, str | None]:

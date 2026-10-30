@@ -3,7 +3,7 @@
  * Only a small allow-list of in-app paths may be opened this way so a crafted
  * link can't send users anywhere unexpected.
  */
-const ALLOWED_PREFIXES = ["/panel/help-buttons"];
+const ALLOWED_PREFIXES = ["/panel/help-buttons", "/bot-reseller"];
 
 /** Normalised allowed path, or null. */
 function allowedDeepLink(raw: string | null | undefined): string | null {

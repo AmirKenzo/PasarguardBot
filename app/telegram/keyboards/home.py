@@ -5,6 +5,7 @@ import asyncio
 from telethon import Button
 from telethon.tl.types import KeyboardButtonRow, ReplyKeyboardMarkup
 
+from app.db.crud.bot_reseller import BotResellerCRUD
 from app.db.crud.keyboards import KeyboardButtonCRUD
 from app.db.crud.panels import PanelsManager
 from app.db.crud.settings import SettingsManager
@@ -12,6 +13,7 @@ from app.db.crud.user import UserCRUD
 from app.db.models.settings import DEFAULT_HOME_MENU_SETTINGS
 from app.services.panels.settings import panel_reseller_sale_enabled, panel_shop_sale_enabled
 from app.services.panels.trials import admin_unlimited_trial, trial_offered, trial_panels
+from app.services.reseller.purchase import bot_reseller_sale_open
 from app.telegram.shared.utils.miniapp import miniapp_url
 from config import ADMIN_ID, DISABLE_UPTIME_BUTTONS, LINK_UPTIME_BUTTONS, WEBAPP_URL
 
@@ -159,9 +161,9 @@ async def home_button_conditions() -> dict[str, str]:
     setting = await SettingsManager().get_settings()
     panels = await PanelsManager().get_all_panels()
     shop_sale = any(panel_shop_sale_enabled(panel) for panel in panels)
-    reseller_sale = bool(setting and setting.reseller_sale_mode) and any(
-        panel_reseller_sale_enabled(panel) for panel in panels
-    )
+    reseller_sale = (
+        bool(setting and setting.reseller_sale_mode) and any(panel_reseller_sale_enabled(panel) for panel in panels)
+    ) or await bot_reseller_sale_open(setting)
     trial_ready = await trial_offered(setting)
 
     def gate(ok: bool, reason: str) -> str:
@@ -231,6 +233,8 @@ async def bhome_buttons(user_id, lang):
     else:
         visible["bt.menu_get_trial"] = visible["bt.menu_get_trial"] and bool(user_data and user_data.tested == 0)
     visible["bt.menu_admin_panel"] = is_admin
+    if not visible.get("bt.menu_my_resellers") and await BotResellerCRUD().has_approved_grant(user_id):
+        visible["bt.menu_my_resellers"] = True
 
     def widget(key: str):
         text, style = configs[key]

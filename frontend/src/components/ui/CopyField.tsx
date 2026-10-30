@@ -10,11 +10,13 @@ export interface CopyFieldProps {
   /** Text shown instead of `value` (e.g. a masked or shortened form). */
   display?: string;
   mono?: boolean;
+  /** Show the whole value on several lines instead of cutting it off. */
+  wrap?: boolean;
   onCopied?: () => void;
 }
 
 /** Read-only value row with a copy button that briefly turns green after copying. */
-export function CopyField({ label, value, display, mono = true, onCopied }: CopyFieldProps) {
+export function CopyField({ label, value, display, mono = true, wrap = false, onCopied }: CopyFieldProps) {
   const { t } = useTranslation();
   const { haptic } = useTelegram();
   const [copied, setCopied] = useState(false);
@@ -44,7 +46,7 @@ export function CopyField({ label, value, display, mono = true, onCopied }: Copy
     >
       <div className="min-w-0 flex-1">
         <p className="text-[10.5px] text-muted">{copied ? `${label} · ${t("ui.copied")}` : label}</p>
-        <p className={`truncate text-xs-plus font-semibold text-text ${mono ? "font-mono" : ""}`}>
+        <p className={`${wrap ? "break-all" : "truncate"} text-xs-plus font-semibold text-text ${mono ? "font-mono" : ""}`}>
           <bdi dir="ltr">{display ?? value}</bdi>
         </p>
       </div>

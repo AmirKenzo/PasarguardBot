@@ -13,6 +13,7 @@ export const sectionLabels = (t: TFunction): Record<string, string> => ({
   balance: t("panel.common.addBalance"),
   buy: t("panel.keyboard.buyService"),
   reseller: t("panel.keyboard.reseller"),
+  bot_reseller: t("panel.keyboard.botReseller"),
   other: t("panel.keyboard.other"),
 });
 

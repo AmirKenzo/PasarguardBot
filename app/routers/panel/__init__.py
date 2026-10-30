@@ -17,6 +17,7 @@ Split by feature, mirroring ``app/routers/webapp``:
   - resellers: reseller accounts, their admin actions and reseller plans
   - reseller_insights: reseller overview, billing ledger and event history
   - reseller_settings: global reseller rules and per-panel reseller switches
+  - bot_resellers: bot resellers (services, requests, resellers and their users)
   - discounts: discount codes
   - referral: referral settings and reward history
   - broadcast: bulk message jobs
@@ -36,6 +37,7 @@ from fastapi import APIRouter
 
 from app.logger import get_logger
 from app.routers.panel.audit import router as audit_router
+from app.routers.panel.bot_resellers import router as bot_resellers_router
 from app.routers.panel.broadcast import router as broadcast_router
 from app.routers.panel.channels import router as channels_router
 from app.routers.panel.dashboard import router as dashboard_router
@@ -71,6 +73,7 @@ panel_router.include_router(payments_router)
 panel_router.include_router(panels_router)
 panel_router.include_router(plans_router)
 panel_router.include_router(resellers_router)
+panel_router.include_router(bot_resellers_router)
 panel_router.include_router(reseller_insights_router)
 panel_router.include_router(reseller_settings_router)
 panel_router.include_router(discounts_router)

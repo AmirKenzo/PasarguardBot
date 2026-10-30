@@ -1,15 +1,18 @@
 """Message handlers for user reseller flows."""
 
-from telethon import Button, events
+from telethon import events
 from telethon.tl.custom import Message
 
 from app.db.crud.keyboards import get_button_text
 from app.db.crud.reseller_accounts import ResellerAccountCRUD
 from app.db.crud.settings import SettingsManager
+from app.services.reseller.purchase import buy_reseller_open
+from app.telegram.keyboards import reseller as rs_buttons
 from app.telegram.keyboards.home import home_back_button
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import delete_data, get_step, set_step
 from app.telegram.user.reseller import states
+from app.telegram.user.reseller.bot_reseller import my_rows
 from app.telegram.user.reseller.helpers import get_reseller_text, show_reseller_panel_picker
 from app.telegram.user.reseller.keyboards import build_my_resellers_list_buttons
 from app.telegram.user.reseller.states import RESELLER_FLOW_MSG_KEY
@@ -19,11 +22,12 @@ from app.utils.text.default_texts import DEFAULT_BOT_TEXTS
 async def _send_my_resellers_list(event: Message) -> None:
     is_callback = hasattr(event, "answer")
     accounts = await ResellerAccountCRUD().get_accounts_by_user(event.sender_id)
-    if not accounts:
+    bot_rows = await my_rows(event.sender_id)
+    if not accounts and not bot_rows:
         settings = await SettingsManager().get_settings()
         buttons = []
-        if settings and settings.reseller_sale_mode:
-            buttons.append([Button.inline("🏢 خرید پنل نمایندگی", data="ResellerBuy_start")])
+        if await buy_reseller_open(settings):
+            buttons.append([await rs_buttons.rs_buy_start_button()])
         if is_callback:
             buttons.append([home_back_button()])
         text = await get_reseller_text(
@@ -44,9 +48,9 @@ async def _send_my_resellers_list(event: Message) -> None:
         "reseller_my_list_intro",
         DEFAULT_BOT_TEXTS["reseller_my_list_intro"],
         event.sender_id,
-        count=str(len(accounts)),
+        count=str(len(accounts) + len(bot_rows)),
     )
-    buttons = await build_my_resellers_list_buttons(accounts)
+    buttons = [*bot_rows, *await build_my_resellers_list_buttons(accounts)]
     if is_callback:
         buttons = [*buttons, [home_back_button()]]
         try:
@@ -67,7 +71,7 @@ async def reseller_menu_message(event: Message):
     settings = await SettingsManager().get_settings()
 
     if msg == buy_text:
-        if not settings or not settings.sale_mode or not settings.reseller_sale_mode:
+        if not await buy_reseller_open(settings):
             await event.respond("⛔️ فروش توسط ادمین بسته است.")
             return
         step = (await get_step(event.sender_id)) or ""

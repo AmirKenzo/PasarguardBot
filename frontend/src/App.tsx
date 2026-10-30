@@ -22,6 +22,7 @@ const TransactionsPage = lazy(() => import("./features/balance/TransactionsPage"
 const ServicesListPage = lazy(() => import("./features/services/ServicesListPage"));
 const ServiceDetailPage = lazy(() => import("./features/services/ServiceDetailPage"));
 const ResellerAccountPage = lazy(() => import("./features/services/ResellerAccountPage"));
+const BotResellerPage = lazy(() => import("./features/botReseller/BotResellerPage"));
 const RenewFlow = lazy(() => import("./features/services/RenewFlow"));
 const ExtendTimeFlow = lazy(() => import("./features/services/ExtendTimeFlow"));
 const ExtraVolumeFlow = lazy(() => import("./features/services/ExtraVolumeFlow"));
@@ -37,6 +38,7 @@ const AdminPaymentsPage = lazy(() => import("./features/admin/PaymentsPage"));
 const AdminPanelsPage = lazy(() => import("./features/admin/PanelsPage"));
 const AdminPlansPage = lazy(() => import("./features/admin/PlansPage"));
 const AdminResellerHubPage = lazy(() => import("./features/admin/resellers/ResellerHubPage"));
+const AdminBotResellersPage = lazy(() => import("./features/admin/resellers/BotResellersPage"));
 const AdminDiscountsPage = lazy(() => import("./features/admin/DiscountsPage"));
 const AdminReferralPage = lazy(() => import("./features/admin/ReferralPage"));
 const AdminBroadcastPage = lazy(() => import("./features/admin/BroadcastPage"));
@@ -128,6 +130,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="services" element={<ServicesListPage />} />
           <Route path="services/reseller/:code" element={<ResellerAccountPage />} />
+          <Route path="bot-reseller" element={<BotResellerPage />} />
           <Route path="services/:code" element={<ServiceDetailPage />} />
           <Route path="services/:code/renew" element={<RenewFlow />} />
           <Route path="services/:code/extend-time" element={<ExtendTimeFlow />} />
@@ -163,6 +166,7 @@ export default function App() {
           <Route path="panels" element={<AdminPanelsPage />} />
           <Route path="plans" element={<AdminPlansPage />} />
           <Route path="resellers" element={<AdminResellerHubPage />} />
+          <Route path="resellers/bot" element={<AdminBotResellersPage />} />
           {/* Old bookmark: plans used to be a page of their own. */}
           <Route path="reseller-plans" element={<Navigate to="/panel/resellers?tab=plans" replace />} />
           <Route path="discounts" element={<AdminDiscountsPage />} />

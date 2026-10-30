@@ -12,6 +12,7 @@ import {
   CreditCard,
   Gem,
   Gift,
+  Inbox,
   Keyboard,
   LifeBuoy,
   Landmark,
@@ -19,6 +20,7 @@ import {
   Megaphone,
   Menu,
   MessageSquareText,
+  Package,
   Palette,
   Radio,
   Receipt,
@@ -119,7 +121,17 @@ const navGroups = (t: TFunction): NavGroup[] => [
           { to: "/panel/resellers?tab=settings", label: t("panel.resellerHub.tabs.settings"), icon: SlidersHorizontal },
         ],
       },
-      { to: "/panel/resellers/bot", label: t("panel.resellerHub.navBot"), icon: Bot, soon: true },
+      {
+        to: "/panel/resellers/bot",
+        label: t("panel.resellerHub.navBot"),
+        icon: Bot,
+        badge: "bot_resellers",
+        children: [
+          { to: "/panel/resellers/bot?section=requests", label: t("panel.botResellers.requests"), icon: Inbox },
+          { to: "/panel/resellers/bot?section=resellers", label: t("panel.botResellers.resellers"), icon: Users },
+          { to: "/panel/resellers/bot?section=services", label: t("panel.botResellers.services"), icon: Package },
+        ],
+      },
     ],
   },
   {
@@ -180,7 +192,7 @@ function BrandMark({ size = "lg" }: { size?: "lg" | "base" }) {
 }
 
 /** Which sub-item a bare section URL (no query) shows. */
-const FIRST_SUB_VALUE: Record<string, string> = { "/panel/resellers": "overview" };
+const FIRST_SUB_VALUE: Record<string, string> = { "/panel/resellers": "overview", "/panel/resellers/bot": "requests" };
 
 function subItemActive(location: ReturnType<typeof useLocation>, subTo: string): boolean {
   const [path, query = ""] = subTo.split("?");

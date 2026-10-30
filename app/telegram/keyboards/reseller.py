@@ -163,3 +163,39 @@ async def rs_usage_next_button(account_code: int, page: int):
 
 async def rs_usage_back_button(account_code: int):
     return await _rs_inline_button(_KEY_BACK, f"ResellerAccount_view:{account_code}")
+
+
+async def rs_buy_back_panels_button():
+    return await _rs_inline_button(_KEY_BACK, "ResellerBuy_back_panels")
+
+
+async def brs_entry_button(data: str):
+    return await _rs_inline_button("in.brs.entry", data)
+
+
+async def brs_my_entry_button(data: str, *, suffix: str = ""):
+    keyboard_crud = KeyboardButtonCRUD()
+    text, style = await _get_keyboard_button_config(
+        keyboard_crud, "in.brs.my_entry", KEYBOARD_BUTTON_DEFAULTS["in.brs.my_entry"]
+    )
+    return styled_callback_button(f"{text}{suffix}", data, style)
+
+
+async def brs_request_button(data: str):
+    return await _rs_inline_button("in.brs.request", data)
+
+
+async def brs_back_button(data: str):
+    return await _rs_inline_button("in.brs.back", data)
+
+
+async def brs_back_list_button():
+    return await _rs_inline_button("in.brs.back_list", "ResellerMy_list")
+
+
+async def rs_buy_start_button():
+    return await _rs_inline_button("in.rs.buy_start", "ResellerBuy_start")
+
+
+def brs_plain_button(label: str, data: str):
+    return styled_callback_button(label, data)
