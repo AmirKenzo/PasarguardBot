@@ -705,7 +705,20 @@ function UsersTab({ onOpen, onCreate, blocked }: { onOpen: (id: number) => void;
 
   if (users.isLoading) return <SkeletonCard />;
   if (users.isError) return <ErrorState message={users.error.message} onRetry={() => void users.refetch()} />;
-  if (!all.length) return <EmptyState icon={Bot} title={t("botReseller.noUsers")} description={t("botReseller.noUsersHint")} />;
+  if (!all.length)
+    return (
+      <EmptyState
+        icon={Bot}
+        title={t("botReseller.noUsers")}
+        description={t("botReseller.noUsersHint")}
+        action={
+          <Button onClick={onCreate} disabled={blocked}>
+            <Plus size={16} />
+            {t("botReseller.newUser")}
+          </Button>
+        }
+      />
+    );
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const current = Math.min(page, totalPages);
