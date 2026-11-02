@@ -85,6 +85,7 @@ Match the existing test style in `tests/unit/services/reseller/test_admin_action
 ```python
 state = {"activated": [], "updates": [], "clock_resets": [], "events": [], "sync": (True, None)}
 
+
 class Accounts:
     async def update_account(self, code, **columns):
         state["updates"].append((code, columns))
