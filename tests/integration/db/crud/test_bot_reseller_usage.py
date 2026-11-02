@@ -80,8 +80,22 @@ def _seed(session, *, balance: int, carry: float = 0.0) -> dict[str, int]:
     return asyncio.run(go())
 
 
-def _apply(counters: dict[int, int], *, reseller_id: int = 1):
-    return asyncio.run(bot_reseller.BotResellerCRUD().apply_usage(reseller_id, counters, PRICES, now=HOUR + 60))
+def _apply(counters: dict[int, int], *, reseller_id: int = 1, expected_observations=None):
+    async def go():
+        expected = expected_observations
+        if expected is None:
+            async with bot_reseller.Session() as session:
+                rows = (await session.execute(select(BotResellerUser))).scalars().all()
+                expected = {
+                    row.id: (int(row.baseline_bytes or 0), row.observation_revision)
+                    for row in rows
+                    if row.id in counters
+                }
+        return await bot_reseller.BotResellerCRUD().apply_usage(
+            reseller_id, counters, PRICES, expected_observations=expected, now=HOUR + 60
+        )
+
+    return asyncio.run(go())
 
 
 def _read(session, model, **where):
@@ -145,3 +159,68 @@ def test_wallet_may_go_negative_by_one_run(db) -> None:
     ids = _seed(db, balance=500)
     result = _apply({ids["ali"]: (14540 + 1024) * MB})
     assert result.balance == 500 - 2800
+
+
+def test_stale_snapshot_after_newer_settlement_is_rejected(db) -> None:
+    ids = _seed(db, balance=10_000)
+    assert _apply({ids["ali"]: 15564 * MB}).charged == 2800
+    result = _apply({ids["ali"]: 15052 * MB}, expected_observations={ids["ali"]: (14540 * MB, 0)})
+    assert result.ok is False
+    assert _read(db, User, id=WALLET)[0].amount == 7200
+    assert _read(db, BotResellerUser, id=ids["ali"])[0].baseline_bytes == 15564 * MB
+    assert _read(db, BotResellerUsageHourly, reseller_id=1)[0].bytes == 1024 * MB
+    assert _apply({ids["ali"]: 15564 * MB}).charged == 0
+
+
+def test_stale_mixed_batch_is_atomic(db) -> None:
+    ids = _seed(db, balance=10_000, carry=0.4)
+    _apply({ids["ali"]: 15564 * MB})
+    result = _apply(
+        {ids["sara"]: 9216 * MB, ids["ali"]: 15052 * MB},
+        expected_observations={ids["sara"]: (8192 * MB, 0), ids["ali"]: (14540 * MB, 0)},
+    )
+    assert result.ok is False
+    assert _read(db, User, id=WALLET)[0].amount == 7200
+    assert _read(db, BotReseller, id=1)[0].carry == pytest.approx(0.4)
+    assert _read(db, BotResellerUser, id=ids["sara"])[0].baseline_bytes == 8192 * MB
+    assert _read(db, BotResellerUser, id=ids["ali"])[0].baseline_bytes == 15564 * MB
+    rows = _read(db, BotResellerUsageHourly, reseller_id=1)
+    assert len(rows) == 1
+    assert rows[0].bytes == 1024 * MB
+
+
+def test_deleted_user_snapshot_is_rejected(db) -> None:
+    ids = _seed(db, balance=10_000)
+    asyncio.run(bot_reseller.BotResellerCRUD().update_user(ids["ali"], deleted_at=HOUR))
+    result = _apply({ids["ali"]: 15052 * MB}, expected_observations={ids["ali"]: (14540 * MB, 0)})
+    assert result.ok is False
+    assert _read(db, User, id=WALLET)[0].amount == 10_000
+    assert _read(db, BotResellerUsageHourly, reseller_id=1) == []
+
+
+def test_matching_baseline_preserves_real_counter_reset(db) -> None:
+    ids = _seed(db, balance=10_000)
+    result = _apply({ids["ali"]: 512 * MB})
+    assert result.ok is True
+    assert result.charged == 1400
+    assert _read(db, BotResellerUser, id=ids["ali"])[0].baseline_bytes == 512 * MB
+
+
+def test_stale_observation_is_rejected_after_baseline_returns_to_original_value(db) -> None:
+    ids = _seed(db, balance=1_000_000)
+    original = {ids["ali"]: (14540 * MB, 0)}
+    assert _apply({ids["ali"]: 15564 * MB}, expected_observations=original).charged == 2800
+    reset = _apply({ids["ali"]: 14540 * MB}, expected_observations={ids["ali"]: (15564 * MB, 1)})
+    assert reset.bytes == 14540 * MB
+    before = _read(db, User, id=WALLET)[0].amount
+    result = _apply({ids["ali"]: 15052 * MB}, expected_observations=original)
+    assert result.ok is False
+    assert _read(db, User, id=WALLET)[0].amount == before
+
+
+def test_unchanged_settlement_invalidates_older_observation(db) -> None:
+    ids = _seed(db, balance=10_000)
+    assert _apply({ids["ali"]: 14540 * MB}).charged == 0
+    result = _apply({ids["ali"]: 15052 * MB}, expected_observations={ids["ali"]: (14540 * MB, 0)})
+    assert result.ok is False
+    assert _read(db, User, id=WALLET)[0].amount == 10_000

@@ -15,13 +15,11 @@ from fastapi import APIRouter, HTTPException, Request
 from telethon import Button
 
 from app import Kenzo
-from app.db.crud.auto_card import CRUDAutoCard
+from app.db.crud.auto_card import AutoCardPaymentResult, CRUDAutoCard
 from app.db.crud.settings import SettingsManager
 from app.db.crud.transactions import TransactionCRUD
-from app.db.crud.user import UserCRUD
 from app.db.redis import get_redis
 from app.logger import LogType, get_logger
-from app.services.billing.payment_bonus import calculate_payment_bonus
 from app.services.payments.auto_card_sms_parser import (
     build_sms_envelope,
     extract_deposit_rial,
@@ -91,14 +89,15 @@ async def process_payment_sms(
             await _log_unparsed_sms(sms_text, is_deposit)
         return
 
-    auto_card_crud = CRUDAutoCard()
-    payment_record = await auto_card_crud.claim_by_amount(amount)
-
-    if not payment_record:
+    settings = await SettingsManager().get_settings()
+    result = await CRUDAutoCard().approve_and_credit(
+        amount, bonus_enabled=settings.auto_bonus_enabled, bonus_percent=settings.auto_bonus_percent
+    )
+    if result is None:
         logger.info("SMS ignored: no pending auto-card invoice for amount_rial=%s", amount)
         return
 
-    await _process_payment(payment_record, amount)
+    await _process_payment(result, settings)
 
 
 async def _log_unparsed_sms(sms_text: str, is_deposit: bool | None) -> None:
@@ -148,49 +147,30 @@ async def _release_delivery(message_id: str) -> None:
         logger.warning("Releasing SMS delivery marker failed: %s", exc)
 
 
-async def _process_payment(payment_record: Any, amount: int) -> None:
-    """Process the payment and update user balance."""
-
-    user_crud = UserCRUD()
-    transaction_crud = TransactionCRUD()
-
-    settings = await SettingsManager().get_settings()
-    bonus = await calculate_payment_bonus(
-        amount=payment_record.first_amount,
-        bonus_enabled=settings.auto_bonus_enabled,
-        bonus_percent=settings.auto_bonus_percent,
-    )
-    total_amount = payment_record.first_amount + bonus
-
-    # Add money to user account (with bonus)
-    new_balance = await user_crud.Add_Money(user_id=payment_record.id, Money=total_amount)
-
-    # Create transaction record (store original amount, not with bonus)
-    await transaction_crud.create(
-        user_id=payment_record.id, amount=payment_record.first_amount, method="auto", status="approved"
-    )
-
-    # Get transaction statistics
-    transaction_stats = await _get_user_transaction_stats(payment_record.id)
-
-    # Send notification to user (with bonus info)
-    await _notify_user(
-        payment_record, new_balance, bonus, settings.auto_bonus_percent if settings.auto_bonus_enabled else 0
-    )
-
-    # Send log to channel
-    await _log_payment(
-        payment_record,
-        new_balance,
-        transaction_stats,
-        bonus,
-        settings.auto_bonus_percent if settings.auto_bonus_enabled else 0,
-        cart_num=getattr(settings, "cart_num", None),
-        cart_name=getattr(settings, "cart_name", None),
-    )
-
-    # Clean up payment record
-    await CRUDAutoCard().delete_by_amount(amount)
+async def _process_payment(result: AutoCardPaymentResult, settings) -> None:
+    payment_record = result.invoice
+    bonus_percent = settings.auto_bonus_percent if settings.auto_bonus_enabled else 0
+    try:
+        await _notify_user(payment_record, result.balance, result.bonus, bonus_percent)
+    except Exception as exc:
+        logger.error("Auto-card notification failed code=%s: %s", payment_record.code, exc)
+    try:
+        transaction_stats = await _get_user_transaction_stats(payment_record.id)
+        await _log_payment(
+            payment_record,
+            result.balance,
+            transaction_stats,
+            result.bonus,
+            bonus_percent,
+            cart_num=getattr(settings, "cart_num", None),
+            cart_name=getattr(settings, "cart_name", None),
+        )
+    except Exception as exc:
+        logger.error("Auto-card payment log failed code=%s: %s", payment_record.code, exc)
+    try:
+        await CRUDAutoCard().delete(payment_record.code)
+    except Exception as exc:
+        logger.error("Auto-card cleanup failed code=%s: %s", payment_record.code, exc)
 
 
 def _format_duration(seconds: int) -> str:

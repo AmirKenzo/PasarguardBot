@@ -34,12 +34,10 @@ from app.models.webapp.common import WebAppAuthRequest
 from app.routers.webapp.auth import authenticate_user
 from app.routers.webapp.errors import internal_error
 from app.services.bot_reseller import core, panel as panel_api
-from app.telegram.state.lock import acquire_user_lock, release_user_lock
 
 log = get_logger(__name__)
 router = APIRouter()
 
-LOCK_BUSY = "درخواست قبلی شما هنوز در حال انجام است."
 USAGE_DAYS = 7
 
 
@@ -60,13 +58,7 @@ async def _run(response_model, call):
 
 
 async def _locked(user_id: int, call):
-    """One change at a time per reseller, so two taps can never race on the same user."""
-    if not await acquire_user_lock(user_id, "bot_reseller", ttl=60):
-        raise core.Refused(LOCK_BUSY)
-    try:
-        return await call()
-    finally:
-        await release_user_lock(user_id, "bot_reseller")
+    return await core.run_mutation(user_id, call)
 
 
 def _item(user: BotResellerUser, ctx: core.ResellerContext, panel_user=None) -> BotResellerUserItem:

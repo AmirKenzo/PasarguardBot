@@ -1,12 +1,17 @@
 import secrets
+import time
+from dataclasses import dataclass
 
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 
 from app.db.base import GetDB
 from app.db.models.auto_card import AutoCard
+from app.db.models.transaction import Transaction
+from app.db.models.user import User
 from app.logger import get_logger
+from app.services.billing.payment_bonus import calculate_payment_bonus
 
 log = get_logger(__name__)
 
@@ -14,7 +19,49 @@ CODE_MIN = 55555
 CODE_MAX = 999999
 
 
+@dataclass
+class AutoCardPaymentResult:
+    invoice: AutoCard
+    balance: int
+    bonus: int
+
+
 class CRUDAutoCard:
+    async def approve_and_credit(
+        self, amount: int, *, bonus_enabled: bool, bonus_percent: int
+    ) -> AutoCardPaymentResult | None:
+        async with GetDB() as db, db.begin():
+            dialect = db.bind.dialect if db.bind is not None else None
+            lock = bool(dialect and dialect.name != "sqlite")
+            stmt = select(AutoCard).where(AutoCard.amount == amount, AutoCard.status.is_(False))
+            invoice = (await db.execute(stmt.with_for_update() if lock else stmt)).scalar_one_or_none()
+            if invoice is None:
+                return None
+            claimed = await db.execute(
+                update(AutoCard).where(AutoCard.code == invoice.code, AutoCard.status.is_(False)).values(status=True)
+            )
+            if claimed.rowcount != 1:
+                return None
+            stmt = select(User).where(User.id == invoice.id)
+            wallet = (await db.execute(stmt.with_for_update() if lock else stmt)).scalar_one_or_none()
+            if wallet is None:
+                raise LookupError(f"Auto-card wallet not found: {invoice.id}")
+            bonus = await calculate_payment_bonus(invoice.first_amount, bonus_enabled, bonus_percent)
+            wallet.amount = int(wallet.amount or 0) + invoice.first_amount + bonus
+            now = int(time.time())
+            db.add(
+                Transaction(
+                    user_id=invoice.id,
+                    amount=invoice.first_amount,
+                    method="auto",
+                    status="approved",
+                    created_at=now,
+                    completed_at=now,
+                )
+            )
+            balance = int(wallet.amount)
+        return AutoCardPaymentResult(invoice=invoice, balance=balance, bonus=bonus)
+
     async def create(
         self, code: int, time: int, amount: int, first_amount: int, id: int, status: bool, msg_id: int | None = None
     ):
@@ -127,21 +174,3 @@ class CRUDAutoCard:
             if auto_card:
                 return True, auto_card
             return False, "Not Found"
-
-    async def claim_by_amount(self, amount: int):
-        """Atomically mark one pending auto-card invoice as claimed."""
-
-        async with GetDB() as db, db.begin():
-            stmt = select(AutoCard).where(AutoCard.amount == amount, AutoCard.status.is_(False))
-            dialect = db.bind.dialect if db.bind is not None else None
-            if dialect and dialect.name != "sqlite":
-                stmt = stmt.with_for_update()
-
-            result = await db.execute(stmt)
-            auto_card = result.scalar_one_or_none()
-            if not auto_card:
-                return None
-
-            auto_card.status = True
-            await db.flush()
-            return auto_card

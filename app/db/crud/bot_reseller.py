@@ -263,11 +263,14 @@ class BotResellerCRUD:
                 row = await session.get(BotResellerGrant, int(grant_id))
                 if row is None:
                     return None
-                row.status = status
-                row.decided_at = _now()
-                row.decided_by = actor_id
-                for key, value in values.items():
-                    setattr(row, key, value)
+                stmt = update(BotResellerGrant).where(BotResellerGrant.id == int(grant_id))
+                if status == GRANT_REJECTED:
+                    stmt = stmt.where(BotResellerGrant.status == GRANT_PENDING)
+                result = await session.execute(
+                    stmt.values(status=status, decided_at=_now(), decided_by=actor_id, **values)
+                )
+                if result.rowcount != 1:
+                    return None
                 await session.commit()
                 return row
             except SQLAlchemyError as e:
@@ -288,9 +291,45 @@ class BotResellerCRUD:
                 log.error("bot reseller grant update failed id=%s: %s", grant_id, e)
                 return False
 
-    async def add_user(self, **values) -> BotResellerUser | None:
+    async def advance_mutation_generation(self, telegram_id: int) -> bool:
         async with Session() as session:
             try:
+                result = await session.execute(
+                    update(BotReseller)
+                    .where(BotReseller.telegram_id == int(telegram_id))
+                    .values(mutation_generation=BotReseller.mutation_generation + 1)
+                )
+                await session.commit()
+                return result.rowcount == 1
+            except SQLAlchemyError as e:
+                await session.rollback()
+                log.error("bot reseller mutation fence failed user=%s: %s", telegram_id, e)
+                return False
+
+    async def add_user(self, *, expected_generation: int, **values) -> BotResellerUser | None:
+        async with Session() as session:
+            try:
+                # Hold the fence row through commit so a successor cannot miss this insert.
+                fence = await session.execute(
+                    update(BotReseller)
+                    .where(
+                        BotReseller.id == values["reseller_id"],
+                        BotReseller.mutation_generation == expected_generation,
+                        BotReseller.status == RESELLER_ACTIVE,
+                    )
+                    .values(mutation_generation=BotReseller.mutation_generation)
+                )
+                if fence.rowcount != 1:
+                    return None
+                grant = await session.execute(
+                    select(BotResellerGrant.id).where(
+                        BotResellerGrant.reseller_id == values["reseller_id"],
+                        BotResellerGrant.service_id == values["service_id"],
+                        BotResellerGrant.status == GRANT_APPROVED,
+                    )
+                )
+                if grant.scalar_one_or_none() is None:
+                    return None
                 row = BotResellerUser(created_at=_now(), **values)
                 session.add(row)
                 await session.commit()
@@ -362,14 +401,15 @@ class BotResellerCRUD:
             await session.commit()
 
     async def apply_usage(
-        self, reseller_id: int, counters: dict[int, int], prices: dict[int, float], *, now: int | None = None
+        self,
+        reseller_id: int,
+        counters: dict[int, int],
+        prices: dict[int, float],
+        *,
+        expected_observations: dict[int, tuple[int, int]],
+        now: int | None = None,
     ) -> UsageResult:
-        """Charge the traffic of ``counters`` (user row id -> panel counter) in one transaction.
-
-        The wallet debit, the carried remainder, every user's baseline and the hourly rows move
-        together; the baselines are read inside the transaction, so two runs can never bill the
-        same bytes. The wallet may go negative by at most one run of traffic.
-        """
+        """Charge only observations whose pre-read baselines still match the locked rows."""
         now = int(now or _now())
         if not counters:
             return UsageResult(ok=True)
@@ -391,6 +431,12 @@ class BotResellerCRUD:
                     BotResellerUser.reseller_id == reseller.id, BotResellerUser.id.in_(list(counters))
                 )
                 users = (await session.execute(stmt.with_for_update() if lock else stmt)).scalars().all()
+                if any(
+                    user.deleted_at is not None
+                    or (int(user.baseline_bytes or 0), user.observation_revision) != expected_observations.get(user.id)
+                    for user in users
+                ):
+                    return UsageResult(ok=False)
 
                 exact_by_service: dict[int, float] = {}
                 bytes_by_service: dict[int, int] = {}
@@ -398,6 +444,7 @@ class BotResellerCRUD:
                     counter = int(counters[user.id])
                     delta = usage_delta(counter, user.baseline_bytes)
                     user.baseline_bytes = counter
+                    user.observation_revision += 1
                     if delta <= 0:
                         continue
                     price = float(prices.get(user.service_id) or 0)
