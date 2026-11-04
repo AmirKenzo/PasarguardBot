@@ -5,6 +5,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from app.db.crud.auto_card import AutoCardPaymentResult
 from app.routers import sms as sms_module
 from app.routers.sms import sms_router
 from app.utils.security.secrets_cache import SECRET_SMS_WEBHOOK, _cache
@@ -167,11 +168,18 @@ def _patch_auto_card(monkeypatch: pytest.MonkeyPatch, claimed: list[int]) -> Asy
     processed = AsyncMock()
 
     class _AutoCard:
-        async def claim_by_amount(self, amount):
+        async def approve_and_credit(self, amount, *, bonus_enabled, bonus_percent):
             claimed.append(amount)
-            return SimpleNamespace(code=321, id=5, first_amount=100_000)
+            return AutoCardPaymentResult(
+                invoice=SimpleNamespace(code=321, id=5, first_amount=100_000), balance=110_000, bonus=10_000
+            )
 
     monkeypatch.setattr(sms_module, "CRUDAutoCard", _AutoCard)
+    monkeypatch.setattr(
+        sms_module.SettingsManager,
+        "get_settings",
+        AsyncMock(return_value=SimpleNamespace(auto_bonus_enabled=True, auto_bonus_percent=10)),
+    )
     monkeypatch.setattr(sms_module, "_process_payment", processed)
     return processed
 
@@ -227,3 +235,85 @@ class TestFallbackAmount:
         monkeypatch.setattr(sms_module, "enqueue", log)
         await sms_module.process_payment_sms("your OTP is 12345")
         log.assert_not_awaited()
+
+
+def _patch_payment_flow(monkeypatch, *, financial_failure=False, side_effect_failure=None):
+    state = {"attempts": 0, "credits": 0}
+    invoice = SimpleNamespace(code=321, id=5, amount=1_000_123, first_amount=100_000, time=1)
+    result = AutoCardPaymentResult(invoice=invoice, balance=111_000, bonus=10_000)
+    cleanup = AsyncMock(return_value=True)
+
+    class AutoCard:
+        async def approve_and_credit(self, amount, *, bonus_enabled, bonus_percent):
+            assert (amount, bonus_enabled, bonus_percent) == (1_000_123, True, 10)
+            state["attempts"] += 1
+            if financial_failure and state["attempts"] == 1:
+                raise RuntimeError("database unavailable")
+            if state["credits"]:
+                return None
+            state["credits"] += 1
+            return result
+
+        delete = cleanup
+
+    stats = AsyncMock(return_value={"manual_approved": 0, "manual_rejected": 0, "auto_approved": 1, "auto_rejected": 0})
+    notify = AsyncMock()
+    log = AsyncMock()
+    boundaries = {"notify": notify, "stats": stats, "log": log, "cleanup": cleanup}
+    if side_effect_failure:
+        boundaries[side_effect_failure].side_effect = RuntimeError("post-commit unavailable")
+    _set_secret(monkeypatch, _SECRET)
+    monkeypatch.setattr(sms_module, "CRUDAutoCard", AutoCard)
+    monkeypatch.setattr(sms_module, "extract_deposit_rial", lambda text: None)
+    monkeypatch.setattr(
+        sms_module.SettingsManager,
+        "get_settings",
+        AsyncMock(return_value=SimpleNamespace(auto_bonus_enabled=True, auto_bonus_percent=10)),
+    )
+    monkeypatch.setattr(sms_module, "_notify_user", notify)
+    monkeypatch.setattr(sms_module, "_get_user_transaction_stats", stats)
+    monkeypatch.setattr(sms_module, "_log_payment", log)
+    return state, result, boundaries
+
+
+async def test_financial_failure_returns_500_and_retry_can_succeed(client, monkeypatch, fake_redis):
+    state, result, boundaries = _patch_payment_flow(monkeypatch, financial_failure=True)
+    first = await client.post("/api/sms", json=_FORAPP_BODY, headers={"X-API-Key": _SECRET})
+    assert first.status_code == 500
+    assert state["credits"] == 0
+    boundaries["notify"].assert_not_awaited()
+    boundaries["cleanup"].assert_not_awaited()
+    retry = await client.post("/api/sms", json=_FORAPP_BODY, headers={"X-API-Key": _SECRET})
+    assert retry.json() == {"status": "success"}
+    assert (state["attempts"], state["credits"]) == (2, 1)
+    boundaries["notify"].assert_awaited_once_with(result.invoice, 111_000, 10_000, 10)
+    boundaries["cleanup"].assert_awaited_once_with(result.invoice.code)
+
+
+@pytest.mark.parametrize("failure", ["notify", "stats", "log", "cleanup"])
+async def test_post_commit_notification_failure_returns_success_without_recredit(
+    client, monkeypatch, fake_redis, failure
+):
+    state, result, boundaries = _patch_payment_flow(monkeypatch, side_effect_failure=failure)
+    first = await client.post("/api/sms", json=_FORAPP_BODY, headers={"X-API-Key": _SECRET})
+    retry = await client.post(
+        "/api/sms", json={**_FORAPP_BODY, "id": "another-delivery"}, headers={"X-API-Key": _SECRET}
+    )
+    assert first.json() == retry.json() == {"status": "success"}
+    assert (state["attempts"], state["credits"]) == (2, 1)
+    boundaries["cleanup"].assert_awaited_once_with(result.invoice.code)
+    if failure == "stats":
+        boundaries["log"].assert_not_awaited()
+    else:
+        boundaries["log"].assert_awaited_once()
+
+
+async def test_duplicate_without_redis_does_not_recredit(client, monkeypatch):
+    state, _, boundaries = _patch_payment_flow(monkeypatch)
+    monkeypatch.setattr(sms_module, "get_redis", AsyncMock(return_value=None))
+    first = await client.post("/api/sms", json=_FORAPP_BODY, headers={"X-API-Key": _SECRET})
+    retry = await client.post("/api/sms", json=_FORAPP_BODY, headers={"X-API-Key": _SECRET})
+    assert first.json() == retry.json() == {"status": "success"}
+    assert (state["attempts"], state["credits"]) == (2, 1)
+    boundaries["notify"].assert_awaited_once()
+    boundaries["cleanup"].assert_awaited_once_with(321)

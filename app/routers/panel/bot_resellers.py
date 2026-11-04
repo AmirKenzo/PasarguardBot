@@ -335,11 +335,18 @@ async def update_grant_terms(payload: BotGrantApproveRequest, request: Request) 
 @router.post("/panel/bot-resellers/grant/revoke", response_model=ActionResponse)
 async def revoke_grant(payload: BotGrantIdRequest, request: Request) -> ActionResponse:
     async def handle(actor: PanelActor) -> ActionResponse:
+        crud = BotResellerCRUD()
+        grant = await crud.get_grant(payload.grant_id)
+        reseller = await crud.get_reseller(grant.reseller_id) if grant else None
+        if reseller is None:
+            return ActionResponse(ok=False, error=NOT_FOUND)
         return await _act(
             actor,
             "bot_reseller.revoke",
             payload.grant_id,
-            lambda: core.revoke_grant(payload.grant_id, actor_id=actor.user_id),
+            lambda: core.run_mutation(
+                reseller.telegram_id, lambda: core.revoke_grant(payload.grant_id, actor_id=actor.user_id)
+            ),
             message="سرویس گرفته شد و {result} یوزر حذف شد.",
         )
 
@@ -422,11 +429,14 @@ async def reseller_detail(payload: BotResellerIdRequest, request: Request) -> Bo
 @router.post("/panel/bot-resellers/suspend", response_model=ActionResponse)
 async def suspend_reseller(payload: BotResellerIdRequest, request: Request) -> ActionResponse:
     async def handle(actor: PanelActor) -> ActionResponse:
+        reseller = await BotResellerCRUD().get_reseller(payload.id)
+        if reseller is None:
+            return ActionResponse(ok=False, error=NOT_FOUND)
         return await _act(
             actor,
             "bot_reseller.suspend",
             payload.id,
-            lambda: core.suspend(payload.id),
+            lambda: core.run_mutation(reseller.telegram_id, lambda: core.suspend(payload.id)),
             message="نماینده تعلیق شد و {result} یوزر غیرفعال شد.",
         )
 
@@ -436,11 +446,14 @@ async def suspend_reseller(payload: BotResellerIdRequest, request: Request) -> A
 @router.post("/panel/bot-resellers/unsuspend", response_model=ActionResponse)
 async def unsuspend_reseller(payload: BotResellerIdRequest, request: Request) -> ActionResponse:
     async def handle(actor: PanelActor) -> ActionResponse:
+        reseller = await BotResellerCRUD().get_reseller(payload.id)
+        if reseller is None:
+            return ActionResponse(ok=False, error=NOT_FOUND)
         return await _act(
             actor,
             "bot_reseller.unsuspend",
             payload.id,
-            lambda: core.unsuspend(payload.id),
+            lambda: core.run_mutation(reseller.telegram_id, lambda: core.unsuspend(payload.id)),
             message="تعلیق برداشته شد و {result} یوزر فعال شد.",
         )
 
@@ -472,11 +485,24 @@ async def delete_reseller_user(payload: BotResellerUserIdRequest, request: Reque
         reseller = await crud.get_reseller(user.reseller_id)
         if reseller is None:
             return ActionResponse(ok=False, error=NOT_FOUND)
+
+        async def delete():
+            current_user = await crud.get_user(payload.user_id)
+            current_reseller = await crud.get_reseller(reseller.id)
+            if (
+                current_user is None
+                or current_user.deleted_at is not None
+                or current_user.reseller_id != reseller.id
+                or current_reseller is None
+            ):
+                raise core.Refused(NOT_FOUND)
+            return await core.delete_user_by_admin(current_reseller, current_user)
+
         return await _act(
             actor,
             "bot_reseller.user_delete",
             user.id,
-            lambda: core.delete_user_by_admin(reseller, user),
+            lambda: core.run_mutation(reseller.telegram_id, delete),
             message="یوزر حذف شد.",
             detail={"username": user.username},
         )

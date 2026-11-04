@@ -6,8 +6,10 @@ Everything that touches a reseller's users goes through here, so ownership, limi
 
 from __future__ import annotations
 
+import asyncio
 import re
 import time
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from pasarguard import UserCreate, UserModify
@@ -34,6 +36,12 @@ from app.db.models.bot_reseller import (
 )
 from app.logger import get_logger
 from app.services.bot_reseller import notify, panel as panel_api
+from app.services.bot_reseller.locking import (
+    MutationBusy,
+    MutationLockUnavailable,
+    ResellerMutationLease,
+    reseller_mutation_lock,
+)
 from app.utils.formatting.conversions import day_to_timestamp, gigabytes_to_bytes
 
 log = get_logger(__name__)
@@ -57,6 +65,25 @@ class Refused(Exception):
     def __init__(self, message: str, *, key: str | None = None) -> None:
         super().__init__(message)
         self.key = key
+
+
+_mutation_lease: ContextVar[ResellerMutationLease] = ContextVar("bot_reseller_mutation_lease")
+
+
+async def run_mutation(telegram_id: int, call):
+    try:
+        async with reseller_mutation_lock(telegram_id) as lease:
+            if not await BotResellerCRUD().advance_mutation_generation(telegram_id):
+                raise Refused("ثبت هماهنگی تغییرات نمایندگی ممکن نشد، دوباره تلاش کنید.")
+            token = _mutation_lease.set(lease)
+            try:
+                return await call()
+            finally:
+                _mutation_lease.reset(token)
+    except MutationBusy as exc:
+        raise Refused("درخواست قبلی شما هنوز در حال انجام است.") from exc
+    except MutationLockUnavailable as exc:
+        raise Refused("هماهنگی تغییرات نمایندگی در دسترس نیست، دوباره تلاش کنید.") from exc
 
 
 @dataclass
@@ -337,7 +364,10 @@ async def settle_user(reseller: BotReseller, user: BotResellerUser, panel_user) 
     if panel_user is None:
         return
     result = await BotResellerCRUD().apply_usage(
-        reseller.id, {user.id: panel_api.traffic_counter(panel_user)}, await prices_for(reseller.id)
+        reseller.id,
+        {user.id: panel_api.traffic_counter(panel_user)},
+        await prices_for(reseller.id),
+        expected_observations={user.id: (int(user.baseline_bytes or 0), user.observation_revision)},
     )
     if not result.ok:
         raise Refused("ثبت مصرف این یوزر ممکن نشد، دوباره تلاش کنید.")
@@ -348,6 +378,7 @@ async def create_user(
 ) -> tuple[BotResellerUser, str]:
     """Create a panel user under one of the reseller's services; returns the row and its subscription link."""
     _check_can_change(ctx)
+    generation = ctx.reseller.mutation_generation
     terms = ctx.terms(service_id)
     if terms is None:
         raise Refused("این سرویس برای شما فعال نیست.")
@@ -383,22 +414,48 @@ async def create_user(
         if status in (400, 409, 422):
             raise Refused("این نام قبلاً استفاده شده؛ نام دیگری انتخاب کنید.") from exc
         raise
-    row = await crud.add_user(
-        reseller_id=ctx.reseller.id,
-        service_id=service.id,
-        panel_code=panel.code,
-        panel_user_id=int(created.id),
-        username=username,
-        display_name=name,
-        note=(note or "").strip()[:200] or None,
-        baseline_bytes=panel_api.traffic_counter(created),
-    )
-    if row is None:
+    row = None
+    insert = None
+    try:
+        fresh = await load_context(ctx.reseller.telegram_id)
+        _check_can_change(fresh)
+        terms = fresh.terms(service_id)
+        if terms is None:
+            raise Refused("این سرویس برای شما فعال نیست.")
+        _check_limits(terms, gb, days)
+        await _mutation_lease.get().ensure_owned()
+        insert = asyncio.create_task(
+            crud.add_user(
+                expected_generation=generation,
+                reseller_id=ctx.reseller.id,
+                service_id=service.id,
+                panel_code=panel.code,
+                panel_user_id=int(created.id),
+                username=username,
+                display_name=name,
+                note=(note or "").strip()[:200] or None,
+                baseline_bytes=panel_api.traffic_counter(created),
+            )
+        )
         try:
-            await panel_api.remove_user(panel, int(created.id))
-        except Exception as cleanup:
-            log.error("bot reseller orphan cleanup failed panel_user=%s: %s", created.id, cleanup)
-        raise Refused("ثبت یوزر ممکن نشد، دوباره تلاش کنید.")
+            row = await asyncio.shield(insert)
+        except asyncio.CancelledError:
+            row = await insert
+            raise
+        if row is None:
+            raise Refused("ثبت یوزر ممکن نشد، دوباره تلاش کنید.")
+    except BaseException:
+        if row is None:
+            try:
+                persisted = insert is not None and any(
+                    u.panel_code == panel.code and u.panel_user_id == int(created.id)
+                    for u in await crud.list_users(ctx.reseller.id)
+                )
+                if not persisted:
+                    await panel_api.remove_user(panel, int(created.id))
+            except Exception as cleanup:
+                log.error("bot reseller orphan cleanup failed panel_user=%s: %s", created.id, cleanup)
+        raise
     return row, panel_api.subscription_url(panel, created)
 
 
@@ -487,7 +544,7 @@ async def _switch_users(reseller: BotReseller, *, enabled: bool, mark: str, only
     for panel_code, panel_users in by_panel.items():
         panel = await PanelsManager().get_panel_by_code(code=panel_code)
         if panel is None:
-            continue
+            raise Refused("پنل این سرویس در دسترس نیست.")
         await panel_api.bulk_set_enabled(panel, [u.panel_user_id for u in panel_users], enabled=enabled)
         await crud.set_disabled_by((u.id for u in panel_users), None if enabled else mark)
         switched += len(panel_users)
@@ -496,7 +553,8 @@ async def _switch_users(reseller: BotReseller, *, enabled: bool, mark: str, only
 
 async def freeze(reseller: BotReseller, balance: int) -> None:
     count = await _switch_users(reseller, enabled=False, mark=DISABLED_BY_SYSTEM, only_marked=False)
-    await BotResellerCRUD().update_reseller(reseller.id, status=RESELLER_FROZEN, frozen_at=_now())
+    if not await BotResellerCRUD().update_reseller(reseller.id, status=RESELLER_FROZEN, frozen_at=_now()):
+        raise Refused("ذخیره وضعیت نماینده ممکن نشد، دوباره تلاش کنید.")
     await notify.notify_reseller(reseller.telegram_id, "bot_reseller_frozen", count=count, balance=f"{balance:,}")
     await notify.log_event(
         "⛔️ قطع نمایندگی ربات (موجودی)",
@@ -506,7 +564,10 @@ async def freeze(reseller: BotReseller, balance: int) -> None:
 
 async def unfreeze(reseller: BotReseller) -> None:
     count = await _switch_users(reseller, enabled=True, mark=DISABLED_BY_SYSTEM, only_marked=True)
-    await BotResellerCRUD().update_reseller(reseller.id, status=RESELLER_ACTIVE, frozen_at=None, warned_hours=None)
+    if not await BotResellerCRUD().update_reseller(
+        reseller.id, status=RESELLER_ACTIVE, frozen_at=None, warned_hours=None
+    ):
+        raise Refused("ذخیره وضعیت نماینده ممکن نشد، دوباره تلاش کنید.")
     await notify.notify_reseller(reseller.telegram_id, "bot_reseller_unfrozen", with_panel_button=True, count=count)
 
 
@@ -518,7 +579,8 @@ async def suspend(reseller_id: int) -> int:
     if reseller.status == RESELLER_SUSPENDED:
         raise Refused("این نماینده از قبل تعلیق است.")
     count = await _switch_users(reseller, enabled=False, mark=DISABLED_BY_ADMIN, only_marked=False)
-    await crud.update_reseller(reseller.id, status=RESELLER_SUSPENDED)
+    if not await crud.update_reseller(reseller.id, status=RESELLER_SUSPENDED):
+        raise Refused("ذخیره وضعیت نماینده ممکن نشد، دوباره تلاش کنید.")
     await notify.notify_reseller(reseller.telegram_id, "bot_reseller_suspended", count=count)
     return count
 
@@ -528,6 +590,19 @@ async def unsuspend(reseller_id: int) -> int:
     reseller = await crud.get_reseller(reseller_id)
     if reseller is None or reseller.status != RESELLER_SUSPENDED:
         raise Refused("این نماینده تعلیق نیست.")
-    count = await _switch_users(reseller, enabled=True, mark=DISABLED_BY_ADMIN, only_marked=True)
-    await crud.update_reseller(reseller.id, status=RESELLER_ACTIVE)
+    balance = (await crud.balances([reseller.telegram_id])).get(reseller.telegram_id, 0)
+    if balance > 0:
+        count = await _switch_users(reseller, enabled=True, mark=DISABLED_BY_ADMIN, only_marked=True)
+        count += await _switch_users(reseller, enabled=True, mark=DISABLED_BY_SYSTEM, only_marked=True)
+        saved = await crud.update_reseller(reseller.id, status=RESELLER_ACTIVE, frozen_at=None, warned_hours=None)
+    else:
+        await _switch_users(reseller, enabled=False, mark=DISABLED_BY_SYSTEM, only_marked=True)
+        await _switch_users(reseller, enabled=False, mark=DISABLED_BY_ADMIN, only_marked=True)
+        await _switch_users(reseller, enabled=False, mark=DISABLED_BY_SYSTEM, only_marked=False)
+        users = await crud.list_users(reseller.id)
+        await crud.set_disabled_by((u.id for u in users if u.disabled_by == DISABLED_BY_ADMIN), DISABLED_BY_SYSTEM)
+        count = 0
+        saved = await crud.update_reseller(reseller.id, status=RESELLER_FROZEN, frozen_at=reseller.frozen_at or _now())
+    if not saved:
+        raise Refused("ذخیره وضعیت نماینده ممکن نشد، دوباره تلاش کنید.")
     return count

@@ -34,8 +34,8 @@ class _RunStats:
     errors: int = 0
 
 
-async def _read_counters(stats: _RunStats) -> dict[int, dict[int, int]]:
-    """reseller id -> {user row id: traffic counter} for every user the panel answered for."""
+async def _read_counters(stats: _RunStats) -> tuple[dict[int, dict[int, int]], dict[int, dict[int, tuple[int, int]]]]:
+    """Return counters and observation guards captured before panel I/O, grouped by reseller."""
     crud = BotResellerCRUD()
     users = await crud.live_users()
     stats.users = len(users)
@@ -44,6 +44,8 @@ async def _read_counters(stats: _RunStats) -> dict[int, dict[int, int]]:
         by_panel[user.panel_code].append(user)
 
     counters: dict[int, dict[int, int]] = defaultdict(dict)
+    observations = {user.id: (int(user.baseline_bytes or 0), user.observation_revision) for user in users}
+    expected: dict[int, dict[int, tuple[int, int]]] = defaultdict(dict)
     now = int(time.time())
     for panel_code, panel_users in by_panel.items():
         panel = await PanelsManager().get_panel_by_code(code=panel_code)
@@ -68,7 +70,8 @@ async def _read_counters(stats: _RunStats) -> dict[int, dict[int, int]]:
                 )
                 continue
             counters[user.reseller_id][user.id] = panel_api.traffic_counter(panel_user)
-    return counters
+            expected[user.reseller_id][user.id] = observations[user.id]
+    return counters, expected
 
 
 async def _warn_low_balance(reseller, balance: int) -> None:
@@ -102,7 +105,7 @@ async def run_bot_reseller_billing() -> None:
     crud = BotResellerCRUD()
 
     try:
-        counters = await _read_counters(stats)
+        counters, expected_observations = await _read_counters(stats)
     except Exception as exc:
         log.error("bot reseller billing read failed: %s", exc, exc_info=True)
         return
@@ -114,7 +117,12 @@ async def run_bot_reseller_billing() -> None:
             balance = balances.get(reseller.telegram_id, 0)
             user_counters = counters.get(reseller.id)
             if user_counters:
-                result = await crud.apply_usage(reseller.id, user_counters, await core.prices_for(reseller.id))
+                result = await crud.apply_usage(
+                    reseller.id,
+                    user_counters,
+                    await core.prices_for(reseller.id),
+                    expected_observations=expected_observations[reseller.id],
+                )
                 if not result.ok:
                     stats.errors += 1
                     continue
@@ -123,13 +131,28 @@ async def run_bot_reseller_billing() -> None:
                     stats.charged_resellers += 1
                     stats.charged_total += result.charged
 
-            if reseller.status == RESELLER_ACTIVE and balance <= 0:
-                if user_counters:
-                    await core.freeze(reseller, balance)
+            if (reseller.status == RESELLER_ACTIVE and balance <= 0 and user_counters) or (
+                reseller.status == RESELLER_FROZEN and balance > 0
+            ):
+
+                async def enforce(reseller_id=reseller.id, has_counters=bool(user_counters)):
+                    current = await crud.get_reseller(reseller_id)
+                    if current is None:
+                        return None
+                    current_balance = (await crud.balances([current.telegram_id])).get(current.telegram_id, 0)
+                    if current.status == RESELLER_ACTIVE and current_balance <= 0 and has_counters:
+                        await core.freeze(current, current_balance)
+                        return RESELLER_FROZEN
+                    if current.status == RESELLER_FROZEN and current_balance > 0:
+                        await core.unfreeze(current)
+                        return RESELLER_ACTIVE
+                    return None
+
+                transition = await core.run_mutation(reseller.telegram_id, enforce)
+                if transition == RESELLER_FROZEN:
                     stats.frozen += 1
-            elif reseller.status == RESELLER_FROZEN and balance > 0:
-                await core.unfreeze(reseller)
-                stats.unfrozen += 1
+                elif transition == RESELLER_ACTIVE:
+                    stats.unfrozen += 1
             elif reseller.status == RESELLER_ACTIVE and user_counters:
                 await _warn_low_balance(reseller, balance)
         except Exception as exc:
