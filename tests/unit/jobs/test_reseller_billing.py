@@ -103,3 +103,45 @@ async def test_expiry_switches_the_admin_off_or_retries(
     monkeypatch.setattr(billing, "get_reseller_admin", get_admin)
     account = SimpleNamespace(code=1, panel_admin_id=9)
     assert await billing._switch_off_for_expiry(object(), account) is switched_off
+
+
+async def test_unreachable_panel_does_not_abort_reactivation(monkeypatch):
+    # The first account's panel times out; the second account must still be reactivated.
+    accounts = [
+        SimpleNamespace(code=1, telegram_id=7, panel_code=1, pricing_mode="usage", panel_admin_id=11, plan_id=None),
+        SimpleNamespace(code=2, telegram_id=8, panel_code=1, pricing_mode="hourly", panel_admin_id=12, plan_id=None),
+    ]
+    reactivated: list[int] = []
+
+    async def fake_accounts(self, status):
+        return accounts
+
+    async def fake_panels(self):
+        return [SimpleNamespace(code=1)]
+
+    async def fake_user(self, telegram_id):
+        return SimpleNamespace(amount=1_000_000)
+
+    async def fake_plan(account, *, plans_by_id):
+        return None
+
+    async def fake_admin(panel, admin_id):
+        raise TimeoutError("panel unreachable")
+
+    async def fake_reactivate(account, panel, *, stats=None):
+        reactivated.append(account.code)
+
+    monkeypatch.setattr(billing.ResellerAccountCRUD, "get_accounts_by_status", fake_accounts)
+    monkeypatch.setattr(billing.PanelsManager, "get_all_panels", fake_panels)
+    monkeypatch.setattr(billing.UserCRUD, "read_user", fake_user)
+    monkeypatch.setattr(billing, "_resolve_plan", fake_plan)
+    monkeypatch.setattr(billing, "resolve_live_unit_price", lambda account, plan: 100)
+    monkeypatch.setattr(billing, "_reactivation_balance_needed", lambda account, *, hourly_rate: 1)
+    monkeypatch.setattr(billing, "get_reseller_admin", fake_admin)
+    monkeypatch.setattr(billing, "_reactivate_account", fake_reactivate)
+
+    stats = billing._BillingRunStats()
+    await billing._try_reactivate_suspended(None, stats=stats)
+
+    assert reactivated == [2]
+    assert stats.errors == 1

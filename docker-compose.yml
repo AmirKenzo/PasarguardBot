@@ -80,6 +80,8 @@ services:
         condition: service_healthy
     ports:
       - "${FASTAPI_PORT:-6160}:${FASTAPI_PORT:-6160}"
+    extra_hosts:
+      - "pasarguard.bot:host-gateway"
     networks:
       - pasarguardbot
 

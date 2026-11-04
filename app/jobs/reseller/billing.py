@@ -355,7 +355,14 @@ async def _try_reactivate_suspended(settings, *, stats: _BillingRunStats | None 
         if account.pricing_mode == "usage":
             # Prevent suspend/reactivate flapping: for usage accounts, require enough
             # balance to cover usage not billed yet.
-            admin = await get_reseller_admin(panel, account.panel_admin_id)
+            try:
+                admin = await get_reseller_admin(panel, account.panel_admin_id)
+            except Exception as exc:
+                # One unreachable panel must not abort billing for every other account.
+                log.warning("reactivate usage check failed account=%s: %s", account.code, exc)
+                if stats:
+                    stats.errors += 1
+                continue
             if not admin:
                 continue
             used_traffic = int(getattr(admin, "used_traffic", 0) or 0)
