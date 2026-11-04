@@ -14,10 +14,10 @@
   "dependencies": {
     "@orama/orama": "^3.1.18",
     "cnfast": "^0.2.0",
-    "fumadocs-core": "16.17.8",
+    "fumadocs-core": "16.17.9",
     "fumadocs-mdx": "15.4.10",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.11.5",
-    "lucide-react": "^1.61.0",
+    "lucide-react": "^1.66.0",
     "next": "16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -25,14 +25,14 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "postcss": "^8.5.31",
+    "postcss": "^8.5.32",
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "eslint-config-next": "16.4.3"
   }
 }
