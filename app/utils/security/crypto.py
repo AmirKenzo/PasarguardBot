@@ -27,13 +27,23 @@ def encrypt_data(data: str) -> str:
     return base64.b64encode(salt + iv + ciphertext).decode()
 
 
+class DecryptionError(ValueError):
+    """Stored ciphertext cannot be decrypted with the current crypto_key."""
+
+
 def decrypt_data(encrypted_data: str) -> str:
-    encrypted_bytes = base64.b64decode(encrypted_data)
-    salt = encrypted_bytes[:16]
-    iv = encrypted_bytes[16:32]
-    ciphertext = encrypted_bytes[32:]
-    key = generate_key(get_crypto_key(), salt)
-    cipher = Cipher(algorithms.AES(key), CFB(iv), backend=default_backend())
-    decryptor = cipher.decryptor()
-    plaintext = decryptor.update(ciphertext) + decryptor.finalize()
-    return plaintext.decode()
+    try:
+        encrypted_bytes = base64.b64decode(encrypted_data)
+        salt = encrypted_bytes[:16]
+        iv = encrypted_bytes[16:32]
+        ciphertext = encrypted_bytes[32:]
+        key = generate_key(get_crypto_key(), salt)
+        cipher = Cipher(algorithms.AES(key), CFB(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+        plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+        return plaintext.decode()
+    except ValueError as e:
+        raise DecryptionError(
+            "Stored password cannot be decrypted: crypto_key in the secrets table does not match "
+            "the key it was encrypted with. Re-enter the password or restore the original crypto_key."
+        ) from e

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db.base import AsyncSessionLocal as Session
+from app.db.models.panels import Panels
+from app.db.models.reseller_accounts import ResellerAccount
 from app.db.models.secrets import Secret
+from app.db.models.user import User
 from app.logger import get_logger
 from app.utils.security.secrets_cache import (
+    SECRET_CRYPTO_KEY,
     SECRET_NAMES,
     _cache,
     generate_secret_value,
@@ -15,6 +20,20 @@ from app.utils.security.secrets_cache import (
 )
 
 log = get_logger(__name__)
+
+
+async def _has_encrypted_data(session: AsyncSession) -> bool:
+    """True when any row holds a value encrypted with crypto_key."""
+    checks = (
+        select(Panels.code).where(Panels.password != "").limit(1),
+        select(ResellerAccount.code).where(ResellerAccount.password_encrypted != "").limit(1),
+        select(User.id).where(User.api_key_encrypted.is_not(None)).limit(1),
+    )
+    for stmt in checks:
+        if (await session.execute(stmt)).first() is not None:
+            return True
+    return False
+
 
 __all__ = [
     "SecretsCRUD",
@@ -40,6 +59,12 @@ class SecretsCRUD:
                     row = existing.get(name)
                     value = (row.value if row else "") or ""
                     if not value.strip():
+                        if name == SECRET_CRYPTO_KEY and await _has_encrypted_data(session):
+                            raise RuntimeError(
+                                "crypto_key is missing from the secrets table but encrypted data exists "
+                                "(panels / reseller accounts / API keys). Restore the original crypto_key "
+                                "value in the secrets table and restart; refusing to generate a new one."
+                            )
                         value = generate_secret_value()
                         if row is None:
                             session.add(Secret(name=name, value=value))
