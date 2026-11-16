@@ -8,11 +8,12 @@ import string
 from typing import Any
 
 from httpx import HTTPStatusError
-from pasarguard import AdminCreate, AdminModify, PasarguardAPI, RoleLimits
+from pasarguard import AdminCreate, AdminModify, RoleLimits
 
 from app.db.crud.reseller_plans import ResellerPlanManager
 from app.db.models.reseller_plans import ResellerPlan
 from app.logger import get_logger
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.auth import create_panel_api, panel_uses_api_key, refresh_panel_cookie
 from app.utils.formatting.conversions import day_to_timestamp, gigabytes_to_bytes
 

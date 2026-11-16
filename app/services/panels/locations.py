@@ -21,10 +21,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pasarguard import PasarguardAPI
-
 from app import Kenzo
 from app.db.crud.bot_texts import BotTextCRUD, panel_locations_text_key
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.nodes import filter_nodes_by_plan_type, format_node_name_for_display
 from app.services.panels.settings import (
     LOCATIONS_MODE_AUTO,

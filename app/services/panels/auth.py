@@ -2,10 +2,11 @@ import asyncio
 import contextlib
 
 from httpx import HTTPStatusError, RequestError, TimeoutException
-from pasarguard import GroupsResponse, GroupsSimpleResponse, PasarguardAPI
+from pasarguard import GroupsResponse, GroupsSimpleResponse
 from pydantic import ValidationError
 
 from app.db.crud.panels import PanelsManager
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.cookies import format_panel_cookie_validity, panel_cookie_needs_refresh
 from app.utils.security.crypto import decrypt_data
 

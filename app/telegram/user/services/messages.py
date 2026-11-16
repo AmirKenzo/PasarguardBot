@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pasarguard import PasarguardAPI, UserModify
+from pasarguard import UserModify
 from telethon import Button, events
 from telethon.tl.custom import Message
 
@@ -19,6 +19,7 @@ from app.services.billing.renewal import (
     preview_remaining_after_renewal,
     require_panel_userid,
 )
+from app.services.panels.api_client import PasarguardAPI
 from app.telegram.keyboards.buy import buy_topup_button
 from app.telegram.keyboards.common import is_keyboard_config_step
 from app.telegram.keyboards.home import bhome_buttons

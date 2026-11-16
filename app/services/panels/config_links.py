@@ -1,10 +1,11 @@
 from typing import Any
 from urllib.parse import unquote
 
-from pasarguard import ConfigFormat, PasarguardAPI
+from pasarguard import ConfigFormat
 
 from app.logger import get_logger
 from app.services.billing.renewal import require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.settings import panel_single_config_link_indexes
 
 logger = get_logger(__name__)

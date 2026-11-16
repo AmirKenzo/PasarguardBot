@@ -7,7 +7,7 @@ import time
 
 import httpx
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI, UserCreate
+from pasarguard import UserCreate
 from pasarguard.enums import UserDataLimitResetStrategy
 from telethon import Button
 from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
@@ -30,6 +30,7 @@ from app.services.billing.direct_pay_flow import (
 from app.services.billing.direct_pay_store import KIND_VPN
 from app.services.billing.referral_rewards import process_referral_reward_payout
 from app.services.billing.sticky_discount import discounted_price, get_sticky_discount
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.custom_buy import build_custom_buy_plan, is_custom_plan_id

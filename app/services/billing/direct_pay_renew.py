@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from pasarguard import PasarguardAPI
-
 from app import Kenzo
 from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.panels import PanelsManager
@@ -17,6 +15,7 @@ from app.services.billing.renewal import (
     execute_paid_service_renewal,
     require_panel_userid,
 )
+from app.services.panels.api_client import PasarguardAPI
 from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.state import clear_user
 from app.utils.formatting.conversions import convert_storage

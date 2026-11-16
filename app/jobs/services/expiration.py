@@ -1,7 +1,6 @@
 import time
 from datetime import datetime
 
-from pasarguard import PasarguardAPI
 from telethon import errors
 
 from app import Kenzo
@@ -10,6 +9,7 @@ from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import set_user_status
 from app.logger import LogTag, LogType, get_logger
 from app.services.billing.renewal import require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.settings import (
     panel_expired_auto_delete_enabled,
     panel_expired_grace_days,

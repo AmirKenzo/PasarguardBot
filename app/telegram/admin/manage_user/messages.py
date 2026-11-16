@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime, timedelta
 
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI, UserModify
+from pasarguard import UserModify
 from telethon import Button, events
 from telethon.tl.custom import Message
 
@@ -14,6 +14,7 @@ from app.db.crud.services import ServiceCRUD, get_user_services_paginated
 from app.db.crud.user import UserCRUD
 from app.logger import get_logger
 from app.services.billing.renewal import require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.services.reseller.accounts import extend_account_by_admin, set_max_users_by_admin
 from app.services.reseller.admin_tools import set_data_limit_by_admin
 from app.services.reseller.usage_cap import parse_usage_cap_gb, set_reseller_usage_cap

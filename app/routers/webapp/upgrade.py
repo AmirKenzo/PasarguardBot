@@ -7,7 +7,7 @@ callbacks (app/telegram/user/services/callbacks.py and messages.py).
 from datetime import timedelta
 
 from fastapi import APIRouter
-from pasarguard import PasarguardAPI, UserModify
+from pasarguard import UserModify
 
 from app import Kenzo
 from app.db.crud.plans import PlanManager
@@ -33,6 +33,7 @@ from app.routers.webapp.errors import internal_error
 from app.routers.webapp.services import _resolve_owned_service, ensure_service_action
 from app.services.billing.renewal import require_panel_userid
 from app.services.billing.wallet_charge import charge_then_apply
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.settings import (
     get_panel_time_plan,
     get_panel_volume_plan,

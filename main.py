@@ -102,6 +102,10 @@ async def main():
         tasks_to_gather.append(api_task)
 
     await asyncio.gather(*tasks_to_gather, return_exceptions=True)
+
+    from app.services.panels.api_client import close_shared_clients
+
+    await close_shared_clients()
     logger.info("%s Shutdown complete", LogTag.BOOT)
 
 

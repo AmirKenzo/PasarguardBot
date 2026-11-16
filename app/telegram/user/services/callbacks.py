@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI, ProxySettings, UserModify, UserResponse
+from pasarguard import ProxySettings, UserModify, UserResponse
 from telethon import Button, events
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
@@ -37,6 +37,7 @@ from app.services.billing.renewal import (
     require_panel_userid,
 )
 from app.services.billing.wallet_charge import charge_then_apply
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.config_links import fetch_user_config_links
 from app.services.panels.settings import (
     get_panel_time_plan,

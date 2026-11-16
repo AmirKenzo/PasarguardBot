@@ -4,7 +4,6 @@ Handler for user_expired webhook event.
 
 import asyncio
 
-from pasarguard import PasarguardAPI
 from telethon import errors
 
 from app import Kenzo
@@ -14,6 +13,7 @@ from app.logger import LogType, get_logger
 from app.models.router_models import WebhookEvent
 from app.routers.webhook.helpers import find_service_by_username
 from app.services.billing.renewal import require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.settings import (
     panel_expired_auto_delete_enabled,
     panel_expired_grace_days,

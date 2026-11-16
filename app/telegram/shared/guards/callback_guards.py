@@ -6,13 +6,13 @@ import contextlib
 import re
 
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI
 
 from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.services.billing.renewal import require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.settings import (
     panel_button_enabled,
     panel_has_time_plans,

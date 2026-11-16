@@ -5,13 +5,14 @@ import time
 from datetime import datetime
 from typing import Any
 
-from pasarguard import BulkUser, PasarguardAPI, PermissionScope, UserModify
+from pasarguard import BulkUser, PermissionScope, UserModify
 from telethon import events
 
 from app.db.crud.panels import PanelsManager
 from app.db.crud.services import ServiceCRUD
 from app.logger import LogType, get_logger
 from app.services.billing.renewal import require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.telegram.admin.bulk_increase import keyboards, states, texts
 from app.telegram.keyboards.admin import Panel_Admin_Buttons
 from app.telegram.shared.utils.logging import send_log_message

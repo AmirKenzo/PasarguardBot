@@ -6,7 +6,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import APIRouter
-from pasarguard import PasarguardAPI, ProxySettings, UserModify
+from pasarguard import ProxySettings, UserModify
 
 from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
@@ -33,6 +33,7 @@ from app.models.webapp import (
 from app.routers.webapp.auth import authenticate_user
 from app.routers.webapp.errors import internal_error
 from app.services.billing.renewal import require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.config_links import (
     config_link_display_name,
     fetch_service_config_links,

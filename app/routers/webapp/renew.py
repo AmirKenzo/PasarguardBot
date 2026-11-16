@@ -1,7 +1,6 @@
 """Manual renewal: options discovery and paid confirmation (locked per service)."""
 
 from fastapi import APIRouter
-from pasarguard import PasarguardAPI
 
 from app.db.crud.discount_codes import DiscountCodeManager
 from app.db.crud.panels import PanelsManager
@@ -21,6 +20,7 @@ from app.routers.webapp.errors import internal_error
 from app.routers.webapp.services import ensure_service_action
 from app.routers.webapp.state import renew_confirm_lock
 from app.services.billing.renewal import PaidRenewalError, execute_paid_service_renewal, require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.services.send_queue import enqueue
 from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_size

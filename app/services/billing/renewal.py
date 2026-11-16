@@ -5,12 +5,13 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import Any
 
-from pasarguard import PasarguardAPI, UserModify
+from pasarguard import UserModify
 from pasarguard.enums import UserDataLimitResetStrategy
 
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import debit_Money_if_sufficient, update_Money
 from app.logger import get_logger
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.settings import panel_renew_volume_remaining_mode
 from app.utils.formatting.conversions import gigabytes_to_bytes, plan_duration_to_expire
 

@@ -6,7 +6,7 @@ import contextlib
 from datetime import UTC, datetime
 from urllib.parse import unquote
 
-from pasarguard import PasarguardAPI, UserResponse
+from pasarguard import UserResponse
 from telethon import Button
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 from telethon.tl import functions, types
@@ -21,6 +21,7 @@ from app.logger import get_logger
 from app.services.billing.renewal import (
     require_panel_userid,
 )
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.config_links import fetch_user_config_links
 from app.services.subscriptions.links import (
     build_tunnel_subscription_url,

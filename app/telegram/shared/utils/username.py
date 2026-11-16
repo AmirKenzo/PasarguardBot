@@ -2,9 +2,9 @@ import re
 from typing import Any
 
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI
 
 from app.logger import get_logger
+from app.services.panels.api_client import PasarguardAPI
 from app.services.users.identifiers import generate_username
 from app.telegram.keyboards.buy import buy_cancel_button, buy_retry_username_button
 from app.telegram.state import set_step

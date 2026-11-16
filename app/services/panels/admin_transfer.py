@@ -23,12 +23,13 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from httpx import HTTPStatusError
-from pasarguard import BulkUsersSetOwner, PasarguardAPI, PermissionScope
+from pasarguard import BulkUsersSetOwner, PermissionScope
 
 from app import Kenzo
 from app.db.crud.services import ServiceCRUD
 from app.logger import LogType, get_logger
 from app.services.panels.admins import list_panel_admins
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.auth import (
     create_panel_api,
     format_exception_message,

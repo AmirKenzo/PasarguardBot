@@ -18,7 +18,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI
 
 from app.db.crud.panels import PanelsManager
 from app.db.crud.plans import PlanManager
@@ -26,6 +25,7 @@ from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.logger import get_logger
 from app.services.billing.renewal import require_panel_userid
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.settings import panel_button_enabled, panel_has_volume_plans
 
 logger = get_logger(__name__)

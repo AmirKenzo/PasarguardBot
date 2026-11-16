@@ -6,7 +6,7 @@ import contextlib
 import random
 import time
 
-from pasarguard import PasarguardAPI, UserCreate
+from pasarguard import UserCreate
 from pasarguard.enums import UserDataLimitResetStrategy
 from telethon import Button, events
 from telethon.tl.custom import Message
@@ -18,6 +18,7 @@ from app.db.crud.services import ServiceCRUD
 from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD
 from app.logger import LogType, get_logger
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.auth import PanelGroupsResponse, fetch_panel_groups_with_auth
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.settings import panel_default_group_ids, panel_test_duration_days, panel_test_volume_gb

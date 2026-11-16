@@ -7,10 +7,11 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 import pytz
-from pasarguard import PasarguardAPI, Period
+from pasarguard import Period
 from telethon import Button
 
 from app.logger import get_logger
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.nodes import format_node_name_for_display
 from app.utils.formatting.dates import Time_Date
 from app.utils.formatting.traffic import format_size

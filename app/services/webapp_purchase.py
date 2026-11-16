@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from httpx import HTTPStatusError
-from pasarguard import GroupsResponse, PasarguardAPI, UserCreate
+from pasarguard import GroupsResponse, UserCreate
 from pasarguard.enums import UserDataLimitResetStrategy
 
 from app.db.crud.discount_codes import DiscountCodeManager
@@ -17,6 +17,7 @@ from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, debit_Money_if_sufficient, update_Money
 from app.logger import LogType, get_logger
 from app.services.billing.referral_rewards import process_referral_reward_payout
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.config_links import get_selected_single_config_links_text
 from app.services.panels.locations import location_lines, resolve_plan_locations
 from app.services.panels.settings import panel_default_group_ids, panel_display_mode, panel_shop_sale_enabled

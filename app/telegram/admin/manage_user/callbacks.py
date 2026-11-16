@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI, UserModify, UserResponse
+from pasarguard import UserModify, UserResponse
 from telethon import Button, events
 
 from app.db.crud.panels import PanelsManager
@@ -19,6 +19,7 @@ from app.services.billing.renewal import require_panel_userid
 from app.services.billing.reseller_pricing import calculate_purchase_price
 from app.services.billing.reseller_renewal import renew_reseller_account
 from app.services.panels.admins import get_reseller_admin, get_reseller_admin_user_count
+from app.services.panels.api_client import PasarguardAPI
 from app.services.reseller.accounts import (
     delete_account,
     pause_account_by_admin,

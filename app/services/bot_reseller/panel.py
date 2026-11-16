@@ -7,9 +7,10 @@ from datetime import datetime
 from typing import Any
 
 from httpx import HTTPStatusError
-from pasarguard import BulkUsersSelection, PasarguardAPI, UserCreate, UserModify
+from pasarguard import BulkUsersSelection, UserCreate, UserModify
 
 from app.services.panels.admins import _with_auth_retry
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.auth import fetch_panel_groups_with_auth
 
 BATCH_SIZE = 500

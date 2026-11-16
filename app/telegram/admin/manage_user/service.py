@@ -4,7 +4,7 @@ import asyncio
 import random
 
 from httpx import HTTPStatusError
-from pasarguard import PasarguardAPI, UserCreate
+from pasarguard import UserCreate
 from pasarguard.enums import UserDataLimitResetStrategy
 from telethon import Button
 from telethon.tl.types import KeyboardInlineButtonRow, ReplyInlineMarkup
@@ -14,6 +14,7 @@ from app.db.crud.panels import PanelsManager
 from app.db.crud.services import ServiceCRUD
 from app.db.crud.user import UserCRUD
 from app.logger import LogType, get_logger
+from app.services.panels.api_client import PasarguardAPI
 from app.services.panels.auth import fetch_panel_groups_with_auth
 from app.services.panels.groups import resolve_panel_group_ids
 from app.telegram.admin.manage_user import states
