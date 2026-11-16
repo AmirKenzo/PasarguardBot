@@ -88,8 +88,17 @@ def antispam(seconds_block=10, min_interval=0.8):
     return decorator
 
 
-_last_callback_time = {}
+_last_callback_time: dict[int, float] = {}
 _debounce_seconds = 0.01
+
+
+def prune_callback_debounce(now: float | None = None, *, idle_seconds: float = 60.0) -> int:
+    """Drop debounce timestamps older than any debounce window. Returns entries removed."""
+    now = now if now is not None else time.time()
+    stale = [uid for uid, t in _last_callback_time.items() if now - t > idle_seconds]
+    for uid in stale:
+        _last_callback_time.pop(uid, None)
+    return len(stale)
 
 
 def debounce_callback(seconds: float = _debounce_seconds):

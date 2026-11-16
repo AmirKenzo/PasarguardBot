@@ -25,6 +25,15 @@ user_offline_notified: dict[str, float] = {}
 offline_notification_lock = asyncio.Lock()
 
 
+def prune_offline_notifications(now: float | None = None, *, max_age_seconds: float = 600.0) -> int:
+    """Drop offline-notice markers older than ``max_age_seconds``. Returns entries removed."""
+    now = now if now is not None else time.time()
+    stale = [k for k, v in user_offline_notified.items() if now - v > max_age_seconds]
+    for k in stale:
+        user_offline_notified.pop(k, None)
+    return len(stale)
+
+
 def _is_private_chat(update) -> bool:
     if getattr(update, "is_channel", False):
         return False

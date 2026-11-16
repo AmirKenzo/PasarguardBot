@@ -91,6 +91,29 @@ def _cleanup_spam_events(now: float) -> None:
         user_spam_events.pop(k, None)
 
 
+def prune_antispam_state(now: float | None = None, *, idle_seconds: float = 120.0) -> int:
+    """Drop per-user antispam entries that can no longer affect a decision.
+
+    These dicts are keyed by Telegram user id and would otherwise grow by one
+    entry per user who ever wrote to the bot. Returns the number of entries removed.
+    """
+    now = now if now is not None else time.time()
+    removed = 0
+    for uid in [u for u, t in user_last_message_time.items() if now - t > idle_seconds]:
+        user_last_message_time.pop(uid, None)
+        user_last_event_id.pop(uid, None)
+        removed += 1
+    for uid in [u for u in user_last_event_id if u not in user_last_message_time]:
+        user_last_event_id.pop(uid, None)
+        removed += 1
+    for uid in [u for u, until in user_blocked_until.items() if until <= now]:
+        user_blocked_until.pop(uid, None)
+        removed += 1
+    before = len(user_spam_events)
+    _cleanup_spam_events(now)
+    return removed + before - len(user_spam_events)
+
+
 def check_antispam(
     user_id: int,
     event_id: int | None,

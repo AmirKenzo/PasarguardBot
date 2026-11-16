@@ -46,6 +46,15 @@ def _set_step_local(user_id: int, value: str | None) -> None:
             _step_local.pop(uid, None)
 
 
+def prune_step_local_cache() -> int:
+    """Drop expired process-local step entries. Returns entries removed."""
+    now = time.monotonic()
+    stale = [uid for uid, (t, _) in _step_local.items() if now - t > _STEP_LOCAL_TTL_SEC]
+    for uid in stale:
+        _step_local.pop(uid, None)
+    return len(stale)
+
+
 def _serialize(value: Any) -> str:
     if isinstance(value, (dict, list)):
         return json.dumps(value, ensure_ascii=False)

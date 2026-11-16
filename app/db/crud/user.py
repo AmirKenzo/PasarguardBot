@@ -59,6 +59,21 @@ def _set_status_local(user_id: int, value: str | None) -> None:
             _status_local.pop(uid, None)
 
 
+def prune_user_local_caches() -> int:
+    """Drop expired status / session-version entries. Returns entries removed."""
+    now = time.monotonic()
+    removed = 0
+    for cache, ttl in (
+        (_status_local, _STATUS_LOCAL_TTL_SEC),
+        (_session_version_local, _SESSION_VERSION_LOCAL_TTL_SEC),
+    ):
+        stale = [uid for uid, (t, _) in cache.items() if now - t > ttl]
+        for uid in stale:
+            cache.pop(uid, None)
+        removed += len(stale)
+    return removed
+
+
 def _user_has_active_status_expr():
     return or_(User.status.is_(None), User.status.notin_(INACTIVE_USER_STATUSES))
 
