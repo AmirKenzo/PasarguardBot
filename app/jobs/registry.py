@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 from app.jobs.backup import bootstrap_backup_job, register_backup_job_placeholder
+from app.jobs.memory import memory_housekeeping
 from app.jobs.panels.cleanup import get_cookies
 from app.jobs.payments.transactions import (
     auto_confirm_job,
@@ -57,6 +58,7 @@ def register_all_jobs() -> None:
         (run_reseller_billing, "interval", {"seconds": 60}, "reseller_billing"),
         (run_bot_reseller_billing, "interval", {"seconds": 60}, "bot_reseller_billing"),
         (run_reseller_low_balance_warning, "interval", {"minutes": 5}, "reseller_low_balance_warning"),
+        (memory_housekeeping, "interval", {"minutes": 5}, "memory_housekeeping"),
     ]
 
     for i, (func, trigger, trigger_args, job_id) in enumerate(job_defs):
