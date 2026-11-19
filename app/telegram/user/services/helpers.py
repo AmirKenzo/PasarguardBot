@@ -466,7 +466,7 @@ async def check_user_balance(user_id, required_amount):
 
     if balance < 0:
         return False, "موجودی شما منفی است. لطفاً موجودی خود را بررسی کنید."  # Negative balance
-    if balance == 0 or balance < required:
+    if balance < required:
         # Message to redirect to balance increase section
         message = f"‼️ موجودی کیف پول شما کافی نیست\n\n💰 برای خرید این پلان شما باید ({required:,} تومان) موجودی داشته باشید.\n\n📌 برای افزایش موجودی، روی دکمه 'افزایش موجودی' کلیک کنید و پس از افزایش با یکی از روش‌های پرداخت، مجدد مراحل خرید را طی کنید."
         return False, message

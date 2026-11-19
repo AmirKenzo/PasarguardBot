@@ -95,7 +95,7 @@ async def check_user_balance(user_id: int, required_amount: int):
     required = int(required_amount)
     if balance < 0:
         return False, "موجودی شما منفی است. لطفاً موجودی خود را بررسی کنید."
-    if balance == 0 or balance < required:
+    if balance < required:
         return False, ""
     return True, "موجودی کافی است."
 
