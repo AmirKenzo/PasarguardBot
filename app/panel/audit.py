@@ -6,7 +6,8 @@ import json
 import time
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.base import AsyncSessionLocal as Session
 from app.db.models.audit import AuditLog
@@ -70,6 +71,18 @@ async def list_entries(
         total = int((await session.execute(count_stmt)).scalar() or 0)
         rows = (await session.execute(rows_stmt)).scalars().all()
     return list(rows), total
+
+
+async def purge_before(cutoff_ts: int) -> int:
+    """Delete audit entries created before ``cutoff_ts``. Returns the removed row count, 0 on failure."""
+    try:
+        async with Session() as session:
+            result = await session.execute(delete(AuditLog).where(AuditLog.created_at < cutoff_ts))
+            await session.commit()
+            return int(result.rowcount or 0)
+    except SQLAlchemyError as exc:
+        log.error("panel: could not purge old audit entries: %s", exc)
+        return 0
 
 
 async def known_actions() -> list[str]:

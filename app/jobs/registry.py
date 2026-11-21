@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+from app.jobs.audit import purge_old_audit_logs
 from app.jobs.backup import bootstrap_backup_job, register_backup_job_placeholder
 from app.jobs.memory import memory_housekeeping
 from app.jobs.panels.cleanup import get_cookies
@@ -59,6 +60,7 @@ def register_all_jobs() -> None:
         (run_bot_reseller_billing, "interval", {"seconds": 60}, "bot_reseller_billing"),
         (run_reseller_low_balance_warning, "interval", {"minutes": 5}, "reseller_low_balance_warning"),
         (memory_housekeeping, "interval", {"minutes": 5}, "memory_housekeeping"),
+        (purge_old_audit_logs, "interval", {"hours": 6}, "purge_old_audit_logs"),
     ]
 
     for i, (func, trigger, trigger_args, job_id) in enumerate(job_defs):
