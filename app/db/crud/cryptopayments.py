@@ -21,6 +21,11 @@ AMOUNT_MATCH_TOLERANCE = Decimal("0.000001")
 UNIQUE_AMOUNT_ATTEMPTS = 10
 # Pause before re-checking when only higher order ids clash, so they can move first.
 _CLASH_YIELD_SECONDS = 0.1
+# Quiet re-checks (no other pending amount changed) before the lower invoice moves itself;
+# a higher invoice that stays put has already settled and will not move again.
+_CLASH_MAX_QUIET_YIELDS = 3
+# Upper bound on clash re-checks, so steady unrelated traffic cannot keep one invoice waiting.
+_CLASH_MAX_CHECKS = 50
 
 AmountPicker = Callable[[set[str]], Awaitable[float]]
 
@@ -303,19 +308,29 @@ async def add_order_with_unique_amount(
         return saved
 
     try:
-        yielded = False
-        for _ in range(attempts):
+        moves = 0
+        quiet_yields = 0
+        previous_others: set[str] | None = None
+        for _ in range(_CLASH_MAX_CHECKS):
+            if moves >= attempts:
+                break
             lower, higher, others = await _clashing_order_ids(arz_upper, order_id, amount)
             if not lower and not higher:
                 saved["record"]["amount"] = amount
                 return saved
-            if not lower and not yielded:
+            if not lower:
                 # Only higher ids clash: let them move first. If every clashing invoice moved,
                 # a deterministic picker could send them all to the same new amount each time.
-                yielded = True
-                await asyncio.sleep(_CLASH_YIELD_SECONDS)
-                continue
-            yielded = False
+                # Keep waiting while the others are still changing; slow databases can take
+                # longer than one pause for them to re-pick.
+                quiet_yields = 0 if others != previous_others else quiet_yields + 1
+                previous_others = others
+                if quiet_yields < _CLASH_MAX_QUIET_YIELDS:
+                    await asyncio.sleep(_CLASH_YIELD_SECONDS)
+                    continue
+            quiet_yields = 0
+            previous_others = None
+            moves += 1
             amount = await pick_amount(others)
             await _set_pending_amount(order_id, str(amount))
     except (SQLAlchemyError, ValueError) as e:
