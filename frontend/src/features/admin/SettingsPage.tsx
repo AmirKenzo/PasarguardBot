@@ -39,6 +39,7 @@ const labels = (t: TFunction): Record<string, string> => ({
   sale_mode: t("panel.settings.salesEnabled"),
   single_panel_buy_mode: t("panel.settings.singlePanelPurchase"),
   channel_lock: t("panel.settings.channelLock"),
+  games_mode: t("panel.settings.gamesMode"),
   miniapp_mode: t("panel.settings.miniappMode"),
   start_reaction_emoji: t("panel.settings.startReactionEmoji"),
   start_effect_id: t("panel.settings.startEffectId"),

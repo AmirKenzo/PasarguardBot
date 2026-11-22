@@ -885,6 +885,7 @@
       "backupInterval": "Backup interval (hours)",
       "salesEnabled": "Sales enabled",
       "channelLock": "Channel membership lock",
+      "gamesMode": "Games (/games)",
       "tronPrice": "TRX price",
       "tonPrice": "TON price",
       "polPrice": "POL price",

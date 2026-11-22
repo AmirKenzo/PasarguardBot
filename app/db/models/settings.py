@@ -27,6 +27,7 @@ DEFAULT_CORE_SETTINGS: dict[str, Any] = {
     # message with. Empty or 0 turns each one off on its own.
     "start_reaction_emoji": "🔥",
     "start_effect_id": 5046509860389126442,
+    "games_mode": True,
     "backup_interval_hours": 24,
     "api_key_login_mode": "none",
     "pwa_app_name": "PasarguardBot WebApp",

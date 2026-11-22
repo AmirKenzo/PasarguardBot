@@ -10,7 +10,9 @@ from telethon import Button, events
 from telethon.tl.functions.messages import SendMediaRequest
 from telethon.tl.types import InputMediaDice
 
+from app.db.crud.settings import SettingsManager
 from app.db.crud.user import UserCRUD, update_Money
+from app.db.models.settings import DEFAULT_CORE_SETTINGS
 from app.logger import LogType, get_logger
 from app.telegram.plugins import PluginContext
 from app.telegram.shared.utils.logging import send_log_message
@@ -41,6 +43,7 @@ GAMES_MENU = (
     "✂️ سنگ کاغذ قیچی - رقابت با ربات\n"
     "💡 هر بازی روزی یکبار قابل انجام است!"
 )
+GAMES_DISABLED_TEXT = "🎮 بخش بازیها در حال حاضر غیرفعال است."
 RPS_HEADER = "✂️ **بازی سنگ کاغذ قیچی** ✂️\n\n"
 
 
@@ -107,8 +110,25 @@ async def _roll(event, emoji: str) -> int:
     return updates.updates[1].message.media.value
 
 
+async def _games_enabled() -> bool:
+    settings = await SettingsManager().get_settings()
+    default = DEFAULT_CORE_SETTINGS["games_mode"]
+    return bool(default if settings is None else getattr(settings, "games_mode", default))
+
+
+async def _callback_blocked(event) -> bool:
+    """Answer a game callback with an alert while the games are turned off."""
+    if await _games_enabled():
+        return False
+    await event.answer(GAMES_DISABLED_TEXT, alert=True)
+    return True
+
+
 @bot_is_offline
 async def games_command(event) -> None:
+    if not await _games_enabled():
+        await event.reply(GAMES_DISABLED_TEXT)
+        raise events.StopPropagation
     await event.reply(GAMES_MENU, buttons=_menu_buttons())
     raise events.StopPropagation
 
@@ -116,11 +136,16 @@ async def games_command(event) -> None:
 @bot_is_offline
 @debounce_callback()
 async def back_to_games(event) -> None:
+    if await _callback_blocked(event):
+        return
     await event.edit(GAMES_MENU, buttons=_menu_buttons())
 
 
 @bot_is_offline
 async def dice_shortcut(event) -> None:
+    if not await _games_enabled():
+        await event.reply(GAMES_DISABLED_TEXT)
+        raise events.StopPropagation
     user_id = event.sender_id
     user = await UserCRUD().read_user(user_id)
     remaining = _remaining(user.last_dice_roll if user else None)
@@ -154,6 +179,8 @@ async def dice_shortcut(event) -> None:
 @bot_is_offline
 @debounce_callback()
 async def play_game(event) -> None:
+    if await _callback_blocked(event):
+        return
     game_key = event.data.decode().split("_", 1)[1]
     user_id = event.sender_id
     user = await UserCRUD().read_user(user_id)
@@ -193,6 +220,8 @@ async def play_game(event) -> None:
 @bot_is_offline
 @debounce_callback()
 async def rps_choice(event) -> None:
+    if await _callback_blocked(event):
+        return
     choice = event.data.decode().split("_", 1)[1]
     if choice not in RPS_BEATS:
         return
