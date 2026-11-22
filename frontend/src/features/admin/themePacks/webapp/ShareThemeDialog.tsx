@@ -25,7 +25,7 @@ export function ShareThemeDialog({ item, onClose }: ShareThemeDialogProps) {
   const [share, setShare] = useState<WebappThemeShareResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const themeId = item?.entry?.id ?? null;
-  const k = (key: string, options?: Record<string, unknown>) => t(`panel.webappThemes.share.${key}`, options);
+  const k = (key: string, options?: Record<string, unknown>) => t(`panel.webappThemes.share.${key}`, options ?? {});
 
   useEffect(() => {
     setShare(null);

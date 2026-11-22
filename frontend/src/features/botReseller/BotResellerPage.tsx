@@ -38,6 +38,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge, Button, Card, CopyField, Pagination, ProgressRing, Sheet, SkeletonCard, Tabs } from "../../components/ui";
@@ -469,7 +470,7 @@ function useNow(intervalMs = 30_000): number {
   return now;
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TFunction;
 
 function formatRemaining(expire: number | null, now: number, t: Translate): string {
   if (!expire) return t("botReseller.remaining.unlimited");

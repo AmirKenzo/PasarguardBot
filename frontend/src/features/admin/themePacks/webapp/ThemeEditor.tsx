@@ -73,7 +73,7 @@ function HexField({ value, label, onCommit }: { value: string; label: string; on
 export function ThemeEditor({ draft, scheme, onSchemeChange, onChange, onCancel, onSave, saving }: ThemeEditorProps) {
   const { t } = useTranslation();
   const palette = draft.theme[scheme];
-  const k = (key: string, options?: Record<string, unknown>) => t(`panel.webappThemes.editor.${key}`, options);
+  const k = (key: string, options?: Record<string, unknown>) => t(`panel.webappThemes.editor.${key}`, options ?? {});
 
   const update = (theme: WebappTheme, name = draft.name) => onChange({ ...draft, name, theme, dirty: true });
 

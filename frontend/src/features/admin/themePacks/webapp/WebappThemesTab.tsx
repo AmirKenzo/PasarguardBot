@@ -48,7 +48,7 @@ export function WebappThemesTab() {
 
   const overview = query.data;
   const library = useMemo(() => buildLibrary(t, overview?.themes ?? []), [t, overview?.themes]);
-  const k = (key: string, values?: Record<string, unknown>) => t(`panel.webappThemes.${key}`, values);
+  const k = (key: string, values?: Record<string, unknown>) => t(`panel.webappThemes.${key}`, values ?? {});
 
   if (query.isLoading) {
     return (

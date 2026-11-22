@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ChevronLeft, CreditCard, DollarSign, Gem, History, Star, Zap } from "lucide-react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Card, EmptyState, IconBadge } from "../../components/ui";
@@ -105,7 +106,7 @@ function hasAnyMethod(methods: NonNullable<ReturnType<typeof useBalanceMethodsQu
   );
 }
 
-function bonusText(percent: number, t: (key: string, opts?: Record<string, unknown>) => string) {
+function bonusText(percent: number, t: TFunction) {
   return percent ? t("balanceHub.bonus", { percent }) : "";
 }
 

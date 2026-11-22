@@ -22,7 +22,7 @@ export function ImportThemeDialog({ open, onClose, onImport, saving }: ImportThe
   const [pasted, setPasted] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedShare | null>(null);
-  const k = (key: string, options?: Record<string, unknown>) => t(`panel.webappThemes.import.${key}`, options);
+  const k = (key: string, options?: Record<string, unknown>) => t(`panel.webappThemes.import.${key}`, options ?? {});
 
   useEffect(() => {
     if (!open) return;
