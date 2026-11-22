@@ -137,6 +137,7 @@ async def _is_reserved_text(msg: str) -> bool:
         "/mywallet",
         "/games",
         "/dice",
+        "/redeem",
         "/listapps",
     )
 

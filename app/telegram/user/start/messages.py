@@ -29,6 +29,7 @@ from app.telegram.shared.utils.help_download import download_app_file
 from app.telegram.shared.utils.logging import send_log_message
 from app.telegram.shared.utils.maintenance import bot_is_offline
 from app.telegram.state import clear_user, get_step, set_step
+from app.telegram.user.gift_codes import parse_gift_start_param, redeem_for_user
 from app.telegram.user.start import helpers
 from app.utils.formatting.dates import Time_Date
 
@@ -158,11 +159,14 @@ async def start_command_handler(event: Message):
     if app_key:
         await download_app_file(event, app_key)
     else:
+        gift_code = parse_gift_start_param(param)
         if helpers.parse_discount_start_param(param):
             await helpers.handle_discount_start_param(event.sender_id, param)
-        elif param and not is_documented_start_param(param):
+        elif gift_code is None and param and not is_documented_start_param(param):
             logger.info("Unknown start param %r — showing welcome menu", param)
         await helpers.send_welcome_menu(event, welcome_text, lang)
+        if gift_code:
+            await Kenzo.send_message(event.sender_id, await redeem_for_user(event.sender_id, gift_code))
 
     raise events.StopPropagation
 
