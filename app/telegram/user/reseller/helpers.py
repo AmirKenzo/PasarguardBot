@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import pytz
 from telethon import events
+from telethon.errors import MessageNotModifiedError
 from telethon.tl import functions, types
 
 from app import Kenzo
@@ -146,7 +147,11 @@ async def reseller_flow_edit(event, text: str, *, buttons=None):
 
     user_id = event.sender_id
     if isinstance(event, events.CallbackQuery.Event):
-        msg = await event.edit(text, buttons=buttons)
+        try:
+            msg = await event.edit(text, buttons=buttons)
+        except MessageNotModifiedError:
+            await event.answer()
+            msg = await event.get_message()
         await set_data(user_id, RESELLER_FLOW_MSG_KEY, str(msg.id))
         return msg
 
