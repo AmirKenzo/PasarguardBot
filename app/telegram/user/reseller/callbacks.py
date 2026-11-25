@@ -965,12 +965,13 @@ async def reseller_buy_callback(event: events.CallbackQuery.Event):
 
 async def _prompt_reseller_username(event, plan):
     user_id = event.sender_id
+    panel_code = await get_data(user_id, "reseller_panel_code")
     await reseller_flow_edit(
         event,
         "**👤 نام کاربری ادمین پنل**\n\nنام کاربری دلخواه را ارسال کنید یا از دکمه زیر استفاده کنید:",
         buttons=[
             [await rs_buttons.rs_buy_random_username_button()],
-            [await rs_buttons.rs_buy_back_button(f"ResellerPlan_{plan.id}")],
+            [await rs_buttons.rs_buy_back_button(f"ResellerPanel_{panel_code}")],
         ],
     )
     await set_step(user_id, "reseller_enter_username")
